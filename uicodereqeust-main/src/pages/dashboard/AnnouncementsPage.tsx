@@ -111,21 +111,23 @@ export default function AnnouncementsPage() {
     <div className="space-y-8 max-w-6xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-700 pb-12">
       
       {/* Premium Header */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-8 sm:p-10 shadow-2xl shadow-slate-900/20">
-        <div className="absolute top-0 right-0 -mt-20 -mr-20 h-64 w-64 rounded-full bg-emerald-500/20 blur-3xl"></div>
-        <div className="absolute bottom-0 left-0 -mb-20 -ml-20 h-64 w-64 rounded-full bg-blue-500/20 blur-3xl"></div>
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-5 sm:p-6 shadow-xl shadow-slate-900/10">
+        <div className="absolute top-0 right-0 -mt-10 -mr-10 h-32 w-32 rounded-full bg-emerald-500/20 blur-2xl"></div>
+        <div className="absolute bottom-0 left-0 -mb-10 -ml-10 h-32 w-32 rounded-full bg-blue-500/20 blur-2xl"></div>
         
-        <div className="relative z-10">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/20 backdrop-blur-md mb-4">
-            <Megaphone className="h-4 w-4 text-emerald-400" />
-            <span className="text-xs font-bold text-slate-200 uppercase tracking-widest">Broadcast Center</span>
+        <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white/10 border border-white/20 backdrop-blur-md mb-2">
+              <Megaphone className="h-3 w-3 text-emerald-400" />
+              <span className="text-[10px] font-bold text-slate-200 uppercase tracking-widest">Broadcast Center</span>
+            </div>
+            <h1 className="text-2xl font-black text-white tracking-tight sm:text-3xl mb-1">
+              Announcements
+            </h1>
+            <p className="text-xs sm:text-sm font-medium text-slate-400 max-w-xl">
+              Create, manage, and dispatch real-time alerts to all hospital portals. Ensure your network is always informed.
+            </p>
           </div>
-          <h1 className="text-3xl font-black text-white tracking-tight sm:text-4xl lg:text-5xl mb-2">
-            Announcements
-          </h1>
-          <p className="text-sm sm:text-base font-medium text-slate-400 max-w-xl">
-            Create, manage, and dispatch real-time alerts to all hospital portals. Ensure your network is always informed.
-          </p>
         </div>
       </div>
 
