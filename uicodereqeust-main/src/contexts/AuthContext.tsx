@@ -217,6 +217,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       handleSession(null);
       await supabase.auth.signOut({ scope: "local" });
+      if (typeof window !== "undefined") {
+        window.location.href = "/login";
+      }
     } catch (error) {
       console.error("AuthContext idle signOut failed", error);
     }
@@ -285,9 +288,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }, maxLifetimeRemaining);
     };
 
+    let lastActivityUpdate = 0;
     const updateActivity = () => {
+      const now = Date.now();
+      if (now - lastActivityUpdate < 2000) return; // Throttle to prevent flooding event loop on scroll/touch
+      lastActivityUpdate = now;
+
       if (checkSessionExpiry()) return;
-      window.localStorage.setItem(lastActivityStorageKey, String(Date.now()));
+      window.localStorage.setItem(lastActivityStorageKey, String(now));
       scheduleTimeouts();
     };
 
