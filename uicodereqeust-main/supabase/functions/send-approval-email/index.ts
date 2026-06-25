@@ -49,6 +49,13 @@ serve(async (req) => {
       );
     }
 
+    if (patientEmail === "no-email@medicode.com") {
+      return new Response(
+        JSON.stringify({ success: true, message: "Skipped approval email for placeholder address" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
     const patientName = request.patient_name || "Patient";
     const diagnosis = request.diagnosis || "Not specified";
     const hospitalName = request.hospital_name || "N/A";

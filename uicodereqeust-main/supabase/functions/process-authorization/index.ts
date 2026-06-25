@@ -244,14 +244,21 @@ serve(async (req) => {
         void invokeFunction("send-referral-notification", {
           authorization_id: requestRow.id,
         });
+      } else if (!finalReferredHospitalId && requestRow.patient_email) {
+        // Standard approval email for non-referrals
+        void invokeFunction("send-approval-email", {
+          authorization_id: requestRow.id,
+        });
+      }
 
-        // 2. Pre-generate OTP so it appears immediately in nurse queue
+      // 2. Pre-generate OTP so it appears immediately in nurse queue
+      if (requestRow.patient_email) {
         void invokeFunction("send-otp", {
           authorization_id: requestRow.id,
           patient_email: requestRow.patient_email,
           policy_number: requestRow.policy_number,
           otp_type: "ARRIVAL",
-          hospital_id: finalReferredHospitalId,
+          hospital_id: finalReferredHospitalId || requestRow.hospital_id,
         });
       }
 
