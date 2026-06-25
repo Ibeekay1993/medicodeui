@@ -96,6 +96,7 @@ export default function TreatmentSection({
           <div className="divide-y divide-slate-50">
             {treatResults.map((item, i) => (
               <button
+                type="button"
                 key={i}
                 onMouseDown={(e) => {
                   e.preventDefault();
@@ -133,6 +134,7 @@ export default function TreatmentSection({
               </div>
               <div className="flex items-center gap-1 shrink-0">
                 <button
+                  type="button"
                   onClick={() => changeQty(t.code, -1)}
                   className="h-6 w-6 rounded-md bg-white border border-slate-200 hover:border-slate-300 flex items-center justify-center"
                   aria-label={`Decrease quantity of ${t.name}`}
@@ -158,6 +160,7 @@ export default function TreatmentSection({
                   style={{ MozAppearance: "textfield" }}
                 />
                 <button
+                  type="button"
                   onClick={() => changeQty(t.code, 1)}
                   className="h-6 w-6 rounded-md bg-white border border-slate-200 hover:border-slate-300 flex items-center justify-center"
                 >

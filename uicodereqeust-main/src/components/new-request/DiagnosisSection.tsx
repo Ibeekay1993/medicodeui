@@ -77,6 +77,7 @@ export default function DiagnosisSection({
           <div className="divide-y divide-slate-50">
             {diagSuggestions.map((d, i) => (
               <button
+                type="button"
                 key={i}
                 onMouseDown={(e) => {
                   e.preventDefault();
@@ -91,6 +92,7 @@ export default function DiagnosisSection({
             {diagnosisSearch.trim().length >= 2 &&
               !DIAGNOSES.some((d) => d.toLowerCase() === diagnosisSearch.trim().toLowerCase()) && (
                 <button
+                  type="button"
                   onMouseDown={(e) => {
                     e.preventDefault();
                     addDiagnosis(diagnosisSearch);

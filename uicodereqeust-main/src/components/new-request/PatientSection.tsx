@@ -73,6 +73,7 @@ export default function PatientSection({
           <div className="divide-y divide-slate-50">
             {patientResults.map((p, i) => (
               <button
+                type="button"
                 key={i}
                 onMouseDown={(e) => {
                   e.preventDefault();
@@ -104,6 +105,7 @@ export default function PatientSection({
             </div>
           </div>
           <button
+            type="button"
             onClick={() => setSelectedPatient(null)}
             className="text-emerald-300 hover:text-rose-500 transition-colors ml-3"
             aria-label={`Deselect patient ${selectedPatient.full_name}`}

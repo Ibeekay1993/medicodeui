@@ -285,6 +285,12 @@ export default function HospitalNewRequest() {
   };
 
   const onSubmit = async (data: HospitalRequestFormValues) => {
+    // If somehow the form submits before step 4 (e.g., pressing Enter), just advance step
+    if (step !== 4) {
+      handleNextStep();
+      return;
+    }
+
     // Double check email validation logic
     if (!data.noEmail && (!data.patientEmail || !isValidEmail(data.patientEmail))) {
       toast({ variant: "destructive", title: "Invalid email", description: "Enter a valid patient email address for OTP verification." });
