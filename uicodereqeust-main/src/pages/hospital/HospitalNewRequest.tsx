@@ -265,10 +265,22 @@ export default function HospitalNewRequest() {
     } else {
       // Show error toast if they try to proceed with invalid data
       const errors = form.formState.errors;
-      const firstError = Object.values(errors)[0]?.message;
-      if (firstError) {
-        toast({ variant: "destructive", title: "Validation Error", description: firstError as string });
+      let errMsg = "Please check all fields";
+      const firstVal: any = Object.values(errors)[0];
+      
+      if (firstVal?.message) {
+        errMsg = firstVal.message;
+      } else if (Array.isArray(firstVal)) {
+        const firstErrInArray = firstVal.find((e: any) => e !== undefined);
+        if (firstErrInArray) {
+          const nestedErr = Object.values(firstErrInArray)[0] as any;
+          errMsg = nestedErr?.message || errMsg;
+        }
+      } else if (firstVal?.root?.message) {
+        errMsg = firstVal.root.message;
       }
+
+      toast({ variant: "destructive", title: "Validation Error", description: errMsg });
     }
   };
 

@@ -90,8 +90,8 @@ export const hospitalRequestSchema = z.object({
     code: z.string(),
     name: z.string(),
     amount: z.coerce.number().min(0),
-    category: z.string().optional(),
-    subcategory: z.string().optional(),
+    category: z.string().nullable().optional(),
+    subcategory: z.string().nullable().optional(),
     quantity: z.number().int().positive().min(1).max(999)
   })).min(1, "At least one treatment item is required"),
   treatSearch: z.string().optional(),
