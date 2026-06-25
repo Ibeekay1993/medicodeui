@@ -285,7 +285,7 @@ export function LiveChat() {
                 <div className="flex h-40 items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-emerald-600" /></div>
               ) : messages.length === 0 ? (
                 <div className="rounded-2xl border border-slate-100 bg-white p-4 text-xs font-bold text-slate-500">
-                  Send a message and the nurse/support team will see it in the Messages inbox.
+                  Send a message and the utilization manager/support team will see it in the Messages inbox.
                 </div>
               ) : messages.map((msg) => {
                 const mine = msg.sender_id === user?.id;

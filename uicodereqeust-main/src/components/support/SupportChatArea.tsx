@@ -766,7 +766,7 @@ export function SupportChatArea({
                 : isMsgHospital
                 ? "HOSPITAL"
                 : msg.sender_role === "nurse"
-                ? "NURSE"
+                ? "UTIL MGR"
                 : msg.sender_role === "claims"
                 ? "CLAIMS"
                 : msg.sender_role === "admin"

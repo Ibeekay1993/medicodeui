@@ -74,7 +74,7 @@ export function useClinicalActions({
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
 
-  const nurseDisplayName = fullName || user?.user_metadata?.full_name || user?.email || "Unknown nurse";
+  const nurseDisplayName = fullName || user?.user_metadata?.full_name || user?.email || "Unknown Utilization Manager";
   const nurseInitials = getInitials(nurseDisplayName);
 
   // Initialize form fields when modal opens/changes

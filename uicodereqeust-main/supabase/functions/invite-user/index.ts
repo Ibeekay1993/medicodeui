@@ -125,7 +125,7 @@ serve(async (req) => {
     const roleDisplayNames: Record<string, string> = {
       admin: "Administrator",
       hospital: "Hospital Representative",
-      nurse: "Clinical Nurse",
+      nurse: "Utilization Manager",
       claims: "Claims Officer",
       finance: "Finance Officer",
     };

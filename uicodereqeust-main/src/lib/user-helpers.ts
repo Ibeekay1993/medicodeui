@@ -1,7 +1,7 @@
 export const availableRoles = [
   { value: "admin", label: "Super Admin" },
   { value: "hospital", label: "Hospital Admin" },
-  { value: "nurse", label: "Clinical Nurse" },
+  { value: "nurse", label: "Utilization Manager" },
   { value: "claims", label: "Claims Auditor" },
   { value: "finance", label: "Finance Officer" },
 ];

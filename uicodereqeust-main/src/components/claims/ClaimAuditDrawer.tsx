@@ -434,7 +434,7 @@ export default function ClaimAuditDrawer({
                               </div>
                               {item.code && <p className="text-xs font-mono font-bold text-blue-500 mt-1">Code: {item.code}</p>}
                               <p className="text-xs font-semibold text-slate-500 mt-1">
-                                {isPreDeclined ? "Declined by Nurse during Pre-Auth" : `Approved: ${qty} of ${originalQty} unit${originalQty > 1 ? 's' : ''}`}
+                                {isPreDeclined ? "Declined by Utilization Manager during Pre-Auth" : `Approved: ${qty} of ${originalQty} unit${originalQty > 1 ? 's' : ''}`}
                               </p>
                               {decision.reasonCategory && !isPreDeclined && <p className="mt-1.5 text-xs font-semibold leading-snug text-rose-650">Category: {decision.reasonCategory}</p>}
                               {decision.reason && !isPreDeclined && <p className={cn("mt-1 text-xs font-semibold leading-snug", isDeclined ? "text-rose-600" : "text-amber-600")}>Reason: {decision.reason}</p>}

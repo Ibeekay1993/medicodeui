@@ -61,6 +61,16 @@ export default function HospitalNewRequest() {
   const [hospital, setHospital] = useState<any>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [step, setStep] = useState(1);
+  const [canSubmit, setCanSubmit] = useState(false);
+
+  useEffect(() => {
+    if (step === 4) {
+      const t = setTimeout(() => setCanSubmit(true), 800);
+      return () => clearTimeout(t);
+    } else {
+      setCanSubmit(false);
+    }
+  }, [step]);
 
   const draftKey = user?.id ? `ronsberger:hospital-new-request:${user.id}` : null;
 
@@ -623,8 +633,8 @@ export default function HospitalNewRequest() {
             ) : (
               <Button
                 type="submit"
-                disabled={isSubmitting}
-                className="h-12 px-10 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-xs font-black uppercase tracking-widest active:scale-95 transition-all"
+                disabled={isSubmitting || !canSubmit}
+                className={`h-12 px-10 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-xs font-black uppercase tracking-widest transition-all ${!canSubmit && !isSubmitting ? 'opacity-50 cursor-not-allowed' : 'active:scale-95'}`}
               >
                 {isSubmitting ? "Submitting..." : "Submit Request"}
               </Button>
