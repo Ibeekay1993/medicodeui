@@ -71,7 +71,7 @@ export function EditUserModal({
         full_name: user.full_name || "",
         email: user.email || "",
         phone: user.phone || "",
-        role: user.role || "utilization_manager",
+        role: user.role || "nurse",
         hospital_id: user.hospital_id || "",
       });
       const matched = hospitals.find((h) => h.id === user.hospital_id);
@@ -81,7 +81,7 @@ export function EditUserModal({
         full_name: "",
         email: "",
         phone: "",
-        role: "utilization_manager",
+        role: "nurse",
         hospital_id: "",
       });
       setEditHospitalSearch("");

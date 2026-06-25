@@ -96,7 +96,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         if (!latestByConversation.has(msg.conversation_id)) latestByConversation.set(msg.conversation_id, msg);
       });
 
-      const staffRoles = ["admin", "utilization_manager", "claims", "finance"];
+      const staffRoles = ["admin", "nurse", "claims", "finance"];
       const needsAttentionStatuses = ["new", "open", "reopened", "waiting_internal_action", "pending"];
       const hospitalWaitingStatuses = ["pending_customer_response", "open", "reopened"];
       const count = (conversations || []).filter((conversation: any) => {
@@ -139,7 +139,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       channels.push(nameChannel);
     }
 
-    if (role === "admin" || role === "utilization_manager") {
+    if (role === "admin" || role === "nurse") {
       const authInsertChannel = supabase
         .channel("realtime-dashboard-auth-requests-insert")
         .on("postgres_changes", { event: "INSERT", schema: "public", table: "authorization_requests" }, (payload) => {
@@ -170,9 +170,9 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         if (msg.sender_id === user.id) return;
         const currentRole = role as string;
         const senderIsHospital = msg.sender_role === "hospital";
-        const userIsStaff = ["admin", "utilization_manager", "claims", "finance"].includes(currentRole);
+        const userIsStaff = ["admin", "nurse", "claims", "finance"].includes(currentRole);
         const userIsHospital = currentRole === "hospital";
-        if ((userIsStaff && senderIsHospital) || (userIsHospital && ["admin", "utilization_manager", "claims", "finance"].includes(msg.sender_role || ""))) {
+        if ((userIsStaff && senderIsHospital) || (userIsHospital && ["admin", "nurse", "claims", "finance"].includes(msg.sender_role || ""))) {
           refreshActionableMessages();
           playNotificationSound();
           toast({ title: `Support Message from ${msg.sender_name || "Support"}`, description: msg.body.length > 55 ? `${msg.body.substring(0, 55)}...` : msg.body });
@@ -189,7 +189,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       .subscribe();
     channels.push(conversationAlertChannel);
 
-    if (role === "utilization_manager") {
+    if (role === "nurse") {
       const utilizationManagerRequestSupportChannel = supabase
         .channel("realtime-dashboard-utilization-manager-request-support-alerts")
         .on("postgres_changes", { event: "INSERT", schema: "public", table: "support_conversations" }, (payload) => {
@@ -261,7 +261,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       { name: "New Request", href: "/dashboard/new-request", icon: Zap, hidden: r !== "hospital" },
       { name: "Authorizations", href: r === "hospital" ? `${basePath}/authorizations` : `${basePath}/requests`, icon: ShieldCheck },
       { name: "Claims Analysis", href: `${basePath}/claims-analysis`, icon: LayoutDashboard, hidden: r !== "admin" },
-      { name: "Claims Queue", href: `${basePath}/claims`, icon: Banknote, hidden: r === "utilization_manager" },
+      { name: "Claims Queue", href: `${basePath}/claims`, icon: Banknote, hidden: r === "nurse" },
       { name: "Payments", href: `/backoffice/admin/payments/awaiting`, icon: Banknote, hidden: r !== "admin" },
       { name: "Claims Reports", href: `${basePath}/claims-reports`, icon: FileSpreadsheet, hidden: r !== "admin" },
       { name: "Messages", href: `${basePath}/messages`, icon: MessageSquare, badge: actionableMessages },

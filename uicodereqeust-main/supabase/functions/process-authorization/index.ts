@@ -98,7 +98,7 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
-    const { user } = await validateUser(req, ["utilization_manager", "admin"]);
+    const { user } = await validateUser(req, ["nurse", "admin"]);
     const body = await req.json();
     const requestId = sanitizeString(body.request_id || body.auth_id || body.id, 120);
     const action = sanitizeString(body.action, 20).toLowerCase();

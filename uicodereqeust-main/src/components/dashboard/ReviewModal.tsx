@@ -245,8 +245,8 @@ export function ReviewModal({ request, open, onClose, onUpdated }: ReviewModalPr
               setDeleteConfirmOpen={actions.setDeleteConfirmOpen}
               processing={actions.processing}
               editReferralHospitalName={actions.editReferralHospitalName}
-              utilizationManagerDisplayName={actions.utilizationManagerDisplayName}
-              utilizationManagerInitials={actions.utilizationManagerInitials}
+              nurseDisplayName={actions.nurseDisplayName}
+              nurseInitials={actions.nurseInitials}
             />
           ) : (
             /* Main Clinical Review Layout Form */

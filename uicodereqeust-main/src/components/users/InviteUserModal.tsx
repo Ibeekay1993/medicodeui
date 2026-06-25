@@ -42,7 +42,7 @@ export function InviteUserModal({
     email: "",
     fullName: "",
     phone: "",
-    role: "utilization_manager",
+    role: "nurse",
     hospital_id: "",
   });
   const [isInviting, setIsInviting] = useState(false);
@@ -67,7 +67,7 @@ export function InviteUserModal({
     if (!isOpen) {
       setInviteHospitalSearch("");
       setInviteDropdownOpen(false);
-      setNewUser({ email: "", fullName: "", phone: "", role: "utilization_manager", hospital_id: "" });
+      setNewUser({ email: "", fullName: "", phone: "", role: "nurse", hospital_id: "" });
     }
   }, [isOpen]);
 

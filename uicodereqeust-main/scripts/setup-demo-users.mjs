@@ -35,8 +35,8 @@ const DEMO_USERS = [
   {
     id: 'b2b2b2b2-b2b2-b2b2-b2b2-b2b2b2b2b2b2',
     email: 'demo.nurse@medicode.com',
-    role: 'utilization_manager',
-    fullName: 'Demo Utilization Manager',
+    role: 'nurse',
+    fullName: 'Demo Nurse Practitioner',
   },
   {
     id: 'c3c3c3c3-c3c3-c3c3-c3c3-c3c3c3c3c3c3',

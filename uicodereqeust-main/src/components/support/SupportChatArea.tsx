@@ -752,7 +752,7 @@ export function SupportChatArea({
                 ? "bg-amber-500"
                 : isMsgHospital
                 ? "bg-blue-600"
-                : msg.sender_role === "utilization_manager"
+                : msg.sender_role === "nurse"
                 ? "bg-emerald-600"
                 : msg.sender_role === "claims"
                 ? "bg-purple-600"
@@ -765,7 +765,7 @@ export function SupportChatArea({
                 ? "STAFF MEMO"
                 : isMsgHospital
                 ? "HOSPITAL"
-                : msg.sender_role === "utilization_manager"
+                : msg.sender_role === "nurse"
                 ? "UTIL MGR"
                 : msg.sender_role === "claims"
                 ? "CLAIMS"

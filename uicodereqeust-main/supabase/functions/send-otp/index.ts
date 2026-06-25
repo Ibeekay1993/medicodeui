@@ -16,7 +16,7 @@ serve(async (req) => {
   }
 
   try {
-    const { user } = await validateUser(req, ["utilization_manager", "admin", "hospital", "claims"]);
+    const { user } = await validateUser(req, ["nurse", "admin", "hospital", "claims"]);
     const supabase = getServiceClient();
 
     const { authorization_id, patient_email, policy_number, otp_type, hospital_id } = await req.json();
