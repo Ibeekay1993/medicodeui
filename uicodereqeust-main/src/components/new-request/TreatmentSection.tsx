@@ -168,21 +168,6 @@ export default function TreatmentSection({
           ))}
         </div>
       )}
-
-      <Button
-        onClick={onSubmit}
-        disabled={isSubmitting}
-        className="h-12 px-10 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-xs font-black uppercase tracking-widest active:scale-95 transition-all w-full sm:w-auto"
-      >
-        {isSubmitting ? (
-          <span className="flex items-center gap-2">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            Submitting…
-          </span>
-        ) : (
-          "Submit Request"
-        )}
-      </Button>
     </div>
   );
 }

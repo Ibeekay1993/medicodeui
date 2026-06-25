@@ -89,7 +89,7 @@ export const hospitalRequestSchema = z.object({
   treatments: z.array(z.object({
     code: z.string(),
     name: z.string(),
-    amount: z.number().positive(),
+    amount: z.coerce.number().min(0),
     category: z.string().optional(),
     subcategory: z.string().optional(),
     quantity: z.number().int().positive().min(1).max(999)
