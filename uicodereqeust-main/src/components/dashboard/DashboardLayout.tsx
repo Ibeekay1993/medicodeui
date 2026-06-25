@@ -24,7 +24,8 @@ import {
   LayoutDashboard,
   Users,
   Trash2,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Megaphone
 } from "lucide-react";
 import { LiveChat } from "@/components/ui/LiveChat";
 import { useToast } from "@/hooks/use-toast";
@@ -255,6 +256,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       { name: "Dashboard", href: basePath, icon: Activity },
       { name: "Hospitals", href: `${basePath}/hospitals`, icon: Building2, hidden: r !== "admin" },
       { name: "Users", href: `${basePath}/users`, icon: Users, hidden: r !== "admin" },
+      { name: "Announcements", href: `${basePath}/announcements`, icon: Megaphone, hidden: r !== "admin" },
       { name: "Delete Requests", href: `${basePath}/delete-requests`, icon: Trash2, hidden: r !== "admin" },
       { name: "NHIS Update", href: `${basePath}/nhis-update`, icon: FileSpreadsheet, hidden: r !== "admin" },
       { name: "Historical Import", href: `${basePath}/historical-import`, icon: FileSpreadsheet, hidden: r !== "admin" },

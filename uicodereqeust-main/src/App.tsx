@@ -41,6 +41,7 @@ const DeleteRequestsPage = lazy(() => import("./pages/dashboard/DeleteRequestsPa
 const NhisBeneficiaryUpdatePage = lazy(() => import("./pages/dashboard/NhisBeneficiaryUpdatePage"));
 const HistoricalCodeImportPage = lazy(() => import("./pages/dashboard/HistoricalCodeImportPage"));
 const SupportMessagesPage = lazy(() => import("./pages/dashboard/SupportMessagesPage"));
+const AnnouncementsPage = lazy(() => import("./pages/dashboard/AnnouncementsPage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient({
@@ -132,9 +133,11 @@ const App = () => (
                 <Route path="whatsapp" element={<WhatsAppPage />} />
                 <Route path="hospitals" element={<HospitalsPage />} />
                 <Route path="users" element={<UsersPage />} />
+                <Route path="audit-logs" element={<AuditLogsPage />} />
                 <Route path="delete-requests" element={<DeleteRequestsPage />} />
                 <Route path="nhis-update" element={<NhisBeneficiaryUpdatePage />} />
                 <Route path="historical-import" element={<HistoricalCodeImportPage />} />
+                <Route path="announcements" element={<AnnouncementsPage />} />
                 <Route path="settings" element={<SettingsPage />} />
               </Route>
 

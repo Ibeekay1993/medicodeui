@@ -31,6 +31,7 @@ export default function HospitalPortalPage() {
   const { toast } = useToast();
   const [hospital, setHospital] = useState<any>(null);
   const [announcements, setAnnouncements] = useState<any[]>([]);
+  const [currentAnnouncementIndex, setCurrentAnnouncementIndex] = useState(0);
   const [approachingDeadlineClaims, setApproachingDeadlineClaims] = useState<any[]>([]);
   const [metrics, setMetrics] = useState({ approvedCount: 0, pendingCount: 0, deniedCount: 0, totalValue: 0, pendingPayout: 0, paidClaims: 0 });
   const [pageLoading, setPageLoading] = useState(true);
@@ -163,6 +164,15 @@ export default function HospitalPortalPage() {
       toast({ variant: "destructive", title: "Error", description: getErrorMessage(error, "Unable to sync hospital records") });
     }
   }, [toast]);
+
+  useEffect(() => {
+    if (announcements.length > 1) {
+      const timer = setInterval(() => {
+        setCurrentAnnouncementIndex((prev) => (prev + 1) % announcements.length);
+      }, 10000); // 10 seconds
+      return () => clearInterval(timer);
+    }
+  }, [announcements.length]);
 
   useEffect(() => {
     let mounted = true;
@@ -326,31 +336,45 @@ export default function HospitalPortalPage() {
               HMO Announcements
             </CardTitle>
           </CardHeader>
-          <div className="divide-y divide-slate-50">
+          <div className="p-0">
             {pageLoading ? (
               <div className="flex items-center justify-center p-8"><Loader2 className="h-5 w-5 animate-spin text-slate-300" /></div>
             ) : announcements.length === 0 ? (
               <div className="p-8 text-center">
                 <p className="text-xs font-black uppercase tracking-widest text-slate-300">No new announcements</p>
               </div>
-            ) : announcements.map((ann) => (
-              <div key={ann.id} className="p-4 hover:bg-slate-50 transition-colors">
-                <div className="flex items-center justify-between mb-1">
-                  <h4 className="font-bold text-sm text-slate-900">{ann.title}</h4>
+            ) : (
+              <div className="p-4 bg-slate-50 relative min-h-[140px] flex flex-col justify-center transition-all duration-500 ease-in-out">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="font-bold text-sm text-slate-900">{announcements[currentAnnouncementIndex].title}</h4>
                   <Badge variant="outline" className={cn("text-[10px] font-bold uppercase", 
-                    ann.priority === 'high' || ann.priority === 'critical' ? 'text-rose-600 border-rose-200 bg-rose-50' : 
-                    ann.priority === 'medium' ? 'text-amber-600 border-amber-200 bg-amber-50' : 
+                    announcements[currentAnnouncementIndex].priority === 'high' || announcements[currentAnnouncementIndex].priority === 'critical' ? 'text-rose-600 border-rose-200 bg-rose-50' : 
+                    announcements[currentAnnouncementIndex].priority === 'medium' ? 'text-amber-600 border-amber-200 bg-amber-50' : 
                     'text-blue-600 border-blue-200 bg-blue-50'
                   )}>
-                    {ann.priority}
+                    {announcements[currentAnnouncementIndex].priority}
                   </Badge>
                 </div>
-                <p className="text-sm text-slate-600">{ann.content}</p>
-                <p className="text-[10px] text-slate-400 font-medium mt-2">
-                  {new Date(ann.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
-                </p>
+                <p className="text-sm text-slate-600">{announcements[currentAnnouncementIndex].content}</p>
+                <div className="flex items-center justify-between mt-4">
+                  <p className="text-[10px] text-slate-400 font-medium">
+                    {new Date(announcements[currentAnnouncementIndex].created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                  </p>
+                  {announcements.length > 1 && (
+                    <div className="flex gap-1">
+                      {announcements.map((_, idx) => (
+                        <div 
+                          key={idx} 
+                          className={cn("h-1.5 rounded-full transition-all duration-300", 
+                            idx === currentAnnouncementIndex ? "w-4 bg-emerald-500" : "w-1.5 bg-slate-300"
+                          )} 
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
-            ))}
+            )}
           </div>
         </Card>
       </div>
