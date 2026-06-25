@@ -74,8 +74,8 @@ export function useClinicalActions({
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
 
-  const nurseDisplayName = fullName || user?.user_metadata?.full_name || user?.email || "Unknown Utilization Manager";
-  const nurseInitials = getInitials(nurseDisplayName);
+  const utilizationManagerDisplayName = fullName || user?.user_metadata?.full_name || user?.email || "Unknown Utilization Manager";
+  const utilizationManagerInitials = getInitials(utilizationManagerDisplayName);
 
   // Initialize form fields when modal opens/changes
   useEffect(() => {
@@ -266,7 +266,7 @@ export function useClinicalActions({
               currentCode = request.authorization_code;
             } else {
               const { data: newCode, error: codeErr } = await supabase.rpc("generate_referral_code" as any, {
-                nurse_initials: nurseInitials,
+                nurse_initials: utilizationManagerInitials,
               } as any);
               if (codeErr) throw codeErr;
               currentCode = String(newCode || "");
@@ -276,7 +276,7 @@ export function useClinicalActions({
               currentCode = request.authorization_code;
             } else {
               const { data: newCode, error: codeErr } = await supabase.rpc("generate_auth_code" as any, {
-                nurse_initials: nurseInitials,
+                nurse_initials: utilizationManagerInitials,
               } as any);
               if (codeErr) throw codeErr;
               currentCode = String(newCode || "");
@@ -361,8 +361,8 @@ export function useClinicalActions({
             decided_at: decidedAt,
             decided_by: user?.id,
             approved_by: (dbStatus === "approved" || dbStatus === "referral_approved") ? user?.id : null,
-            nurse_initials: (dbStatus === "approved" || dbStatus === "referral_approved") ? nurseInitials : null,
-            authorized_by_name: (dbStatus === "approved" || dbStatus === "referral_approved") ? nurseDisplayName : null,
+            nurse_initials: (dbStatus === "approved" || dbStatus === "referral_approved") ? utilizationManagerInitials : null,
+            authorized_by_name: (dbStatus === "approved" || dbStatus === "referral_approved") ? utilizationManagerDisplayName : null,
             authorized_by_email: (dbStatus === "approved" || dbStatus === "referral_approved") ? user?.email ?? null : null,
             updated_at: decidedAt,
             approved_tariff_code: dbStatus === "approved" ? firstApprovedItem?.code ?? null : null,
@@ -390,8 +390,8 @@ export function useClinicalActions({
             auth_code: currentCode,
             referral_to: editReferralHospitalName.trim() || null,
             claiming_hospital_id: (dbStatus === "approved" || dbStatus === "referral_approved") ? treatingHospitalId : null,
-            nurse_initials: (dbStatus === "approved" || dbStatus === "referral_approved") ? nurseInitials : null,
-            authorized_by_name: (dbStatus === "approved" || dbStatus === "referral_approved") ? nurseDisplayName : null,
+            nurse_initials: (dbStatus === "approved" || dbStatus === "referral_approved") ? utilizationManagerInitials : null,
+            authorized_by_name: (dbStatus === "approved" || dbStatus === "referral_approved") ? utilizationManagerDisplayName : null,
             authorized_by_user_id: (dbStatus === "approved" || dbStatus === "referral_approved") ? user?.id : null,
             ip: "client-side",
             timestamp: new Date().toISOString(),
@@ -519,8 +519,8 @@ export function useClinicalActions({
       editReferralHospitalName,
       approvedItems,
       approvedTotal,
-      nurseInitials,
-      nurseDisplayName,
+      utilizationManagerInitials,
+      utilizationManagerDisplayName,
       user,
       onUpdated,
       onClose,

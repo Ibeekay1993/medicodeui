@@ -44,8 +44,8 @@ interface PostReviewTemplatesProps {
   setDeleteConfirmOpen: (value: boolean) => void;
   processing: boolean;
   editReferralHospitalName: string;
-  nurseDisplayName: string;
-  nurseInitials: string;
+  utilizationManagerDisplayName: string;
+  utilizationManagerInitials: string;
 }
 
 export function PostReviewTemplates({
@@ -61,8 +61,8 @@ export function PostReviewTemplates({
   setDeleteConfirmOpen,
   processing,
   editReferralHospitalName,
-  nurseDisplayName,
-  nurseInitials,
+  utilizationManagerDisplayName,
+  utilizationManagerInitials,
 }: PostReviewTemplatesProps) {
   const { toast } = useToast();
 
@@ -85,7 +85,7 @@ export function PostReviewTemplates({
             {approvalResult.authCode}
           </p>
           <p className="mt-2 text-xs font-black uppercase tracking-[0.2em] text-emerald-800/40">
-            Authorized by {nurseDisplayName} ({nurseInitials})
+            Authorized by {utilizationManagerDisplayName} ({utilizationManagerInitials})
           </p>
         </div>
 

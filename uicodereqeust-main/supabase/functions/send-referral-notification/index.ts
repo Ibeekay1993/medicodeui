@@ -23,7 +23,7 @@ serve(async (req) => {
       });
     }
 
-    const { user } = await validateUser(req, ["nurse", "admin", "hospital", "claims"]);
+    const { user } = await validateUser(req, ["utilization_manager", "admin", "hospital", "claims"]);
     const supabase = getServiceClient();
 
     const body = await req.json().catch(() => ({}));
