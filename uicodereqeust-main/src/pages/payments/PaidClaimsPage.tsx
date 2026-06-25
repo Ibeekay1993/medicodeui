@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useDebounce } from "@/hooks/use-debounce";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -9,6 +10,7 @@ import { Loader2, FolderOpen, Search, ChevronDown, Check, Calendar } from "lucid
 export default function PaidClaimsPage() {
   const [selectedHospitalId, setSelectedHospitalId] = useState<string>("all");
   const [searchTerm, setSearchTerm] = useState("");
+  const debouncedSearchTerm = useDebounce(searchTerm, 400);
   const [isHospitalDropdownOpen, setIsHospitalDropdownOpen] = useState(false);
   const [hospitalSearchQuery, setHospitalSearchQuery] = useState("");
   const [selectedMonth, setSelectedMonth] = useState<string>("all");
@@ -32,7 +34,7 @@ export default function PaidClaimsPage() {
 
   // Fetch paid claims
   const { data: claims, isLoading: isLoadingClaims } = useQuery({
-    queryKey: ["paid-claims-list", selectedHospitalId, searchTerm, selectedMonth, startDate, endDate],
+    queryKey: ["paid-claims-list", selectedHospitalId, debouncedSearchTerm, selectedMonth, startDate, endDate],
     queryFn: async () => {
       let query = supabase
         .from("hospital_claims" as any)
@@ -56,8 +58,8 @@ export default function PaidClaimsPage() {
         query = query.eq("hospital_id", selectedHospitalId);
       }
 
-      if (searchTerm.trim()) {
-        const term = `%${searchTerm.trim()}%`;
+      if (debouncedSearchTerm.trim()) {
+        const term = `%${debouncedSearchTerm.trim()}%`;
         query = query.or(`patient_name.ilike.${term},claim_number.ilike.${term},policy_number.ilike.${term}`);
       }
 
@@ -174,6 +176,7 @@ export default function PaidClaimsPage() {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="border border-slate-200 rounded-lg px-3 py-2 text-xs font-medium w-full sm:w-64 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-[#3f3f95]"
+            aria-label="Search paid claims"
           />
 
           {/* Month Filter */}
