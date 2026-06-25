@@ -3,8 +3,8 @@ import { useTabVisibilityRefresh } from "@/hooks/use-tab-visibility-refresh";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useDebounce } from "@/hooks/use-debounce";
 import { getErrorMessage } from "@/lib/errors";
-import { useDataPagination } from "@/hooks/use-data-pagination";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 import {
@@ -28,6 +28,7 @@ export default function HospitalClaims() {
   const [claims, setClaims] = useState<ClaimDraft[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search, 400);
   const [selectedClaimId, setSelectedClaimId] = useState<string | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
@@ -35,6 +36,19 @@ export default function HospitalClaims() {
   const [contestReason, setContestReason] = useState("");
   const [contestFiles, setContestFiles] = useState<File[]>([]);
   const [isSubmittingContest, setIsSubmittingContest] = useState(false);
+
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const pageSize = 25;
+  const totalPages = Math.ceil(total / pageSize);
+  const start = total === 0 ? 0 : (page - 1) * pageSize + 1;
+  const end = Math.min(page * pageSize, total);
+
+  const [claimStats, setClaimStats] = useState({ pending: 0, approved: 0, paid: 0, totalValue: 0 });
+
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch]);
 
   const fetchClaims = useCallback(async () => {
     if (!user) {
@@ -67,36 +81,59 @@ export default function HospitalClaims() {
           orQuery.push(`hospital_name.ilike.%University Health%`);
         }
 
-        let allData: any[] = [];
-        let page = 0;
-        let hasMore = true;
+        let statsData: any[] = [];
+        let statsPage = 0;
+        let statsHasMore = true;
         
-        while (hasMore) {
+        while (statsHasMore) {
           const { data, error } = await supabase
             .from("hospital_claims" as any)
-            .select("*")
+            .select("status, total_amount")
             .or(orQuery.join(","))
-            .order("created_at", { ascending: false })
-            .range(page * 1000, (page + 1) * 1000 - 1);
+            .range(statsPage * 1000, (statsPage + 1) * 1000 - 1);
             
           if (error) throw error;
           if (data && data.length > 0) {
-            allData = [...allData, ...data];
-            page++;
-            hasMore = data.length === 1000;
+            statsData = [...statsData, ...data];
+            statsPage++;
+            statsHasMore = data.length === 1000;
           } else {
-            hasMore = false;
+            statsHasMore = false;
           }
         }
-        setClaims(allData);
+        
+        const calculatedStats = calculateHospitalClaimStats(statsData);
+        setClaimStats(calculatedStats);
+
+        let query: any = supabase
+          .from("hospital_claims" as any)
+          .select("*", { count: "exact" })
+          .or(orQuery.join(","));
+
+        if (debouncedSearch.trim()) {
+          const term = `%${debouncedSearch.trim()}%`;
+          query = query.or(`claim_number.ilike.${term},patient_name.ilike.${term},policy_number.ilike.${term},auth_code.ilike.${term}`);
+        }
+
+        const from = (page - 1) * pageSize;
+        const to = from + pageSize - 1;
+
+        const { data: pageData, count, error: pageError } = await query
+          .order("created_at", { ascending: false })
+          .range(from, to);
+
+        if (pageError) throw pageError;
+        setClaims(pageData || []);
+        setTotal(count || 0);
       }
     } catch (error) {
       toast({ variant: "destructive", title: "Error", description: getErrorMessage(error, "Unable to load claims") });
       setClaims([]);
+      setTotal(0);
     } finally {
       setLoading(false);
     }
-  }, [user, hospitalId, toast]);
+  }, [user, hospitalId, page, debouncedSearch, toast]);
 
   useEffect(() => {
     fetchClaims();
@@ -105,37 +142,60 @@ export default function HospitalClaims() {
   useTabVisibilityRefresh(fetchClaims);
 
   const selectedClaim = claims.find(c => c.id === selectedClaimId) || null;
-  const filteredClaims = claims.filter(claim => {
-    const term = search.toLowerCase().trim();
-    if (!term) return true;
-    return [claim.claim_number, claim.patient_name, claim.policy_number, claim.auth_code, claim.status]
-      .some(value => String(value || "").toLowerCase().includes(term));
-  });
-
-  const {
-    page,
-    setPage,
-    pageSize,
-    totalPages,
-    pageItems: paginatedClaims,
-    start,
-    end,
-    total
-  } = useDataPagination(filteredClaims);
-
-  const claimStats = calculateHospitalClaimStats(claims);
+  const filteredClaims = claims;
+  const paginatedClaims = claims;
 
   const handleViewDetails = (id: string) => {
     setSelectedClaimId(id);
     setDetailsOpen(true);
   };
 
-  const exportCSV = () => {
-    if (!claims.length) return toast({ title: "No claims to export" });
+  const exportCSV = async () => {
+    if (!user) return;
     setIsExporting(true);
     try {
+      const { data: hosp } = hospitalId
+        ? await supabase.from("hospitals").select("id, name, code").eq("id", hospitalId).maybeSingle()
+        : await supabase.from("hospitals").select("id, name, code").eq("user_id", user.id).maybeSingle();
+      
+      if (!hosp) {
+        toast({ title: "No claims to export" });
+        return;
+      }
+
+      const safeName = String(hosp.name || "").replace(/[%(),]/g, " ");
+      const safeCode = String(hosp.code || "").replace(/[%(),]/g, " ");
+
+      const orQuery = [
+        `hospital_id.eq.${hosp.id}`,
+        `hospital_name.ilike.%${safeName}%`
+      ];
+
+      if (safeCode.trim()) {
+        orQuery.push(`hospital_name.ilike.%${safeCode}%`);
+      }
+      
+      const isUHS = safeName.toLowerCase().includes("university health") || safeCode.toUpperCase().includes("UHS");
+      if (isUHS) {
+        orQuery.push(`hospital_name.ilike.%UHS%`);
+        orQuery.push(`hospital_name.ilike.%U.H.S%`);
+        orQuery.push(`hospital_name.ilike.%University Health%`);
+      }
+
+      const { data: allClaimsData, error } = await (supabase
+        .from("hospital_claims" as any)
+        .select("created_at, claim_number, patient_name, policy_number, auth_code, total_amount, approved_amount, declined_amount, contest_note, status, notes, line_items, paid_at, contest_submitted_at")
+        .or(orQuery.join(","))
+        .order("created_at", { ascending: false }) as any);
+
+      if (error) throw error;
+      if (!allClaimsData || !allClaimsData.length) {
+        toast({ title: "No claims to export" });
+        return;
+      }
+
       const headers = ["Date", "Claim ID", "Patient Name", "Policy Number", "Auth Code", "Total Amount", "Approved Amount", "Declined Amount", "Contest Note", "Contest Status", "Paid Date", "Status", "Notes", "Items Breakdown"];
-      const rows = claims.map(r => [
+      const rows = allClaimsData.map((r: any) => [
         new Date(r.created_at).toLocaleDateString("en-GB"),
         r.claim_number || "",
         r.patient_name || "",
@@ -146,8 +206,6 @@ export default function HospitalClaims() {
         r.declined_amount || 0,
         r.contest_note || "",
         ["contested", "under_contest"].includes(String(r.status).toLowerCase())
-          ? "Under contest"
-          : (r as any).contest_submitted_at
           ? "Contest submitted"
           : "Not contested",
         r.paid_at ? new Date(r.paid_at).toLocaleDateString("en-GB") : "",
@@ -156,7 +214,7 @@ export default function HospitalClaims() {
         Array.isArray(r.line_items) ? r.line_items.map((item: any) => `${item.name} (${item.quantity} x ₦${item.unit_price})`).join("; ") : ""
       ]);
 
-      const csvContent = [headers.join(","), ...rows.map(e => e.map(f => `"${String(f).replace(/"/g, '""')}"`).join(","))].join("\n");
+      const csvContent = [headers.join(","), ...rows.map((e: any) => e.map((f: any) => `"${String(f).replace(/"/g, '""')}"`).join(","))].join("\n");
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
       const link = document.createElement("a");
       link.href = URL.createObjectURL(blob);
@@ -165,6 +223,8 @@ export default function HospitalClaims() {
       link.click();
       document.body.removeChild(link);
       toast({ title: "Export Successful" });
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Export Failed", description: err.message || "Failed to export data." });
     } finally {
       setIsExporting(false);
     }

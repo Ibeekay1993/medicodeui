@@ -3,9 +3,9 @@ import { useNavigate } from "react-router-dom";
 import { useTabVisibilityRefresh } from "@/hooks/use-tab-visibility-refresh";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useDebounce } from "@/hooks/use-debounce";
 
 import { useToast } from "@/hooks/use-toast";
-import { useDataPagination } from "@/hooks/use-data-pagination";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 import {
@@ -31,6 +31,7 @@ export default function HospitalAuthorizations() {
   const [requests, setRequests] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search, 400);
   const [statusFilter, setStatusFilter] = useState("all");
   const [hospital, setHospital] = useState<any>(null);
   const [selectedRequest, setSelectedRequest] = useState<any>(null);
@@ -44,6 +45,17 @@ export default function HospitalAuthorizations() {
   const [requestChatRequest, setRequestChatRequest] = useState<any | null>(null);
   const [requestChatDraft, setRequestChatDraft] = useState("");
   const [requestChatSending, setRequestChatSending] = useState(false);
+
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const pageSize = 25;
+  const totalPages = Math.ceil(total / pageSize);
+  const start = total === 0 ? 0 : (page - 1) * pageSize + 1;
+  const end = Math.min(page * pageSize, total);
+
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch, statusFilter]);
 
   const refresh = useCallback(async () => {
     if (!user) {
@@ -69,6 +81,7 @@ export default function HospitalAuthorizations() {
         setHospital(null);
         setRequests([]);
         setClaimStatusByRequestId(new Map());
+        setTotal(0);
         toast({
           variant: "destructive",
           title: "Hospital profile missing",
@@ -79,9 +92,6 @@ export default function HospitalAuthorizations() {
 
       setHospital(hosp);
       
-      // Use only exact ID-based matching - these are indexed and fast
-      // Name-based ILIKE filtering is REMOVED because it causes timeouts on large tables
-      // (For records affected by the old referral bug, see the SQL migration to fix them)
       const idQuery = [
         `hospital_id.eq.${hosp.id}`,
         `requesting_hospital_id.eq.${hosp.id}`,
@@ -90,32 +100,54 @@ export default function HospitalAuthorizations() {
         `claiming_hospital_id.eq.${hosp.id}`
       ];
 
-      const { data: idData, error: idError } = await supabase
+      let query = supabase
         .from("authorization_requests")
-        .select("*")
-        .or(idQuery.join(","))
+        .select("*", { count: "exact" })
+        .or(idQuery.join(","));
+
+      if (statusFilter !== "all") {
+        query = query.eq("status", statusFilter);
+      }
+
+      if (debouncedSearch.trim()) {
+        const term = `%${debouncedSearch.trim()}%`;
+        query = query.or(`patient_name.ilike.${term},policy_number.ilike.${term},authorization_code.ilike.${term}`);
+      }
+
+      const from = (page - 1) * pageSize;
+      const to = from + pageSize - 1;
+
+      const { data: idData, count, error: idError } = await query
         .order("created_at", { ascending: false })
-        .limit(1000);
+        .range(from, to);
 
       if (idError) throw idError;
       
       setRequests(idData || []);
+      setTotal(count || 0);
 
-      const { data: claimsData } = await supabase
-        .from("hospital_claims" as any)
-        .select("request_id,status")
-        .eq("hospital_id", hosp.id);
+      if (idData && idData.length > 0) {
+        const pageRequestIds = idData.map((r: any) => r.id);
+        const { data: claimsData } = await supabase
+          .from("hospital_claims" as any)
+          .select("request_id,status")
+          .eq("hospital_id", hosp.id)
+          .in("request_id", pageRequestIds);
 
-      if (claimsData) {
         const claimMap = new Map<string, string>();
-        claimsData.forEach((c: any) => {
-          if (c.request_id) claimMap.set(c.request_id, String(c.status || "submitted"));
-        });
+        if (claimsData) {
+          claimsData.forEach((c: any) => {
+            if (c.request_id) claimMap.set(c.request_id, String(c.status || "submitted"));
+          });
+        }
         setClaimStatusByRequestId(claimMap);
+      } else {
+        setClaimStatusByRequestId(new Map());
       }
     } catch (error: any) {
       console.error("Authorization ledger sync error:", error);
       setRequests([]);
+      setTotal(0);
       toast({
         variant: "destructive",
         title: "Unable to load authorizations",
@@ -124,7 +156,7 @@ export default function HospitalAuthorizations() {
     } finally {
       setLoading(false);
     }
-  }, [user, hospitalId, toast]);
+  }, [user, hospitalId, page, debouncedSearch, statusFilter, toast]);
 
   useEffect(() => { refresh(); }, [user, refresh]);
 
@@ -293,13 +325,34 @@ export default function HospitalAuthorizations() {
     }
   };
 
-  const exportCSV = () => {
-    const exportableRequests = requests.filter(r => r.deletion_status !== "awaiting_admin_approval");
-    if (!exportableRequests.length) return toast({ title: "No authorizations to export" });
+  const exportCSV = async () => {
+    if (!hospital) return;
     setIsExporting(true);
     try {
+      const idQuery = [
+        `hospital_id.eq.${hospital.id}`,
+        `requesting_hospital_id.eq.${hospital.id}`,
+        `referring_hospital_id.eq.${hospital.id}`,
+        `referred_hospital_id.eq.${hospital.id}`,
+        `claiming_hospital_id.eq.${hospital.id}`
+      ];
+
+      const { data: allExportData, error } = await (supabase
+        .from("authorization_requests" as any)
+        .select("created_at, patient_name, diagnosis, treatment, policy_number, authorization_code, status, clinical_notes, deletion_status")
+        .or(idQuery.join(","))
+        .order("created_at", { ascending: false }) as any);
+
+      if (error) throw error;
+
+      const exportableRequests = (allExportData || []).filter((r: any) => r.deletion_status !== "awaiting_admin_approval");
+      if (!exportableRequests.length) {
+        toast({ title: "No authorizations to export" });
+        return;
+      }
+
       const headers = ["Date", "Patient Name", "Diagnosis", "Treatment", "Policy Number", "Auth Code", "Status", "Clinical Notes"];
-      const rows = exportableRequests.map(r => [
+      const rows = exportableRequests.map((r: any) => [
         new Date(r.created_at).toLocaleDateString("en-GB"),
         r.patient_name || "",
         r.diagnosis || "",
@@ -310,7 +363,7 @@ export default function HospitalAuthorizations() {
         r.clinical_notes || ""
       ]);
 
-      const csvContent = [headers.join(","), ...rows.map(e => e.map(f => `"${String(f).replace(/"/g, '""')}"`).join(","))].join("\n");
+      const csvContent = [headers.join(","), ...rows.map((e: any) => e.map((f: any) => `"${String(f).replace(/"/g, '""')}"`).join(","))].join("\n");
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
       const link = document.createElement("a");
       link.href = URL.createObjectURL(blob);
@@ -319,30 +372,14 @@ export default function HospitalAuthorizations() {
       link.click();
       document.body.removeChild(link);
       toast({ title: "Export Successful" });
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Export Failed", description: err.message || "Failed to export data." });
     } finally {
       setIsExporting(false);
     }
   };
 
-  const filtered = requests.filter(r => {
-    const matchesSearch = 
-      (r.patient_name || "").toLowerCase().includes(search.toLowerCase()) || 
-      (r.policy_number || "").toLowerCase().includes(search.toLowerCase()) ||
-      (r.authorization_code && r.authorization_code.toLowerCase().includes(search.toLowerCase()));
-    const matchesStatus = statusFilter === "all" || r.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
-
-  const {
-    page,
-    setPage,
-    pageSize,
-    totalPages,
-    pageItems: paginatedRequests,
-    start,
-    end,
-    total
-  } = useDataPagination(filtered);
+  const paginatedRequests = requests;
 
   const claimStatusFor = (request: any) => claimStatusByRequestId.get(request?.id);
 
