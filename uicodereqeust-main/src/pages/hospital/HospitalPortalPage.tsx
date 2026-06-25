@@ -232,6 +232,30 @@ export default function HospitalPortalPage() {
     return () => { mounted = false; };
   }, [user?.id, user?.email, hospitalId, fetchData, toast]);
 
+  useEffect(() => {
+    let mounted = true;
+    const channel = supabase
+      .channel("public:hmo_announcements:portal")
+      .on("postgres_changes", { event: "*", schema: "public", table: "hmo_announcements" }, async () => {
+        const { data } = await supabase
+          .from("hmo_announcements")
+          .select("*")
+          .eq("is_active", true)
+          .order("created_at", { ascending: false })
+          .limit(3);
+        if (data && mounted) {
+          setAnnouncements(data);
+          setCurrentAnnouncementIndex(0);
+        }
+      })
+      .subscribe();
+
+    return () => {
+      mounted = false;
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
   const refresh = useCallback(async () => {
     if (hospital) {
       await fetchData(hospital);
