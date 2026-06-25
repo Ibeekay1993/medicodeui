@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
 
 export default function AnnouncementsPage() {
   const { role } = useAuth();
@@ -107,106 +108,186 @@ export default function AnnouncementsPage() {
   }
 
   return (
-    <div className="space-y-6 max-w-5xl animate-in fade-in duration-500 pb-12">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-extrabold text-slate-900 tracking-tight sm:text-2xl">Announcements</h1>
-          <p className="text-sm font-medium text-slate-500 mt-1">Manage broadcasts for hospital portals.</p>
+    <div className="space-y-8 max-w-6xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-700 pb-12">
+      
+      {/* Premium Header */}
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-8 sm:p-10 shadow-2xl shadow-slate-900/20">
+        <div className="absolute top-0 right-0 -mt-20 -mr-20 h-64 w-64 rounded-full bg-emerald-500/20 blur-3xl"></div>
+        <div className="absolute bottom-0 left-0 -mb-20 -ml-20 h-64 w-64 rounded-full bg-blue-500/20 blur-3xl"></div>
+        
+        <div className="relative z-10">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/20 backdrop-blur-md mb-4">
+            <Megaphone className="h-4 w-4 text-emerald-400" />
+            <span className="text-xs font-bold text-slate-200 uppercase tracking-widest">Broadcast Center</span>
+          </div>
+          <h1 className="text-3xl font-black text-white tracking-tight sm:text-4xl lg:text-5xl mb-2">
+            Announcements
+          </h1>
+          <p className="text-sm sm:text-base font-medium text-slate-400 max-w-xl">
+            Create, manage, and dispatch real-time alerts to all hospital portals. Ensure your network is always informed.
+          </p>
         </div>
       </div>
 
-      <Card className="border-slate-200 shadow-sm">
-        <CardHeader className="bg-slate-50 border-b border-slate-100">
-          <CardTitle className="text-sm uppercase tracking-widest text-slate-500 font-black flex items-center gap-2">
-            {isEditing ? <Edit2 className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
-            {isEditing ? "Edit Announcement" : "Create New Announcement"}
+      {/* Create / Edit Form */}
+      <Card className="border-0 shadow-xl shadow-slate-200/40 rounded-3xl overflow-hidden bg-white/60 backdrop-blur-xl transition-all duration-500 ring-1 ring-slate-100">
+        <CardHeader className="bg-gradient-to-r from-slate-50 to-white border-b border-slate-100 p-6 sm:px-8">
+          <CardTitle className="text-sm uppercase tracking-widest text-slate-600 font-black flex items-center gap-2">
+            {isEditing ? (
+              <span className="flex items-center gap-2 text-blue-600"><Edit2 className="h-4 w-4" /> Editing Announcement</span>
+            ) : (
+              <span className="flex items-center gap-2 text-emerald-600"><Plus className="h-4 w-4" /> Dispatch New Announcement</span>
+            )}
           </CardTitle>
         </CardHeader>
-        <CardContent className="p-6 space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <label className="text-xs font-bold uppercase text-slate-600">Title</label>
-              <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. System Maintenance" />
+        <CardContent className="p-6 sm:p-8 space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="space-y-2 md:col-span-2">
+              <label className="text-xs font-bold uppercase tracking-wider text-slate-500 ml-1">Headline</label>
+              <Input 
+                value={title} 
+                onChange={(e) => setTitle(e.target.value)} 
+                placeholder="e.g. Scheduled System Maintenance" 
+                className="h-12 rounded-xl bg-slate-50 border-slate-200 focus:bg-white focus:ring-emerald-500/20 font-medium transition-all"
+              />
             </div>
             <div className="space-y-2">
-              <label className="text-xs font-bold uppercase text-slate-600">Priority</label>
+              <label className="text-xs font-bold uppercase tracking-wider text-slate-500 ml-1">Priority Level</label>
               <Select value={priority} onValueChange={setPriority}>
-                <SelectTrigger>
+                <SelectTrigger className="h-12 rounded-xl bg-slate-50 border-slate-200 focus:bg-white focus:ring-emerald-500/20 font-bold transition-all">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="low">Low</SelectItem>
-                  <SelectItem value="medium">Medium</SelectItem>
-                  <SelectItem value="high">High</SelectItem>
-                  <SelectItem value="critical">Critical</SelectItem>
+                <SelectContent className="rounded-xl shadow-xl">
+                  <SelectItem value="low" className="font-bold text-slate-600">Low (Info)</SelectItem>
+                  <SelectItem value="medium" className="font-bold text-amber-600">Medium (Warning)</SelectItem>
+                  <SelectItem value="high" className="font-bold text-rose-600">High (Alert)</SelectItem>
+                  <SelectItem value="critical" className="font-bold text-purple-600">Critical (Emergency)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
           <div className="space-y-2">
-            <label className="text-xs font-bold uppercase text-slate-600">Content</label>
-            <Textarea value={content} onChange={(e) => setContent(e.target.value)} placeholder="Message content..." rows={4} />
+            <label className="text-xs font-bold uppercase tracking-wider text-slate-500 ml-1">Message Body</label>
+            <Textarea 
+              value={content} 
+              onChange={(e) => setContent(e.target.value)} 
+              placeholder="Type the full announcement message here..." 
+              rows={5} 
+              className="resize-none rounded-2xl bg-slate-50 border-slate-200 focus:bg-white focus:ring-emerald-500/20 font-medium transition-all p-4 leading-relaxed"
+            />
           </div>
-          <div className="flex items-center justify-between pt-2">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" checked={isActive} onChange={(e) => setIsActive(e.target.checked)} className="h-4 w-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500" />
-              <span className="text-sm font-bold text-slate-700">Set Active (Visible immediately)</span>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-4 border-t border-slate-100">
+            <label className="flex items-center gap-3 cursor-pointer group">
+              <div className={cn("flex items-center justify-center h-6 w-6 rounded-md border transition-all duration-300", isActive ? "bg-emerald-500 border-emerald-500" : "bg-slate-100 border-slate-300 group-hover:border-emerald-400")}>
+                {isActive && <CheckCircle className="h-4 w-4 text-white" />}
+              </div>
+              <input type="checkbox" checked={isActive} onChange={(e) => setIsActive(e.target.checked)} className="hidden" />
+              <div className="flex flex-col">
+                <span className="text-sm font-bold text-slate-800">Publish Immediately</span>
+                <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Visible to all hospitals</span>
+              </div>
             </label>
-            <div className="flex items-center gap-3">
+            
+            <div className="flex items-center gap-3 w-full sm:w-auto">
               {isEditing && (
-                <Button variant="ghost" onClick={resetForm} disabled={isSubmitting}>Cancel</Button>
+                <Button variant="ghost" onClick={resetForm} disabled={isSubmitting} className="h-12 px-6 rounded-xl font-bold hover:bg-slate-100 w-full sm:w-auto">
+                  Cancel Edit
+                </Button>
               )}
-              <Button onClick={handleSave} disabled={isSubmitting} className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold">
+              <Button 
+                onClick={handleSave} 
+                disabled={isSubmitting} 
+                className="h-12 px-8 rounded-xl bg-slate-900 hover:bg-emerald-600 text-white font-black tracking-wide shadow-lg shadow-slate-900/10 hover:shadow-emerald-600/20 transition-all duration-300 w-full sm:w-auto"
+              >
                 {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {isEditing ? "Update" : "Publish"}
+                {isEditing ? "Save Changes" : "Dispatch Broadcast"}
               </Button>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      <div className="space-y-4">
+      <div className="space-y-4 pt-4">
+        <div className="flex items-center justify-between px-2 mb-2">
+          <h2 className="text-lg font-black text-slate-800 tracking-tight">Active & Past Broadcasts</h2>
+          <Badge variant="outline" className="bg-slate-100 text-slate-600 border-0 font-bold">{announcements.length} Total</Badge>
+        </div>
+        
         {loading ? (
-          <div className="flex items-center justify-center p-12"><Loader2 className="h-8 w-8 animate-spin text-emerald-600" /></div>
+          <div className="flex items-center justify-center p-20 bg-white/50 rounded-3xl"><Loader2 className="h-10 w-10 animate-spin text-emerald-500" /></div>
         ) : announcements.length === 0 ? (
-          <div className="text-center p-12 bg-slate-50 rounded-xl border border-dashed border-slate-200">
-            <Megaphone className="mx-auto h-10 w-10 text-slate-300 mb-3" />
-            <p className="text-sm font-bold text-slate-500">No announcements found</p>
+          <div className="text-center p-20 bg-white/40 rounded-3xl border-2 border-dashed border-slate-200/60 backdrop-blur-sm">
+            <div className="mx-auto h-20 w-20 bg-slate-100 rounded-full flex items-center justify-center mb-6 shadow-inner">
+              <Megaphone className="h-8 w-8 text-slate-300" />
+            </div>
+            <p className="text-lg font-black text-slate-800 mb-2">No Broadcasts Yet</p>
+            <p className="text-sm font-medium text-slate-500">Create your first announcement above to notify the hospital network.</p>
           </div>
         ) : (
-          announcements.map((ann) => (
-            <Card key={ann.id} className={cn("overflow-hidden transition-all", !ann.is_active && "opacity-60")}>
-              <div className="p-4 sm:p-5 flex flex-col sm:flex-row gap-4">
-                <div className="flex-1 space-y-2">
-                  <div className="flex items-center gap-3">
-                    <h3 className="font-extrabold text-slate-900 text-lg">{ann.title}</h3>
-                    <span className={cn("text-[10px] font-black uppercase px-2 py-0.5 rounded-full",
-                      ann.priority === "high" || ann.priority === "critical" ? "bg-rose-100 text-rose-700" :
-                      ann.priority === "medium" ? "bg-amber-100 text-amber-700" : "bg-blue-100 text-blue-700"
-                    )}>{ann.priority}</span>
-                    {ann.is_active ? (
-                      <span className="flex items-center gap-1 text-[10px] font-black uppercase text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full"><CheckCircle className="h-3 w-3" /> Active</span>
-                    ) : (
-                      <span className="flex items-center gap-1 text-[10px] font-black uppercase text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full"><XCircle className="h-3 w-3" /> Inactive</span>
-                    )}
+          <div className="grid grid-cols-1 gap-4">
+            {announcements.map((ann) => (
+              <Card key={ann.id} className={cn(
+                "group relative overflow-hidden transition-all duration-300 rounded-2xl border-0 shadow-md hover:shadow-xl hover:-translate-y-1",
+                !ann.is_active ? "bg-slate-50/50 opacity-80 hover:opacity-100" : "bg-white"
+              )}>
+                {ann.is_active && <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-emerald-500" />}
+                {!ann.is_active && <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-slate-300" />}
+                
+                <div className="p-5 sm:p-6 flex flex-col sm:flex-row gap-6">
+                  <div className="flex-1 space-y-4 pl-2 sm:pl-4">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <h3 className="font-black text-slate-900 text-xl tracking-tight">{ann.title}</h3>
+                      <Badge variant="outline" className={cn("text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full border-0",
+                        ann.priority === "critical" ? "bg-purple-100 text-purple-700 shadow-sm shadow-purple-100" :
+                        ann.priority === "high" ? "bg-rose-100 text-rose-700 shadow-sm shadow-rose-100" :
+                        ann.priority === "medium" ? "bg-amber-100 text-amber-700 shadow-sm shadow-amber-100" : "bg-blue-100 text-blue-700 shadow-sm shadow-blue-100"
+                      )}>{ann.priority}</Badge>
+                      
+                      {ann.is_active ? (
+                        <Badge variant="outline" className="flex items-center gap-1.5 text-[10px] font-black uppercase text-emerald-700 bg-emerald-50/80 border-emerald-200/50 px-2.5 py-0.5 rounded-full">
+                          <span className="relative flex h-2 w-2">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                          </span>
+                          Live
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="flex items-center gap-1.5 text-[10px] font-black uppercase text-slate-500 bg-slate-100 border-slate-200 px-2.5 py-0.5 rounded-full">
+                          <XCircle className="h-3 w-3" /> Offline
+                        </Badge>
+                      )}
+                    </div>
+                    <p className="text-sm md:text-base font-medium text-slate-600 leading-relaxed max-w-4xl whitespace-pre-wrap">{ann.content}</p>
+                    <p className="text-xs font-bold text-slate-400 tracking-wide uppercase">
+                      Created {new Date(ann.created_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                    </p>
                   </div>
-                  <p className="text-sm text-slate-600 whitespace-pre-wrap">{ann.content}</p>
-                  <p className="text-xs font-semibold text-slate-400">Created: {new Date(ann.created_at).toLocaleString()}</p>
+                  
+                  <div className="flex sm:flex-col items-center justify-center gap-3 sm:w-48 shrink-0">
+                    <Button 
+                      variant="outline" 
+                      onClick={() => toggleActive(ann.id, ann.is_active)} 
+                      className={cn("w-full h-10 rounded-xl font-bold transition-all", 
+                        ann.is_active 
+                          ? "hover:bg-amber-50 hover:text-amber-700 hover:border-amber-200 text-slate-600" 
+                          : "hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200 text-slate-600"
+                      )}
+                    >
+                      {ann.is_active ? "Take Offline" : "Set Live"}
+                    </Button>
+                    <div className="flex gap-3 w-full">
+                      <Button variant="outline" onClick={() => handleEdit(ann)} className="flex-1 h-10 rounded-xl font-bold text-blue-600 hover:text-blue-700 hover:bg-blue-50 hover:border-blue-200 transition-all">
+                        <Edit2 className="h-4 w-4" />
+                      </Button>
+                      <Button variant="outline" onClick={() => handleDelete(ann.id)} className="flex-1 h-10 rounded-xl font-bold text-rose-600 hover:text-rose-700 hover:bg-rose-50 hover:border-rose-200 transition-all">
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
                 </div>
-                <div className="flex sm:flex-col items-center gap-2 sm:border-l sm:border-slate-100 sm:pl-4">
-                  <Button variant="outline" size="sm" onClick={() => toggleActive(ann.id, ann.is_active)} className="w-full justify-start">
-                    {ann.is_active ? "Deactivate" : "Activate"}
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={() => handleEdit(ann)} className="w-full justify-start text-blue-600 hover:text-blue-700 hover:bg-blue-50 border-blue-200">
-                    <Edit2 className="mr-2 h-4 w-4" /> Edit
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={() => handleDelete(ann.id)} className="w-full justify-start text-rose-600 hover:text-rose-700 hover:bg-rose-50 border-rose-200">
-                    <Trash2 className="mr-2 h-4 w-4" /> Delete
-                  </Button>
-                </div>
-              </div>
-            </Card>
-          ))
+              </Card>
+            ))}
+          </div>
         )}
       </div>
     </div>
