@@ -92,7 +92,9 @@ export default function AnnouncementsPage() {
     setContent(ann.content);
     setPriority(ann.priority);
     setIsActive(ann.is_active);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    setTimeout(() => {
+      document.getElementById("announcement-form")?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 50);
   };
 
   const resetForm = () => {
@@ -132,7 +134,7 @@ export default function AnnouncementsPage() {
       </div>
 
       {/* Create / Edit Form */}
-      <Card className="border-0 shadow-xl shadow-slate-200/40 rounded-3xl overflow-hidden bg-white/60 backdrop-blur-xl transition-all duration-500 ring-1 ring-slate-100">
+      <Card id="announcement-form" className="border-0 shadow-xl shadow-slate-200/40 rounded-3xl overflow-hidden bg-white/60 backdrop-blur-xl transition-all duration-500 ring-1 ring-slate-100 scroll-m-8">
         <CardHeader className="bg-gradient-to-r from-slate-50 to-white border-b border-slate-100 p-6 sm:px-8">
           <CardTitle className="text-sm uppercase tracking-widest text-slate-600 font-black flex items-center gap-2">
             {isEditing ? (
