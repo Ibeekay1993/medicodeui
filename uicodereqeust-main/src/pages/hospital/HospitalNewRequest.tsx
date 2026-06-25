@@ -321,30 +321,32 @@ export default function HospitalNewRequest() {
       const familyPolicy = selectedPatient.policy_number.split('-')[0];
       const diagnosisText = diagnoses.join("; ");
 
-      // Validate email against policy family registry
-      const { data: emailCheck } = await (supabase.rpc as any)('validate_policy_email', {
-        p_email: patientEmail.trim(),
-        p_family_policy: familyPolicy
-      });
+      // Validate email against policy family registry if an email is provided
+      if (!noEmail && patientEmail.trim() && patientEmail.trim() !== "no-email@medicode.com") {
+        const { data: emailCheck } = await (supabase.rpc as any)('validate_policy_email', {
+          p_email: patientEmail.trim(),
+          p_family_policy: familyPolicy
+        });
 
-      if (emailCheck && !emailCheck.allowed) {
-        toast({ variant: "destructive", title: "Email blocked", description: emailCheck.reason || "This email address is already associated with another policy family." });
-        setIsSubmitting(false);
-        return;
-      }
+        if (emailCheck && !emailCheck.allowed) {
+          toast({ variant: "destructive", title: "Email blocked", description: emailCheck.reason || "This email address is already associated with another policy family." });
+          setIsSubmitting(false);
+          return;
+        }
 
-      // Register email in policy_email_registry
-      const { data: registryData } = await (supabase as any)
-        .from('policy_email_registry')
-        .select('id')
-        .eq('email', patientEmail.trim())
-        .maybeSingle();
+        // Register email in policy_email_registry
+        const { data: registryData } = await (supabase as any)
+          .from('policy_email_registry')
+          .select('id')
+          .eq('email', patientEmail.trim())
+          .maybeSingle();
 
-      if (!registryData) {
-        await (supabase as any).from('policy_email_registry').insert({
-          email: patientEmail.trim(),
-          family_policy_number: familyPolicy,
-        }).maybeSingle();
+        if (!registryData) {
+          await (supabase as any).from('policy_email_registry').insert({
+            email: patientEmail.trim(),
+            family_policy_number: familyPolicy,
+          }).maybeSingle();
+        }
       }
 
       // ── Resolve referral hospital ID if name is provided but ID is missing ──
