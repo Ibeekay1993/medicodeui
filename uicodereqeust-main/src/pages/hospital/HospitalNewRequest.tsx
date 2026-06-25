@@ -436,20 +436,24 @@ export default function HospitalNewRequest() {
         });
 
         const fnResult = otpData || {};
+        const isNoEmail = patientEmail.trim() === "no-email@medicode.com";
+
         if (otpError && !fnResult.message) {
           toast({ variant: "destructive", title: "OTP send failed", description: otpError?.message || "Could not deliver OTP email." });
         } else if (fnResult.error) {
           toast({ variant: "destructive", title: "OTP send failed", description: fnResult.message || "Could not deliver OTP email." });
-        } else if (fnResult.email_status === "failed") {
+        } else if (fnResult.email_status === "failed" && !isNoEmail) {
           toast({ variant: "destructive", title: "OTP email failed", description: fnResult.error_message || fnResult.message || "Unable to send OTP email. Check email settings." });
-        } else if (fnResult.email_status === "skipped") {
-          toast({ title: "OTP generated", description: fnResult.message || "OTP created but email sending was skipped. Check BREVO_API_KEY configuration." });
+        } else if (fnResult.email_status === "skipped" && !isNoEmail) {
+          toast({ title: "OTP generated", description: fnResult.message || "OTP created but email sending was skipped." });
         } else {
           toast({
             title: isReferral ? "Referral request submitted" : "Request submitted successfully",
-            description: isReferral
-              ? `Referral to ${resolvedReferralHospitalName} submitted. An OTP has been sent to the patient.`
-              : "An OTP has been sent to the patient's email.",
+            description: isNoEmail 
+              ? (isReferral ? `Referral to ${resolvedReferralHospitalName || 'hospital'} submitted.` : "Request submitted. No OTP email was sent since the patient has no email address.")
+              : (isReferral
+                ? `Referral to ${resolvedReferralHospitalName || 'hospital'} submitted. An OTP has been sent to the patient.`
+                : "An OTP has been sent to the patient's email."),
           });
         }
       } catch (err: any) {
