@@ -15,11 +15,11 @@ In Supabase Dashboard:
 
 Run one of these SQL snippets in Supabase SQL Editor, replacing the UUID and email values.
 
-### Nurse
+### Utilization Manager
 
 ```sql
 insert into public.user_roles (user_id, role)
-values ('USER_UUID_HERE', 'nurse')
+values ('USER_UUID_HERE', 'utilization_manager')
 on conflict do nothing;
 ```
 
@@ -98,7 +98,7 @@ Login path:
 After sign-in:
 
 - Hospital users go to `/dashboard`.
-- Nurse and admin users go to `/backoffice/nurse`.
+- Utilization Manager and admin users go to `/backoffice/utilization-manager`.
 - Claims users go to `/backoffice/claims`.
 
 If a user sees `Access Denied`, check that `public.user_roles.user_id` matches the Supabase Auth user UUID and that hospital users also have an active `public.hospitals.user_id` link.

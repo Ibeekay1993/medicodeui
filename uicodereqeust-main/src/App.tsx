@@ -65,7 +65,7 @@ function RootRedirect() {
   }
 
   if (role === "admin") return <Navigate to="/backoffice/admin" replace />;
-  if (role === "nurse") return <Navigate to="/backoffice/utilization-manager" replace />;
+  if (role === "utilization_manager") return <Navigate to="/backoffice/utilization-manager" replace />;
   if (role === "hospital") return <Navigate to="/dashboard" replace />;
   if (role === "claims") return <Navigate to="/backoffice/claims" replace />;
   if (role === "finance") return <Navigate to="/backoffice/finance" replace />;
@@ -105,7 +105,7 @@ const App = () => (
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/register" element={<Register />} />
 
-              <Route path="/dashboard" element={<ProtectedRoute allowedRoles={["hospital","admin","nurse","claims"]} loginPath="/login" fallbackPath="/unauthorized"><DashboardLayout /></ProtectedRoute>}>
+              <Route path="/dashboard" element={<ProtectedRoute allowedRoles={["hospital","admin","utilization_manager","claims"]} loginPath="/login" fallbackPath="/unauthorized"><DashboardLayout /></ProtectedRoute>}>
                 <Route index element={<ProtectedRoute allowedRoles={["hospital"]} fallbackPath="/unauthorized"><HospitalPortalPage /></ProtectedRoute>} />
                 <Route path="new-request" element={<ProtectedRoute allowedRoles={["hospital"]} fallbackPath="/unauthorized"><HospitalNewRequest /></ProtectedRoute>} />
                 <Route path="authorizations" element={<ProtectedRoute allowedRoles={["hospital"]} fallbackPath="/unauthorized"><HospitalAuthorizations /></ProtectedRoute>} />
@@ -138,7 +138,7 @@ const App = () => (
                 <Route path="settings" element={<SettingsPage />} />
               </Route>
 
-              <Route path="/backoffice/utilization-manager" element={<ProtectedRoute allowedRoles={["nurse"]} loginPath="/login" fallbackPath="/unauthorized"><DashboardLayout /></ProtectedRoute>}>
+              <Route path="/backoffice/utilization-manager" element={<ProtectedRoute allowedRoles={["utilization_manager"]} loginPath="/login" fallbackPath="/unauthorized"><DashboardLayout /></ProtectedRoute>}>
                 <Route index element={<DashboardHome />} />
                 <Route path="requests" element={<RequestsPage />} />
                 <Route path="messages" element={<SupportMessagesPage />} />

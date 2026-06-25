@@ -446,7 +446,7 @@ export type Database = {
       verify_policy: { Args: { _policy_number: string }; Returns: Json }
     }
     Enums: {
-        app_role: "nurse" | "hospital" | "claims" | "admin" | "finance"
+        app_role: "utilization_manager" | "hospital" | "claims" | "admin" | "finance"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -574,7 +574,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-        app_role: ["nurse", "hospital", "claims", "admin", "finance"],
+        app_role: ["utilization_manager", "hospital", "claims", "admin", "finance"],
     },
   },
 } as const

@@ -39,7 +39,7 @@ serve(async (req) => {
   }
 
   try {
-    const { user, profile } = await validateUser(req, ["nurse", "admin", "hospital", "claims"]);
+    const { user, profile } = await validateUser(req, ["utilization_manager", "admin", "hospital", "claims"]);
     const supabase = getServiceClient();
 
     const { authorization_id, patient_email, policy_number } = await req.json();

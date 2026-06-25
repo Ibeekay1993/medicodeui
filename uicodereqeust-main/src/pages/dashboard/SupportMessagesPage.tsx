@@ -1,4 +1,4 @@
-﻿// @ts-nocheck
+// @ts-nocheck
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MessageSquare, Send, FileText, Plus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -52,7 +52,7 @@ export default function SupportMessagesPage() {
   
   
   const defaultRightOpen = (role === "claims" || role === "admin") && !isHospital;
-  const isInternal = ["admin", "nurse", "claims"].includes(role || "");
+  const isInternal = ["admin", "utilization_manager", "claims"].includes(role || "");
 
   // 1. Fetch conversations from Supabase
   const loadConversations = useCallback(async (showSpinner = false) => {
@@ -118,7 +118,7 @@ export default function SupportMessagesPage() {
     const { data } = await supabase
       .from("user_roles")
       .select("user_id, full_name, role")
-      .in("role", ["nurse", "claims", "admin"])
+      .in("role", ["utilization_manager", "claims", "admin"])
       .order("role");
     setAgents(data || []);
   }, [isInternal]);
@@ -362,7 +362,7 @@ useEffect(() => {
 
       const route = conversationRoute(item, user?.id, authRequests, claims);
 
-      if (role === "nurse" && !route.isNurse) return false;
+      if (role === "utilization_manager" && !route.isNurse) return false;
       if (role === "claims" && !route.isClaims) return false;
 
       if (categoryFilter === "request_support") {
@@ -538,9 +538,9 @@ const updateClaimStatus = async (status: "approved" | "rejected" | "paid" | "und
       // 2. Draft system announcement
       let systemAnnouncement = "";
       if (status === "approved") {
-        systemAnnouncement = `FINANCIAL CLAIM AUDIT COMPLETED\n\nThe Claims Officer has VERIFIED the tariffs for claim number **${matchedClaim.claim_number}** (Patient: ${matchedClaim.patient_name}).\n\nClaim Audit: APPROVED / TARIFF VERIFIED\nEstimated Value: ₦${Number(matchedClaim.total_amount || 0).toLocaleString()}\n\nThis dispute has been successfully assessed and is now resolved and closed. Payment disburse command initiated.`;
+        systemAnnouncement = `FINANCIAL CLAIM AUDIT COMPLETED\n\nThe Claims Officer has VERIFIED the tariffs for claim number **${matchedClaim.claim_number}** (Patient: ${matchedClaim.patient_name}).\n\nClaim Audit: APPROVED / TARIFF VERIFIED\nEstimated Value: ?${Number(matchedClaim.total_amount || 0).toLocaleString()}\n\nThis dispute has been successfully assessed and is now resolved and closed. Payment disburse command initiated.`;
       } else if (status === "paid") {
-        systemAnnouncement = `FINANCIAL CLAIM DISBURSED\n\nThe Claims Officer has DISBURSED the payment for claim number **${matchedClaim.claim_number}** (Patient: ${matchedClaim.patient_name}).\n\nPayment Status: DISBURSED / PAID\nDisbursement Amount: ₦${Number(matchedClaim.total_amount || 0).toLocaleString()}\n\nReimbursement is completed. The dispute is now resolved and closed.`;
+        systemAnnouncement = `FINANCIAL CLAIM DISBURSED\n\nThe Claims Officer has DISBURSED the payment for claim number **${matchedClaim.claim_number}** (Patient: ${matchedClaim.patient_name}).\n\nPayment Status: DISBURSED / PAID\nDisbursement Amount: ?${Number(matchedClaim.total_amount || 0).toLocaleString()}\n\nReimbursement is completed. The dispute is now resolved and closed.`;
       } else if (status === "rejected") {
         systemAnnouncement = `FINANCIAL CLAIM AUDIT COMPLETED\n\nThe Claims Officer has REJECTED the claim number **${matchedClaim.claim_number}** (Patient: ${matchedClaim.patient_name}).\n\nClaim Status: REJECTED\n\nThis dispute is now closed. Please check details or resubmit documentation if necessary.`;
       } else {

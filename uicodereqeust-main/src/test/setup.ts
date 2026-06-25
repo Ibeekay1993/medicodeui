@@ -31,7 +31,7 @@ vi.mock('@/integrations/supabase/client', () => ({
 }));
 
 vi.mock('@/contexts/AuthContext', () => ({
-  useAuth: () => ({ user: { id: 'test' }, role: 'nurse' }),
+  useAuth: () => ({ user: { id: 'test' }, role: 'utilization_manager' }),
   AuthProvider: ({ children }: any) => children
 }));
 

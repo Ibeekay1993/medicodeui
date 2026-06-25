@@ -34,7 +34,7 @@ serve(async (req) => {
     payload = await req.json();
     const { email, fullName, role, phone = null, hospital_id = null } = payload;
     const normalizedEmail = String(email || "").trim().toLowerCase();
-    const allowedRoles = ["admin", "hospital", "nurse", "claims", "finance"];
+    const allowedRoles = ["admin", "hospital", "utilization_manager", "claims", "finance"];
 
     if (!normalizedEmail || !fullName || !role) {
       throw new Error("Missing required fields: email, fullName, role");

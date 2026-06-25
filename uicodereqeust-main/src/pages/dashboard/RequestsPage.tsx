@@ -118,7 +118,7 @@ export default function RequestsPage() {
       if (!r.patient_email) return false;
       if (otpLoading[r.id]) return false;
       
-      if (role === "nurse" || role === "admin") {
+      if (role === "utilization_manager" || role === "admin") {
         return (r.status === "pending" || r.status === "approved") && !otpValues[r.id];
       }
       
@@ -137,7 +137,7 @@ export default function RequestsPage() {
       setOtpLoading(prev => ({ ...prev, ...updates }));
 
       try {
-        if (role === "nurse" || role === "admin") {
+        if (role === "utilization_manager" || role === "admin") {
           const ids = requestsToFetch.map(r => r.id);
           const { data, error } = await supabase.rpc("get_otp_values_batch" as any, {
             p_request_ids: ids,
@@ -167,7 +167,7 @@ export default function RequestsPage() {
               if (!error && data) {
                 const otpRow = Array.isArray(data) ? data[0] : data;
                 if (otpRow) {
-                  if (role === "nurse" || role === "admin") {
+                  if (role === "utilization_manager" || role === "admin") {
                     if (otpRow.otp_value) {
                       setOtpValues(prev => ({ ...prev, [r.id]: otpRow.otp_value }));
                     }

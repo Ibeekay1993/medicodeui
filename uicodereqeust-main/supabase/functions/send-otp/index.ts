@@ -16,7 +16,7 @@ serve(async (req) => {
   }
 
   try {
-    const { user } = await validateUser(req, ["nurse", "admin", "hospital", "claims"]);
+    const { user } = await validateUser(req, ["utilization_manager", "admin", "hospital", "claims"]);
     const supabase = getServiceClient();
 
     const { authorization_id, patient_email, policy_number, otp_type, hospital_id } = await req.json();
@@ -119,7 +119,7 @@ serve(async (req) => {
       .eq("otp_type", otp_type || "ARRIVAL")
       .eq("verified", false);
 
-    // Store OTP value for nurse/admin relay + hash for verification
+    // Store OTP value for utilization_manager/admin relay + hash for verification
     const { error: insertError } = await supabase
       .from("otp_verifications")
       .insert({

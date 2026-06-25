@@ -118,7 +118,7 @@ serve(async (req) => {
         );
       }
 
-      const activeRoles = ["admin", "hospital", "nurse", "claims", "finance"];
+      const activeRoles = ["admin", "hospital", "utilization_manager", "claims", "finance"];
       const filteredRoles = (roles || []).filter((r: any) => activeRoles.includes(r.role));
 
       const authById = new Map((authUsers?.users || []).map((u: any) => [u.id, u]));
@@ -350,7 +350,7 @@ serve(async (req) => {
     if (req.method === "PATCH" && action === "update") {
       const { user_id, full_name, email, phone, role, hospital_id, access_status } = body;
       if (!user_id) throw new Error("user_id is required");
-      const allowedRoles = ["admin", "hospital", "nurse", "claims", "finance"];
+      const allowedRoles = ["admin", "hospital", "utilization_manager", "claims", "finance"];
       if (role !== undefined && !allowedRoles.includes(role)) throw new Error("Invalid role selected");
 
       const { data: userData, error: getUserErr } = await supabase.auth.admin.getUserById(user_id);

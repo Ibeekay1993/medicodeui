@@ -103,7 +103,7 @@ export default function ProfileSettingsCard({
           user_id: user?.id,
           current_name: fullName || "Unnamed User",
           requested_name: newName.trim(),
-          role: role || "nurse",
+          role: role || "utilization_manager",
           status: "pending"
         });
 

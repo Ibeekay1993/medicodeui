@@ -61,7 +61,7 @@ export default function Login() {
       }
       if (role === "hospital") navigate("/dashboard", { replace: true });
       else if (role === "admin") navigate("/backoffice/admin", { replace: true });
-      else if (role === "nurse") navigate("/backoffice/nurse", { replace: true });
+      else if (role === "utilization_manager") navigate("/backoffice/utilization-manager", { replace: true });
       else if (role === "claims") navigate("/backoffice/claims", { replace: true });
       else navigate("/", { replace: true });
     }
@@ -144,7 +144,7 @@ export default function Login() {
   const redirectForRole = (resolvedRole: AppRole) => {
     if (resolvedRole === "hospital") navigate("/dashboard", { replace: true });
     else if (resolvedRole === "admin") navigate("/backoffice/admin", { replace: true });
-    else if (resolvedRole === "nurse") navigate("/backoffice/nurse", { replace: true });
+    else if (resolvedRole === "utilization_manager") navigate("/backoffice/utilization-manager", { replace: true });
     else if (resolvedRole === "claims") navigate("/backoffice/claims", { replace: true });
     else navigate("/", { replace: true });
   };

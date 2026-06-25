@@ -114,7 +114,7 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
-    await validateUser(req, ["nurse", "hospital", "admin", "claims"]);
+    await validateUser(req, ["utilization_manager", "hospital", "admin", "claims"]);
 
     const { query, category } = await req.json();
     if (!query) throw new Error("Query required");

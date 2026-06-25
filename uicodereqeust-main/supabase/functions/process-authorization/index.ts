@@ -98,7 +98,7 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
-    const { user } = await validateUser(req, ["nurse", "admin"]);
+    const { user } = await validateUser(req, ["utilization_manager", "admin"]);
     const body = await req.json();
     const requestId = sanitizeString(body.request_id || body.auth_id || body.id, 120);
     const action = sanitizeString(body.action, 20).toLowerCase();
@@ -133,13 +133,13 @@ serve(async (req) => {
 
 
     const decidedAt = new Date().toISOString();
-    const { data: nurseProfile } = await supabase
+    const { data: utilization_managerProfile } = await supabase
       .from("user_roles")
       .select("full_name")
       .eq("user_id", user.id)
       .maybeSingle();
-    const nurseName = nurseProfile?.full_name || user.user_metadata?.full_name || user.email || "Unknown nurse";
-    const nurseInitials = getInitials(nurseName);
+    const utilization_managerName = utilization_managerProfile?.full_name || user.user_metadata?.full_name || user.email || "Unknown utilization_manager";
+    const utilization_managerInitials = getInitials(utilization_managerName);
 
     if (action === "approve") {
       if (!approvedItems.length) throw new Error("At least one approved NHIA item is required");
@@ -182,7 +182,7 @@ serve(async (req) => {
       let authorizationCode = requestRow.authorization_code;
       if (!authorizationCode) {
         const { data: generatedCode, error: codeError } = await supabase.rpc("generate_auth_code", {
-          nurse_initials: nurseInitials,
+          utilization_manager_initials: utilization_managerInitials,
         });
         if (codeError) throw codeError;
         authorizationCode = generatedCode;
@@ -228,8 +228,8 @@ serve(async (req) => {
           clinical_notes: notes || null,
           decided_by: user.id,
           approved_by: user.id,
-          nurse_initials: nurseInitials,
-          authorized_by_name: nurseName,
+          utilization_manager_initials: utilization_managerInitials,
+          authorized_by_name: utilization_managerName,
           authorized_by_email: user.email || null,
           decided_at: decidedAt,
           updated_at: decidedAt,
@@ -251,7 +251,7 @@ serve(async (req) => {
         });
       }
 
-      // 2. Pre-generate OTP so it appears immediately in nurse queue
+      // 2. Pre-generate OTP so it appears immediately in utilization_manager queue
       if (requestRow.patient_email) {
         void invokeFunction("send-otp", {
           authorization_id: requestRow.id,
