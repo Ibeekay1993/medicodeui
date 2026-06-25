@@ -1,0 +1,51 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+.env
+.env.*
+!.env.example
+!.env.production.example
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Project specific
+backups/
+_chat_extract/
+.codex-config/
+.firebase/
+outputs/
+scratch/
+supabase/.temp/
+*.tmp_profile*
+*.xlsx
+*.pdf
+*.csv
+hmo_tariff_2025.*
+hospitals_master.*
+whatsapp_old_*
+
+# AI Slop Detox
+*.txt
+!.github/**/*.txt
+tsc_*.txt
+ts_errors*.txt
+scratch_*.sql

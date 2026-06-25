@@ -1,0 +1,387 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+ 
+@layer base {
+  :root {
+    /* Ronsberger HMO Brand Palette */
+    /* Primary: Indigo #3f3f95 â†’ hsl(240 41% 41%) */
+    /* Accent:  Sky Blue #01aef2 â†’ hsl(197 99% 48%) */
+    /* Highlight: Lime Green #93c34b â†’ hsl(86 51% 52%) */
+
+    --background: 210 17% 98.5%;
+    --foreground: 230 25% 20%;
+    --card: 0 0% 100%;
+    --card-foreground: 230 30% 15%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 230 30% 15%;
+
+    /* Primary: Ronsberger Indigo */
+    --primary: 240 41% 41%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Secondary: soft indigo tint */
+    --secondary: 240 30% 95%;
+    --secondary-foreground: 240 41% 35%;
+
+    --muted: 220 20% 94%;
+    --muted-foreground: 230 15% 40%;
+
+    /* Accent: Sky Blue */
+    --accent: 197 99% 93%;
+    --accent-foreground: 197 90% 30%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 220 20% 88%;
+    --input: 220 20% 88%;
+    --ring: 240 41% 41%;
+    --radius: 0.75rem;
+  }
+ 
+  .dark {
+    --background: 237 35% 8%;
+    --foreground: 220 15% 95%;
+    --card: 237 30% 11%;
+    --card-foreground: 220 15% 95%;
+  }
+}
+ 
+@layer base {
+  * {
+    @apply border-border selection:bg-primary/20;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Inter', sans-serif;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Inter', sans-serif;
+    @apply font-semibold tracking-normal;
+  }
+}
+
+.glass-panel {
+  @apply bg-white/70 backdrop-blur-xl border border-white/40 shadow-xl;
+}
+
+.premium-card {
+  @apply bg-white/70 backdrop-blur-md border border-primary/5 shadow-sm 
+         hover:border-primary/20 hover:shadow-xl hover:shadow-primary/5 
+         transition-all duration-300;
+}
+
+.sidebar-glass {
+  @apply bg-[#0f172a] text-white border-r border-white/5 shadow-2xl;
+}
+
+.nav-item-active {
+  @apply bg-primary text-white shadow-xl shadow-primary/20;
+}
+
+.vibrant-accent {
+  /* Sky Blue accent from Ronsberger logo curve */
+  background: #01aef2;
+}
+
+.ronsberger-indigo {
+  background: #3f3f95;
+}
+
+.ronsberger-green {
+  /* Lime Green from Ronsberger leaf element */
+  background: #93c34b;
+}
+
+/* Typography Polish */
+.text-pro {
+  @apply text-foreground font-bold tracking-tight;
+}
+
+.label-pro {
+  @apply text-[9px] font-black uppercase tracking-widest text-muted-foreground opacity-60;
+}
+
+@layer components {
+  /* Standardized Typography Hierarchy */
+  .page-title {
+    @apply text-2xl font-bold text-slate-900 tracking-tight;
+  }
+  .page-subtitle {
+    @apply text-sm text-slate-500 font-medium;
+  }
+  .table-heading {
+    @apply text-xs font-semibold text-slate-500 uppercase tracking-wider bg-slate-50 border-b border-slate-100;
+  }
+  .table-cell {
+    @apply text-sm text-slate-700;
+  }
+  .meta-text {
+    @apply text-xs text-slate-500;
+  }
+  .badge-label {
+    @apply text-xs font-bold uppercase tracking-wider;
+  }
+
+  .app-main table {
+    font-size: 0.875rem;
+    line-height: 1.45;
+  }
+
+  .app-main table th {
+    font-size: 0.75rem;
+    letter-spacing: 0.04em;
+    color: hsl(222 47% 30%);
+  }
+
+  .app-main table td {
+    vertical-align: middle;
+  }
+
+  .app-main .readable-panel {
+    @apply rounded-xl border border-slate-100 bg-white shadow-sm;
+  }
+
+  .app-main .readable-page-title {
+    @apply text-[22px] font-semibold leading-tight text-slate-800 tracking-normal;
+  }
+
+  .app-main .readable-page-subtitle {
+    @apply text-[13px] font-normal text-[#888780];
+  }
+
+  .med-card {
+    @apply rounded-xl border border-slate-200 bg-white shadow-sm transition-shadow duration-200 hover:shadow-md;
+  }
+
+  .med-button-primary {
+    @apply rounded-lg bg-[#3f3f95] px-5 py-2.5 text-sm font-medium text-white transition-all duration-200 hover:bg-[#32327a] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .med-button-secondary {
+    @apply rounded-lg border border-slate-200 bg-white px-5 py-2.5 text-sm font-medium text-slate-700 transition-all duration-200 hover:border-[#01aef2] hover:text-[#3f3f95] hover:bg-blue-50;
+  }
+
+  .med-status-pill {
+    @apply inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-medium uppercase;
+  }
+
+  @media (max-width: 640px) {
+    [role="dialog"]:not([class*="inset-y-0"]):not([class*="inset-x-0"]) {
+      max-width: calc(100vw - 1rem) !important;
+      max-height: 92dvh !important;
+      overflow-x: hidden !important;
+    }
+
+    [role="dialog"] table {
+      min-width: 560px;
+    }
+
+    [role="dialog"] .grid {
+      min-width: 0;
+    }
+
+    [role="dialog"] button {
+      min-width: 0;
+      white-space: normal;
+    }
+  }
+}
+
+/* Scroll Smoothing & Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  @apply bg-primary/20 rounded-full hover:bg-primary/40;
+}
+
+/* Smooth Scrolling for the whole app */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Better tap targets on mobile */
+@media (max-width: 640px) {
+  button, a, [role="button"] {
+    min-height: 44px;
+  }
+  
+  input, select, textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* Loading shimmer animation */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.shimmer {
+  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.4) 50%, transparent 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* Page transition animations */
+.page-enter {
+  opacity: 0;
+  transform: translateY(8px);
+}
+.page-enter-active {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 300ms ease-out, transform 300ms ease-out;
+}
+
+/* Focus visible enhancement for accessibility */
+*:focus-visible {
+  outline: 2px solid #3f3f95;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Print styles for reports */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  body {
+    background: white !important;
+    color: black !important;
+  }
+}
+
+/* Card hover lift effect */
+.med-card {
+  @apply rounded-xl border border-slate-200 bg-white shadow-sm transition-all duration-200;
+}
+.med-card:hover {
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+  transform: translateY(-1px);
+}
+
+/* Fade in animation for page content */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-in-up {
+  animation: fadeInUp 0.4s ease-out forwards;
+}
+
+/* Pulse dot animation for live indicators */
+@keyframes pulseDot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(1.2); }
+}
+
+.pulse-dot {
+  animation: pulseDot 2s ease-in-out infinite;
+}
+
+/* Smooth number counter transition */
+@keyframes countUp {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-count {
+  animation: countUp 0.3s ease-out forwards;
+}
+
+/* Stagger children animation */
+.stagger-children > * {
+  opacity: 0;
+  animation: fadeInUp 0.3s ease-out forwards;
+}
+
+.stagger-children > *:nth-child(1) { animation-delay: 0ms; }
+.stagger-children > *:nth-child(2) { animation-delay: 50ms; }
+.stagger-children > *:nth-child(3) { animation-delay: 100ms; }
+.stagger-children > *:nth-child(4) { animation-delay: 150ms; }
+.stagger-children > *:nth-child(5) { animation-delay: 200ms; }
+.stagger-children > *:nth-child(6) { animation-delay: 250ms; }
+.stagger-children > *:nth-child(7) { animation-delay: 300ms; }
+.stagger-children > *:nth-child(8) { animation-delay: 350ms; }
+
+/* Improved scrollbar for mobile */
+@supports (overflow: overlay) {
+  .app-main {
+    overflow: overlay;
+  }
+}
+
+/* Prevent iOS bounce */
+@media (max-width: 768px) {
+  body {
+    overscroll-behavior: none;
+  }
+}
+
+/* Dynamic viewport height fallback for browsers that don't support dvh */
+@supports not (height: 100dvh) {
+  .h-screen {
+    height: 100vh;
+  }
+  .min-h-screen {
+    min-height: 100vh;
+  }
+}
+
+/* Color Normalization for AI styling slop */
+[class*="text-[#888780]"] {
+  color: #64748b !important; /* slate-500 */
+}
+[class*="text-[#B4B2A9]"] {
+  color: #94a3b8 !important; /* slate-400 */
+}
+[class*="text-[#444441]"] {
+  color: #334155 !important; /* slate-700 */
+}
+[class*="border-[#D3D1C7]"] {
+  border-color: #e2e8f0 !important; /* slate-200 */
+}
+
+/* Fallbacks for hallucinated Tailwind color classes */
+.bg-slate-55 { @apply bg-slate-50 !important; }
+.bg-rose-55 { @apply bg-rose-50 !important; }
+.bg-emerald-55 { @apply bg-emerald-50 !important; }
+.text-slate-650 { @apply text-slate-600 !important; }
+.text-rose-650 { @apply text-rose-600 !important; }
+.text-rose-750 { @apply text-rose-700 !important; }
+.border-emerald-250 { @apply border-emerald-200 !important; }
+
+/* Responsive layout & typography overrides */
+@media (max-width: 640px) {
+  /* Scale down titles that are too huge on mobile */
+  .app-main .readable-page-title {
+    font-size: 18px !important;
+  }
+  h1 {
+    font-size: 1.375rem !important;
+  }
+  h2 {
+    font-size: 1.2rem !important;
+  }
+  h3 {
+    font-size: 1.1rem !important;
+  }
+}
+
+.tiny-header { font-size: 9px !important; -webkit-text-size-adjust: none; text-size-adjust: none; }
+@media (min-width: 640px) { .tiny-header { font-size: 11px !important; } }

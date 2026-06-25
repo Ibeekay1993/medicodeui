@@ -1,0 +1,479 @@
+import { useState, useEffect, useRef } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
+import { ArrowLeft } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { readSessionJSON, removeSessionItem, writeSessionJSON } from "@/lib/sessionState";
+
+import {
+  TreatmentItem,
+  HospitalRequestDraft,
+  BRAND_TO_GENERIC,
+  DIAGNOSES,
+  isValidNigerianPhone,
+  isValidPolicyNumber,
+  isValidEmail
+} from "@/lib/new-request-helpers";
+
+import PatientSection from "@/components/new-request/PatientSection";
+import DiagnosisSection from "@/components/new-request/DiagnosisSection";
+import PrioritySection from "@/components/new-request/PrioritySection";
+import ReferralSection from "@/components/new-request/ReferralSection";
+import TreatmentSection from "@/components/new-request/TreatmentSection";
+
+// ─── Shared helper: resolve hospital UUID by name ──────────────────────────
+async function findHospitalIdByName(name: string): Promise<string | null> {
+  if (!name?.trim()) return null;
+  const normalizedInput = name.trim().toLowerCase().replace(/[^a-z0-9\s]/g, "").replace(/\s+/g, " ");
+  try {
+    const { data, error } = await supabase
+      .from("hospitals")
+      .select("id, name")
+      .ilike("name", `%${name.trim()}%`)
+      .limit(5);
+
+    if (error || !data || data.length === 0) return null;
+
+    // Prefer exact normalized match first
+    for (const h of data) {
+      const norm = String(h.name || "").toLowerCase().replace(/[^a-z0-9\s]/g, "").replace(/\s+/g, " ");
+      if (norm === normalizedInput) return h.id;
+    }
+    // Fallback: first result
+    return data[0].id;
+  } catch (err) {
+    console.error("findHospitalIdByName error:", err);
+    return null;
+  }
+}
+
+export default function HospitalNewRequest() {
+  const { user, hospitalId } = useAuth();
+  const { toast } = useToast();
+  const navigate = useNavigate();
+  const [hospital, setHospital] = useState<any>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Patient
+  const patientRef = useRef<HTMLDivElement>(null);
+  const [patientSearch, setPatientSearch] = useState("");
+  const [patientResults, setPatientResults] = useState<any[]>([]);
+  const [patientLoading, setPatientLoading] = useState(false);
+  const [patientOpen, setPatientOpen] = useState(false);
+  const [selectedPatient, setSelectedPatient] = useState<any>(null);
+
+  // Diagnosis — multi-diagnosis support
+  const diagRef = useRef<HTMLDivElement>(null);
+  const [diagnosisSearch, setDiagnosisSearch] = useState("");
+  const [diagnoses, setDiagnoses] = useState<string[]>([]);
+  const [diagSuggestions, setDiagSuggestions] = useState<string[]>([]);
+  const [diagOpen, setDiagOpen] = useState(false);
+
+  // Treatment
+  const treatRef = useRef<HTMLDivElement>(null);
+  const [treatSearch, setTreatSearch] = useState("");
+  const [treatResults, setTreatResults] = useState<any[]>([]);
+  const [treatLoading, setTreatLoading] = useState(false);
+  const [treatOpen, setTreatOpen] = useState(false);
+  const [treatments, setTreatments] = useState<TreatmentItem[]>([]);
+
+  // Form
+  const [phone, setPhone] = useState("");
+  const [patientEmail, setPatientEmail] = useState("");
+  const [urgency, setUrgency] = useState("routine");
+  const [referralHospitalId, setReferralHospitalId] = useState<string | null>(null);
+  const [referralHospitalName, setReferralHospitalName] = useState("");
+  const [draftReady, setDraftReady] = useState(false);
+  const draftKey = user?.id ? `ronsberger:hospital-new-request:${user.id}` : null;
+
+  useEffect(() => {
+    if (user) {
+      const query = hospitalId
+        ? supabase.from("hospitals").select("*").eq("id", hospitalId)
+        : supabase.from("hospitals").select("*").eq("user_id", user.id);
+      query.maybeSingle().then(({ data }) => setHospital(data));
+    }
+  }, [user, hospitalId]);
+
+  useEffect(() => {
+    if (!draftKey) {
+      setDraftReady(true);
+      return;
+    }
+
+    const draft = readSessionJSON<HospitalRequestDraft>(draftKey);
+    if (draft) {
+      setSelectedPatient(draft.selectedPatient ?? null);
+      setPatientSearch(draft.patientSearch ?? "");
+      setDiagnoses(Array.isArray(draft.diagnoses) ? draft.diagnoses : []);
+      setDiagnosisSearch(draft.diagnosisSearch ?? "");
+      setTreatSearch(draft.treatSearch ?? "");
+      setTreatments(Array.isArray(draft.treatments) ? draft.treatments : []);
+      setPhone(draft.phone ?? "");
+      setPatientEmail(draft.patientEmail ?? "");
+      setUrgency(draft.urgency || "routine");
+      setReferralHospitalId(draft.referralHospitalId ?? null);
+      setReferralHospitalName(draft.referralHospitalName ?? "");
+    }
+    setDraftReady(true);
+  }, [draftKey]);
+
+  useEffect(() => {
+    if (!draftReady || !draftKey) return;
+
+    const draft: HospitalRequestDraft = {
+      selectedPatient,
+      patientSearch,
+      diagnoses,
+      diagnosisSearch,
+      treatSearch,
+      treatments,
+      phone,
+      urgency,
+      referralHospitalId,
+      referralHospitalName,
+    };
+
+    const hasContent =
+      Boolean(selectedPatient) ||
+      patientSearch.trim().length > 0 ||
+      diagnoses.length > 0 ||
+      diagnosisSearch.trim().length > 0 ||
+      treatSearch.trim().length > 0 ||
+      treatments.length > 0 ||
+      phone.trim().length > 0 ||
+      patientEmail.trim().length > 0 ||
+      urgency !== "routine" ||
+      Boolean(referralHospitalId) ||
+      referralHospitalName.trim().length > 0;
+
+    if (hasContent) {
+      writeSessionJSON(draftKey, draft);
+    } else {
+      removeSessionItem(draftKey);
+    }
+  }, [
+    draftKey, draftReady, diagnoses, diagnosisSearch, patientSearch,
+    phone, patientEmail, referralHospitalId, referralHospitalName,
+    selectedPatient, treatSearch, treatments, urgency,
+  ]);
+
+  // Patient search
+  useEffect(() => {
+    const t = setTimeout(async () => {
+      if (patientSearch.length < 3) {
+        setPatientResults([]);
+        setPatientOpen(false);
+        return;
+      }
+      setPatientLoading(true);
+
+      const { data } = await supabase.from("nhis_beneficiaries")
+        .select("full_name, policy_number")
+        .or(`policy_number.ilike.%${patientSearch}%,full_name.ilike.%${patientSearch}%`)
+        .limit(8);
+      setPatientResults(data || []);
+      setPatientOpen((data || []).length > 0);
+      setPatientLoading(false);
+    }, 300);
+    return () => clearTimeout(t);
+  }, [patientSearch]);
+
+  // Diagnosis suggestions
+  useEffect(() => {
+    const q = diagnosisSearch.trim();
+    if (q.length < 2) { setDiagSuggestions([]); setDiagOpen(false); return; }
+    const matches = DIAGNOSES.filter(d => d.toLowerCase().includes(q.toLowerCase()));
+    setDiagSuggestions(matches.slice(0, 10));
+    setDiagOpen(matches.length > 0);
+  }, [diagnosisSearch]);
+
+  // Treatment search
+  useEffect(() => {
+    const t = setTimeout(async () => {
+      const q = treatSearch.toLowerCase().trim();
+      if (q.length < 3) {
+        setTreatResults([]);
+        setTreatOpen(false);
+        return;
+      }
+      setTreatLoading(true);
+
+      const brand = Object.keys(BRAND_TO_GENERIC).find(b => q.includes(b));
+      const term = brand ? BRAND_TO_GENERIC[brand] : treatSearch;
+
+      const { data } = await supabase
+        .from("nhia_items" as any)
+        .select("code,name,amount,category,subcategory")
+        .or(`name.ilike.%${term}%,code.ilike.%${term}%,subcategory.ilike.%${term}%`)
+        .eq("is_active", true)
+        .limit(100);
+
+      setTreatResults((data || []) as any[]);
+      setTreatOpen((data || []).length > 0);
+      setTreatLoading(false);
+    }, 300);
+    return () => clearTimeout(t);
+  }, [treatSearch]);
+
+  const total = treatments.reduce((a, t) => a + Number(t.amount) * t.quantity, 0);
+
+  const handleSubmit = async () => {
+    if (!selectedPatient) { toast({ variant: "destructive", title: "No patient selected" }); return; }
+    if (!isValidPolicyNumber(selectedPatient.policy_number)) {
+      toast({ variant: "destructive", title: "Invalid policy number", description: "Select a patient with a valid policy number before submitting." });
+      return;
+    }
+    if (!phone || !isValidNigerianPhone(phone)) {
+      toast({ variant: "destructive", title: "Invalid phone number", description: "Enter a valid Nigerian phone number such as 08012345678 or +2348012345678." });
+      return;
+    }
+    if (diagnoses.length === 0) {
+      toast({ variant: "destructive", title: "No diagnosis added", description: "Add at least one diagnosis before submitting." });
+      return;
+    }
+    if (treatments.length === 0) { toast({ variant: "destructive", title: "No treatments added" }); return; }
+    if (!patientEmail || !isValidEmail(patientEmail)) {
+      toast({ variant: "destructive", title: "Invalid email", description: "Enter a valid patient email address for OTP verification." });
+      return;
+    }
+    const invalidTreatment = treatments.find(t => !Number.isFinite(Number(t.amount)) || Number(t.amount) <= 0 || !Number.isInteger(Number(t.quantity)) || Number(t.quantity) < 1 || Number(t.quantity) > 999);
+    if (invalidTreatment) {
+      toast({ variant: "destructive", title: "Invalid treatment item", description: "Each treatment needs a valid tariff amount and quantity between 1 and 999." });
+      return;
+    }
+    if (!Number.isFinite(total) || total <= 0) {
+      toast({ variant: "destructive", title: "Invalid tariff total", description: "The request total must be greater than zero." });
+      return;
+    }
+
+    const approvedPayload = treatments.map((item) => ({
+      code: item.code,
+      name: item.name,
+      category: item.category || item.subcategory || null,
+      unit_price: Number(item.amount),
+      quantity: Number(item.quantity),
+      amount: Number(item.amount) * Number(item.quantity),
+      frequency: null,
+      duration: null,
+      matched_via: "hospital-selected",
+      matched_text: item.name,
+      confidence: "high",
+    }));
+    setIsSubmitting(true);
+
+    try {
+      const familyPolicy = selectedPatient.policy_number.split('-')[0];
+      const diagnosisText = diagnoses.join("; ");
+
+      // Validate email against policy family registry
+      const { data: emailCheck } = await (supabase.rpc as any)('validate_policy_email', {
+        p_email: patientEmail.trim(),
+        p_family_policy: familyPolicy
+      });
+
+      if (emailCheck && !emailCheck.allowed) {
+        toast({ variant: "destructive", title: "Email blocked", description: emailCheck.reason || "This email address is already associated with another policy family." });
+        setIsSubmitting(false);
+        return;
+      }
+
+      // Register email in policy_email_registry
+      const { data: registryData } = await (supabase as any)
+        .from('policy_email_registry')
+        .select('id')
+        .eq('email', patientEmail.trim())
+        .maybeSingle();
+
+      if (!registryData) {
+        await (supabase as any).from('policy_email_registry').insert({
+          email: patientEmail.trim(),
+          family_policy_number: familyPolicy,
+        }).maybeSingle();
+      }
+
+      // ── Resolve referral hospital ID if name is provided but ID is missing ──
+      let resolvedReferralHospitalId = referralHospitalId;
+      let resolvedReferralHospitalName = referralHospitalName.trim() || null;
+      if (!resolvedReferralHospitalId && resolvedReferralHospitalName) {
+        const foundId = await findHospitalIdByName(referralHospitalName.trim());
+        if (foundId) {
+          resolvedReferralHospitalId = foundId;
+        }
+      }
+
+      // ── Determine request status based on whether a referral hospital is set ──
+      // If a referral hospital is assigned → status is "pending_referral" (awaiting insurer approval)
+      // If no referral → status is "pending" (standard authorization request)
+      const isReferral = Boolean(resolvedReferralHospitalId || resolvedReferralHospitalName);
+      const initialStatus = isReferral ? "pending_referral" : "pending";
+
+      // ── Insert the authorization request ──────────────────────────────────
+      const { data: insertedRequest, error } = await supabase
+        .from("authorization_requests")
+        .insert({
+          request_id: `REQ-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
+          patient_name: selectedPatient.full_name,
+          policy_number: selectedPatient.policy_number,
+          patient_email: patientEmail.trim(),
+          diagnosis: diagnosisText,
+          treatment: treatments.map(t => `${t.name} [Code: ${t.code}] (Qty: ${t.quantity} x ₦${t.amount} = ₦${t.quantity * Number(t.amount)})`).join("; "),
+          patient_phone: phone,
+          urgency,
+          hospital_id: hospital?.id,
+          hospital_name: hospital?.name,
+          // Referral chain — all four ID+name pairs must be set for RLS and queue queries
+          requesting_hospital_id: hospital?.id,
+          requesting_hospital_name: hospital?.name,
+          referring_hospital_id: hospital?.id,
+          referring_hospital_name: hospital?.name,
+          referred_hospital_id: resolvedReferralHospitalId,
+          referred_hospital_name: resolvedReferralHospitalName,
+          // Claiming hospital = receiving hospital (if referral) or requesting hospital
+          claiming_hospital_id: resolvedReferralHospitalId || hospital?.id,
+          claiming_hospital_name: resolvedReferralHospitalName || hospital?.name,
+          submitted_by: user?.id,
+          approved_items: approvedPayload,
+          source: "hospital_portal",
+          total_amount: total,
+          status: initialStatus,
+        })
+        .select("id")
+        .single();
+
+      if (error) throw error;
+      if (!insertedRequest?.id) throw new Error("Request created but no ID returned");
+
+      // ── Audit log: referral assignment ────────────────────────────────────
+      if (isReferral) {
+        try {
+          await supabase.from("audit_logs" as any).insert({
+            action: "referral_created",
+            user_id: user?.id,
+            details: {
+              request_id: insertedRequest.id,
+              patient_name: selectedPatient.full_name,
+              policy_number: selectedPatient.policy_number,
+              referring_hospital_id: hospital?.id,
+              referring_hospital_name: hospital?.name,
+              referred_hospital_id: resolvedReferralHospitalId,
+              referred_hospital_name: resolvedReferralHospitalName,
+              status: initialStatus,
+            },
+            severity: "info",
+          });
+        } catch {}
+      }
+
+      // ── Send OTP to patient email ─────────────────────────────────────────
+      try {
+        const { data: otpData, error: otpError } = await supabase.functions.invoke("send-otp", {
+          method: "POST",
+          body: {
+            authorization_id: insertedRequest.id,
+            patient_email: patientEmail.trim(),
+            policy_number: selectedPatient.policy_number,
+            otp_type: isReferral ? "ARRIVAL" : "TREATMENT",
+            hospital_id: resolvedReferralHospitalId || hospital?.id,
+          },
+        });
+
+        const fnResult = otpData || {};
+        if (otpError && !fnResult.message) {
+          toast({ variant: "destructive", title: "OTP send failed", description: otpError?.message || "Could not deliver OTP email." });
+        } else if (fnResult.error) {
+          toast({ variant: "destructive", title: "OTP send failed", description: fnResult.message || "Could not deliver OTP email." });
+        } else if (fnResult.email_status === "failed") {
+          toast({ variant: "destructive", title: "OTP email failed", description: fnResult.error_message || fnResult.message || "Unable to send OTP email. Check email settings." });
+        } else if (fnResult.email_status === "skipped") {
+          toast({ title: "OTP generated", description: fnResult.message || "OTP created but email sending was skipped. Check BREVO_API_KEY configuration." });
+        } else {
+          toast({
+            title: isReferral ? "Referral request submitted" : "Request submitted successfully",
+            description: isReferral
+              ? `Referral to ${resolvedReferralHospitalName} submitted. An OTP has been sent to the patient.`
+              : "An OTP has been sent to the patient's email.",
+          });
+        }
+      } catch (err: any) {
+        console.error("OTP send failed:", err);
+        toast({ variant: "destructive", title: "OTP send failed", description: err?.message || "Could not deliver OTP email." });
+      }
+
+      if (draftKey) removeSessionItem(draftKey);
+      navigate("/dashboard");
+    } catch (err: any) {
+      console.error("Request submission error:", err);
+      toast({ variant: "destructive", title: "Submission failed", description: err.message });
+    } finally { setIsSubmitting(false); }
+  };
+
+  return (
+    <div className="max-w-2xl mx-auto pb-24 animate-in fade-in duration-300">
+      <div className="flex items-center gap-4 mb-4">
+        <Button variant="ghost" size="icon" onClick={() => navigate("/dashboard")} className="rounded-full h-8 w-8 bg-white border border-slate-100 shadow-sm shrink-0">
+          <ArrowLeft className="h-4 w-4" />
+        </Button>
+      </div>
+
+      <div className="bg-white rounded-3xl shadow-xl border border-slate-100 divide-y divide-slate-100">
+        <PatientSection
+          selectedPatient={selectedPatient}
+          setSelectedPatient={setSelectedPatient}
+          patientSearch={patientSearch}
+          setPatientSearch={setPatientSearch}
+          patientLoading={patientLoading}
+          patientResults={patientResults}
+          patientOpen={patientOpen}
+          setPatientOpen={setPatientOpen}
+          phone={phone}
+          setPhone={setPhone}
+          patientEmail={patientEmail}
+          setPatientEmail={setPatientEmail}
+          patientRef={patientRef}
+        />
+
+        <DiagnosisSection
+          diagnoses={diagnoses}
+          setDiagnoses={setDiagnoses}
+          diagnosisSearch={diagnosisSearch}
+          setDiagnosisSearch={setDiagnosisSearch}
+          diagSuggestions={diagSuggestions}
+          setDiagSuggestions={setDiagSuggestions}
+          diagOpen={diagOpen}
+          setDiagOpen={setDiagOpen}
+          diagRef={diagRef}
+        />
+
+        <PrioritySection
+          urgency={urgency}
+          setUrgency={setUrgency}
+        />
+
+        <ReferralSection
+          hospitalName={hospital?.name}
+          referralHospitalName={referralHospitalName}
+          referralHospitalId={referralHospitalId}
+          setReferralHospitalId={setReferralHospitalId}
+          setReferralHospitalName={setReferralHospitalName}
+        />
+
+        <TreatmentSection
+          treatSearch={treatSearch}
+          setTreatSearch={setTreatSearch}
+          treatLoading={treatLoading}
+          treatResults={treatResults}
+          treatOpen={treatOpen}
+          setTreatOpen={setTreatOpen}
+          treatments={treatments}
+          setTreatments={setTreatments}
+          isSubmitting={isSubmitting}
+          onSubmit={handleSubmit}
+          treatRef={treatRef}
+        />
+      </div>
+    </div>
+  );
+}

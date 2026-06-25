@@ -1,0 +1,3 @@
+-- This migration attempted to assign a role to a specific user ID from a previous project.
+-- It has been cleared to allow pushing to a new database project.
+-- You can assign roles to new users directly in the Supabase Dashboard or through the app.
