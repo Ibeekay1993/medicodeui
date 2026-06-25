@@ -65,7 +65,7 @@ export default function ClaimAuditDialogs({
           setApprovalNote("");
         }
       }}>
-        <DialogContent className="w-[calc(100vw-2rem)] max-w-md rounded-2xl border-slate-200 p-0 overflow-hidden">
+        <DialogContent className="w-[calc(100vw-2rem)] max-w-md max-h-[90vh] overflow-y-auto overflow-x-hidden rounded-2xl border-slate-200 p-0">
           <DialogHeader className="border-b border-slate-100 bg-emerald-50 p-5">
             <DialogTitle className="text-sm font-semibold text-slate-900">Approve Claim Item</DialogTitle>
             <DialogDescription className="text-xs font-medium text-emerald-700 leading-relaxed">
@@ -99,7 +99,7 @@ export default function ClaimAuditDialogs({
           setAdjustReason("");
         }
       }}>
-        <DialogContent className="w-[calc(100vw-2rem)] max-w-md rounded-2xl border-slate-200 p-0 overflow-hidden">
+        <DialogContent className="w-[calc(100vw-2rem)] max-w-md max-h-[90vh] overflow-y-auto overflow-x-hidden rounded-2xl border-slate-200 p-0">
           <DialogHeader className="border-b border-slate-100 bg-blue-50 p-5">
             <DialogTitle className="text-sm font-semibold text-slate-900">Adjust Approved Quantity</DialogTitle>
             <DialogDescription className="text-xs font-medium text-blue-700 leading-relaxed">
@@ -148,7 +148,7 @@ export default function ClaimAuditDialogs({
           setDeclineNote("");
         }
       }}>
-        <DialogContent className="w-[calc(100vw-2rem)] max-w-lg rounded-2xl border-slate-200 p-0 overflow-hidden">
+        <DialogContent className="w-[calc(100vw-2rem)] max-w-lg max-h-[90vh] overflow-y-auto overflow-x-hidden rounded-2xl border-slate-200 p-0">
           <DialogHeader className="border-b border-slate-100 bg-slate-50/80 p-5">
             <DialogTitle className="text-sm font-semibold text-slate-900">Decline Claim Item</DialogTitle>
             <DialogDescription className="text-xs font-medium text-slate-500 leading-relaxed">

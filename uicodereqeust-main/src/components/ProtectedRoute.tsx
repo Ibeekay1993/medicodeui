@@ -44,7 +44,7 @@ export function ProtectedRoute({ children, allowedRoles, fallbackPath, loginPath
     if (role === "claims") return <Navigate to="/backoffice/claims" replace />;
     if (role === "admin") return <Navigate to="/backoffice/admin" replace />;
     if (role === "finance") return <Navigate to="/backoffice/finance" replace />;
-    return <Navigate to="/backoffice/nurse" replace />;
+    return <Navigate to="/backoffice/utilization-manager" replace />;
   }
 
   return <>{children}</>;

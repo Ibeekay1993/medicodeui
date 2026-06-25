@@ -65,7 +65,7 @@ export default function ContestDecisionDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="w-[calc(100vw-2rem)] max-w-md rounded-2xl border-slate-200 p-0 overflow-hidden">
+      <DialogContent className="w-[calc(100vw-2rem)] max-w-md max-h-[90vh] overflow-y-auto overflow-x-hidden rounded-2xl border-slate-200 p-0">
         <DialogHeader className="p-5 pb-3 border-b border-slate-100 bg-slate-50/70">
           <DialogTitle className="text-sm font-black uppercase tracking-tight text-slate-900">
             Contest Audit Decision

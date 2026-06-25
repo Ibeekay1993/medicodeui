@@ -48,7 +48,7 @@ export default function ClaimReviewDialog({
 
   return (
     <Dialog open={isReviewing} onOpenChange={setIsReviewing}>
-      <DialogContent className="max-w-md rounded-2xl border-none shadow-2xl p-0 overflow-hidden">
+      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto overflow-x-hidden rounded-2xl border-none shadow-2xl p-0">
         <div className="bg-slate-900 p-6 text-white relative">
           <h2 className="text-sm font-black uppercase tracking-tight italic">
             Claim <span className="text-emerald-400">Review</span>

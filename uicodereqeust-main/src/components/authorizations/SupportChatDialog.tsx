@@ -22,7 +22,7 @@ export default function SupportChatDialog({
 }: SupportChatDialogProps) {
   return (
     <Dialog open={requestChatOpen} onOpenChange={setRequestChatOpen}>
-      <DialogContent className="max-w-lg rounded-2xl border-none p-0 overflow-hidden">
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto overflow-x-hidden rounded-2xl border-none p-0">
         <div className="bg-slate-900 p-5 text-white">
           <h2 className="text-sm font-black uppercase tracking-tight italic">Request Support Chat</h2>
           <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">

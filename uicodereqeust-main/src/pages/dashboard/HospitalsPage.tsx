@@ -238,7 +238,7 @@ export default function HospitalsPage() {
               <DialogTrigger asChild>
                 <Button className="med-button-primary h-8 text-xs"><Plus className="h-3.5 w-3.5" /> Add Hospital</Button>
               </DialogTrigger>
-              <DialogContent className="rounded-xl sm:max-w-[460px]">
+              <DialogContent className="rounded-xl sm:max-w-[460px] max-h-[90vh] overflow-y-auto overflow-x-hidden">
                 <DialogHeader>
                   <DialogTitle className="text-lg font-semibold">New Hospital</DialogTitle>
                   <DialogDescription>Enter facility details for the hospital registry.</DialogDescription>
@@ -429,7 +429,7 @@ export default function HospitalsPage() {
       </div>
 
       <Dialog open={!!editing} onOpenChange={(open) => !open && setEditing(null)}>
-        <DialogContent className="rounded-xl sm:max-w-[460px]">
+        <DialogContent className="rounded-xl sm:max-w-[460px] max-h-[90vh] overflow-y-auto overflow-x-hidden">
           <DialogHeader>
             <DialogTitle className="text-lg font-semibold">Edit Hospital</DialogTitle>
             <DialogDescription>Update facility details and active status.</DialogDescription>
@@ -442,7 +442,7 @@ export default function HospitalsPage() {
       </Dialog>
 
       <Dialog open={!!linking} onOpenChange={(open) => !open && setLinking(null)}>
-        <DialogContent className="rounded-xl sm:max-w-[425px]">
+        <DialogContent className="rounded-xl sm:max-w-[425px] max-h-[90vh] overflow-y-auto overflow-x-hidden">
           <DialogHeader>
             <DialogTitle className="text-lg font-semibold">Link Login User</DialogTitle>
             <DialogDescription>Connect a hospital record to a Hospital Admin login account.</DialogDescription>

@@ -168,7 +168,7 @@ export default function ReferralTreatmentFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-xl rounded-2xl border-none shadow-2xl p-0 overflow-hidden max-h-[92dvh] overflow-y-auto">
+      <DialogContent className="max-w-xl rounded-2xl border-none shadow-2xl p-0 max-h-[92dvh] overflow-y-auto overflow-x-hidden">
         <div className="bg-slate-900 p-6 text-white relative">
           <h2 className="text-sm font-black uppercase tracking-tight italic">
             Treatment <span className="text-blue-400">Request Form</span>

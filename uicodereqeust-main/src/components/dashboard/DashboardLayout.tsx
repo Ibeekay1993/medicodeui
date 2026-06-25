@@ -96,7 +96,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         if (!latestByConversation.has(msg.conversation_id)) latestByConversation.set(msg.conversation_id, msg);
       });
 
-      const staffRoles = ["admin", "nurse", "claims", "finance"];
+      const staffRoles = ["admin", "utilization_manager", "claims", "finance"];
       const needsAttentionStatuses = ["new", "open", "reopened", "waiting_internal_action", "pending"];
       const hospitalWaitingStatuses = ["pending_customer_response", "open", "reopened"];
       const count = (conversations || []).filter((conversation: any) => {
@@ -139,7 +139,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       channels.push(nameChannel);
     }
 
-    if (role === "admin" || role === "nurse") {
+    if (role === "admin" || role === "utilization_manager") {
       const authInsertChannel = supabase
         .channel("realtime-dashboard-auth-requests-insert")
         .on("postgres_changes", { event: "INSERT", schema: "public", table: "authorization_requests" }, (payload) => {
@@ -170,9 +170,9 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         if (msg.sender_id === user.id) return;
         const currentRole = role as string;
         const senderIsHospital = msg.sender_role === "hospital";
-        const userIsStaff = ["admin", "nurse", "claims", "finance"].includes(currentRole);
+        const userIsStaff = ["admin", "utilization_manager", "claims", "finance"].includes(currentRole);
         const userIsHospital = currentRole === "hospital";
-        if ((userIsStaff && senderIsHospital) || (userIsHospital && ["admin", "nurse", "claims", "finance"].includes(msg.sender_role || ""))) {
+        if ((userIsStaff && senderIsHospital) || (userIsHospital && ["admin", "utilization_manager", "claims", "finance"].includes(msg.sender_role || ""))) {
           refreshActionableMessages();
           playNotificationSound();
           toast({ title: `Support Message from ${msg.sender_name || "Support"}`, description: msg.body.length > 55 ? `${msg.body.substring(0, 55)}...` : msg.body });
@@ -189,9 +189,9 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       .subscribe();
     channels.push(conversationAlertChannel);
 
-    if (role === "nurse") {
-      const nurseRequestSupportChannel = supabase
-        .channel("realtime-dashboard-nurse-request-support-alerts")
+    if (role === "utilization_manager") {
+      const utilizationManagerRequestSupportChannel = supabase
+        .channel("realtime-dashboard-utilization-manager-request-support-alerts")
         .on("postgres_changes", { event: "INSERT", schema: "public", table: "support_conversations" }, (payload) => {
           const conversation = payload.new as any;
           if (conversation.ticket_type === "request_support" && conversation.assigned_to === user.id) {
@@ -212,7 +212,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           }
         })
         .subscribe();
-      channels.push(nurseRequestSupportChannel);
+      channels.push(utilizationManagerRequestSupportChannel);
     }
 
     return () => {
@@ -225,7 +225,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     if (role === "claims") return "/backoffice/claims";
     if (role === "finance") return "/backoffice/finance";
     if (role === "admin") return "/backoffice/admin";
-    return "/backoffice/nurse";
+    return "/backoffice/utilization-manager";
   };
   const basePath = getBasePath();
 
@@ -261,7 +261,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       { name: "New Request", href: "/dashboard/new-request", icon: Zap, hidden: r !== "hospital" },
       { name: "Authorizations", href: r === "hospital" ? `${basePath}/authorizations` : `${basePath}/requests`, icon: ShieldCheck },
       { name: "Claims Analysis", href: `${basePath}/claims-analysis`, icon: LayoutDashboard, hidden: r !== "admin" },
-      { name: "Claims Queue", href: `${basePath}/claims`, icon: Banknote, hidden: r === "nurse" },
+      { name: "Claims Queue", href: `${basePath}/claims`, icon: Banknote, hidden: r === "utilization_manager" },
       { name: "Payments", href: `/backoffice/admin/payments/awaiting`, icon: Banknote, hidden: r !== "admin" },
       { name: "Claims Reports", href: `${basePath}/claims-reports`, icon: FileSpreadsheet, hidden: r !== "admin" },
       { name: "Messages", href: `${basePath}/messages`, icon: MessageSquare, badge: actionableMessages },
@@ -392,23 +392,23 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       return { title: "Settings", description: "Manage security policies & account details" };
     }
 
-    // Nurse routes
-    if (path === "/backoffice/nurse" || path === "/backoffice/nurse/") {
+    // Utilization Manager routes
+    if (path === "/backoffice/utilization-manager" || path === "/backoffice/utilization-manager/") {
       return { title: "Dashboard Overview", description: "Real-time clinical authorizations & claims sync" };
     }
-    if (path.startsWith("/backoffice/nurse/requests")) {
+    if (path.startsWith("/backoffice/utilization-manager/requests")) {
       return { title: "Authorizations", description: "Search, review, and audit authorization requests" };
     }
-    if (path.startsWith("/backoffice/nurse/messages")) {
+    if (path.startsWith("/backoffice/utilization-manager/messages")) {
       return { title: "Clinical Ticket Queue", description: "Pre-auth, prior-auth, code, and assigned clinical messages" };
     }
-    if (path.startsWith("/backoffice/nurse/whatsapp")) {
+    if (path.startsWith("/backoffice/utilization-manager/whatsapp")) {
       return { title: "WhatsApp Parser", description: "Clinical Intake Engine" };
     }
-    if (path.startsWith("/backoffice/nurse/reports")) {
+    if (path.startsWith("/backoffice/utilization-manager/reports")) {
       return { title: "Pre-Auth Analytics", description: "Clinical authorization trends, hospital performance & daily KPIs" };
     }
-    if (path.startsWith("/backoffice/nurse/settings")) {
+    if (path.startsWith("/backoffice/utilization-manager/settings")) {
       return { title: "Settings", description: "Manage security policies & account details" };
     }
 
