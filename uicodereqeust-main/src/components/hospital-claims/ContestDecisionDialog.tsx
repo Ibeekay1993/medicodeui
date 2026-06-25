@@ -10,17 +10,22 @@ import {
 } from "@/components/ui/dialog";
 import { Loader2 } from "lucide-react";
 import { ClaimDraft } from "@/lib/claims-helpers";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+
+const contestSchema = z.object({
+  contestReason: z.string().min(20, "Please provide a detailed clinical justification (at least 20 characters)"),
+  contestFiles: z.any()
+});
+
+export type ContestFormData = z.infer<typeof contestSchema>;
 
 interface ContestDecisionDialogProps {
   contestTarget: ClaimDraft | null;
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
-  contestReason: string;
-  setContestReason: (val: string) => void;
-  contestFiles: File[];
-  setContestFiles: (files: File[]) => void;
-  isSubmittingContest: boolean;
-  onSubmit: () => void;
+  onSubmit: (data: ContestFormData) => Promise<void>;
   contestedAmount: number;
 }
 
@@ -28,16 +33,38 @@ export default function ContestDecisionDialog({
   contestTarget,
   isOpen,
   onOpenChange,
-  contestReason,
-  setContestReason,
-  contestFiles,
-  setContestFiles,
-  isSubmittingContest,
   onSubmit,
   contestedAmount
 }: ContestDecisionDialogProps) {
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    watch,
+    reset,
+    formState: { errors, isSubmitting }
+  } = useForm<ContestFormData>({
+    resolver: zodResolver(contestSchema),
+    defaultValues: {
+      contestReason: "",
+      contestFiles: []
+    }
+  });
+
+  const files = watch("contestFiles") as File[];
+
+  const handleClose = () => {
+    reset();
+    onOpenChange(false);
+  };
+
+  const submitForm = async (data: ContestFormData) => {
+    await onSubmit(data);
+    reset();
+  };
+
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+    <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="w-[calc(100vw-2rem)] max-w-md rounded-2xl border-slate-200 p-0 overflow-hidden">
         <DialogHeader className="p-5 pb-3 border-b border-slate-100 bg-slate-50/70">
           <DialogTitle className="text-sm font-black uppercase tracking-tight text-slate-900">
@@ -56,23 +83,33 @@ export default function ContestDecisionDialog({
               Amount under contest: ₦{contestedAmount.toLocaleString()}
             </p>
           </div>
-          <Textarea
-            value={contestReason}
-            onChange={(event) => setContestReason(event.target.value)}
-            placeholder="Enter clinical justification and supporting details..."
-            className="min-h-[130px] resize-none rounded-xl border-slate-200 bg-white text-xs font-medium leading-relaxed"
-          />
+          
+          <div className="space-y-1">
+            <Textarea
+              {...register("contestReason")}
+              placeholder="Enter clinical justification and supporting details (min 20 chars)..."
+              className={`min-h-[130px] resize-none rounded-xl border-slate-200 bg-white text-xs font-medium leading-relaxed ${errors.contestReason ? "border-red-500 focus-visible:ring-red-500" : ""}`}
+            />
+            {errors.contestReason && (
+              <p className="text-[10px] font-bold text-red-500">{errors.contestReason.message}</p>
+            )}
+          </div>
+
           <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
             <p className="text-xs font-black uppercase tracking-widest text-slate-500">Supporting documents</p>
             <input
               type="file"
               multiple
-              onChange={(event) => setContestFiles(Array.from(event.target.files || []))}
+              onChange={(e) => {
+                if (e.target.files) {
+                  setValue("contestFiles", Array.from(e.target.files));
+                }
+              }}
               className="mt-2 block w-full text-xs font-bold text-slate-500 file:mr-3 file:rounded-lg file:border-0 file:bg-white file:px-3 file:py-2 file:text-xs file:font-black file:uppercase file:text-slate-700"
             />
-            {contestFiles.length > 0 && (
+            {files?.length > 0 && (
               <p className="mt-2 text-xs font-semibold text-slate-500">
-                {contestFiles.length} document(s) attached for audit review.
+                {files.length} document(s) attached for audit review.
               </p>
             )}
           </div>
@@ -81,19 +118,19 @@ export default function ContestDecisionDialog({
           <Button
             type="button"
             variant="outline"
-            disabled={isSubmittingContest}
-            onClick={() => onOpenChange(false)}
+            disabled={isSubmitting}
+            onClick={handleClose}
             className="h-9 rounded-xl text-xs font-black uppercase tracking-wider"
           >
             Cancel
           </Button>
           <Button
             type="button"
-            disabled={isSubmittingContest || !contestReason.trim()}
-            onClick={onSubmit}
+            disabled={isSubmitting}
+            onClick={handleSubmit(submitForm)}
             className="h-9 rounded-xl bg-rose-600 text-xs font-black uppercase tracking-wider text-white hover:bg-rose-700"
           >
-            {isSubmittingContest ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Submit Contest"}
+            {isSubmitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Submit Contest"}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -1,3 +1,5 @@
+import { z } from "zod";
+
 export const BRAND_TO_GENERIC: Record<string, string> = {
   tylenol: "Paracetamol", panadol: "Paracetamol", lipitor: "Atorvastatin",
   crestor: "Rosuvastatin", zestril: "Lisinopril", augmentin: "Amoxycillin",
@@ -66,3 +68,42 @@ export const isValidPolicyNumber = (value: string) =>
   /^[A-Z0-9][A-Z0-9/-]{4,29}$/i.test(String(value || "").trim());
 
 export const isValidEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+
+export const hospitalRequestSchema = z.object({
+  selectedPatient: z.any().nullable().refine((val) => val !== null, "Patient selection is required"),
+  patientSearch: z.string().optional(),
+  
+  phone: z.string().min(10, "Phone number is too short").max(15, "Phone number is too long").refine(isValidNigerianPhone, "Invalid Nigerian phone number format"),
+  
+  patientEmail: z.string().email("Invalid email address format").or(z.literal("")),
+  noEmail: z.boolean().optional().default(false),
+  
+  diagnoses: z.array(z.string()).min(1, "At least one diagnosis is required"),
+  diagnosisSearch: z.string().optional(),
+  
+  urgency: z.enum(["routine", "urgent", "emergency"]).default("routine"),
+  
+  referralHospitalId: z.string().nullable().optional(),
+  referralHospitalName: z.string().optional(),
+  
+  treatments: z.array(z.object({
+    code: z.string(),
+    name: z.string(),
+    amount: z.number().positive(),
+    category: z.string().optional(),
+    subcategory: z.string().optional(),
+    quantity: z.number().int().positive().min(1).max(999)
+  })).min(1, "At least one treatment item is required"),
+  treatSearch: z.string().optional(),
+}).superRefine((data, ctx) => {
+  // If not "no email", we need a valid email
+  if (!data.noEmail && (!data.patientEmail || !isValidEmail(data.patientEmail))) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Patient email is required unless 'Patient does not have an email' is checked",
+      path: ["patientEmail"],
+    });
+  }
+});
+
+export type HospitalRequestFormValues = z.infer<typeof hospitalRequestSchema>;

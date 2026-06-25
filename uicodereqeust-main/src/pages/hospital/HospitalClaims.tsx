@@ -20,7 +20,7 @@ import HospitalClaimsHeader from "@/components/hospital-claims/HospitalClaimsHea
 import HospitalClaimsStats from "@/components/hospital-claims/HospitalClaimsStats";
 import HospitalClaimsTable from "@/components/hospital-claims/HospitalClaimsTable";
 import HospitalClaimDetails from "@/components/hospital-claims/HospitalClaimDetails";
-import ContestDecisionDialog from "@/components/hospital-claims/ContestDecisionDialog";
+import ContestDecisionDialog, { ContestFormData } from "@/components/hospital-claims/ContestDecisionDialog";
 
 export default function HospitalClaims() {
   const { user, hospitalId } = useAuth();
@@ -33,9 +33,6 @@ export default function HospitalClaims() {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [contestTarget, setContestTarget] = useState<ClaimDraft | null>(null);
-  const [contestReason, setContestReason] = useState("");
-  const [contestFiles, setContestFiles] = useState<File[]>([]);
-  const [isSubmittingContest, setIsSubmittingContest] = useState(false);
 
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
@@ -228,38 +225,32 @@ export default function HospitalClaims() {
     } finally {
       setIsExporting(false);
     }
-  };
-
-  const handleContestClaim = async () => {
+  };  const handleContestClaim = async (data: ContestFormData) => {
     if (!contestTarget) return;
     if (!hasContestableDeductions(contestTarget)) {
-      return toast({
+      toast({
         variant: "destructive",
         title: "Contest Not Allowed",
         description: "Only partially approved, adjusted, rejected, or declined claims can be contested.",
       });
-    }
-    const reason = contestReason.trim();
-    if (!reason) {
-      return toast({ variant: "destructive", title: "Contest Rejected", description: "You must provide a valid clinical justification." });
+      return;
     }
 
-    setIsSubmittingContest(true);
     const amountUnderContest = contestedAmount(contestTarget);
-    const documents = await Promise.all(contestFiles.map(file => new Promise<any>((resolve) => {
+    const documents = await Promise.all((data.contestFiles || []).map((file: File) => new Promise<any>((resolve) => {
       const reader = new FileReader();
       reader.onload = () => resolve({ name: file.name, size: file.size, type: file.type, data_url: reader.result, captured_at: new Date().toISOString() });
       reader.onerror = () => resolve({ name: file.name, size: file.size, type: file.type, captured_at: new Date().toISOString() });
       reader.readAsDataURL(file);
     })));
-    const updatedNotes = `${contestTarget.notes || ""}\n\n[HOSPITAL CONTEST APPEAL SUBMITTED on ${new Date().toLocaleDateString("en-GB")}]\nJustification: ${reason}`;
+    const updatedNotes = `${contestTarget.notes || ""}\n\n[HOSPITAL CONTEST APPEAL SUBMITTED on ${new Date().toLocaleDateString("en-GB")}]\nJustification: ${data.contestReason}`;
 
     const { error } = await supabase
       .from("hospital_claims" as any)
       .update({ 
         status: "contested",
         notes: updatedNotes,
-        contest_note: reason,
+        contest_note: data.contestReason,
         contest_documents: documents,
         under_contest_amount: amountUnderContest,
         contest_submitted_at: new Date().toISOString(),
@@ -267,7 +258,7 @@ export default function HospitalClaims() {
           ...(contestTarget.audit_summary || {}),
           contest: {
             status: "awaiting_reaudit",
-            hospital_note: reason,
+            hospital_note: data.contestReason,
             amount_under_contest: amountUnderContest,
             documents
           }
@@ -279,19 +270,14 @@ export default function HospitalClaims() {
       toast({ variant: "destructive", title: "Contest Submission Failed", description: error.message });
     } else {
       toast({ title: "Contest Appeal Submitted", description: "The auditing panel has been notified for manual reconciliation." });
-      setClaims(prev => prev.map(c => c.id === contestTarget.id ? { ...c, status: "contested", notes: updatedNotes, contest_note: reason, contest_documents: documents, under_contest_amount: amountUnderContest } : c));
+      setClaims(prev => prev.map(c => c.id === contestTarget.id ? { ...c, status: "contested", notes: updatedNotes, contest_note: data.contestReason, contest_documents: documents, under_contest_amount: amountUnderContest } : c));
       setContestTarget(null);
-      setContestReason("");
-      setContestFiles([]);
     }
-    setIsSubmittingContest(false);
   };
 
   const handleOpenContestChange = (open: boolean) => {
-    if (!open && !isSubmittingContest) {
+    if (!open) {
       setContestTarget(null);
-      setContestReason("");
-      setContestFiles([]);
     }
   };
 
@@ -353,11 +339,6 @@ export default function HospitalClaims() {
         contestTarget={contestTarget}
         isOpen={!!contestTarget}
         onOpenChange={handleOpenContestChange}
-        contestReason={contestReason}
-        setContestReason={setContestReason}
-        contestFiles={contestFiles}
-        setContestFiles={setContestFiles}
-        isSubmittingContest={isSubmittingContest}
         onSubmit={handleContestClaim}
         contestedAmount={contestTarget ? contestedAmount(contestTarget) : 0}
       />

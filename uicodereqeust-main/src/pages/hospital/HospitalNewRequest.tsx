@@ -3,9 +3,12 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, ArrowRight, CheckCircle2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { readSessionJSON, removeSessionItem, writeSessionJSON } from "@/lib/sessionState";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Form } from "@/components/ui/form";
 
 import {
   TreatmentItem,
@@ -14,7 +17,9 @@ import {
   DIAGNOSES,
   isValidNigerianPhone,
   isValidPolicyNumber,
-  isValidEmail
+  isValidEmail,
+  hospitalRequestSchema,
+  HospitalRequestFormValues
 } from "@/lib/new-request-helpers";
 
 import PatientSection from "@/components/new-request/PatientSection";
@@ -55,38 +60,61 @@ export default function HospitalNewRequest() {
   const navigate = useNavigate();
   const [hospital, setHospital] = useState<any>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [step, setStep] = useState(1);
 
-  // Patient
+  const draftKey = user?.id ? `ronsberger:hospital-new-request:${user.id}` : null;
+
+  const form = useForm<HospitalRequestFormValues>({
+    resolver: zodResolver(hospitalRequestSchema),
+    defaultValues: {
+      selectedPatient: null,
+      patientSearch: "",
+      phone: "",
+      patientEmail: "",
+      noEmail: false,
+      diagnoses: [],
+      diagnosisSearch: "",
+      urgency: "routine",
+      referralHospitalId: null,
+      referralHospitalName: "",
+      treatments: [],
+      treatSearch: "",
+    },
+    mode: "onChange",
+  });
+
+  const { watch, setValue, trigger } = form;
+
+  // React-hook-form state mapping for child components
+  const selectedPatient = watch("selectedPatient");
+  const patientSearch = watch("patientSearch") || "";
+  const phone = watch("phone");
+  const patientEmail = watch("patientEmail");
+  const noEmail = watch("noEmail");
+  const diagnoses = watch("diagnoses");
+  const diagnosisSearch = watch("diagnosisSearch") || "";
+  const urgency = watch("urgency");
+  const referralHospitalId = watch("referralHospitalId");
+  const referralHospitalName = watch("referralHospitalName") || "";
+  const treatments = watch("treatments");
+  const treatSearch = watch("treatSearch") || "";
+
+  // Local UI state for comboboxes
   const patientRef = useRef<HTMLDivElement>(null);
-  const [patientSearch, setPatientSearch] = useState("");
   const [patientResults, setPatientResults] = useState<any[]>([]);
   const [patientLoading, setPatientLoading] = useState(false);
   const [patientOpen, setPatientOpen] = useState(false);
-  const [selectedPatient, setSelectedPatient] = useState<any>(null);
 
-  // Diagnosis — multi-diagnosis support
   const diagRef = useRef<HTMLDivElement>(null);
-  const [diagnosisSearch, setDiagnosisSearch] = useState("");
-  const [diagnoses, setDiagnoses] = useState<string[]>([]);
   const [diagSuggestions, setDiagSuggestions] = useState<string[]>([]);
   const [diagOpen, setDiagOpen] = useState(false);
 
-  // Treatment
   const treatRef = useRef<HTMLDivElement>(null);
-  const [treatSearch, setTreatSearch] = useState("");
   const [treatResults, setTreatResults] = useState<any[]>([]);
   const [treatLoading, setTreatLoading] = useState(false);
   const [treatOpen, setTreatOpen] = useState(false);
-  const [treatments, setTreatments] = useState<TreatmentItem[]>([]);
 
-  // Form
-  const [phone, setPhone] = useState("");
-  const [patientEmail, setPatientEmail] = useState("");
-  const [urgency, setUrgency] = useState("routine");
-  const [referralHospitalId, setReferralHospitalId] = useState<string | null>(null);
-  const [referralHospitalName, setReferralHospitalName] = useState("");
   const [draftReady, setDraftReady] = useState(false);
-  const draftKey = user?.id ? `ronsberger:hospital-new-request:${user.id}` : null;
 
   useEffect(() => {
     if (user) {
@@ -105,17 +133,18 @@ export default function HospitalNewRequest() {
 
     const draft = readSessionJSON<HospitalRequestDraft>(draftKey);
     if (draft) {
-      setSelectedPatient(draft.selectedPatient ?? null);
-      setPatientSearch(draft.patientSearch ?? "");
-      setDiagnoses(Array.isArray(draft.diagnoses) ? draft.diagnoses : []);
-      setDiagnosisSearch(draft.diagnosisSearch ?? "");
-      setTreatSearch(draft.treatSearch ?? "");
-      setTreatments(Array.isArray(draft.treatments) ? draft.treatments : []);
-      setPhone(draft.phone ?? "");
-      setPatientEmail(draft.patientEmail ?? "");
-      setUrgency(draft.urgency || "routine");
-      setReferralHospitalId(draft.referralHospitalId ?? null);
-      setReferralHospitalName(draft.referralHospitalName ?? "");
+      if (draft.selectedPatient) setValue("selectedPatient", draft.selectedPatient);
+      if (draft.patientSearch) setValue("patientSearch", draft.patientSearch);
+      if (Array.isArray(draft.diagnoses)) setValue("diagnoses", draft.diagnoses);
+      if (draft.diagnosisSearch) setValue("diagnosisSearch", draft.diagnosisSearch);
+      if (draft.treatSearch) setValue("treatSearch", draft.treatSearch);
+      if (Array.isArray(draft.treatments)) setValue("treatments", draft.treatments);
+      if (draft.phone) setValue("phone", draft.phone);
+      if (draft.patientEmail) setValue("patientEmail", draft.patientEmail);
+      if (draft.patientEmail === "no-email@medicode.com") setValue("noEmail", true);
+      if (draft.urgency) setValue("urgency", draft.urgency as any);
+      if (draft.referralHospitalId) setValue("referralHospitalId", draft.referralHospitalId);
+      if (draft.referralHospitalName) setValue("referralHospitalName", draft.referralHospitalName);
     }
     setDraftReady(true);
   }, [draftKey]);
@@ -220,30 +249,36 @@ export default function HospitalNewRequest() {
 
   const total = treatments.reduce((a, t) => a + Number(t.amount) * t.quantity, 0);
 
-  const handleSubmit = async () => {
-    if (!selectedPatient) { toast({ variant: "destructive", title: "No patient selected" }); return; }
-    if (!isValidPolicyNumber(selectedPatient.policy_number)) {
-      toast({ variant: "destructive", title: "Invalid policy number", description: "Select a patient with a valid policy number before submitting." });
-      return;
+  const handleNextStep = async () => {
+    let isValid = false;
+    if (step === 1) {
+      isValid = await trigger(["selectedPatient", "phone", "patientEmail", "noEmail"]);
+    } else if (step === 2) {
+      isValid = await trigger(["diagnoses", "urgency", "referralHospitalId", "referralHospitalName"]);
+    } else if (step === 3) {
+      isValid = await trigger(["treatments"]);
     }
-    if (!phone || !isValidNigerianPhone(phone)) {
-      toast({ variant: "destructive", title: "Invalid phone number", description: "Enter a valid Nigerian phone number such as 08012345678 or +2348012345678." });
-      return;
+    
+    if (isValid) {
+      setStep(s => s + 1);
+      window.scrollTo(0, 0);
+    } else {
+      // Show error toast if they try to proceed with invalid data
+      const errors = form.formState.errors;
+      const firstError = Object.values(errors)[0]?.message;
+      if (firstError) {
+        toast({ variant: "destructive", title: "Validation Error", description: firstError as string });
+      }
     }
-    if (diagnoses.length === 0) {
-      toast({ variant: "destructive", title: "No diagnosis added", description: "Add at least one diagnosis before submitting." });
-      return;
-    }
-    if (treatments.length === 0) { toast({ variant: "destructive", title: "No treatments added" }); return; }
-    if (!patientEmail || !isValidEmail(patientEmail)) {
+  };
+
+  const onSubmit = async (data: HospitalRequestFormValues) => {
+    // Double check email validation logic
+    if (!data.noEmail && (!data.patientEmail || !isValidEmail(data.patientEmail))) {
       toast({ variant: "destructive", title: "Invalid email", description: "Enter a valid patient email address for OTP verification." });
       return;
     }
-    const invalidTreatment = treatments.find(t => !Number.isFinite(Number(t.amount)) || Number(t.amount) <= 0 || !Number.isInteger(Number(t.quantity)) || Number(t.quantity) < 1 || Number(t.quantity) > 999);
-    if (invalidTreatment) {
-      toast({ variant: "destructive", title: "Invalid treatment item", description: "Each treatment needs a valid tariff amount and quantity between 1 and 999." });
-      return;
-    }
+    
     if (!Number.isFinite(total) || total <= 0) {
       toast({ variant: "destructive", title: "Invalid tariff total", description: "The request total must be greater than zero." });
       return;
@@ -416,64 +451,163 @@ export default function HospitalNewRequest() {
         <Button variant="ghost" size="icon" onClick={() => navigate("/dashboard")} className="rounded-full h-8 w-8 bg-white border border-slate-100 shadow-sm shrink-0">
           <ArrowLeft className="h-4 w-4" />
         </Button>
+        <div className="flex flex-col">
+          <h1 className="text-xl font-black text-slate-800">New Authorization Request</h1>
+          <p className="text-xs font-semibold text-slate-400">Step {step} of 4</p>
+        </div>
+      </div>
+      
+      {/* Stepper Header */}
+      <div className="flex items-center justify-between px-2 mb-6">
+        {[1, 2, 3, 4].map(num => (
+          <div key={num} className="flex items-center">
+            <div className={`flex items-center justify-center w-8 h-8 rounded-full text-xs font-black transition-colors ${step === num ? "bg-emerald-500 text-white shadow-md shadow-emerald-500/20" : step > num ? "bg-emerald-100 text-emerald-600" : "bg-slate-100 text-slate-400"}`}>
+              {step > num ? <CheckCircle2 className="w-4 h-4" /> : num}
+            </div>
+            {num < 4 && (
+              <div className={`w-12 sm:w-24 h-1 rounded-full mx-2 transition-colors ${step > num ? "bg-emerald-100" : "bg-slate-100"}`} />
+            )}
+          </div>
+        ))}
       </div>
 
-      <div className="bg-white rounded-3xl shadow-xl border border-slate-100 divide-y divide-slate-100">
-        <PatientSection
-          selectedPatient={selectedPatient}
-          setSelectedPatient={setSelectedPatient}
-          patientSearch={patientSearch}
-          setPatientSearch={setPatientSearch}
-          patientLoading={patientLoading}
-          patientResults={patientResults}
-          patientOpen={patientOpen}
-          setPatientOpen={setPatientOpen}
-          phone={phone}
-          setPhone={setPhone}
-          patientEmail={patientEmail}
-          setPatientEmail={setPatientEmail}
-          patientRef={patientRef}
-        />
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+          <div className="bg-white rounded-3xl shadow-xl border border-slate-100 overflow-hidden">
+            
+            {step === 1 && (
+              <PatientSection
+                selectedPatient={selectedPatient}
+                setSelectedPatient={(val) => setValue("selectedPatient", val, { shouldValidate: true })}
+                patientSearch={patientSearch}
+                setPatientSearch={(val) => setValue("patientSearch", val)}
+                patientLoading={patientLoading}
+                patientResults={patientResults}
+                patientOpen={patientOpen}
+                setPatientOpen={setPatientOpen}
+                phone={phone}
+                setPhone={(val) => setValue("phone", val, { shouldValidate: true })}
+                patientEmail={patientEmail}
+                setPatientEmail={(val) => setValue("patientEmail", val, { shouldValidate: true })}
+                patientRef={patientRef}
+              />
+            )}
 
-        <DiagnosisSection
-          diagnoses={diagnoses}
-          setDiagnoses={setDiagnoses}
-          diagnosisSearch={diagnosisSearch}
-          setDiagnosisSearch={setDiagnosisSearch}
-          diagSuggestions={diagSuggestions}
-          setDiagSuggestions={setDiagSuggestions}
-          diagOpen={diagOpen}
-          setDiagOpen={setDiagOpen}
-          diagRef={diagRef}
-        />
+            {step === 2 && (
+              <div className="divide-y divide-slate-100">
+                <DiagnosisSection
+                  diagnoses={diagnoses}
+                  setDiagnoses={(val) => setValue("diagnoses", typeof val === 'function' ? val(diagnoses) : val, { shouldValidate: true })}
+                  diagnosisSearch={diagnosisSearch}
+                  setDiagnosisSearch={(val) => setValue("diagnosisSearch", val)}
+                  diagSuggestions={diagSuggestions}
+                  setDiagSuggestions={setDiagSuggestions}
+                  diagOpen={diagOpen}
+                  setDiagOpen={setDiagOpen}
+                  diagRef={diagRef}
+                />
+                <PrioritySection
+                  urgency={urgency}
+                  setUrgency={(val) => setValue("urgency", val as any, { shouldValidate: true })}
+                />
+                <ReferralSection
+                  hospitalName={hospital?.name}
+                  referralHospitalName={referralHospitalName}
+                  referralHospitalId={referralHospitalId}
+                  setReferralHospitalId={(val) => setValue("referralHospitalId", val)}
+                  setReferralHospitalName={(val) => setValue("referralHospitalName", val)}
+                />
+              </div>
+            )}
 
-        <PrioritySection
-          urgency={urgency}
-          setUrgency={setUrgency}
-        />
+            {step === 3 && (
+              <TreatmentSection
+                treatSearch={treatSearch}
+                setTreatSearch={(val) => setValue("treatSearch", val)}
+                treatLoading={treatLoading}
+                treatResults={treatResults}
+                treatOpen={treatOpen}
+                setTreatOpen={setTreatOpen}
+                treatments={treatments}
+                setTreatments={(val) => setValue("treatments", typeof val === 'function' ? val(treatments) : val, { shouldValidate: true })}
+                isSubmitting={isSubmitting}
+                onSubmit={handleNextStep}
+                treatRef={treatRef}
+              />
+            )}
 
-        <ReferralSection
-          hospitalName={hospital?.name}
-          referralHospitalName={referralHospitalName}
-          referralHospitalId={referralHospitalId}
-          setReferralHospitalId={setReferralHospitalId}
-          setReferralHospitalName={setReferralHospitalName}
-        />
+            {step === 4 && (
+              <div className="p-6 space-y-6">
+                <div>
+                  <h3 className="text-lg font-black text-slate-800">Review Request</h3>
+                  <p className="text-sm text-slate-500">Ensure all details are correct before submitting.</p>
+                </div>
+                
+                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-3">
+                  <div className="flex justify-between">
+                    <span className="text-xs font-semibold text-slate-500">Patient:</span>
+                    <span className="text-xs font-bold text-slate-900">{selectedPatient?.full_name} ({selectedPatient?.policy_number})</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-xs font-semibold text-slate-500">Contact:</span>
+                    <span className="text-xs font-bold text-slate-900">{phone} | {noEmail ? "No Email Provided" : patientEmail}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-xs font-semibold text-slate-500">Diagnoses:</span>
+                    <span className="text-xs font-bold text-slate-900 text-right">{diagnoses.join(", ")}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-xs font-semibold text-slate-500">Priority:</span>
+                    <span className="text-xs font-bold uppercase text-slate-900">{urgency}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-xs font-semibold text-slate-500">Total Items:</span>
+                    <span className="text-xs font-bold text-slate-900">{treatments.length}</span>
+                  </div>
+                  <div className="flex justify-between border-t border-slate-200 pt-3 mt-3">
+                    <span className="text-sm font-black text-slate-900">Total Amount:</span>
+                    <span className="text-sm font-black text-emerald-600">₦{total.toLocaleString()}</span>
+                  </div>
+                </div>
 
-        <TreatmentSection
-          treatSearch={treatSearch}
-          setTreatSearch={setTreatSearch}
-          treatLoading={treatLoading}
-          treatResults={treatResults}
-          treatOpen={treatOpen}
-          setTreatOpen={setTreatOpen}
-          treatments={treatments}
-          setTreatments={setTreatments}
-          isSubmitting={isSubmitting}
-          onSubmit={handleSubmit}
-          treatRef={treatRef}
-        />
-      </div>
+              </div>
+            )}
+            
+          </div>
+
+          <div className="flex items-center justify-between">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                if (step === 1) navigate("/dashboard");
+                else setStep(s => s - 1);
+              }}
+              className="h-12 px-6 rounded-xl border-slate-200 text-slate-600 font-bold hover:bg-slate-50 hover:text-slate-900"
+            >
+              {step === 1 ? "Cancel" : "Back"}
+            </Button>
+            
+            {step < 4 ? (
+              <Button
+                type="button"
+                onClick={handleNextStep}
+                className="h-12 px-8 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold"
+              >
+                Next Step <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            ) : (
+              <Button
+                type="submit"
+                disabled={isSubmitting}
+                className="h-12 px-10 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-xs font-black uppercase tracking-widest active:scale-95 transition-all"
+              >
+                {isSubmitting ? "Submitting..." : "Submit Request"}
+              </Button>
+            )}
+          </div>
+        </form>
+      </Form>
     </div>
   );
 }

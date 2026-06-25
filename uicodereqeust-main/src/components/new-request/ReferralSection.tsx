@@ -1,4 +1,6 @@
 import { HospitalReferralField } from "@/components/HospitalReferralField";
+import { Checkbox } from "@/components/ui/checkbox";
+import { useState, useEffect } from "react";
 
 interface ReferralSectionProps {
   hospitalName: string;
@@ -15,25 +17,53 @@ export default function ReferralSection({
   setReferralHospitalId,
   setReferralHospitalName
 }: ReferralSectionProps) {
+  const [isReferral, setIsReferral] = useState(!!referralHospitalName.trim());
+
+  useEffect(() => {
+    if (!isReferral) {
+      setReferralHospitalId(null);
+      setReferralHospitalName("");
+    }
+  }, [isReferral, setReferralHospitalId, setReferralHospitalName]);
+
   return (
-    <div className="p-6 space-y-3">
+    <div className="p-6 space-y-4">
       <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">Referral Ownership</p>
-      <HospitalReferralField
-        value={referralHospitalName}
-        selectedId={referralHospitalId}
-        onChange={(next) => {
-          setReferralHospitalId(next.id);
-          setReferralHospitalName(next.name);
-        }}
-        helperText="Leave blank if your hospital will treat and claim. If referred, the treating hospital owns claim submission and payment."
-      />
-      {referralHospitalName.trim() ? (
-        <div className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-xs font-bold leading-relaxed text-blue-800">
-          Request raised by: {hospitalName || "Your hospital"}
-          <br />
-          Treatment and claims assigned to: {referralHospitalName.trim()}
+      
+      <div className="flex items-center space-x-3 mb-2 rounded-lg border border-slate-100 bg-slate-50 p-4 transition-colors hover:bg-slate-100/50">
+        <Checkbox 
+          id="referral-toggle" 
+          checked={isReferral}
+          onCheckedChange={(checked) => setIsReferral(!!checked)}
+        />
+        <label
+          htmlFor="referral-toggle"
+          className="text-sm font-medium leading-none cursor-pointer select-none text-slate-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+        >
+          Is this a referral to another hospital?
+        </label>
+      </div>
+
+      {isReferral && (
+        <div className="mt-4 space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
+          <HospitalReferralField
+            value={referralHospitalName}
+            selectedId={referralHospitalId}
+            onChange={(next) => {
+              setReferralHospitalId(next.id);
+              setReferralHospitalName(next.name);
+            }}
+            helperText="The treating hospital you select will own claim submission and payment."
+          />
+          {referralHospitalName.trim() ? (
+            <div className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-xs font-bold leading-relaxed text-blue-800">
+              Request raised by: {hospitalName || "Your hospital"}
+              <br />
+              Treatment and claims assigned to: {referralHospitalName.trim()}
+            </div>
+          ) : null}
         </div>
-      ) : null}
+      )}
     </div>
   );
 }
