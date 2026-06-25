@@ -47,6 +47,9 @@ export default function RequestsPage() {
   const [_deleteProcessing, setDeleteProcessing] = useState(false);
   const [otpValues, setOtpValues] = useState<Record<string, string>>({});
   const [otpLoading, setOtpLoading] = useState<Record<string, boolean>>({});
+  const [otpVerifiedStatus, setOtpVerifiedStatus] = useState<Record<string, boolean>>({});
+  const [unlockingReqId, setUnlockingReqId] = useState<string | null>(null);
+  const [unlockOtpInput, setUnlockOtpInput] = useState("");
   const isMobile = useIsMobile();
   const rowsPerPage = isMobile ? 30 : 50;
   const { toast } = useToast();
@@ -107,59 +110,73 @@ export default function RequestsPage() {
 
   useTabVisibilityRefresh(() => fetchRequests(currentPage), Boolean(role));
 
-  // Fetch OTP values for pending requests that have patient_email (nurse/admin only)
+  // Fetch OTP values and verification statuses for pending/approved requests that have patient_email
   useEffect(() => {
-    if (!Array.isArray(requests) || !requests.length || (role !== "nurse" && role !== "admin")) return;
+    if (!Array.isArray(requests) || !requests.length || !role || role === "claims") return;
     
-    const pendingWithEmail = requests.filter(r => 
-      (r.status === "pending" || r.status === "approved") && r.patient_email && !otpValues[r.id]
-    );
+    const requestsToFetch = requests.filter(r => {
+      if (!r.patient_email) return false;
+      if (otpLoading[r.id]) return false;
+      
+      if (role === "nurse" || role === "admin") {
+        return (r.status === "pending" || r.status === "approved") && !otpValues[r.id];
+      }
+      
+      if (role === "hospital") {
+        return r.status === "approved" && otpVerifiedStatus[r.id] === undefined;
+      }
+      
+      return false;
+    });
     
-    if (pendingWithEmail.length === 0) return;
+    if (requestsToFetch.length === 0) return;
     
     const fetchOtps = async () => {
-      // Set all to loading first
       const updates: Record<string, boolean> = {};
-      pendingWithEmail.forEach(r => {
-        updates[r.id] = true;
-      });
+      requestsToFetch.forEach(r => updates[r.id] = true);
       setOtpLoading(prev => ({ ...prev, ...updates }));
 
       try {
-        const ids = pendingWithEmail.map(r => r.id);
-        const { data, error } = await supabase.rpc("get_otp_values_batch" as any, {
-          p_request_ids: ids,
-        });
-
-        if (error) {
-          throw error;
-        }
-
-        if (data && Array.isArray(data)) {
-          const newValues: Record<string, string> = {};
-          data.forEach((row: any) => {
-            if (row.otp_value && row.authorization_id) {
-              newValues[row.authorization_id] = row.otp_value;
-            }
+        if (role === "nurse" || role === "admin") {
+          const ids = requestsToFetch.map(r => r.id);
+          const { data, error } = await supabase.rpc("get_otp_values_batch" as any, {
+            p_request_ids: ids,
           });
-          if (Object.keys(newValues).length > 0) {
-            setOtpValues(prev => ({ ...prev, ...newValues }));
+
+          if (!error && data && Array.isArray(data)) {
+            const newValues: Record<string, string> = {};
+            data.forEach((row: any) => {
+              if (row.otp_value && row.authorization_id) {
+                newValues[row.authorization_id] = row.otp_value;
+              }
+            });
+            if (Object.keys(newValues).length > 0) {
+              setOtpValues(prev => ({ ...prev, ...newValues }));
+            }
+            return;
           }
         }
-      } catch (batchError) {
-        console.warn("Batch OTP fetch failed or not found, falling back to parallel fetch:", batchError);
         
-        // Parallel fallback fetch (instead of blocking sequential loop)
+        // Fallback for batch fetch failure, OR normal execution for hospitals
         await Promise.all(
-          pendingWithEmail.map(async (r) => {
+          requestsToFetch.map(async (r) => {
             try {
               const { data, error } = await supabase.rpc("get_otp_value" as any, {
                 p_request_id: r.id,
               });
               if (!error && data) {
-                const otpVal = Array.isArray(data) ? data[0]?.otp_value : data?.otp_value;
-                if (otpVal) {
-                  setOtpValues(prev => ({ ...prev, [r.id]: otpVal }));
+                const otpRow = Array.isArray(data) ? data[0] : data;
+                if (otpRow) {
+                  if (role === "nurse" || role === "admin") {
+                    if (otpRow.otp_value) {
+                      setOtpValues(prev => ({ ...prev, [r.id]: otpRow.otp_value }));
+                    }
+                  } else if (role === "hospital") {
+                    setOtpVerifiedStatus(prev => ({ 
+                      ...prev, 
+                      [r.id]: otpRow.verified || !!otpRow.consumed_at 
+                    }));
+                  }
                 }
               }
             } catch {
@@ -169,15 +186,13 @@ export default function RequestsPage() {
         );
       } finally {
         const loadingReset: Record<string, boolean> = {};
-        pendingWithEmail.forEach(r => {
-          loadingReset[r.id] = false;
-        });
+        requestsToFetch.forEach(r => loadingReset[r.id] = false);
         setOtpLoading(prev => ({ ...prev, ...loadingReset }));
       }
     };
     
     fetchOtps().catch((err) => console.error("fetchOtps error:", err));
-  }, [requests, role]);
+  }, [requests, role, otpValues, otpVerifiedStatus]);
 
   const executeDelete = async () => {
     if (!deleteTarget || deleteConfirmText.trim() !== "DELETE") return;
@@ -265,6 +280,30 @@ export default function RequestsPage() {
     toast({ title: "Copied to clipboard" });
   };
 
+  const handleUnlockOtp = async (r: any, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!unlockOtpInput) return;
+    
+    const { data, error } = await supabase.rpc("verify_otp" as any, {
+      p_request_id: r.id,
+      p_otp_plaintext: unlockOtpInput
+    });
+    
+    if (error) {
+      toast({ variant: "destructive", title: "Unlock Failed", description: error.message });
+      return;
+    }
+    
+    if (data?.verified) {
+      toast({ title: "Unlocked", description: "Authorization code revealed." });
+      setOtpVerifiedStatus(prev => ({ ...prev, [r.id]: true }));
+      setUnlockingReqId(null);
+      setUnlockOtpInput("");
+    } else {
+      toast({ variant: "destructive", title: "Unlock Failed", description: data?.error || "Invalid OTP" });
+    }
+  };
+
   return (
     <div className="space-y-4 max-w-full overflow-x-hidden pb-10 animate-in fade-in duration-500">
 
@@ -326,20 +365,42 @@ export default function RequestsPage() {
                   </td>
                   <td className="px-4 py-4 font-mono text-sm font-bold text-slate-600">{r.policy_number || "-"}</td>
                   <td className="px-4 py-4">
-                    <div className={cn("flex items-center font-mono text-sm font-black leading-snug", 
-                      (isRejected(r) || isAwaitingDelete(r)) 
-                        ? "max-w-[260px] text-rose-700" 
-                        : r.authorization_code 
-                        ? "text-slate-800" 
-                        : "text-slate-500"
-                    )}>
-                      {codeOrDecisionText(r)}
-                      {r.authorization_code && !isAwaitingDelete(r) && (
-                        <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleCopyCode(r.authorization_code); }} className="ml-2 h-8 w-8 text-slate-400 hover:text-slate-600">
-                          <Copy className="h-4 w-4" />
-                        </Button>
-                      )}
-                    </div>
+                    {role === "hospital" && r.status === "approved" && r.patient_email && !otpVerifiedStatus[r.id] ? (
+                      <div className="flex flex-col gap-1.5" onClick={e => e.stopPropagation()}>
+                        {unlockingReqId === r.id ? (
+                          <div className="flex items-center gap-1">
+                            <Input
+                              autoFocus
+                              value={unlockOtpInput}
+                              onChange={e => setUnlockOtpInput(e.target.value)}
+                              placeholder="Enter OTP"
+                              className="h-8 w-24 text-xs font-mono font-bold"
+                            />
+                            <Button size="sm" onClick={(e) => handleUnlockOtp(r, e)} className="h-8 px-2 text-xs">Unlock</Button>
+                            <Button variant="ghost" size="sm" onClick={() => setUnlockingReqId(null)} className="h-8 px-2 text-xs text-slate-400">Cancel</Button>
+                          </div>
+                        ) : (
+                          <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); setUnlockingReqId(r.id); }} className="h-8 w-fit text-xs border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100">
+                            🔒 Unlock Code
+                          </Button>
+                        )}
+                      </div>
+                    ) : (
+                      <div className={cn("flex items-center font-mono text-sm font-black leading-snug", 
+                        (isRejected(r) || isAwaitingDelete(r)) 
+                          ? "max-w-[260px] text-rose-700" 
+                          : r.authorization_code 
+                          ? "text-slate-800" 
+                          : "text-slate-500"
+                      )}>
+                        {codeOrDecisionText(r)}
+                        {r.authorization_code && !isAwaitingDelete(r) && (
+                          <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleCopyCode(r.authorization_code); }} className="ml-2 h-8 w-8 text-slate-400 hover:text-slate-600">
+                            <Copy className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                    )}
                   </td>
                   {!isClaimsRole && !["hospital"].includes(role || "") && (
                     <td className="px-4 py-4 font-mono text-sm font-bold">
@@ -467,6 +528,26 @@ export default function RequestsPage() {
                     <div className="mt-1 flex items-center justify-between">
                       {isAwaitingDelete(r) ? (
                         <p className="text-xs font-black text-rose-700">Code revoked - Awaiting Delete</p>
+                      ) : role === "hospital" && r.status === "approved" && r.patient_email && !otpVerifiedStatus[r.id] ? (
+                        <div className="flex flex-col gap-1.5" onClick={e => e.stopPropagation()}>
+                          {unlockingReqId === r.id ? (
+                            <div className="flex items-center gap-1">
+                              <Input
+                                autoFocus
+                                value={unlockOtpInput}
+                                onChange={e => setUnlockOtpInput(e.target.value)}
+                                placeholder="Enter OTP"
+                                className="h-7 w-24 text-[10px] font-mono font-bold"
+                              />
+                              <Button size="sm" onClick={(e) => handleUnlockOtp(r, e)} className="h-7 px-2 text-[10px]">Unlock</Button>
+                              <Button variant="ghost" size="sm" onClick={() => setUnlockingReqId(null)} className="h-7 px-2 text-[10px] text-slate-400">Cancel</Button>
+                            </div>
+                          ) : (
+                            <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); setUnlockingReqId(r.id); }} className="h-7 w-fit text-[10px] border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100">
+                              🔒 Unlock Code
+                            </Button>
+                          )}
+                        </div>
                       ) : r.authorization_code ? (
                         <div className="flex items-center gap-1">
                           <p className="text-xs font-black text-[#1D9E75]">Code: {r.authorization_code}</p>

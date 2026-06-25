@@ -246,7 +246,7 @@ export default function ResetPassword() {
   // Reset Form
   // ---------------------------------------------------------------------------
   return (
-    <div className="min-h-screen bg-slate-50 font-sans py-12 px-4 flex items-center justify-center">
+    <main className="min-h-screen bg-slate-50 font-sans py-12 px-4 flex items-center justify-center">
       <div className="max-w-md w-full animate-in fade-in slide-in-from-bottom-4 duration-300">
         <Card className="rounded-2xl shadow-2xl border-slate-200 bg-white overflow-hidden">
           <div className="text-center p-6 pb-2">
@@ -256,12 +256,12 @@ export default function ResetPassword() {
             <h1 className="text-2xl font-black text-slate-900 uppercase italic">
               Reset <span className="text-[#3f3f95]">Password</span>
             </h1>
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-2">
+            <p className="text-xs font-bold text-slate-600 uppercase tracking-widest mt-2">
               Secure Account Update
             </p>
           </div>
           <div className="p-8 pt-2">
-            <p className="text-xs font-semibold text-slate-500 mb-6 text-center">
+            <p className="text-xs font-semibold text-slate-700 mb-6 text-center">
               Set a new password using the secure link sent to your email. This link expires after 1 hour.
             </p>
 
@@ -274,12 +274,13 @@ export default function ResetPassword() {
               autoComplete="off"
             >
               <div className="space-y-2">
-                <label className="text-xs font-black uppercase tracking-widest text-slate-500 ml-1">
+                <label htmlFor="password" className="text-xs font-black uppercase tracking-widest text-slate-700 ml-1">
                   New Password
                 </label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                   <Input
+                    id="password"
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
@@ -293,12 +294,13 @@ export default function ResetPassword() {
               </div>
 
               <div className="space-y-2">
-                <label className="text-xs font-black uppercase tracking-widest text-slate-500 ml-1">
+                <label htmlFor="confirm" className="text-xs font-black uppercase tracking-widest text-slate-700 ml-1">
                   Confirm Password
                 </label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                   <Input
+                    id="confirm"
                     type="password"
                     value={confirm}
                     onChange={(e) => setConfirm(e.target.value)}
@@ -326,7 +328,7 @@ export default function ResetPassword() {
           </div>
         </Card>
       </div>
-    </div>
+    </main>
   );
 }
 

@@ -320,7 +320,7 @@ export default function Login() {
   // Render
   // ---------------------------------------------------------------------------
   return (
-    <div className="min-h-screen bg-slate-50 font-sans">
+    <main className="min-h-screen bg-slate-50 font-sans">
       <div className="mx-auto flex min-h-screen w-full max-w-md items-center justify-center px-4 py-10">
         <Card className="w-full rounded-2xl shadow-xl border-slate-200 bg-white overflow-hidden">
           <CardContent className="p-8 sm:p-10">
@@ -331,7 +331,7 @@ export default function Login() {
               <h1 className="text-xl font-extrabold text-[#3f3f95] uppercase tracking-normal">
                 Ronsberger <span className="text-[#93c34b]">HMO</span>
               </h1>
-              <p className="mt-2 text-xs font-semibold text-slate-400 uppercase tracking-wider">
+              <p className="mt-2 text-xs font-semibold text-slate-700 uppercase tracking-wider">
                 Sign in to your account
               </p>
             </div>
@@ -345,20 +345,21 @@ export default function Login() {
                       <Shield className="h-4 w-4 text-[#3f3f95]" />
                       Multi-Factor Authentication
                     </p>
-                    <p className="text-xs text-slate-500 mt-1.5 leading-normal">
+                    <p className="text-xs text-slate-600 mt-1.5 leading-normal">
                       Authenticator protection is enabled. Enter the verification code from your authenticator app to authorize this session.
                     </p>
                   </div>
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <Label className="text-xs font-bold text-slate-700">
-                        Authenticator Code
-                      </Label>
+                       <Label htmlFor="mfa-code" className="text-xs font-bold text-slate-800">
+                         Authenticator Code
+                       </Label>
                       <Badge className="bg-slate-100 text-[#3f3f95] border border-slate-200 text-xs font-bold">
                         MFA Enabled
                       </Badge>
                     </div>
                     <Input
+                      id="mfa-code"
                       type="text"
                       maxLength={6}
                       value={mfaCode}
@@ -392,12 +393,50 @@ export default function Login() {
             ) : (
               /* ---- Login screen ---- */
               <form onSubmit={handleSignIn} className="space-y-5">
+                {/* Hidden dummy fields to absorb browser credential autofill */}
+                <input
+                  type="text"
+                  name="email"
+                  value={email}
+                  autoComplete="username"
+                  aria-label="Hidden Username Autofill"
+                  style={{
+                    position: "absolute",
+                    top: "-1000px",
+                    left: "-1000px",
+                    width: "1px",
+                    height: "1px",
+                    opacity: 0,
+                    pointerEvents: "none",
+                  }}
+                  tabIndex={-1}
+                  readOnly
+                />
+                <input
+                  type="password"
+                  name="dummy-password"
+                  autoComplete="current-password"
+                  aria-label="Hidden Password Autofill"
+                  style={{
+                    position: "absolute",
+                    top: "-1000px",
+                    left: "-1000px",
+                    width: "1px",
+                    height: "1px",
+                    opacity: 0,
+                    pointerEvents: "none",
+                  }}
+                  tabIndex={-1}
+                  readOnly
+                />
+
                 <div className="space-y-4">
                   <div className="space-y-1.5">
-                    <Label className="text-xs font-bold text-slate-700">
+                    <Label htmlFor="email" className="text-xs font-bold text-slate-800">
                       Email Address
                     </Label>
                     <Input
+                      id="email"
                       type="email"
                       value={email}
                       onChange={(e) => {
@@ -411,11 +450,12 @@ export default function Login() {
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <Label className="text-xs font-bold text-slate-700">
+                    <Label htmlFor="password" className="text-xs font-bold text-slate-800">
                       Password
                     </Label>
                     <div className="relative">
                       <Input
+                        id="password"
                         type={showPassword ? "text" : "password"}
                         value={password}
                         onChange={(e) => {
@@ -429,7 +469,7 @@ export default function Login() {
                       <button
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                        className="absolute right-1 top-1/2 -translate-y-1/2 p-2 text-slate-500 hover:text-slate-700 transition-colors"
                         aria-label={showPassword ? "Hide password" : "Show password"}
                         tabIndex={-1}
                       >
@@ -447,7 +487,7 @@ export default function Login() {
                 {isLocked && (
                   <div className="flex items-center gap-2 p-3 rounded-xl bg-amber-50 border border-amber-200 animate-in fade-in">
                     <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
-                    <p className="text-xs font-semibold text-amber-700">
+                    <p className="text-xs font-semibold text-amber-800">
                       Too many attempts — please wait {lockCountdown}s
                     </p>
                   </div>
@@ -468,7 +508,7 @@ export default function Login() {
                 </Button>
 
                 {error && !isLocked && (
-                  <p className="text-center text-xs font-semibold text-rose-600 animate-in fade-in slide-in-from-bottom-1">
+                  <p className="text-center text-xs font-semibold text-rose-700 animate-in fade-in slide-in-from-bottom-1">
                     {error}
                   </p>
                 )}
@@ -477,6 +517,6 @@ export default function Login() {
           </CardContent>
         </Card>
       </div>
-    </div>
+    </main>
   );
 }

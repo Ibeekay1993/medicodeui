@@ -352,7 +352,7 @@ export default function Register() {
   // Registration form
   // ---------------------------------------------------------------------------
   return (
-    <div className="min-h-screen bg-slate-50 font-sans py-12 px-4">
+    <main className="min-h-screen bg-slate-50 font-sans py-12 px-4">
       <div className="max-w-md mx-auto">
         <Card className="rounded-2xl shadow-2xl border-slate-200 bg-white overflow-hidden">
           <CardHeader className="text-center pb-2">
@@ -362,7 +362,7 @@ export default function Register() {
             <CardTitle className="text-2xl font-black text-slate-900 uppercase italic">
               Complete <span className="text-[#93c34b]">Registration</span>
             </CardTitle>
-            <CardDescription className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-2">
+            <CardDescription className="text-xs font-bold text-slate-500 uppercase tracking-widest mt-2">
               Finalize your Ronsberger HMO access
             </CardDescription>
           </CardHeader>
@@ -374,6 +374,7 @@ export default function Register() {
                 name="email"
                 value={tokenEmail || ""}
                 autoComplete="username"
+                aria-label="Hidden Username Autofill"
                 style={{
                   position: "absolute",
                   top: "-1000px",
@@ -390,6 +391,7 @@ export default function Register() {
                 type="password"
                 name="dummy-password"
                 autoComplete="current-password"
+                aria-label="Hidden Password Autofill"
                 style={{
                   position: "absolute",
                   top: "-1000px",
@@ -404,12 +406,13 @@ export default function Register() {
               />
 
               <div className="space-y-2">
-                <Label className="text-xs font-black uppercase tracking-widest text-slate-500 ml-1">
+                <Label htmlFor="fullName" className="text-xs font-black uppercase tracking-widest text-slate-700 ml-1">
                   Full Name
                 </Label>
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                   <Input
+                    id="fullName"
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
                     placeholder="Enter your full name"
@@ -421,12 +424,13 @@ export default function Register() {
               </div>
 
               <div className="space-y-2">
-                <Label className="text-xs font-black uppercase tracking-widest text-slate-500 ml-1">
+                <Label htmlFor="password" className="text-xs font-black uppercase tracking-widest text-slate-700 ml-1">
                   Create Password
                 </Label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                   <Input
+                    id="password"
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
@@ -439,12 +443,13 @@ export default function Register() {
               </div>
 
               <div className="space-y-2">
-                <Label className="text-xs font-black uppercase tracking-widest text-slate-500 ml-1">
+                <Label htmlFor="confirmPassword" className="text-xs font-black uppercase tracking-widest text-slate-700 ml-1">
                   Confirm Password
                 </Label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                   <Input
+                    id="confirmPassword"
                     type="password"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
@@ -458,7 +463,7 @@ export default function Register() {
 
               {tokenRole === "hospital" && (
                 <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
-                  <Label className="text-xs font-black uppercase tracking-widest text-slate-500 ml-1">
+                  <Label htmlFor="hospitalName" className="text-xs font-black uppercase tracking-widest text-slate-700 ml-1">
                     NHIA Hospital Name
                   </Label>
                   {tokenHospitalId ? (
@@ -472,6 +477,7 @@ export default function Register() {
                     <div className="relative">
                       <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                       <Input
+                        id="hospitalName"
                         value={hospitalName}
                         onChange={(e) => setHospitalName(e.target.value)}
                         placeholder="As on NHIA Registration"
@@ -499,6 +505,6 @@ export default function Register() {
           </CardContent>
         </Card>
       </div>
-    </div>
+    </main>
   );
 }

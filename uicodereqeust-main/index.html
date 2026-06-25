@@ -8,7 +8,12 @@
     <meta name="author" content="Ronsberger" />
     <meta name="keywords" content="medical authorization, healthcare claims, NHIS, NHIA, clinical workspace, hospital management, pre-authorization, insurance claims Nigeria" />
     <meta name="theme-color" content="#3f3f95" />
-    <link rel="canonical" href="https://medicodeui.web.app/" />
+    <link id="canonical-link" rel="canonical" href="https://medicodeui.web.app/" />
+    <script>
+      try {
+        document.getElementById('canonical-link').setAttribute('href', window.location.href);
+      } catch (e) {}
+    </script>
     <link rel="manifest" href="/manifest.json" />
     <link rel="icon" type="image/png" href="/ronsberger-logo.png" />
     <link rel="apple-touch-icon" href="/ronsberger-logo.png" />

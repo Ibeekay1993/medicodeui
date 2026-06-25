@@ -40,6 +40,7 @@ export default function AuthorizationsHeader({
               value={search} 
               onChange={e => setSearch(e.target.value)} 
               className="pl-8 h-8 rounded-lg bg-slate-50 border-none text-xs font-bold w-full" 
+              aria-label="Search authorizations ledger"
             />
           </div>
           <Button 

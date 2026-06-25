@@ -66,6 +66,7 @@ export default function ClaimsFilterHeader({
             value={searchTerm} 
             onChange={e => setSearchTerm(e.target.value)} 
             className="pl-9 h-8 rounded-lg bg-slate-50 border-none text-xs font-semibold w-full focus-visible:ring-1 focus-visible:ring-slate-300" 
+            aria-label="Search patient, policy or code"
           />
         </div>
       </div>

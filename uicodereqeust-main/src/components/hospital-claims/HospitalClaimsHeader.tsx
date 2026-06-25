@@ -32,6 +32,7 @@ export default function HospitalClaimsHeader({
               value={search}
               onChange={e => setSearch(e.target.value)}
               className="pl-8 h-8 rounded-lg bg-slate-50 border-none text-xs font-bold"
+              aria-label="Search claims ledger"
             />
           </div>
           <Button

@@ -2,6 +2,7 @@ import React from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Loader2, Search, Plus, CheckCircle2, X } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import Dropdown from "./Dropdown";
 
 interface PatientSectionProps {
@@ -130,21 +131,48 @@ export default function PatientSection({
 
       {/* Patient Email */}
       <div className="space-y-1.5">
-        <Label htmlFor="email-input" className="text-xs font-semibold text-slate-500">
-          Patient Email <span className="text-rose-500">*</span>
-        </Label>
-        <Input
-          id="email-input"
-          type="email"
-          placeholder="patient@email.com"
-          value={patientEmail}
-          onChange={(e) => setPatientEmail(e.target.value)}
-          aria-describedby="email-input-description"
-          className="h-12 rounded-xl bg-slate-50 border border-slate-200 text-sm placeholder:text-slate-300 placeholder:text-xs"
-        />
-        <p id="email-input-description" className="text-xs font-semibold text-slate-400">
-          An OTP will be sent to this email for patient verification.
-        </p>
+        <div className="flex items-center justify-between">
+          <Label htmlFor="email-input" className="text-xs font-semibold text-slate-500">
+            Patient Email <span className="text-rose-500">*</span>
+          </Label>
+          <div className="flex items-center gap-2">
+            <Checkbox 
+              id="no-email-checkbox" 
+              checked={patientEmail === "no-email@medicode.com"}
+              onCheckedChange={(checked) => {
+                if (checked) {
+                  setPatientEmail("no-email@medicode.com");
+                } else {
+                  setPatientEmail("");
+                }
+              }}
+            />
+            <Label htmlFor="no-email-checkbox" className="text-xs font-semibold text-slate-500 cursor-pointer">
+              Patient does not have an email
+            </Label>
+          </div>
+        </div>
+        
+        {patientEmail !== "no-email@medicode.com" ? (
+          <>
+            <Input
+              id="email-input"
+              type="email"
+              placeholder="patient@email.com"
+              value={patientEmail}
+              onChange={(e) => setPatientEmail(e.target.value)}
+              aria-describedby="email-input-description"
+              className="h-12 rounded-xl bg-slate-50 border border-slate-200 text-sm placeholder:text-slate-300 placeholder:text-xs"
+            />
+            <p id="email-input-description" className="text-xs font-semibold text-slate-400">
+              An OTP will be sent to this email for patient verification.
+            </p>
+          </>
+        ) : (
+          <div className="h-12 flex items-center px-4 rounded-xl bg-slate-50 border border-dashed border-slate-200">
+            <p className="text-xs text-slate-500 italic">No email provided. Patient will need to call the HMO for their OTP.</p>
+          </div>
+        )}
       </div>
     </div>
   );

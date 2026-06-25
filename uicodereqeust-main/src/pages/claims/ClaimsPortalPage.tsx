@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTabVisibilityRefresh } from "@/hooks/use-tab-visibility-refresh";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useDebounce } from "@/hooks/use-debounce";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 import { getErrorMessage } from "@/lib/errors";
@@ -26,6 +27,7 @@ export default function ClaimsPortalPage() {
   const [selectedClaimId, setSelectedClaimId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const debouncedSearchTerm = useDebounce(searchTerm, 400);
   const [statusTab, setStatusTab] = useState<"all" | "pending" | "approved" | "rejected" | "contested">("all");
   const [selectedHospitalId, setSelectedHospitalId] = useState<string>("all");
   const [isMobileDetailOpen, setIsMobileDetailOpen] = useState(false);
@@ -217,8 +219,8 @@ ${itemDecisionLines.join("\n")}`;
         }
       }
 
-      if (searchTerm.trim()) {
-        const term = `%${searchTerm.trim()}%`;
+      if (debouncedSearchTerm.trim()) {
+        const term = `%${debouncedSearchTerm.trim()}%`;
         query = query.or(`patient_name.ilike.${term},claim_number.ilike.${term},auth_code.ilike.${term},policy_number.ilike.${term}`);
       }
 
@@ -239,7 +241,7 @@ ${itemDecisionLines.join("\n")}`;
     } finally {
       setLoading(false);
     }
-  }, [selectedHospitalId, statusTab, searchTerm, page, pageSize, toast]);
+  }, [selectedHospitalId, statusTab, debouncedSearchTerm, page, pageSize, toast]);
 
   useEffect(() => {
     const fetchHospitals = async () => {
@@ -256,7 +258,7 @@ ${itemDecisionLines.join("\n")}`;
 
   useEffect(() => {
     setPage(1);
-  }, [selectedHospitalId, statusTab, searchTerm]);
+  }, [selectedHospitalId, statusTab, debouncedSearchTerm]);
 
   useEffect(() => { 
     if (user) refresh(); 

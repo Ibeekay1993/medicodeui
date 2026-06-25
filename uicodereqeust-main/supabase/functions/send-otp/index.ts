@@ -145,6 +145,9 @@ serve(async (req) => {
     if (!brevoApiKey) {
       console.warn("⚠️ BREVO_API_KEY not configured - OTP email will not be sent");
       emailError = "BREVO_API_KEY not configured";
+    } else if (patient_email === "no-email@medicode.com") {
+      console.log("ℹ️ Skipping email delivery for placeholder email");
+      emailStatus = "skipped";
     } else {
       try {
         console.log(`📧 Sending OTP email to ${patient_email} for authorization ${authorization_id}`);

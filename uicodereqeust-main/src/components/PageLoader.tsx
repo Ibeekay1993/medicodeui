@@ -10,7 +10,7 @@ export function PageLoader({ className }: { className?: string }) {
         </div>
         <div className="text-center">
           <p className="badge-label text-[#01aef2]">Ronsberger HMO</p>
-          <p className="mt-2 text-sm font-medium text-slate-500">Loading workspace...</p>
+          <p className="mt-2 text-sm font-medium text-slate-700">Loading workspace...</p>
         </div>
       </div>
     </div>
