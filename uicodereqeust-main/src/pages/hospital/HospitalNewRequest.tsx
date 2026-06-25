@@ -450,7 +450,7 @@ export default function HospitalNewRequest() {
           toast({
             title: isReferral ? "Referral request submitted" : "Request submitted successfully",
             description: isNoEmail 
-              ? (isReferral ? `Referral to ${resolvedReferralHospitalName || 'hospital'} submitted.` : "Request submitted. No OTP email was sent since the patient has no email address.")
+              ? (isReferral ? `Referral to ${resolvedReferralHospitalName || 'hospital'} submitted.` : "Request submitted. Advise the patient to contact HMO for OTP.")
               : (isReferral
                 ? `Referral to ${resolvedReferralHospitalName || 'hospital'} submitted. An OTP has been sent to the patient.`
                 : "An OTP has been sent to the patient's email."),
