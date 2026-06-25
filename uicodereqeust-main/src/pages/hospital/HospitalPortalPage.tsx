@@ -15,7 +15,10 @@ import {
   Plus,
   AlertCircle,
   FileText,
-  Loader2
+  Loader2,
+  Megaphone,
+  Send,
+  MessageSquare
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
@@ -27,8 +30,7 @@ export default function HospitalPortalPage() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [hospital, setHospital] = useState<any>(null);
-  const [recentAuths, setRecentAuths] = useState<any[]>([]);
-  const [recentClaims, setRecentClaims] = useState<any[]>([]);
+  const [announcements, setAnnouncements] = useState<any[]>([]);
   const [approachingDeadlineClaims, setApproachingDeadlineClaims] = useState<any[]>([]);
   const [metrics, setMetrics] = useState({ approvedCount: 0, pendingCount: 0, deniedCount: 0, totalValue: 0, pendingPayout: 0, paidClaims: 0 });
   const [pageLoading, setPageLoading] = useState(true);
@@ -136,9 +138,15 @@ export default function HospitalPortalPage() {
         pendingPayout: allClaims.filter(c => ["approved", "partially_approved"].includes(String(c.status).toLowerCase())).reduce((sum, c) => sum + (Number(c.approved_amount || c.total_amount) || 0), 0),
         paidClaims: allClaims.filter(c => String(c.status).toLowerCase() === "paid").reduce((sum, c) => sum + (Number(c.approved_amount || c.total_amount) || 0), 0)
       });
-      setRecentAuths(allData.slice(0, 5));
-      setRecentClaims([...allClaims].sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()).slice(0, 5));
-
+      
+      const { data: annData } = await supabase
+        .from("hmo_announcements")
+        .select("*")
+        .eq("is_active", true)
+        .order("created_at", { ascending: false })
+        .limit(3);
+      if (annData) setAnnouncements(annData);
+      
       // Filter for claims that are partially_approved and their contest_deadline is within the next 5 days (but still in the future)
       const now = new Date();
       const fiveDaysFromNow = new Date();
@@ -276,71 +284,75 @@ export default function HospitalPortalPage() {
         ))}
       </div>
       
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-      <Card className="rounded-xl border-slate-100 shadow-sm bg-white overflow-hidden">
-        <CardHeader className="p-4 border-b border-slate-50 flex flex-row items-center justify-between">
-          <CardTitle className="text-xs font-black uppercase tracking-widest text-slate-500">Recent Records</CardTitle>
-          <Button variant="ghost" size="sm" onClick={() => navigate("/dashboard/authorizations")} className="text-xs font-black uppercase text-slate-400">View All</Button>
-        </CardHeader>
-        <div className="divide-y divide-slate-50 overflow-x-auto min-w-[300px]">
-          {pageLoading ? (
-            <div className="flex items-center justify-center p-8"><Loader2 className="h-5 w-5 animate-spin text-slate-300" /></div>
-          ) : recentAuths.length === 0 ? (
-            <div className="p-8 text-center">
-              <FileText className="mx-auto h-8 w-8 text-slate-200 mb-2" />
-              <p className="text-xs font-black uppercase tracking-widest text-slate-300">No authorization records yet</p>
-              <p className="text-xs font-medium text-slate-400 mt-1">Submit your first request to get started</p>
-            </div>
-          ) : recentAuths.map((auth) => {
-            const patientInitial = (auth.patient_name || "").trim().charAt(0) || "?";
-            return (
-              <div key={auth.id} className="p-3 flex items-center justify-between hover:bg-slate-50 cursor-pointer" onClick={() => navigate("/dashboard/authorizations")}>
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="h-8 w-8 rounded-full bg-slate-100 flex items-center justify-center text-xs font-black text-slate-500 shrink-0">{patientInitial}</div>
-                  <div className="min-w-0">
-                    <p className="text-sm font-black text-slate-900 leading-tight uppercase">{auth.patient_name || "Unnamed Patient"}</p>
-                    <p className="text-xs font-semibold text-slate-400 uppercase leading-tight mt-0.5">{auth.diagnosis || "No Diagnosis Specified"}</p>
-                  </div>
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 mt-4">
+        <Card className="rounded-xl border-slate-100 shadow-sm bg-white overflow-hidden">
+          <CardHeader className="p-4 border-b border-slate-50 flex flex-row items-center justify-between">
+            <CardTitle className="text-xs font-black uppercase tracking-widest text-slate-500">Quick Actions</CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <Button
+              variant="outline"
+              onClick={() => navigate("/dashboard/new-request")}
+              className="h-auto py-4 flex flex-col gap-2 items-center justify-center border-slate-200 hover:border-emerald-500 hover:bg-emerald-50 hover:text-emerald-700 transition-colors"
+            >
+              <FileText className="h-6 w-6 text-emerald-600 mb-1" />
+              <span className="font-bold text-sm">Create Request</span>
+            </Button>
+            
+            <Button
+              variant="outline"
+              onClick={() => navigate("/dashboard/claims")}
+              className="h-auto py-4 flex flex-col gap-2 items-center justify-center border-slate-200 hover:border-blue-500 hover:bg-blue-50 hover:text-blue-700 transition-colors"
+            >
+              <Send className="h-6 w-6 text-blue-600 mb-1" />
+              <span className="font-bold text-sm">Submit Claim</span>
+            </Button>
+
+            <Button
+              variant="outline"
+              onClick={() => navigate("/dashboard/messages")}
+              className="h-auto py-4 flex flex-col gap-2 items-center justify-center border-slate-200 hover:border-purple-500 hover:bg-purple-50 hover:text-purple-700 transition-colors"
+            >
+              <MessageSquare className="h-6 w-6 text-purple-600 mb-1" />
+              <span className="font-bold text-sm">Message Support</span>
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card className="rounded-xl border-slate-100 shadow-sm bg-white overflow-hidden">
+          <CardHeader className="p-4 border-b border-slate-50 flex flex-row items-center justify-between">
+            <CardTitle className="text-xs font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
+              <Megaphone className="h-4 w-4 text-amber-500" />
+              HMO Announcements
+            </CardTitle>
+          </CardHeader>
+          <div className="divide-y divide-slate-50">
+            {pageLoading ? (
+              <div className="flex items-center justify-center p-8"><Loader2 className="h-5 w-5 animate-spin text-slate-300" /></div>
+            ) : announcements.length === 0 ? (
+              <div className="p-8 text-center">
+                <p className="text-xs font-black uppercase tracking-widest text-slate-300">No new announcements</p>
+              </div>
+            ) : announcements.map((ann) => (
+              <div key={ann.id} className="p-4 hover:bg-slate-50 transition-colors">
+                <div className="flex items-center justify-between mb-1">
+                  <h4 className="font-bold text-sm text-slate-900">{ann.title}</h4>
+                  <Badge variant="outline" className={cn("text-[10px] font-bold uppercase", 
+                    ann.priority === 'high' || ann.priority === 'critical' ? 'text-rose-600 border-rose-200 bg-rose-50' : 
+                    ann.priority === 'medium' ? 'text-amber-600 border-amber-200 bg-amber-50' : 
+                    'text-blue-600 border-blue-200 bg-blue-50'
+                  )}>
+                    {ann.priority}
+                  </Badge>
                 </div>
-                <Badge variant="outline" className={cn("text-xs font-black uppercase px-2.5 py-0.5 shrink-0 rounded-full", auth.status === "approved" ? "border-emerald-100 text-emerald-600 bg-emerald-50/20" : "border-amber-100 text-amber-600 bg-amber-50/20")}>{auth.status || "pending"}</Badge>
+                <p className="text-sm text-slate-600">{ann.content}</p>
+                <p className="text-[10px] text-slate-400 font-medium mt-2">
+                  {new Date(ann.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                </p>
               </div>
-            );
-          })}
-        </div>
-      </Card>
-      <Card className="rounded-xl border-slate-100 shadow-sm bg-white overflow-hidden">
-        <CardHeader className="p-4 border-b border-slate-50 flex flex-row items-center justify-between">
-          <CardTitle className="text-xs font-black uppercase tracking-widest text-slate-500">Recent Claims</CardTitle>
-          <Button variant="ghost" size="sm" onClick={() => navigate("/dashboard/claims")} className="text-xs font-black uppercase text-slate-400">Track All</Button>
-        </CardHeader>
-        <div className="divide-y divide-slate-50 overflow-x-auto min-w-[300px]">
-          {pageLoading ? (
-            <div className="flex items-center justify-center p-8"><Loader2 className="h-5 w-5 animate-spin text-slate-300" /></div>
-          ) : recentClaims.length === 0 ? (
-            <div className="p-8 text-center">
-              <Banknote className="mx-auto h-8 w-8 text-slate-200 mb-2" />
-              <p className="text-xs font-black uppercase tracking-widest text-slate-300">No claims submitted yet</p>
-              <p className="text-xs font-medium text-slate-400 mt-1">Claims will appear here after submission</p>
-            </div>
-          ) : recentClaims.map((claim) => (
-            <div key={claim.id} className="p-3 flex items-center justify-between gap-3 hover:bg-slate-50 cursor-pointer" onClick={() => navigate("/dashboard/claims")}>
-              <div className="min-w-0">
-                <p className="text-sm font-black text-slate-900 leading-tight uppercase">{claim.patient_name || "Unnamed Patient"}</p>
-                <p className="text-xs font-mono font-bold text-slate-400 mt-0.5">{claim.claim_number || claim.auth_code || "No reference"}</p>
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <span className="text-xs font-black text-emerald-600 font-mono">₦{Number(claim.total_amount || 0).toLocaleString()}</span>
-                <Badge variant="outline" className={cn(
-                  "text-xs font-black uppercase px-2.5 py-0.5 rounded-full",
-                  String(claim.status).toLowerCase() === "paid" ? "border-emerald-100 text-emerald-600 bg-emerald-50/20"
-                  : ["contested", "under_contest"].includes(String(claim.status).toLowerCase()) ? "border-blue-100 text-blue-600 bg-blue-50/20"
-                  : "border-amber-100 text-amber-600 bg-amber-50/20"
-                )}>{claim.status || "submitted"}</Badge>
-              </div>
-            </div>
-          ))}
-        </div>
-      </Card>
+            ))}
+          </div>
+        </Card>
       </div>
     </div>
   );
