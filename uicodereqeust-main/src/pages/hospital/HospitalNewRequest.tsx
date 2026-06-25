@@ -473,7 +473,7 @@ export default function HospitalNewRequest() {
 
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-          <div className="bg-white rounded-3xl shadow-xl border border-slate-100 overflow-hidden">
+          <div className="bg-white rounded-3xl shadow-xl border border-slate-100">
             
             {step === 1 && (
               <PatientSection

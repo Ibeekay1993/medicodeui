@@ -190,7 +190,7 @@ export function HospitalReferralField({
         ) : null}
 
         {open && !disabled ? (
-          <div className="absolute z-50 mt-2 max-h-72 w-full overflow-y-auto rounded-xl border border-slate-100 bg-white p-1 shadow-xl">
+          <div className="absolute z-50 mt-2 max-h-96 w-full overflow-y-auto rounded-xl border border-slate-100 bg-white p-1 shadow-xl">
             <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-100 bg-white px-3 py-2 text-xs font-bold text-slate-400">
               <span>ACCREDITED HOSPITALS ({suggestions.length} shown)</span>
               <button 
