@@ -241,8 +241,7 @@ export default function HospitalPortalPage() {
       <div className="pb-3 border-b border-slate-200">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-lg font-bold tracking-tight text-slate-900">Hospital Portal</h1>
-            <p className="text-xs text-slate-500">Facility: {hospital?.name || fullName || "Loading..."} · {hospital?.code || "???"}</p>
+            <p className="text-sm font-semibold tracking-tight text-slate-800">Facility: {hospital?.name || fullName || "Loading..."} · {hospital?.code || "???"}</p>
           </div>
           <Button 
             onClick={() => navigate("/dashboard/new-request")}
