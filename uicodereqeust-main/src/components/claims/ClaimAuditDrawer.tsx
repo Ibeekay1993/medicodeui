@@ -127,7 +127,7 @@ export default function ClaimAuditDrawer({
                     <div className="flex items-center gap-2">
                       <div className={cn(
                         "w-2 h-2 rounded-full",
-                        verificationData.mismatchReasons.some(r => r.includes("Patient Name")) ? "bg-rose-500 animate-pulse" : "bg-emerald-500"
+                        verificationData.mismatchReasons.some(r => r.includes("Patient Name")) ? "bg-rose-500" : "bg-emerald-500"
                       )} />
                       <span className="font-semibold text-slate-600">Patient Identity Check</span>
                     </div>
@@ -144,7 +144,7 @@ export default function ClaimAuditDrawer({
                     <div className="flex items-center gap-2">
                       <div className={cn(
                         "w-2 h-2 rounded-full",
-                        verificationData.mismatchReasons.some(r => r.includes("Enrollment ID")) ? "bg-rose-500 animate-pulse" : "bg-emerald-500"
+                        verificationData.mismatchReasons.some(r => r.includes("Enrollment ID")) ? "bg-rose-500" : "bg-emerald-500"
                       )} />
                       <span className="font-semibold text-slate-600">Enrollment ID Check</span>
                     </div>
@@ -161,7 +161,7 @@ export default function ClaimAuditDrawer({
                     <div className="flex items-center gap-2">
                       <div className={cn(
                         "w-2 h-2 rounded-full",
-                        verificationData.mismatchReasons.some(r => r.includes("ownership")) ? "bg-amber-500 animate-pulse" : "bg-emerald-500"
+                        verificationData.mismatchReasons.some(r => r.includes("ownership")) ? "bg-amber-500" : "bg-emerald-500"
                       )} />
                       <span className="font-semibold text-slate-600">Claim Ownership Check</span>
                     </div>
@@ -178,7 +178,7 @@ export default function ClaimAuditDrawer({
                     <div className="flex items-center gap-2">
                       <div className={cn(
                         "w-2 h-2 rounded-full",
-                        !verificationData.exists ? "bg-rose-500 animate-pulse" : "bg-emerald-500"
+                        !verificationData.exists ? "bg-rose-500" : "bg-emerald-500"
                       )} />
                       <span className="font-semibold text-slate-600">Clinical Pre-Auth Check</span>
                     </div>
@@ -221,7 +221,7 @@ export default function ClaimAuditDrawer({
                     <span className="text-xs font-semibold text-slate-500">Verifying Clinical Records...</span>
                   </div>
                 ) : !verificationData.exists ? (
-                  <div className="bg-rose-55 border border-rose-200 p-3 rounded-xl space-y-1.5">
+                  <div className="bg-rose-50/50 border border-rose-100 p-3 rounded-xl space-y-1.5">
                     <div className="flex items-center gap-2 text-rose-700">
                       <XCircle className="w-4 h-4 text-rose-600 shrink-0" />
                       <span className="text-xs font-semibold text-rose-750">Forgery Detection Alert</span>
@@ -231,9 +231,9 @@ export default function ClaimAuditDrawer({
                     </p>
                   </div>
                 ) : verificationData.mismatchReasons.length > 0 ? (
-                  <div className="bg-rose-55 border border-rose-200 p-3 rounded-xl space-y-2">
+                  <div className="bg-rose-50/50 border border-rose-100 p-3 rounded-xl space-y-2">
                     <div className="flex items-center gap-2 text-rose-700">
-                      <AlertCircle className="w-4 h-4 animate-bounce text-rose-600 shrink-0" />
+                      <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
                       <span className="text-xs font-semibold text-rose-750">Fraud / Mismatch Alert</span>
                     </div>
                     <ul className="list-disc list-inside text-xs font-semibold text-rose-600 space-y-1 leading-relaxed">
@@ -244,7 +244,7 @@ export default function ClaimAuditDrawer({
                     <p className="text-xs font-semibold text-rose-500 mt-1">Manual audit required. Direct approval has been locked.</p>
                   </div>
                 ) : (
-                  <div className="bg-emerald-55 border border-emerald-200 p-3 rounded-xl space-y-1.5">
+                  <div className="bg-emerald-50/50 border border-emerald-100 p-3 rounded-xl space-y-1.5">
                     <div className="flex items-center gap-2 text-emerald-700">
                       <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                       <span className="text-xs font-semibold text-emerald-750">100% Clinically Verified</span>
@@ -274,9 +274,9 @@ export default function ClaimAuditDrawer({
 
               {/* World Standard clinical guidelines check assistant */}
               {verificationData.exists && (
-                <div className="rounded-2xl border border-blue-100 bg-blue-50/30 p-4 space-y-2 shadow-sm">
+                <div className="rounded-2xl border border-blue-100 bg-white p-4 space-y-2 shadow-sm">
                   <p className="text-xs font-semibold text-blue-700 flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
                     Clinical Guideline Match
                   </p>
                   <p className="text-xs font-semibold text-slate-600 leading-relaxed">
