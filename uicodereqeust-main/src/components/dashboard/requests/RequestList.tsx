@@ -72,8 +72,8 @@ export function RequestList({
     const byId = r.approved_by || r.decided_by;
     if (byId && approverNames[byId]) return approverNames[byId];
     const initials = String(r.nurse_initials || "").trim();
-    if (initials) return `Nurse ${initials}`;
-    if (String(r.status || "").toLowerCase() === "approved") return "Unknown Nurse";
+    if (initials) return `UM ${initials}`;
+    if (String(r.status || "").toLowerCase() === "approved") return "Unknown UM";
     return "Unassigned";
   };
 

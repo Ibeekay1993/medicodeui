@@ -126,6 +126,7 @@ serve(async (req) => {
       admin: "Administrator",
       hospital: "Hospital Representative",
       nurse: "Utilization Manager",
+      utilization_manager: "Utilization Manager",
       claims: "Claims Officer",
       finance: "Finance Officer",
     };

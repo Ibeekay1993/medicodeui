@@ -1,4 +1,4 @@
-﻿export const normalizeRouteText = (value: unknown) => String(value || "").trim().toLowerCase();
+export const normalizeRouteText = (value: unknown) => String(value || "").trim().toLowerCase();
 
 export const normalizeRouteCode = (value: unknown) => String(value || "").trim().toLowerCase();
 
@@ -217,8 +217,8 @@ export const buildAiResponse = (question: string, request: unknown) => {
   if (/reject|decline|deny|why|reason/.test(q)) {
     base.push(
       decisionReason
-        ? "The decision note above explains the current status. If the hospital disagrees, ask for nurse review or human support."
-        : "No decision note is recorded. Ask a nurse reviewer to add or clarify the decision reason."
+        ? "The decision note above explains the current status. If the hospital disagrees, ask for utilization manager review or human support."
+        : "No decision note is recorded. Ask a utilization manager to add or clarify the decision reason."
     );
   }
 

@@ -312,7 +312,7 @@ export default function HospitalAuthorizations() {
       if (error) throw error;
       setRequestChatOpen(false);
       setRequestChatDraft("");
-      toast({ title: "Request support chat created", description: "A nurse support ticket has been created for this authorization request." });
+      toast({ title: "Request support chat created", description: "A utilization manager support ticket has been created for this authorization request." });
       navigate("/dashboard/messages");
     } catch (error: any) {
       toast({
