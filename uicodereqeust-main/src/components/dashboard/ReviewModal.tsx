@@ -20,6 +20,7 @@ import { HospitalReferralField } from "@/components/HospitalReferralField";
 import { AlertTriangle, ChevronDown, ChevronUp, ChevronRight } from "lucide-react";
 
 // Custom Hooks
+import { useAuth } from "@/contexts/AuthContext";
 import { useClinicalVerification } from "@/hooks/clinical/useClinicalVerification";
 import { useTariffSearch } from "@/hooks/clinical/useTariffSearch";
 import { useClinicalActions } from "@/hooks/clinical/useClinicalActions";
@@ -47,6 +48,7 @@ interface ReviewModalProps {
 }
 
 export function ReviewModal({ request, open, onClose, onUpdated }: ReviewModalProps) {
+  const { role } = useAuth();
   const [historyPage, setHistoryPage] = useState(1);
 
   // 1. Determine request metadata
@@ -114,7 +116,7 @@ export function ReviewModal({ request, open, onClose, onUpdated }: ReviewModalPr
                 <span className="inline-flex items-center rounded-md bg-slate-100 px-2.5 py-0.5 text-xs font-mono font-bold text-slate-800 border border-slate-200 shadow-2xs">
                   Policy: {requestPolicyNumber || "N/A"}
                 </span>
-                {(request?.status === "pending" || request?.status === "pending_referral" || request?.status === "pending_authorization") ? (
+                {(request?.status === "pending" || request?.status === "pending_referral" || request?.status === "pending_authorization") && role !== "hospital" ? (
                   <span className="inline-flex items-center rounded-md bg-amber-50 px-2 py-0.5 text-xs font-bold text-amber-700 border border-amber-250 shadow-2xs">
                     {actions.otpLoading ? (
                       <span className="animate-pulse">Generating OTP…</span>
