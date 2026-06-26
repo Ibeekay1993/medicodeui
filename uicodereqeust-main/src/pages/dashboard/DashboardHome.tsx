@@ -600,68 +600,156 @@ export default function DashboardHome() {
         // Admin: two charts side by side
         <div className="grid gap-4 lg:grid-cols-2">
           {/* Auth Chart */}
-          <Card className="med-card overflow-hidden p-6">
-            <div className="mb-4">
-              <h3 className="flex items-center gap-2 text-sm font-semibold text-[#1E293B]">
-                <ShieldCheck className="h-4 w-4 text-[#93c34b]" strokeWidth={1.5} />
-                Authorization Activity
-              </h3>
-              <p className="mt-1 text-sm text-[#888780]">Live authorizations by issue date, last 7 days</p>
+          <Card className="med-card overflow-hidden p-6 flex flex-col relative">
+            <div className="mb-4 flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+              <div>
+                <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-900">
+                  <ShieldCheck className="h-4 w-4 text-[#1D9E75]" strokeWidth={2} />
+                  Authorization Activity
+                </h3>
+                <p className="mt-1 text-xs text-slate-500">Live volume by issue date</p>
+                <div className="flex items-center gap-4 mt-3">
+                  <div className="flex flex-col">
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Total Requests</span>
+                    <span className="text-xl font-bold text-slate-900 tabular-nums">
+                      {loading ? <StatSkeleton /> : chartData.reduce((acc, curr) => acc + (curr.volume || 0), 0).toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 flex items-center gap-1">
+                      <div className="w-2 h-2 rounded-full bg-[#1D9E75]"></div>
+                      Approved
+                    </span>
+                    <span className="text-xl font-bold text-slate-900 tabular-nums">
+                      {loading ? <StatSkeleton /> : chartData.reduce((acc, curr) => acc + (curr.approved || 0), 0).toLocaleString()}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 self-start">
+                <div className="flex items-center gap-2 text-xs font-medium text-slate-500 bg-slate-50 px-2 py-1 rounded-md border border-slate-100">
+                  <div className="w-2 h-0.5 bg-slate-300"></div> Total
+                  <div className="w-2 h-0.5 bg-[#1D9E75] ml-2"></div> Approved
+                </div>
+                <select className="text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-md py-1.5 pl-2 pr-6 focus:ring-2 focus:ring-slate-100 outline-none cursor-pointer hover:bg-slate-50 transition-colors">
+                  <option value="7d">Last 7 days</option>
+                  <option value="30d">Last 30 days</option>
+                  <option value="ytd">Year to Date</option>
+                </select>
+              </div>
             </div>
-            <div className="h-[260px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="authGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#1D9E75" stopOpacity={0.16} />
-                      <stop offset="95%" stopColor="#1D9E75" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
-                  <XAxis dataKey="dateStr" type="category" scale="point" axisLine={false} tickLine={false}
-                    tick={{ fontSize: 11, fontWeight: 500, fill: "#64748B" }}
-                    tickFormatter={(v: string) => chartData.find((d) => d.dateStr === v)?.tickLabel ?? v}
-                  />
-                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fontWeight: 500, fill: "#64748B" }} allowDecimals={false} />
-                  <RechartsTooltip labelFormatter={(_, p) => p?.[0]?.payload?.name ?? ""}
-                    contentStyle={{ borderRadius: "8px", border: "1px solid #E2E8F0", boxShadow: "0 10px 30px rgb(15 23 42 / 0.08)", fontSize: "12px" }} />
-                  <Area type="monotone" dataKey="volume" stroke="#CBD5E1" fill="transparent" strokeWidth={2} />
-                  <Area type="monotone" dataKey="approved" stroke="#1D9E75" fillOpacity={1} fill="url(#authGradient)" strokeWidth={3} />
-                </AreaChart>
-              </ResponsiveContainer>
+            
+            <div className="h-[260px] w-full mt-auto">
+              {loading ? (
+                <div className="w-full h-full animate-pulse bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-center">
+                  <span className="text-sm font-medium text-slate-400">Loading chart data...</span>
+                </div>
+              ) : chartData.length === 0 ? (
+                <div className="w-full h-full bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-center">
+                  <span className="text-sm font-medium text-slate-400">No authorization data available</span>
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="authGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#1D9E75" stopOpacity={0.16} />
+                        <stop offset="95%" stopColor="#1D9E75" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
+                    <XAxis dataKey="dateStr" type="category" scale="point" axisLine={false} tickLine={false}
+                      tick={{ fontSize: 11, fontWeight: 500, fill: "#64748B" }}
+                      tickFormatter={(v: string) => chartData.find((d) => d.dateStr === v)?.tickLabel ?? v}
+                    />
+                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fontWeight: 500, fill: "#64748B" }} allowDecimals={false} />
+                    <RechartsTooltip 
+                      labelFormatter={(_, p) => p?.[0]?.payload?.name ?? ""}
+                      formatter={(value: number, name: string) => [value.toLocaleString(), name === "volume" ? "Total Requests" : "Approved"]}
+                      contentStyle={{ borderRadius: "8px", border: "1px solid #E2E8F0", boxShadow: "0 10px 30px rgb(15 23 42 / 0.08)", fontSize: "12px", padding: "8px 12px" }} 
+                    />
+                    <Area type="monotone" dataKey="volume" stroke="#CBD5E1" fill="transparent" strokeWidth={2} name="volume" />
+                    <Area type="monotone" dataKey="approved" stroke="#1D9E75" fillOpacity={1} fill="url(#authGradient)" strokeWidth={2.5} name="approved" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              )}
             </div>
           </Card>
 
           {/* Claims Chart */}
-          <Card className="med-card overflow-hidden p-6">
-            <div className="mb-4">
-              <h3 className="flex items-center gap-2 text-sm font-semibold text-[#1E293B]">
-                <Banknote className="h-4 w-4 text-[#BA7517]" strokeWidth={1.5} />
-                Claims Activity
-              </h3>
-              <p className="mt-1 text-sm text-[#888780]">Live claims volume by submission date, last 7 days</p>
+          <Card className="med-card overflow-hidden p-6 flex flex-col relative">
+            <div className="mb-4 flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+              <div>
+                <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-900">
+                  <Banknote className="h-4 w-4 text-[#BA7517]" strokeWidth={2} />
+                  Claims Activity
+                </h3>
+                <p className="mt-1 text-xs text-slate-500">Live volume by submission date</p>
+                <div className="flex items-center gap-4 mt-3">
+                  <div className="flex flex-col">
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Total Claims</span>
+                    <span className="text-xl font-bold text-slate-900 tabular-nums">
+                      {loading ? <StatSkeleton /> : claimChartData.reduce((acc, curr) => acc + (curr.volume || 0), 0).toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 flex items-center gap-1">
+                      <div className="w-2 h-2 rounded-full bg-[#BA7517]"></div>
+                      Approved
+                    </span>
+                    <span className="text-xl font-bold text-slate-900 tabular-nums">
+                      {loading ? <StatSkeleton /> : claimChartData.reduce((acc, curr) => acc + (curr.approved || 0), 0).toLocaleString()}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 self-start">
+                <div className="flex items-center gap-2 text-xs font-medium text-slate-500 bg-slate-50 px-2 py-1 rounded-md border border-slate-100">
+                  <div className="w-2 h-0.5 bg-slate-300"></div> Total
+                  <div className="w-2 h-0.5 bg-[#BA7517] ml-2"></div> Approved
+                </div>
+                <select className="text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-md py-1.5 pl-2 pr-6 focus:ring-2 focus:ring-slate-100 outline-none cursor-pointer hover:bg-slate-50 transition-colors">
+                  <option value="7d">Last 7 days</option>
+                  <option value="30d">Last 30 days</option>
+                  <option value="ytd">Year to Date</option>
+                </select>
+              </div>
             </div>
-            <div className="h-[260px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={claimChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="claimGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#BA7517" stopOpacity={0.16} />
-                      <stop offset="95%" stopColor="#BA7517" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
-                  <XAxis dataKey="dateStr" type="category" scale="point" axisLine={false} tickLine={false}
-                    tick={{ fontSize: 11, fontWeight: 500, fill: "#64748B" }}
-                    tickFormatter={(v: string) => claimChartData.find((d) => d.dateStr === v)?.tickLabel ?? v}
-                  />
-                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fontWeight: 500, fill: "#64748B" }} allowDecimals={false} />
-                  <RechartsTooltip labelFormatter={(_, p) => p?.[0]?.payload?.name ?? ""}
-                    contentStyle={{ borderRadius: "8px", border: "1px solid #E2E8F0", boxShadow: "0 10px 30px rgb(15 23 42 / 0.08)", fontSize: "12px" }} />
-                  <Area type="monotone" dataKey="volume" stroke="#CBD5E1" fill="transparent" strokeWidth={2} />
-                  <Area type="monotone" dataKey="approved" stroke="#BA7517" fillOpacity={1} fill="url(#claimGradient)" strokeWidth={3} />
-                </AreaChart>
-              </ResponsiveContainer>
+
+            <div className="h-[260px] w-full mt-auto">
+              {loading ? (
+                <div className="w-full h-full animate-pulse bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-center">
+                  <span className="text-sm font-medium text-slate-400">Loading chart data...</span>
+                </div>
+              ) : claimChartData.length === 0 ? (
+                <div className="w-full h-full bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-center">
+                  <span className="text-sm font-medium text-slate-400">No claims data available</span>
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={claimChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="claimGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#BA7517" stopOpacity={0.16} />
+                        <stop offset="95%" stopColor="#BA7517" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
+                    <XAxis dataKey="dateStr" type="category" scale="point" axisLine={false} tickLine={false}
+                      tick={{ fontSize: 11, fontWeight: 500, fill: "#64748B" }}
+                      tickFormatter={(v: string) => claimChartData.find((d) => d.dateStr === v)?.tickLabel ?? v}
+                    />
+                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fontWeight: 500, fill: "#64748B" }} allowDecimals={false} />
+                    <RechartsTooltip 
+                      labelFormatter={(_, p) => p?.[0]?.payload?.name ?? ""}
+                      formatter={(value: number, name: string) => [value.toLocaleString(), name === "volume" ? "Total Claims" : "Approved"]}
+                      contentStyle={{ borderRadius: "8px", border: "1px solid #E2E8F0", boxShadow: "0 10px 30px rgb(15 23 42 / 0.08)", fontSize: "12px", padding: "8px 12px" }} 
+                    />
+                    <Area type="monotone" dataKey="volume" stroke="#CBD5E1" fill="transparent" strokeWidth={2} name="volume" />
+                    <Area type="monotone" dataKey="approved" stroke="#BA7517" fillOpacity={1} fill="url(#claimGradient)" strokeWidth={2.5} name="approved" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              )}
             </div>
           </Card>
         </div>
