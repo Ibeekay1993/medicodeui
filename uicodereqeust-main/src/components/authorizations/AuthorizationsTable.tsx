@@ -76,12 +76,12 @@ export default function AuthorizationsTable({
                 const claimStatus = claimStatusFor(r);
                 return (
                   <tr key={r.id} className="hover:bg-slate-50/50 transition-colors text-sm">
-                    <td className="p-4 font-mono font-bold text-slate-500">
+                    <td className="p-4 font-mono font-bold text-slate-600">
                       {r.created_at ? new Date(r.created_at).toLocaleDateString("en-GB") : "—"}
                     </td>
                     <td className="py-4 pr-4">
                       <p className="font-black text-slate-950 uppercase leading-snug">{r.patient_name}</p>
-<p className="mt-1 text-xs font-semibold text-slate-500 leading-snug break-words whitespace-normal max-w-[300px]">{r.diagnosis}</p>
+<p className="mt-1 text-xs font-semibold text-slate-600 leading-snug break-words whitespace-normal max-w-[300px]">{r.diagnosis}</p>
                       {isReferralFor(r) && (
                         <span className="mt-2 inline-flex rounded-md border border-[#3f3f95]/20 bg-[#3f3f95]/5 px-2 py-1 badge-label text-[#3f3f95] max-w-[240px]">
                           <span className="break-words whitespace-normal leading-snug">Referral To: {claimOwnerNameFor(r)}</span>
@@ -201,7 +201,7 @@ export default function AuthorizationsTable({
                 <div className="flex justify-between items-start">
                   <div className="flex-1 min-w-0 pr-3">
                     <p className="text-sm font-black uppercase leading-tight text-slate-950">{r.patient_name}</p>
-                    <p className="text-xs font-semibold text-slate-500 mt-0.5 leading-snug line-clamp-2">{r.diagnosis}</p>
+                    <p className="text-xs font-semibold text-slate-600 mt-0.5 leading-snug line-clamp-2">{r.diagnosis}</p>
                   </div>
                   <div className="flex flex-col items-end gap-1 shrink-0">
                     <Badge variant="outline" className={cn("rounded-full px-2.5 py-0.5 border badge-label text-xs font-bold whitespace-nowrap w-fit", (() => {

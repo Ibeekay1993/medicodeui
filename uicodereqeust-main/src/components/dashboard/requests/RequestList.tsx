@@ -129,17 +129,17 @@ export function RequestList({
           <tbody className="divide-y divide-slate-100">
             {requests.map((r) => (
               <tr key={r.id} className="cursor-pointer text-sm transition-colors hover:bg-slate-50/70" onClick={() => onSelectRequest(r)}>
-                <td className="p-4 font-mono text-sm font-bold text-slate-500">{new Date(r.created_at).toLocaleDateString("en-GB")}</td>
+                <td className="p-4 font-mono text-sm font-bold text-slate-600">{new Date(r.created_at).toLocaleDateString("en-GB")}</td>
                 <td className="px-4 py-4">
                   <p className="text-sm font-black uppercase leading-snug text-slate-950">{r.patient_name}</p>
-                  <p className="mt-1 max-w-[360px] text-xs font-semibold leading-snug text-slate-500">{r.diagnosis || "No diagnosis recorded"}</p>
+                  <p className="mt-1 max-w-[360px] text-xs font-semibold leading-snug text-slate-600">{r.diagnosis || "No diagnosis recorded"}</p>
                   {r.referred_hospital_name ? (
                     <p className="mt-2 inline-flex rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-black uppercase tracking-wide text-slate-700">
                       Referral To: {r.referred_hospital_name}
                     </p>
                   ) : null}
                 </td>
-                <td className="px-4 py-4 font-mono text-sm font-bold text-slate-600">{r.policy_number || "-"}</td>
+                <td className="px-4 py-4 font-mono text-sm font-bold text-slate-700">{r.policy_number || "-"}</td>
                 <td className="px-4 py-4">
                   {role === "hospital" && r.status === "approved" && r.patient_email && !otpVerifiedStatus[r.id] ? (
                     <div className="flex flex-col gap-1.5" onClick={e => e.stopPropagation()}>
