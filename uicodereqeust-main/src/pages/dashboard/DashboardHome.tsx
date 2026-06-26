@@ -600,42 +600,33 @@ export default function DashboardHome() {
         // Admin: two charts side by side
         <div className="grid gap-4 lg:grid-cols-2">
           {/* Auth Chart */}
-          <Card className="med-card overflow-hidden p-6 flex flex-col relative">
-            <div className="mb-4 flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+          <Card className="med-card overflow-hidden p-6 flex flex-col">
+            <div className="mb-6 flex flex-col sm:flex-row sm:items-start justify-between gap-4">
               <div>
                 <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-900">
                   <ShieldCheck className="h-4 w-4 text-[#1D9E75]" strokeWidth={2} />
                   Authorization Activity
                 </h3>
-                <p className="mt-1 text-xs text-slate-500">Live volume by issue date</p>
-                <div className="flex items-center gap-4 mt-3">
-                  <div className="flex flex-col">
-                    <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Total Requests</span>
-                    <span className="text-xl font-bold text-slate-900 tabular-nums">
-                      {loading ? <StatSkeleton /> : chartData.reduce((acc, curr) => acc + (curr.volume || 0), 0).toLocaleString()}
-                    </span>
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 flex items-center gap-1">
-                      <div className="w-2 h-2 rounded-full bg-[#1D9E75]"></div>
-                      Approved
-                    </span>
-                    <span className="text-xl font-bold text-slate-900 tabular-nums">
-                      {loading ? <StatSkeleton /> : chartData.reduce((acc, curr) => acc + (curr.approved || 0), 0).toLocaleString()}
-                    </span>
-                  </div>
-                </div>
+                <p className="mt-1 text-xs text-slate-500">Live volume by issue date (Last 7 Days)</p>
               </div>
-              <div className="flex items-center gap-3 self-start">
-                <div className="flex items-center gap-2 text-xs font-medium text-slate-500 bg-slate-50 px-2 py-1 rounded-md border border-slate-100">
-                  <div className="w-2 h-0.5 bg-slate-300"></div> Total
-                  <div className="w-2 h-0.5 bg-[#1D9E75] ml-2"></div> Approved
+              <div className="flex items-center gap-6 self-start bg-slate-50 px-4 py-2 rounded-lg border border-slate-100">
+                <div className="flex flex-col">
+                  <span className="text-[9px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                    <div className="w-2 h-0.5 bg-slate-300"></div> Total
+                  </span>
+                  <span className="text-lg font-bold text-slate-900 tabular-nums leading-none mt-1">
+                    {loading ? <StatSkeleton /> : (stats.total || 0).toLocaleString()}
+                  </span>
                 </div>
-                <select className="text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-md py-1.5 pl-2 pr-6 focus:ring-2 focus:ring-slate-100 outline-none cursor-pointer hover:bg-slate-50 transition-colors">
-                  <option value="7d">Last 7 days</option>
-                  <option value="30d">Last 30 days</option>
-                  <option value="ytd">Year to Date</option>
-                </select>
+                <div className="w-px h-8 bg-slate-200"></div>
+                <div className="flex flex-col">
+                  <span className="text-[9px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                    <div className="w-2 h-0.5 bg-[#1D9E75]"></div> Approved
+                  </span>
+                  <span className="text-lg font-bold text-slate-900 tabular-nums leading-none mt-1">
+                    {loading ? <StatSkeleton /> : (stats.approved || 0).toLocaleString()}
+                  </span>
+                </div>
               </div>
             </div>
             
@@ -677,42 +668,33 @@ export default function DashboardHome() {
           </Card>
 
           {/* Claims Chart */}
-          <Card className="med-card overflow-hidden p-6 flex flex-col relative">
-            <div className="mb-4 flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+          <Card className="med-card overflow-hidden p-6 flex flex-col">
+            <div className="mb-6 flex flex-col sm:flex-row sm:items-start justify-between gap-4">
               <div>
                 <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-900">
                   <Banknote className="h-4 w-4 text-[#BA7517]" strokeWidth={2} />
                   Claims Activity
                 </h3>
-                <p className="mt-1 text-xs text-slate-500">Live volume by submission date</p>
-                <div className="flex items-center gap-4 mt-3">
-                  <div className="flex flex-col">
-                    <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Total Claims</span>
-                    <span className="text-xl font-bold text-slate-900 tabular-nums">
-                      {loading ? <StatSkeleton /> : claimChartData.reduce((acc, curr) => acc + (curr.volume || 0), 0).toLocaleString()}
-                    </span>
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 flex items-center gap-1">
-                      <div className="w-2 h-2 rounded-full bg-[#BA7517]"></div>
-                      Approved
-                    </span>
-                    <span className="text-xl font-bold text-slate-900 tabular-nums">
-                      {loading ? <StatSkeleton /> : claimChartData.reduce((acc, curr) => acc + (curr.approved || 0), 0).toLocaleString()}
-                    </span>
-                  </div>
-                </div>
+                <p className="mt-1 text-xs text-slate-500">Live volume by submission date (Last 7 Days)</p>
               </div>
-              <div className="flex items-center gap-3 self-start">
-                <div className="flex items-center gap-2 text-xs font-medium text-slate-500 bg-slate-50 px-2 py-1 rounded-md border border-slate-100">
-                  <div className="w-2 h-0.5 bg-slate-300"></div> Total
-                  <div className="w-2 h-0.5 bg-[#BA7517] ml-2"></div> Approved
+              <div className="flex items-center gap-6 self-start bg-slate-50 px-4 py-2 rounded-lg border border-slate-100">
+                <div className="flex flex-col">
+                  <span className="text-[9px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                    <div className="w-2 h-0.5 bg-slate-300"></div> Total
+                  </span>
+                  <span className="text-lg font-bold text-slate-900 tabular-nums leading-none mt-1">
+                    {loading ? <StatSkeleton /> : (claimStats.submitted || 0).toLocaleString()}
+                  </span>
                 </div>
-                <select className="text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-md py-1.5 pl-2 pr-6 focus:ring-2 focus:ring-slate-100 outline-none cursor-pointer hover:bg-slate-50 transition-colors">
-                  <option value="7d">Last 7 days</option>
-                  <option value="30d">Last 30 days</option>
-                  <option value="ytd">Year to Date</option>
-                </select>
+                <div className="w-px h-8 bg-slate-200"></div>
+                <div className="flex flex-col">
+                  <span className="text-[9px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                    <div className="w-2 h-0.5 bg-[#BA7517]"></div> Approved
+                  </span>
+                  <span className="text-lg font-bold text-slate-900 tabular-nums leading-none mt-1">
+                    {loading ? <StatSkeleton /> : (claimStats.approved || 0).toLocaleString()}
+                  </span>
+                </div>
               </div>
             </div>
 
