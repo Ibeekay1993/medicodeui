@@ -609,25 +609,6 @@ export default function DashboardHome() {
                 </h3>
                 <p className="mt-1 text-xs text-slate-500">Live volume by issue date (Last 7 Days)</p>
               </div>
-              <div className="flex items-center gap-6 self-start bg-slate-50 px-4 py-2 rounded-lg border border-slate-100">
-                <div className="flex flex-col">
-                  <span className="text-[9px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
-                    <div className="w-2 h-0.5 bg-slate-300"></div> Total
-                  </span>
-                  <span className="text-lg font-bold text-slate-900 tabular-nums leading-none mt-1">
-                    {loading ? <StatSkeleton /> : (stats.total || 0).toLocaleString()}
-                  </span>
-                </div>
-                <div className="w-px h-8 bg-slate-200"></div>
-                <div className="flex flex-col">
-                  <span className="text-[9px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
-                    <div className="w-2 h-0.5 bg-[#1D9E75]"></div> Approved
-                  </span>
-                  <span className="text-lg font-bold text-slate-900 tabular-nums leading-none mt-1">
-                    {loading ? <StatSkeleton /> : (stats.approved || 0).toLocaleString()}
-                  </span>
-                </div>
-              </div>
             </div>
             
             <div className="h-[260px] w-full mt-auto">
@@ -676,25 +657,6 @@ export default function DashboardHome() {
                   Claims Activity
                 </h3>
                 <p className="mt-1 text-xs text-slate-500">Live volume by submission date (Last 7 Days)</p>
-              </div>
-              <div className="flex items-center gap-6 self-start bg-slate-50 px-4 py-2 rounded-lg border border-slate-100">
-                <div className="flex flex-col">
-                  <span className="text-[9px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
-                    <div className="w-2 h-0.5 bg-slate-300"></div> Total
-                  </span>
-                  <span className="text-lg font-bold text-slate-900 tabular-nums leading-none mt-1">
-                    {loading ? <StatSkeleton /> : (claimStats.submitted || 0).toLocaleString()}
-                  </span>
-                </div>
-                <div className="w-px h-8 bg-slate-200"></div>
-                <div className="flex flex-col">
-                  <span className="text-[9px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
-                    <div className="w-2 h-0.5 bg-[#BA7517]"></div> Approved
-                  </span>
-                  <span className="text-lg font-bold text-slate-900 tabular-nums leading-none mt-1">
-                    {loading ? <StatSkeleton /> : (claimStats.approved || 0).toLocaleString()}
-                  </span>
-                </div>
               </div>
             </div>
 
