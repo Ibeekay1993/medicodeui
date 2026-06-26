@@ -93,7 +93,7 @@ export default function HistoricalCodeImportPage() {
   const [headers, setHeaders] = useState<string[]>([]);
   const [rows, setRows] = useState<Record<string, any>[]>([]);
   const [mapping, setMapping] = useState<Record<string, string>>({});
-  const [importMode, setImportMode] = useState<ImportMode>("merge");
+  const [importMode, setImportMode] = useState<ImportMode | "">("");
   const [replaceDialogOpen, setReplaceDialogOpen] = useState(false);
   const [replaceConfirmation, setReplaceConfirmation] = useState("");
   const [importing, setImporting] = useState(false);
@@ -204,12 +204,9 @@ export default function HistoricalCodeImportPage() {
   };
 
   const startImport = () => {
-    if (importMode === "replace" || importMode === "wipe") {
-      setReplaceConfirmation("");
-      setReplaceDialogOpen(true);
-      return;
-    }
-    void runImport(importMode);
+    if (!importMode) return;
+    setReplaceConfirmation("");
+    setReplaceDialogOpen(true);
   };
 
   if (role !== "admin") {
@@ -238,24 +235,27 @@ export default function HistoricalCodeImportPage() {
                 : "border-slate-100 bg-white hover:border-slate-200"
             }`}
           >
-            <p className={`text-xs font-black uppercase tracking-widest ${option.value === "replace" || option.value === "wipe" ? "text-rose-700" : "text-slate-700"}`}>{option.label}</p>
+            <p className={`text-xs font-black uppercase tracking-widest ${importMode === option.value && (option.value === "replace" || option.value === "wipe") ? "text-rose-700" : "text-slate-700"}`}>{option.label}</p>
             <p className="mt-1 text-xs font-medium leading-5 text-slate-500">{option.description}</p>
           </button>
         ))}
       </div>
 
-      <div className="pb-3 border-b border-slate-200">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm font-medium text-slate-600">
-            Selected Action: <strong className="text-slate-900">{importModeOptions.find((option) => option.value === importMode)?.label}</strong>
-          </p>
-          <label className="inline-flex h-8 cursor-pointer items-center justify-center rounded-lg bg-slate-900 px-3 text-xs font-bold text-white shrink-0">
-            <Upload className="mr-1.5 h-3.5 w-3.5" />
-            Upload CSV/XLSX
-            <Input type="file" accept=".csv,.xlsx,.xls" className="hidden" onChange={(event) => handleFile(event.target.files?.[0])} />
-          </label>
+      {importMode && (
+        <div className="pb-3 border-b border-slate-200">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm font-medium text-slate-600">
+              Selected Action: <strong className="text-slate-900">{importModeOptions.find((option) => option.value === importMode)?.label}</strong>
+            </p>
+            <label className="inline-flex h-8 cursor-pointer items-center justify-center rounded-lg bg-slate-900 px-3 text-xs font-bold text-white shrink-0">
+              <Upload className="mr-1.5 h-3.5 w-3.5" />
+              Upload CSV/XLSX
+              <Input type="file" accept=".csv,.xlsx,.xls" className="hidden" onChange={(event) => handleFile(event.target.files?.[0])} />
+            </label>
+          </div>
         </div>
-      </div>
+      )}
+
 
       {rows.length > 0 && (
         <>
@@ -380,17 +380,23 @@ export default function HistoricalCodeImportPage() {
       <AlertDialog open={replaceDialogOpen} onOpenChange={setReplaceDialogOpen}>
         <AlertDialogContent className="max-w-lg">
           <AlertDialogHeader>
-            <AlertDialogTitle>{importMode === "wipe" ? "Confirm COMPLETE DATABASE WIPE" : "Confirm historical replacement"}</AlertDialogTitle>
+            <AlertDialogTitle>
+              {importMode === "wipe" ? "Confirm COMPLETE DATABASE WIPE" :
+               importMode === "replace" ? "Confirm historical replacement" :
+               importMode === "merge" ? "Confirm missing field merge" :
+               "Confirm adding new codes"}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              {importMode === "wipe" 
-                ? "DANGER: Wipe mode will instantly delete ALL existing historical codes before importing. Type WIPE to confirm."
-                : "Replace mode will overwrite existing historical code fields when the uploaded file contains a new non-empty value. Type replace to continue."}
+              {importMode === "wipe" ? "DANGER: Wipe mode will instantly delete ALL existing historical codes before importing. Type WIPE to confirm." :
+               importMode === "replace" ? "Replace mode will overwrite existing historical code fields when the uploaded file contains a new non-empty value. Type REPLACE to continue." :
+               importMode === "merge" ? "Merge mode will only fill in blank fields for existing codes, and will not overwrite existing data. Type MERGE to continue." :
+               "Add mode will skip any codes that already exist in the database, only inserting brand new ones. Type ADD to continue."}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <Input
             value={replaceConfirmation}
-            onChange={(event) => setReplaceConfirmation(event.target.value)}
-            placeholder={importMode === "wipe" ? "Type WIPE" : "Type replace"}
+            onChange={(event) => setReplaceConfirmation(event.target.value.toUpperCase())}
+            placeholder={`Type ${importMode.toUpperCase()}`}
             autoComplete="off"
             className={importMode === "wipe" ? "border-rose-300 focus-visible:ring-rose-500" : ""}
           />
@@ -398,15 +404,15 @@ export default function HistoricalCodeImportPage() {
             <AlertDialogCancel disabled={importing} onClick={() => setReplaceConfirmation("")}>Cancel</AlertDialogCancel>
             <AlertDialogAction
               type="button"
-              disabled={(importMode === "wipe" ? replaceConfirmation !== "WIPE" : replaceConfirmation.trim().toLowerCase() !== "replace") || importing}
+              disabled={replaceConfirmation !== importMode.toUpperCase() || importing}
               onClick={(event) => {
                 event.preventDefault();
-                void runImport(importMode);
+                void runImport(importMode as ImportMode);
               }}
-              className="bg-rose-600 text-white hover:bg-rose-700"
+              className={importMode === "wipe" ? "bg-rose-600 text-white hover:bg-rose-700" : "bg-[#1A5F4A] text-white hover:bg-[#0F3D30]"}
             >
               {importing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              {importMode === "wipe" ? "WIPE & Import" : "Replace records"}
+              {importMode === "wipe" ? "WIPE & Import" : "Confirm & Import"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
