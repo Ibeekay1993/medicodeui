@@ -766,25 +766,7 @@ export default function DashboardHome() {
         </div>
       )}
 
-      {/* Admin Quick Access below the dual charts */}
-      {role === "admin" && (
-        <Card className="med-card p-5">
-          <h3 className="mb-4 text-xs font-semibold uppercase tracking-[0.06em] text-[#888780]">Quick Access</h3>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-            {actions.map((action) => (
-              <button key={action.name} onClick={() => navigate(action.href)} className="flex items-center gap-3 rounded-lg p-3 text-left transition hover:bg-slate-50">
-                <div className={cn("flex h-10 w-10 items-center justify-center rounded-[10px]", action.bg, action.color)}>
-                  <action.icon className="h-5 w-5" strokeWidth={1.5} />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <h4 className="text-sm font-medium text-[#1a1a1a]">{action.name}</h4>
-                  <p className="mt-0.5 text-xs text-[#888780]">{action.desc}</p>
-                </div>
-              </button>
-            ))}
-          </div>
-        </Card>
-      )}
+
     </div>
   );
 }
