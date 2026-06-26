@@ -12,6 +12,96 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ClaimDraft, AuditDecision, money, splitClaimNotes } from "@/lib/claims-helpers";
 
+const RenderAuditNote = ({ text }: { text: string }) => {
+  const isAutomated = text.includes("AUTOMATED CLINICAL AUDIT COMPLETED") || text.includes("AI CLINICAL AUDIT COMPLETED");
+  if (!isAutomated) {
+    return <pre className="whitespace-pre-wrap text-xs font-mono font-medium leading-relaxed text-amber-900 break-words">{text}</pre>;
+  }
+
+  const lines = text.split("\n").map(l => l.trim()).filter(Boolean);
+  const status = lines.find(l => l.startsWith("Status:"))?.replace("Status:", "").trim();
+  const reason = lines.find(l => l.startsWith("Reason:"))?.replace("Reason:", "").trim();
+
+  const approvedIdx = lines.findIndex(l => l.startsWith("APPROVED ITEMS:"));
+  const declinedIdx = lines.findIndex(l => l.startsWith("DECLINED ITEMS"));
+  const summaryIdx = lines.findIndex(l => l.startsWith("SUMMARY OF ADJUSTMENTS:"));
+  
+  const approvedItems = approvedIdx !== -1 
+    ? lines.slice(approvedIdx + 1, declinedIdx !== -1 ? declinedIdx : (summaryIdx !== -1 ? summaryIdx : lines.length)).filter(l => l.startsWith("•")) 
+    : [];
+  
+  const declinedItems = declinedIdx !== -1
+    ? lines.slice(declinedIdx + 1, summaryIdx !== -1 ? summaryIdx : lines.length).filter(l => l.startsWith("•"))
+    : [];
+
+  const requestedAmount = lines.find(l => l.startsWith("- Requested Amount:"))?.replace("- Requested Amount:", "").trim();
+  const approvedPayout = lines.find(l => l.startsWith("- Approved Payout:"))?.replace("- Approved Payout:", "").trim();
+  const penalty = lines.find(l => l.startsWith("- Deducted Penalty:"))?.replace("- Deducted Penalty:", "").trim();
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between border-b border-amber-200/50 pb-2">
+        <span className="font-bold text-amber-900 uppercase tracking-wider text-[10px]">Automated Clinical Audit</span>
+        <span className="bg-amber-100 text-amber-800 text-[10px] font-bold px-2.5 py-1 rounded-full">{status}</span>
+      </div>
+      
+      {reason && (
+        <div className="bg-rose-50/80 text-rose-800 p-2.5 rounded-lg border border-rose-100 text-xs font-medium leading-relaxed">
+          <strong>Reason:</strong> {reason}
+        </div>
+      )}
+
+      {approvedItems.length > 0 && (
+        <div className="space-y-2">
+          <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider">Approved Items</span>
+          <ul className="space-y-1.5">
+            {approvedItems.map((item, i) => (
+              <li key={i} className="flex items-start gap-2 text-xs text-slate-700 font-medium">
+                <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                <span className="leading-snug">{item.replace(/^•\s*/, "")}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {declinedItems.length > 0 && (
+        <div className="space-y-2">
+          <span className="text-[10px] font-bold text-rose-700 uppercase tracking-wider">Declined Items</span>
+          <ul className="space-y-1.5">
+            {declinedItems.map((item, i) => (
+              <li key={i} className="flex items-start gap-2 text-xs text-slate-700 font-medium">
+                <XCircle className="w-4 h-4 text-rose-500 shrink-0" />
+                <span className="leading-snug">{item.replace(/^•\s*/, "")}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {requestedAmount && (
+        <div className="bg-white rounded-xl p-3 border border-amber-100/60 shadow-sm mt-3">
+          <span className="text-[9px] font-black text-amber-800/70 uppercase tracking-widest block border-b border-amber-50 pb-1.5 mb-2">Summary of Adjustments</span>
+          <div className="grid grid-cols-3 gap-2 divide-x divide-amber-50 text-center">
+            <div>
+              <span className="block text-[10px] font-semibold text-slate-500">Requested</span>
+              <span className="font-mono text-sm font-bold text-slate-800 mt-0.5 block">{requestedAmount}</span>
+            </div>
+            <div>
+              <span className="block text-[10px] font-semibold text-emerald-600">Approved</span>
+              <span className="font-mono text-sm font-bold text-emerald-700 mt-0.5 block">{approvedPayout}</span>
+            </div>
+            <div>
+              <span className="block text-[10px] font-semibold text-rose-600">Penalty</span>
+              <span className="font-mono text-sm font-bold text-rose-700 mt-0.5 block">{penalty}</span>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 interface ClaimAuditDrawerProps {
   selectedClaim: ClaimDraft;
   isMobileDetailOpen: boolean;
@@ -302,11 +392,8 @@ export default function ClaimAuditDrawer({
                         </div>
                       )}
                       {hasAudit && (
-                        <div className="rounded-xl border border-amber-100 bg-amber-50 p-3">
-                          <p className="text-xs font-semibold text-amber-700 mb-2 font-mono">HMO Audit Trail & Decisions History</p>
-                          <div className="max-h-52 overflow-y-auto">
-                            <pre className="whitespace-pre-wrap text-xs font-mono font-medium leading-relaxed text-amber-900 break-words">{noteSections.audit}</pre>
-                          </div>
+                        <div className="rounded-xl border border-amber-100 bg-gradient-to-b from-amber-50/80 to-amber-50/30 p-4 shadow-sm">
+                          <RenderAuditNote text={noteSections.audit} />
                         </div>
                       )}
                     </div>
@@ -542,7 +629,7 @@ export default function ClaimAuditDrawer({
                           .filter((item: any) => declinedItemCodes.includes(itemKey(item)))
                           .map((item: any) => `${item.name} (${item.quantity} unit${item.quantity > 1 ? 's' : ''} × ${money(item.unit_price ?? item.price ?? item.amount ?? 0)})`);
 
-                        const aiAuditNote = `[AI CLINICAL AUDIT COMPLETED]
+                        const aiAuditNote = `[AUTOMATED CLINICAL AUDIT COMPLETED]
 Claim Reference: ${selectedClaim.claim_number}
 Status: Approved with Adjustments
 
@@ -570,7 +657,7 @@ Audit completed automatically. Under active clinical policy review. Hospital may
                     <Button 
                       variant="outline" 
                       onClick={() => {
-                        const rejectedAuditNote = `[AI CLINICAL AUDIT COMPLETED]
+                        const rejectedAuditNote = `[AUTOMATED CLINICAL AUDIT COMPLETED]
 Claim Reference: ${selectedClaim.claim_number}
 Status: Rejected
 

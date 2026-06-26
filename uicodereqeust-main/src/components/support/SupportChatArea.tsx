@@ -345,8 +345,8 @@ export function SupportChatArea({
     if (!selected?.id || !replyText.trim()) {
       toast({
         variant: "destructive",
-        title: "AI question required",
-        description: "Type the question you want the AI assistant to answer.",
+        title: "Question required",
+        description: "Type the question you want the automated support system to answer.",
       });
       return;
     }
@@ -376,13 +376,13 @@ export function SupportChatArea({
         setMessages((prev) => [...prev, aiMessage]);
         setSelected((prev: any) =>
           prev
-            ? { ...prev, last_message: "[AI Assistant]", last_message_at: (aiMessage as any).created_at }
+            ? { ...prev, last_message: "[Automated System]", last_message_at: (aiMessage as any).created_at }
             : prev
         );
       }
       setReplyText("");
     } catch (e: unknown) {
-      toast({ variant: "destructive", title: "AI failed", description: getErrorMessage(e) });
+      toast({ variant: "destructive", title: "Request failed", description: getErrorMessage(e) });
     } finally {
       setAiLoading(false);
     }
@@ -406,8 +406,8 @@ export function SupportChatArea({
           (escalateToHuman
             ? "Hospital requested human support."
             : resolved
-            ? "AI answer resolved the issue."
-            : "AI answer did not resolve the issue."),
+            ? "Automated answer resolved the issue."
+            : "Automated answer did not resolve the issue."),
       });
 
       if (result.error) throw result.error;
@@ -427,7 +427,7 @@ export function SupportChatArea({
         toast({
           title: "Feedback saved",
           description: resolved
-            ? "Thanks for confirming the AI answer resolved the issue."
+            ? "Thanks for confirming the automated answer resolved the issue."
             : "Thanks. A staff member can review this if needed.",
         });
       }
@@ -705,7 +705,7 @@ export function SupportChatArea({
                       <div className="flex items-center gap-2 mb-2 text-indigo-700">
                         <Sparkles className="h-4 w-4" />
                         <span className="text-xs font-black uppercase tracking-widest">
-                          Ronsberger HMO AI Assistant
+                          Automated Support System
                         </span>
                       </div>
                       <p className="whitespace-pre-wrap text-sm leading-relaxed">{msg.body}</p>
@@ -1054,7 +1054,7 @@ export function SupportChatArea({
                 onClick={handleAskAI}
                 disabled={aiLoading || sending || !replyText.trim() || selectedClosed}
                 className="h-11 w-auto px-3 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 transition-all hover:scale-105 active:scale-95 shadow-md shadow-indigo-900/10 shrink-0"
-                title="Ask AI Assistant"
+                title="Search Knowledge Base"
               >
                 {aiLoading ? (
                   <Loader2 className="h-4 w-4 animate-spin" />

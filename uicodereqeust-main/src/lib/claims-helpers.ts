@@ -98,7 +98,7 @@ export function splitClaimNotes(notes?: string | null) {
   const raw = String(notes || "");
   
   // Detect if this looks like a system-generated audit note
-  const isAuditNote = /\[(?:AI )?CLAIMS?\s+AUDIT|\[AI CLINICAL/i.test(raw);
+  const isAuditNote = /\[(?:AI |AUTOMATED )?CLAIMS?\s+AUDIT|\[(?:AI|AUTOMATED) CLINICAL/i.test(raw);
   
   if (isAuditNote) {
     // Entire content is a system-generated audit trail — no clinical note
@@ -117,7 +117,7 @@ export function splitClaimNotes(notes?: string | null) {
     /^•\s*(APPROVED|DECLINED|ADJUSTED)/i.test(line) ||
     /^(Claim Reference|Status:|Original Claim Value|Audited Approved Value|Declined Value|ITEM AUDIT DECISIONS|APPROVED ITEMS|DECLINED ITEMS|SUMMARY OF ADJUSTMENTS|Requested Amount|Approved Payout|Deducted Penalty|Audit completed|Hospital may submit|Under active)/i.test(line) ||
     /^-\s*(Requested Amount|Approved Payout|Deducted Penalty)/i.test(line) ||
-    /\b(CLAIMS AUDIT COMPLETED|AI CLINICAL AUDIT COMPLETED)\b/i.test(line);
+    /\b((?:AI|AUTOMATED) CLINICAL AUDIT COMPLETED|CLAIMS AUDIT COMPLETED)\b/i.test(line);
   
   // Find the first audit line — everything from there is audit trail
   const firstAuditIdx = lines.findIndex(isAuditLine);
