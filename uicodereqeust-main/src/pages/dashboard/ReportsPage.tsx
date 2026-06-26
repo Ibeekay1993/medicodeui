@@ -260,7 +260,7 @@ export default function ReportsPage() {
         "Request ID": r.request_id,
         "Patient Name": r.patient_name,
         "Patient Phone": r.patient_phone,
-        "Patient Email": r.patient_email,
+        "Patient Email": r.patient_email === "no-email@medicode.com" ? "No email provided" : r.patient_email,
         "Policy Number": r.policy_number,
         "Diagnosis": r.diagnosis,
         "Treatment": r.treatment,

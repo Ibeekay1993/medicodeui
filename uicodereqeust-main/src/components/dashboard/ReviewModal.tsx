@@ -141,7 +141,11 @@ export function ReviewModal({ request, open, onClose, onUpdated }: ReviewModalPr
               </div>
               {request?.patient_email && (
                 <div className="text-xs font-medium text-slate-550 truncate mt-1 leading-none">
-                  {request.patient_email}
+                  {request.patient_email === "no-email@medicode.com" ? (
+                    <span className="italic opacity-70">No email provided</span>
+                  ) : (
+                    request.patient_email
+                  )}
                 </div>
               )}
             </div>
