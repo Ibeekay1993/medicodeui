@@ -32,7 +32,7 @@ export function useClinicalActions({
   onUpdated,
 }: UseClinicalActionsProps) {
   const { toast } = useToast();
-  const { user, fullName } = useAuth();
+  const { user, fullName, role } = useAuth();
 
   const [processing, setProcessing] = useState(false);
   const [processingAction, setProcessingAction] = useState<

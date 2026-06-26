@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
@@ -109,7 +109,18 @@ export default function RequestsPage() {
     }
   });
 
-  const requests = data?.rows || [];
+  const requests = useMemo(() => {
+    const raw = data?.rows || [];
+    if (statusFilter !== "all") return raw;
+    const pendingStatuses = ["pending", "pending_referral", "pending_authorization", "info_provided"];
+    return [...raw].sort((a, b) => {
+      const aPending = pendingStatuses.includes(a.status);
+      const bPending = pendingStatuses.includes(b.status);
+      if (aPending && !bPending) return -1;
+      if (!aPending && bPending) return 1;
+      return 0;
+    });
+  }, [data?.rows, statusFilter]);
   const totalCount = data?.count || 0;
   const approverNames = data?.approverNames || {};
 
