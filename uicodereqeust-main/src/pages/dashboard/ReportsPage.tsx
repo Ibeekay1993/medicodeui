@@ -3,7 +3,7 @@ import { Navigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTabVisibilityRefresh } from "@/hooks/use-tab-visibility-refresh";
-import { BarChart3, ShieldAlert } from "lucide-react";
+import { BarChart3, ShieldAlert, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/lib/errors";
 import * as XLSX from "xlsx";
@@ -27,7 +27,7 @@ import {
 import ReportFilters from "@/components/reports/ReportFilters";
 import KPIStatsGrid from "@/components/reports/KPIStatsGrid";
 import StatusDistributionChart from "@/components/reports/StatusDistributionChart";
-import DailyTrendChart from "@/components/reports/DailyTrendChart";
+
 import MonthlyTrendChart from "@/components/reports/MonthlyTrendChart";
 import HospitalPerformanceTable from "@/components/reports/HospitalPerformanceTable";
 
@@ -51,6 +51,7 @@ export default function ReportsPage() {
   const [monthlyTrend, setMonthlyTrend] = useState<TrendPoint[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
+  const [showHospitalPerformance, setShowHospitalPerformance] = useState(true);
 
   const calculateStats = useCallback((data: PreAuthRecord[]): ReportStats => {
     const approved = data.filter((r) => ["approved", "referral_approved", "referral_accepted"].includes(r.status));
@@ -580,22 +581,43 @@ export default function ReportsPage() {
 
       {/* Analytics Dashboard */}
       <div className="space-y-6">
-        <div className="flex items-center gap-2">
-          <BarChart3 className="h-5 w-5 text-slate-600" />
-          <h2 className="text-sm font-black uppercase text-slate-900 tracking-wider">Analytics Dashboard</h2>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="p-2 bg-indigo-100 rounded-lg">
+              <BarChart3 className="h-5 w-5 text-indigo-600" />
+            </div>
+            <h2 className="text-lg font-black uppercase text-slate-900 tracking-wider">Analytics Dashboard</h2>
+          </div>
+          <button
+            onClick={() => setShowHospitalPerformance(!showHospitalPerformance)}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-full shadow-sm hover:bg-slate-50 transition-colors"
+          >
+            {showHospitalPerformance ? (
+              <>
+                <EyeOff className="w-4 h-4 text-slate-500" />
+                Hide Hospital Performance
+              </>
+            ) : (
+              <>
+                <Eye className="w-4 h-4 text-slate-500" />
+                Show Hospital Performance
+              </>
+            )}
+          </button>
         </div>
 
         {/* Charts Row 1 */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <StatusDistributionChart stats={stats} />
-          <DailyTrendChart data={dailyTrend} />
+          <MonthlyTrendChart data={monthlyTrend} />
         </div>
 
-        {/* Charts Row 2 */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <MonthlyTrendChart data={monthlyTrend} />
-          <HospitalPerformanceTable data={hospitalPerformance} />
-        </div>
+        {/* Hospital Performance */}
+        {showHospitalPerformance && (
+          <div className="animate-in fade-in slide-in-from-top-4 duration-500">
+            <HospitalPerformanceTable data={hospitalPerformance} />
+          </div>
+        )}
       </div>
     </div>
   );
