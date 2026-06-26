@@ -552,7 +552,7 @@ export default function ReportsPage() {
     }
   };
 
-  if (normalizedRole !== "admin" && normalizedRole !== "finance" && normalizedRole !== "utilization_manager") {
+  if (normalizedRole !== "admin" && normalizedRole !== "finance" && normalizedRole !== "utilization_manager" && normalizedRole !== "nurse") {
     return (
       <div className="flex h-[400px] flex-col items-center justify-center space-y-4">
         <ShieldAlert className="h-12 w-12 text-rose-500" />
