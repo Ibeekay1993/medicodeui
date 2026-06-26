@@ -51,7 +51,7 @@ import {
 } from "@/components/users/ActionModals";
 
 export default function UsersPage() {
-  const { user } = useAuth();
+  const { user, role } = useAuth();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<"directory" | "approvals">("directory");
   const [users, setUsers] = useState<any[]>([]);
@@ -248,6 +248,16 @@ export default function UsersPage() {
       setActioningRequest(null);
     }
   };
+
+  if (role !== "admin") {
+    return (
+      <div className="flex h-[400px] flex-col items-center justify-center space-y-4">
+        <ShieldAlert className="h-12 w-12 text-rose-500" />
+        <h2 className="text-xl font-bold text-slate-800">Access Denied</h2>
+        <p className="text-sm text-slate-500">You do not have permission to view or manage users.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4 max-w-full overflow-hidden pb-10 animate-in fade-in duration-500">

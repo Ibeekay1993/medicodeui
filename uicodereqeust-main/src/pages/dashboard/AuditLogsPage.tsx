@@ -1,6 +1,8 @@
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { Activity, Download, Loader2, MoreVertical, RefreshCw, Search } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { ShieldAlert } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -46,6 +48,7 @@ const extractEmail = (log: any) => {
 };
 
 export default function AuditLogsPage() {
+  const { role } = useAuth();
   const [logs, setLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -137,6 +140,16 @@ export default function AuditLogsPage() {
     link.click();
     URL.revokeObjectURL(url);
   };
+
+  if (role !== "admin") {
+    return (
+      <div className="flex h-[400px] flex-col items-center justify-center space-y-4">
+        <ShieldAlert className="h-12 w-12 text-rose-500" />
+        <h2 className="text-xl font-bold text-slate-800">Access Denied</h2>
+        <p className="text-sm text-slate-500">You do not have permission to view audit logs.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4 max-w-full overflow-x-hidden pb-10 animate-in fade-in duration-500">

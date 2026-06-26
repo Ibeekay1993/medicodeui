@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTabVisibilityRefresh } from "@/hooks/use-tab-visibility-refresh";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import {
   Archive,
@@ -38,6 +39,7 @@ const statusPill = (status?: string | null) => {
 };
 
 export default function DeleteRequestsPage() {
+  const { role } = useAuth();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<"queue" | "archive">("queue");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -133,13 +135,23 @@ export default function DeleteRequestsPage() {
     valueAtRisk: rows.reduce((sum, row) => sum + Number(row.total_amount || 0), 0),
   }), [rows]);
 
+  if (role !== "admin") {
+    return (
+      <div className="flex h-[400px] flex-col items-center justify-center space-y-4">
+        <ShieldAlert className="h-12 w-12 text-rose-500" />
+        <h2 className="text-xl font-bold text-slate-800">Access Denied</h2>
+        <p className="text-sm text-slate-500">You do not have permission to view deletion requests.</p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4 pb-12 animate-in fade-in duration-500">
       <div className="pb-3 border-b border-slate-200">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
           <div className="flex flex-wrap items-center gap-2">
-            <button onClick={() => setActiveTab("queue")} className={cn("rounded-lg px-3 py-1 text-xs font-semibold transition", activeTab === "queue" ? "bg-slate-950 text-white" : "bg-slate-50 text-slate-600 hover:bg-slate-100")}>Pending Queue ({rows.length})</button>
-            <button onClick={() => setActiveTab("archive")} className={cn("inline-flex items-center gap-1.5 rounded-lg px-3 py-1 text-xs font-semibold transition", activeTab === "archive" ? "bg-slate-950 text-white" : "bg-slate-50 text-slate-600 hover:bg-slate-100")}><Archive className="h-3.5 w-3.5" /> Pruned Archive</button>
+            <button onClick={() => setActiveTab("queue")} className={cn("rounded-lg px-3 py-1 text-xs font-semibold transition", activeTab === "queue" ? "bg-slate-950 text-white" : "bg-slate-50 text-slate-600 hover:bg-slate-100")}>Queue ({rows.length})</button>
+            <button onClick={() => setActiveTab("archive")} className={cn("inline-flex items-center gap-1.5 rounded-lg px-3 py-1 text-xs font-semibold transition", activeTab === "archive" ? "bg-slate-950 text-white" : "bg-slate-50 text-slate-600 hover:bg-slate-100")}><Archive className="h-3.5 w-3.5" /> Archive</button>
           </div>
         </div>
       </div>
@@ -199,7 +211,7 @@ export default function DeleteRequestsPage() {
                       <td className="px-4 py-3">
                         <div className="flex justify-end gap-2">
                           <Button onClick={() => rejectDelete(row)} disabled={actioningId === row.id} variant="outline" className="h-8 rounded-lg px-3 text-sm">{actioningId === row.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4" />} Reject</Button>
-                          <Button onClick={() => setConfirmDeleteTarget(row)} disabled={actioningId === row.id} className="h-8 rounded-lg bg-[#E24B4A] px-3 text-sm text-white hover:bg-[#A32D2D]"><Trash2 className="h-4 w-4" /> Authorize</Button>
+                          <Button onClick={() => setConfirmDeleteTarget(row)} disabled={actioningId === row.id} className="h-8 rounded-lg bg-[#E24B4A] px-3 text-sm text-white hover:bg-[#A32D2D]"><Trash2 className="h-4 w-4" /> Approve</Button>
                         </div>
                       </td>
                     </tr>
@@ -211,7 +223,7 @@ export default function DeleteRequestsPage() {
 
           {filteredRows.length > visibleRows.length && (
             <div className="flex justify-center">
-              <Button variant="outline" onClick={() => setVisibleCount((current) => current + 10)} className="rounded-lg">Load 10 more</Button>
+              <Button variant="outline" onClick={() => setVisibleCount((current) => current + 10)} className="rounded-lg">Load More</Button>
             </div>
           )}
         </>

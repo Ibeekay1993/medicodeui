@@ -2,6 +2,8 @@ import { useMemo, useState } from "react";
 import * as XLSX from "xlsx";
 import { Upload, FileSpreadsheet, Loader2, CheckCircle2, AlertTriangle, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -77,7 +79,9 @@ const normalizeCode = (value: unknown) =>
     .toUpperCase();
 
 export default function HistoricalCodeImportPage() {
+  const { role } = useAuth();
   const { toast } = useToast();
+  const [file, setFile] = useState<File | null>(null);
   const [fileName, setFileName] = useState("");
   const [headers, setHeaders] = useState<string[]>([]);
   const [rows, setRows] = useState<Record<string, any>[]>([]);
@@ -134,6 +138,7 @@ export default function HistoricalCodeImportPage() {
 
   const handleFile = async (file?: File) => {
     if (!file) return;
+    setFile(file);
     setFileName(file.name);
     setSummary(null);
     const buffer = await file.arrayBuffer();
@@ -195,8 +200,18 @@ export default function HistoricalCodeImportPage() {
     void runImport(importMode);
   };
 
+  if (role !== "admin") {
+    return (
+      <div className="flex h-[400px] flex-col items-center justify-center space-y-4">
+        <ShieldAlert className="h-12 w-12 text-rose-500" />
+        <h2 className="text-xl font-bold text-slate-800">Access Denied</h2>
+        <p className="text-sm text-slate-500">You do not have permission to view or manage historical code imports.</p>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-4 pb-10">
+    <div className="mx-auto max-w-5xl space-y-4 pb-12 animate-in fade-in duration-500">
       <div className="pb-3 border-b border-slate-200">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
           <label className="inline-flex h-8 cursor-pointer items-center justify-center rounded-lg bg-slate-900 px-3 text-xs font-bold text-white shrink-0">

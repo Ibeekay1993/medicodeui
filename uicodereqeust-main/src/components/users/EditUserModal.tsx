@@ -275,7 +275,7 @@ export function EditUserModal({
             ) : (
               <Edit3 className="h-4 w-4" />
             )}{" "}
-            Save Changes
+            Save
           </Button>
         </DialogFooter>
       </DialogContent>

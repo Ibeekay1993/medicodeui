@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useToast } from "@/hooks/use-toast";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { getErrorMessage } from "@/lib/errors";
 
@@ -23,18 +24,73 @@ import ClaimAuditDialogs from "@/components/claims/ClaimAuditDialogs";
 export default function ClaimsPortalPage() {
   const { user, role } = useAuth();
   const { toast } = useToast();
-  const [claims, setClaims] = useState<ClaimDraft[]>([]);
   const [selectedClaimId, setSelectedClaimId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const debouncedSearchTerm = useDebounce(searchTerm, 400);
-  const [statusTab, setStatusTab] = useState<"all" | "pending" | "approved" | "rejected" | "contested">("all");
+  const [statusTab, setStatusTab] = useState<"all" | "pending" | "approved" | "rejected" | "contested">("pending");
   const [selectedHospitalId, setSelectedHospitalId] = useState<string>("all");
   const [isMobileDetailOpen, setIsMobileDetailOpen] = useState(false);
-  const [hospitals, setHospitals] = useState<{ id: string; name: string }[]>([]);
-  const [totalClaims, setTotalClaims] = useState(0);
   const [page, setPage] = useState(1);
   const pageSize = 30;
+  const queryClient = useQueryClient();
+
+  const { data: claimsData, isLoading: loading, refetch: refresh } = useQuery({
+    queryKey: ["claims", selectedHospitalId, statusTab, debouncedSearchTerm, page, pageSize],
+    queryFn: async () => {
+      let query: any = supabase
+        .from("hospital_claims" as any)
+        .select("*", { count: "exact" });
+
+      if (selectedHospitalId !== "all") {
+        query = query.eq("hospital_id", selectedHospitalId);
+      }
+
+      if (statusTab !== "all") {
+        if (statusTab === "pending") {
+          query = query.in("status", ["pending", "submitted", "under_review"]);
+        } else if (statusTab === "approved") {
+          query = query.in("status", ["approved", "partially_approved"]);
+        } else if (statusTab === "contested") {
+          query = query.in("status", ["contested", "under_contest"]);
+        } else {
+          query = query.eq("status", statusTab);
+        }
+      }
+
+      if (debouncedSearchTerm.trim()) {
+        const term = `%${debouncedSearchTerm.trim()}%`;
+        query = query.or(`patient_name.ilike.${term},claim_number.ilike.${term},auth_code.ilike.${term},policy_number.ilike.${term}`);
+      }
+
+      const from = (page - 1) * pageSize;
+      const to = from + pageSize - 1;
+
+      const { data, count, error } = await query
+        .order("created_at", { ascending: false })
+        .range(from, to);
+
+      if (error) {
+        toast({ variant: "destructive", title: "Error", description: getErrorMessage(error, "Unable to load claims ledger") });
+        throw error;
+      }
+      return { claims: (data || []) as ClaimDraft[], total: count || 0 };
+    }
+  });
+
+  const claims = claimsData?.claims || [];
+  const totalClaims = claimsData?.total || 0;
+
+  const { data: hospitals = [] } = useQuery({
+    queryKey: ["hospitals-list"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("hospitals")
+        .select("id, name")
+        .order("name");
+      if (error) throw error;
+      return data || [];
+    }
+  });
 
   // Dialog States
   const [declineDialog, setDeclineDialog] = useState<{ key: string; item?: any } | null>(null);
@@ -185,84 +241,14 @@ ${itemDecisionLines.join("\n")}`;
           ? `Claim approved with adjusted audited total of ${money(approvedAmount)}.`
           : "Status has been synchronized across the ledger." 
       });
-      setClaims(prev => prev.map(c => c.id === claimId ? { 
-        ...c, 
-        status: effectiveStatus,
-        total_amount: approvedAmount !== undefined ? approvedAmount : c.total_amount,
-        notes: resolvedAuditNote || c.notes,
-        line_items: resolvedAuditItems || c.line_items
-      } : c));
+      queryClient.invalidateQueries({ queryKey: ["claims"] });
       sessionStorage.removeItem(`claim_audit_${claimId}`);
     }
   };
 
-  const refresh = useCallback(async () => {
-    setLoading(true);
-    try {
-      let query: any = supabase
-        .from("hospital_claims" as any)
-        .select("*", { count: "exact" });
-
-      if (selectedHospitalId !== "all") {
-        query = query.eq("hospital_id", selectedHospitalId);
-      }
-
-      if (statusTab !== "all") {
-        if (statusTab === "pending") {
-          query = query.in("status", ["pending", "submitted", "under_review"]);
-        } else if (statusTab === "approved") {
-          query = query.in("status", ["approved", "partially_approved"]);
-        } else if (statusTab === "contested") {
-          query = query.in("status", ["contested", "under_contest"]);
-        } else {
-          query = query.eq("status", statusTab);
-        }
-      }
-
-      if (debouncedSearchTerm.trim()) {
-        const term = `%${debouncedSearchTerm.trim()}%`;
-        query = query.or(`patient_name.ilike.${term},claim_number.ilike.${term},auth_code.ilike.${term},policy_number.ilike.${term}`);
-      }
-
-      const from = (page - 1) * pageSize;
-      const to = from + pageSize - 1;
-
-      const { data, count, error } = await query
-        .order("created_at", { ascending: false })
-        .range(from, to);
-
-      if (error) throw error;
-      setClaims(data || []);
-      setTotalClaims(count || 0);
-    } catch (error) {
-      toast({ variant: "destructive", title: "Error", description: getErrorMessage(error, "Unable to load claims ledger") });
-      setClaims([]);
-      setTotalClaims(0);
-    } finally {
-      setLoading(false);
-    }
-  }, [selectedHospitalId, statusTab, debouncedSearchTerm, page, pageSize, toast]);
-
-  useEffect(() => {
-    const fetchHospitals = async () => {
-      const { data, error } = await supabase
-        .from("hospitals")
-        .select("id, name")
-        .order("name");
-      if (!error && data) {
-        setHospitals(data);
-      }
-    };
-    fetchHospitals();
-  }, []);
-
   useEffect(() => {
     setPage(1);
   }, [selectedHospitalId, statusTab, debouncedSearchTerm]);
-
-  useEffect(() => { 
-    if (user) refresh(); 
-  }, [user, refresh]);
 
   useTabVisibilityRefresh(refresh, Boolean(user));
 

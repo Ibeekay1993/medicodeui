@@ -15,6 +15,16 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Loader2,
   FolderOpen,
   Download,
@@ -48,6 +58,7 @@ export default function BatchesPage() {
   const [activeTab, setActiveTab] = useState<"all" | "draft" | "ready" | "paid">("all");
   const [selectedBatchId, setSelectedBatchId] = useState<string | null>(null);
   const [payBatchTarget, setPayBatchTarget] = useState<Batch | null>(null);
+  const [cancelBatchTarget, setCancelBatchTarget] = useState<Batch | null>(null);
   const [bankRef, setBankRef] = useState("");
   const [isSubmittingPayment, setIsSubmittingPayment] = useState(false);
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
@@ -220,11 +231,13 @@ export default function BatchesPage() {
   };
 
   // Cancel a draft batch: deletes the batch and resets its claims to awaiting_payment
-  const handleCancelBatch = async (batch: Batch) => {
+  const handleCancelBatchClick = (batch: Batch) => {
     if (!canModifyDrafts) return;
-    if (!window.confirm(`Are you sure you want to cancel and delete batch ${batch.batch_reference}? This will release all associated claims back to Awaiting Payment.`)) {
-      return;
-    }
+    setCancelBatchTarget(batch);
+  };
+
+  const executeCancelBatch = async () => {
+    if (!canModifyDrafts || !cancelBatchTarget) return;
     
     try {
       // 1. Release claims back to awaiting_payment
@@ -234,7 +247,7 @@ export default function BatchesPage() {
           payment_batch_id: null,
           payment_status: "awaiting_payment"
         })
-        .eq("payment_batch_id", batch.id);
+        .eq("payment_batch_id", cancelBatchTarget.id);
 
       if (claimsError) throw claimsError;
 
@@ -242,14 +255,15 @@ export default function BatchesPage() {
       const { error: batchError } = await (supabase as any)
         .from("payment_batches")
         .delete()
-        .eq("id", batch.id);
+        .eq("id", cancelBatchTarget.id);
 
       if (batchError) throw batchError;
 
       toast({
         title: "Batch Cancelled",
-        description: `Batch ${batch.batch_reference} has been deleted and claims released.`
+        description: `Batch ${cancelBatchTarget.batch_reference} has been deleted and claims released.`
       });
+      setCancelBatchTarget(null);
       refetch();
       queryClient.invalidateQueries({ queryKey: ["awaiting-payment-claims"] });
     } catch (err: any) {
@@ -468,11 +482,12 @@ export default function BatchesPage() {
                     {batch.status === "draft" && canModifyDrafts && (
                       <>
                         <Button
-                          onClick={() => handleCancelBatch(batch)}
+                          onClick={() => handleCancelBatchClick(batch)}
                           variant="outline"
+                          title="Cancel & Release Batch"
                           className="bg-white border-red-200 text-red-600 hover:bg-red-50 font-bold text-xs uppercase tracking-wider h-7 px-2.5 rounded-lg"
                         >
-                          Cancel Batch
+                          <Trash2 className="h-4 w-4" />
                         </Button>
                         <Button
                           onClick={() => handleMarkReady(batch)}
@@ -634,6 +649,30 @@ export default function BatchesPage() {
           </DialogContent>
         </Dialog>
       )}
+
+      <AlertDialog open={!!cancelBatchTarget} onOpenChange={(open) => !open && setCancelBatchTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-rose-600">Cancel & Delete Batch?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to cancel and delete batch <strong>{cancelBatchTarget?.batch_reference}</strong>? 
+              This will release all associated claims back to the Awaiting Payment queue.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep Batch</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={(e) => {
+                e.preventDefault();
+                executeCancelBatch();
+              }}
+              className="bg-rose-600 hover:bg-rose-700"
+            >
+              Cancel & Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

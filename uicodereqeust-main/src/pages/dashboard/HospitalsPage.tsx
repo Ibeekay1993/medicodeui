@@ -1,5 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import type { Database } from "@/integrations/supabase/types";
+
+type HospitalRow = Database["public"]["Tables"]["hospitals"]["Row"];
+type UserRoleRow = Database["public"]["Tables"]["user_roles"]["Row"];
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Building2, Download, Edit3, Link2, Loader2, MoreVertical, Plus, Power, Save, Search, Trash2 } from "lucide-react";
@@ -8,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { getErrorMessage } from "@/lib/errors";
 import { useDataPagination } from "@/hooks/use-data-pagination";
 import { DataPagination } from "@/components/dashboard/DataPagination";
+import { HospitalList } from "@/components/dashboard/hospitals/HospitalList";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useTabVisibilityRefresh } from "@/hooks/use-tab-visibility-refresh";
 import {
@@ -16,6 +22,16 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   Dialog,
   DialogContent,
@@ -38,23 +54,39 @@ const statusPill = (active: boolean) => active
   ? "border-[#5DCAA5] bg-[#E1F5EE] text-[#93c34b]"
   : "border-[#F09595] bg-[#FCEBEB] text-[#A32D2D]";
 
+const HospitalForm = ({ value, onChange }: { value: any; onChange: (next: any) => void }) => (
+  <div className="grid gap-4 py-3">
+    <Input value={value.name || ""} onChange={(e) => onChange({ ...value, name: e.target.value })} placeholder="Hospital name" className="h-10 rounded-lg" />
+    <div className="grid gap-3 sm:grid-cols-2">
+      <Input value={value.code || ""} onChange={(e) => onChange({ ...value, code: e.target.value })} placeholder="Provider code" className="h-10 rounded-lg" />
+      <Select value={value.state || ""} onValueChange={(state) => onChange({ ...value, state })}>
+        <SelectTrigger className="h-10 rounded-lg"><SelectValue placeholder="State" /></SelectTrigger>
+        <SelectContent>{NIGERIAN_STATES.map((state) => <SelectItem key={state} value={state}>{state}</SelectItem>)}</SelectContent>
+      </Select>
+    </div>
+    <Input type="email" value={value.email || ""} onChange={(e) => onChange({ ...value, email: e.target.value })} placeholder="Contact email" className="h-10 rounded-lg" />
+    <Input value={value.phone || ""} onChange={(e) => onChange({ ...value, phone: e.target.value })} placeholder="Phone number" className="h-10 rounded-lg" />
+    <Input value={value.address || ""} onChange={(e) => onChange({ ...value, address: e.target.value })} placeholder="Full address / LGA" className="h-10 rounded-lg" />
+  </div>
+);
+
 export default function HospitalsPage() {
-  const [hospitals, setHospitals] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isAdding, setIsAdding] = useState(false);
   const [editing, setEditing] = useState<any | null>(null);
   const [linking, setLinking] = useState<any | null>(null);
-  const [hospitalUsers, setHospitalUsers] = useState<any[]>([]);
+  const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [newHosp, setNewHosp] = useState(emptyHospital);
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
-  const fetchHospitals = useCallback(async () => {
-    setLoading(true);
-    try {
-      const allHospitals: any[] = [];
+  const { data: hospitals = [], isLoading: loading, refetch: fetchHospitals } = useQuery({
+    queryKey: ["hospitals"],
+    queryFn: async () => {
+      const allHospitals: HospitalRow[] = [];
       const PAGE_SIZE = 1000;
       for (let from = 0; ; from += PAGE_SIZE) {
         const to = from + PAGE_SIZE - 1;
@@ -68,26 +100,24 @@ export default function HospitalsPage() {
         allHospitals.push(...data);
         if (data.length < PAGE_SIZE) break;
       }
-      setHospitals(allHospitals);
-    } catch (error) {
-      toast({ variant: "destructive", title: "Error", description: getErrorMessage(error, "Unable to load hospitals") });
-      setHospitals([]);
-    } finally {
-      setLoading(false);
+      return allHospitals;
     }
-  }, [toast]);
+  });
 
-  useEffect(() => {
-    fetchHospitals();
-    supabase
-      .from("user_roles")
-      .select("user_id, full_name, email, role")
-      .eq("role", "hospital")
-      .order("full_name")
-      .then(({ data }) => setHospitalUsers(data || []));
-  }, [fetchHospitals]);
+  const { data: hospitalUsers = [] } = useQuery({
+    queryKey: ["hospital-users"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("user_roles")
+        .select("user_id, full_name, email, role")
+        .eq("role", "hospital")
+        .order("full_name");
+      if (error) throw error;
+      return data as UserRoleRow[];
+    }
+  });
 
-  useTabVisibilityRefresh(fetchHospitals);
+  useTabVisibilityRefresh(() => fetchHospitals());
 
   const filtered = useMemo(() => hospitals.filter((hospital) => {
     const active = hospital.is_active !== false;
@@ -119,7 +149,7 @@ export default function HospitalsPage() {
     toast({ title: "Hospital Added", description: `${newHosp.name} is now in the registry.` });
     setIsAdding(false);
     resetNewHospital();
-    fetchHospitals();
+    queryClient.invalidateQueries({ queryKey: ["hospitals"] });
   };
 
   const handleUpdateHospital = async () => {
@@ -143,7 +173,7 @@ export default function HospitalsPage() {
     }
     toast({ title: "Hospital Updated", description: `${editing.name} has been saved.` });
     setEditing(null);
-    fetchHospitals();
+    queryClient.invalidateQueries({ queryKey: ["hospitals"] });
   };
 
   const setHospitalActive = async (hospitalIds: string[], active: boolean) => {
@@ -155,18 +185,25 @@ export default function HospitalsPage() {
     }
     setSelectedIds([]);
     toast({ title: active ? "Hospitals Activated" : "Hospitals Deactivated", description: `${hospitalIds.length} record(s) updated.` });
-    fetchHospitals();
+    queryClient.invalidateQueries({ queryKey: ["hospitals"] });
   };
 
-  const deleteHospital = async (hospital: any) => {
-    if (!window.confirm(`Delete ${hospital.name}? This should only be used for duplicate or erroneous hospital records.`)) return;
-    const { error } = await supabase.from("hospitals").delete().eq("id", hospital.id);
+  const deleteHospital = (hospital: any) => {
+    setDeleteTarget(hospital);
+    setDeleteConfirmText("");
+  };
+
+  const executeDelete = async () => {
+    if (!deleteTarget || deleteConfirmText.toLowerCase() !== "delete") return;
+    const { error } = await supabase.from("hospitals").delete().eq("id", deleteTarget.id);
     if (error) {
       toast({ variant: "destructive", title: "Delete Failed", description: error.message });
       return;
     }
-    toast({ title: "Hospital Deleted", description: hospital.name });
-    fetchHospitals();
+    toast({ title: "Hospital Deleted", description: deleteTarget.name });
+    queryClient.invalidateQueries({ queryKey: ["hospitals"] });
+    setDeleteTarget(null);
+    setDeleteConfirmText("");
   };
 
   const linkHospitalUser = async (userId: string | null) => {
@@ -178,7 +215,7 @@ export default function HospitalsPage() {
     }
     toast({ title: userId ? "Login User Linked" : "Login User Unlinked", description: linking.name });
     setLinking(null);
-    fetchHospitals();
+    queryClient.invalidateQueries({ queryKey: ["hospitals"] });
   };
 
   const exportCsv = () => {
@@ -212,21 +249,6 @@ export default function HospitalsPage() {
     }
   };
 
-  const HospitalForm = ({ value, onChange }: { value: any; onChange: (next: any) => void }) => (
-    <div className="grid gap-4 py-3">
-      <Input value={value.name || ""} onChange={(e) => onChange({ ...value, name: e.target.value })} placeholder="Hospital name" className="h-10 rounded-lg" />
-      <div className="grid gap-3 sm:grid-cols-2">
-        <Input value={value.code || ""} onChange={(e) => onChange({ ...value, code: e.target.value })} placeholder="Provider code" className="h-10 rounded-lg" />
-        <Select value={value.state || ""} onValueChange={(state) => onChange({ ...value, state })}>
-          <SelectTrigger className="h-10 rounded-lg"><SelectValue placeholder="State" /></SelectTrigger>
-          <SelectContent>{NIGERIAN_STATES.map((state) => <SelectItem key={state} value={state}>{state}</SelectItem>)}</SelectContent>
-        </Select>
-      </div>
-      <Input type="email" value={value.email || ""} onChange={(e) => onChange({ ...value, email: e.target.value })} placeholder="Contact email" className="h-10 rounded-lg" />
-      <Input value={value.phone || ""} onChange={(e) => onChange({ ...value, phone: e.target.value })} placeholder="Phone number" className="h-10 rounded-lg" />
-      <Input value={value.address || ""} onChange={(e) => onChange({ ...value, address: e.target.value })} placeholder="Full address / LGA" className="h-10 rounded-lg" />
-    </div>
-  );
 
   return (
     <div className="space-y-4 max-w-full overflow-x-hidden pb-10 animate-in fade-in duration-500">
@@ -280,150 +302,20 @@ export default function HospitalsPage() {
       </div>
 
       <div className="med-card overflow-hidden">
-        {/* Desktop Table View */}
-        <div className="hidden lg:block w-full">
-          <table className="w-full text-left table-fixed border-collapse">
-            <colgroup>
-              <col className="w-[5%]" />
-              <col className="w-[25%]" />
-              <col className="w-[25%]" />
-              <col className="w-[20%]" />
-              <col className="w-[20%]" />
-              <col className="w-[5%]" />
-            </colgroup>
-            <thead className="bg-slate-50 text-xs font-semibold uppercase tracking-wider text-slate-500 border-b border-slate-200">
-              <tr>
-                <th className="px-4 py-3"><input type="checkbox" checked={allPageSelected} onChange={togglePageSelection} aria-label="Select page" /></th>
-                <th className="px-4 py-3">Hospital Details</th>
-                <th className="px-4 py-3">Location</th>
-                <th className="px-4 py-3">Contact info</th>
-                <th className="px-4 py-3">Status & Users</th>
-                <th className="px-4 py-3 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-200 text-xs text-slate-600">
-              {loading ? (
-                <tr><td colSpan={6} className="px-4 py-12 text-center text-slate-500"><Loader2 className="mx-auto mb-3 h-6 w-6 animate-spin text-[#93c34b]" /> Loading hospitals...</td></tr>
-              ) : paginatedHospitals.length === 0 ? (
-                <tr><td colSpan={6} className="px-4 py-12 text-center text-slate-500"><Building2 className="mx-auto mb-3 h-7 w-7 text-slate-300" /> No hospitals found.</td></tr>
-              ) : paginatedHospitals.map((hospital) => {
-                const active = hospital.is_active !== false;
-                const usersLinked = hospital.user_id ? 1 : 0;
-                return (
-                  <tr key={hospital.id} className="group transition hover:bg-slate-50/50 h-14">
-                    <td className="px-4 py-2.5">
-                      <input
-                        type="checkbox"
-                        checked={selectedIds.includes(hospital.id)}
-                        onChange={(event) => setSelectedIds((prev) => event.target.checked ? [...prev, hospital.id] : prev.filter((id) => id !== hospital.id))}
-                        aria-label={`Select ${hospital.name}`}
-                      />
-                    </td>
-                    <td className="px-4 py-2.5">
-                      <div className="font-semibold text-slate-900 leading-snug">{hospital.name}</div>
-                      <div className="font-mono text-xs text-slate-400 mt-0.5">{hospital.code}</div>
-                    </td>
-                    <td className="px-4 py-2.5 break-words whitespace-normal leading-tight">
-                      <div className="text-slate-700 text-xs">{hospital.address || "No address listed"}</div>
-                      <div className="text-xs text-slate-400 mt-0.5">{hospital.state || "No state listed"}</div>
-                    </td>
-                    <td className="px-4 py-2.5 leading-tight">
-                      <div className="font-mono text-slate-500 text-xs truncate" title={hospital.email}>{hospital.email || "No email"}</div>
-                      {hospital.phone && <div className="text-slate-400 text-xs mt-0.5">{hospital.phone}</div>}
-                    </td>
-                    <td className="px-4 py-2.5 leading-tight">
-                      <div><span className={cn("med-status-pill text-xs py-0.5 px-2", statusPill(active))}>{active ? "ACTIVE" : "INACTIVE"}</span></div>
-                      <div className="text-xs text-slate-400 mt-1">Users: {usersLinked} ({linkedUserFor(hospital) || "Unlinked"})</div>
-                    </td>
-                    <td className="px-4 py-2.5 text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg">
-                            <MoreVertical className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-40">
-                          <DropdownMenuItem onClick={() => setEditing(hospital)} className="cursor-pointer text-slate-700">
-                            <Edit3 className="mr-2 h-3.5 w-3.5" /> Edit Hospital
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => setLinking(hospital)} className="cursor-pointer text-slate-700">
-                            <Link2 className="mr-2 h-3.5 w-3.5" /> Link Login
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => setHospitalActive([hospital.id], !active)} className="cursor-pointer text-slate-700">
-                            <Power className="mr-2 h-3.5 w-3.5 text-amber-600" /> {active ? "Deactivate" : "Activate"}
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => deleteHospital(hospital)} className="cursor-pointer text-rose-600 focus:text-rose-700 focus:bg-rose-50">
-                            <Trash2 className="mr-2 h-3.5 w-3.5" /> Delete Facility
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+        <HospitalList
+          hospitals={paginatedHospitals}
+          loading={loading}
+          selectedIds={selectedIds}
+          allPageSelected={allPageSelected}
+          onSelectId={(id, checked) => setSelectedIds((prev) => checked ? [...prev, id] : prev.filter(i => i !== id))}
+          onSelectAllPage={togglePageSelection}
+          onEdit={setEditing}
+          onLink={setLinking}
+          onToggleActive={(hospital, active) => setHospitalActive([hospital.id], active)}
+          onDelete={deleteHospital}
+          linkedUserFor={linkedUserFor}
+        />
 
-        {/* Mobile Card Layout View */}
-        <div className="block lg:hidden divide-y divide-slate-100">
-          {loading ? (
-            <div className="p-8 text-center text-slate-500"><Loader2 className="mx-auto mb-2 h-5 w-5 animate-spin text-[#93c34b]" /> Loading hospitals...</div>
-          ) : paginatedHospitals.length === 0 ? (
-            <div className="p-8 text-center text-slate-400 uppercase tracking-widest text-xs font-bold">No hospitals found</div>
-          ) : paginatedHospitals.map((hospital) => {
-            const active = hospital.is_active !== false;
-            return (
-              <div key={hospital.id} className="relative p-4 hover:bg-slate-50/50 transition-colors">
-                <div className="pr-28 space-y-1.5">
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={selectedIds.includes(hospital.id)}
-                      onChange={(event) => setSelectedIds((prev) => event.target.checked ? [...prev, hospital.id] : prev.filter((id) => id !== hospital.id))}
-                      aria-label={`Select ${hospital.name}`}
-                      className="rounded h-4 w-4"
-                    />
-                    <span className="text-base font-semibold text-slate-900 truncate uppercase leading-tight">{hospital.name}</span>
-                  </div>
-                  <div className="text-sm text-slate-500 font-normal space-y-0.5">
-                    <p className="font-mono text-xs text-slate-400">Code: {hospital.code}</p>
-                    <p className="font-mono truncate" title={hospital.email}>{hospital.email || "No email"}</p>
-                    {hospital.phone && <p>{hospital.phone}</p>}
-                  </div>
-                  <div className="text-xs text-slate-400 truncate leading-none">
-                    {hospital.address || "No address"}{hospital.state ? `, ${hospital.state}` : ""}
-                  </div>
-                </div>
-                
-                <div className="absolute top-4 right-4 flex items-center gap-1.5 shrink-0">
-                  <span className={cn("med-status-pill text-xs py-0.5 px-2 font-bold", statusPill(active))}>{active ? "ACTIVE" : "INACTIVE"}</span>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-10 w-10 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg flex items-center justify-center">
-                        <MoreVertical className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-40">
-                      <DropdownMenuItem onClick={() => setEditing(hospital)} className="cursor-pointer text-slate-700">
-                        <Edit3 className="mr-2 h-3.5 w-3.5" /> Edit Hospital
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => setLinking(hospital)} className="cursor-pointer text-slate-700">
-                        <Link2 className="mr-2 h-3.5 w-3.5" /> Link Login
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => setHospitalActive([hospital.id], !active)} className="cursor-pointer text-slate-700">
-                        <Power className="mr-2 h-3.5 w-3.5 text-amber-600" /> {active ? "Deactivate" : "Activate"}
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => deleteHospital(hospital)} className="cursor-pointer text-rose-600 focus:text-rose-700 focus:bg-rose-50">
-                        <Trash2 className="mr-2 h-3.5 w-3.5" /> Delete Facility
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-              </div>
-            );
-          })}
-        </div>
 
         <DataPagination page={page} totalPages={totalPages} start={start} end={end} total={total} pageSize={pageSize} onPageChange={setPage} />
       </div>
@@ -462,6 +354,38 @@ export default function HospitalsPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-rose-600">Delete Hospital?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete <strong>{deleteTarget?.name}</strong>. This should only be used for duplicate or erroneous records. 
+              To confirm, type <strong>delete</strong> below.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <Input 
+            value={deleteConfirmText} 
+            onChange={e => setDeleteConfirmText(e.target.value)} 
+            placeholder="Type delete to confirm" 
+            className="mt-4"
+          />
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={(e) => {
+                e.preventDefault();
+                executeDelete();
+              }}
+              disabled={deleteConfirmText.toLowerCase() !== "delete"}
+              className="bg-rose-600 hover:bg-rose-700 disabled:opacity-50"
+            >
+              Delete Hospital
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
     </div>
   );
 }

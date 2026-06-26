@@ -10,6 +10,16 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export default function AnnouncementsPage() {
   const { role } = useAuth();
@@ -23,6 +33,7 @@ export default function AnnouncementsPage() {
   const [priority, setPriority] = useState("low");
   const [isActive, setIsActive] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
   useEffect(() => {
     fetchAnnouncements();
@@ -70,14 +81,15 @@ export default function AnnouncementsPage() {
     fetchAnnouncements();
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this announcement?")) return;
-    const { error } = await supabase.from("hmo_announcements").delete().eq("id", id);
+  const executeDelete = async () => {
+    if (!deleteTarget) return;
+    const { error } = await supabase.from("hmo_announcements").delete().eq("id", deleteTarget);
     if (error) toast({ variant: "destructive", title: "Error", description: error.message });
     else {
       toast({ title: "Deleted", description: "Announcement removed." });
       fetchAnnouncements();
     }
+    setDeleteTarget(null);
   };
 
   const toggleActive = async (id: string, currentStatus: boolean) => {
@@ -282,7 +294,7 @@ export default function AnnouncementsPage() {
                       <Button variant="outline" onClick={() => handleEdit(ann)} className="flex-1 h-10 rounded-xl font-bold text-blue-600 hover:text-blue-700 hover:bg-blue-50 hover:border-blue-200 transition-all">
                         <Edit2 className="h-4 w-4" />
                       </Button>
-                      <Button variant="outline" onClick={() => handleDelete(ann.id)} className="flex-1 h-10 rounded-xl font-bold text-rose-600 hover:text-rose-700 hover:bg-rose-50 hover:border-rose-200 transition-all">
+                      <Button variant="outline" onClick={() => setDeleteTarget(ann.id)} className="flex-1 h-10 rounded-xl font-bold text-rose-600 hover:text-rose-700 hover:bg-rose-50 hover:border-rose-200 transition-all">
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
@@ -293,6 +305,29 @@ export default function AnnouncementsPage() {
           </div>
         )}
       </div>
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-rose-600">Delete Announcement?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to permanently delete this announcement? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={(e) => {
+                e.preventDefault();
+                executeDelete();
+              }}
+              className="bg-rose-600 hover:bg-rose-700"
+            >
+              Delete Announcement
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

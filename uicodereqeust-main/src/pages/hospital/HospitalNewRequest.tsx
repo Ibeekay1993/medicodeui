@@ -9,6 +9,8 @@ import { readSessionJSON, removeSessionItem, writeSessionJSON } from "@/lib/sess
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Form } from "@/components/ui/form";
+import { useQuery } from "@tanstack/react-query";
+import { useDebounce } from "@/hooks/use-debounce";
 
 import {
   TreatmentItem,
@@ -200,48 +202,53 @@ export default function HospitalNewRequest() {
   ]);
 
   // Patient search
-  useEffect(() => {
-    const t = setTimeout(async () => {
-      if (patientSearch.length < 3) {
-        setPatientResults([]);
-        setPatientOpen(false);
-        return;
-      }
-      setPatientLoading(true);
-
+  const debouncedPatientSearch = useDebounce(patientSearch, 300);
+  const { data: patientData, isFetching: isPatientFetching } = useQuery({
+    queryKey: ["patientSearch", debouncedPatientSearch],
+    queryFn: async () => {
+      if (debouncedPatientSearch.length < 3) return [];
       const { data } = await supabase.from("nhis_beneficiaries")
         .select("full_name, policy_number")
-        .or(`policy_number.ilike.%${patientSearch}%,full_name.ilike.%${patientSearch}%`)
+        .or(`policy_number.ilike.%${debouncedPatientSearch}%,full_name.ilike.%${debouncedPatientSearch}%`)
         .limit(8);
-      setPatientResults(data || []);
-      setPatientOpen((data || []).length > 0);
-      setPatientLoading(false);
-    }, 300);
-    return () => clearTimeout(t);
-  }, [patientSearch]);
+      return data || [];
+    },
+    enabled: debouncedPatientSearch.length >= 3,
+  });
+
+  useEffect(() => {
+    if (debouncedPatientSearch.length < 3) {
+      setPatientResults([]);
+      setPatientOpen(false);
+    } else {
+      setPatientResults(patientData || []);
+      setPatientOpen((patientData || []).length > 0);
+    }
+  }, [patientData, debouncedPatientSearch]);
+
+  useEffect(() => {
+    setPatientLoading(isPatientFetching);
+  }, [isPatientFetching]);
 
   // Diagnosis suggestions
+  const debouncedDiagSearch = useDebounce(diagnosisSearch, 200);
   useEffect(() => {
-    const q = diagnosisSearch.trim();
+    const q = debouncedDiagSearch.trim();
     if (q.length < 2) { setDiagSuggestions([]); setDiagOpen(false); return; }
     const matches = DIAGNOSES.filter(d => d.toLowerCase().includes(q.toLowerCase()));
     setDiagSuggestions(matches.slice(0, 10));
     setDiagOpen(matches.length > 0);
-  }, [diagnosisSearch]);
+  }, [debouncedDiagSearch]);
 
   // Treatment search
-  useEffect(() => {
-    const t = setTimeout(async () => {
-      const q = treatSearch.toLowerCase().trim();
-      if (q.length < 3) {
-        setTreatResults([]);
-        setTreatOpen(false);
-        return;
-      }
-      setTreatLoading(true);
-
+  const debouncedTreatSearch = useDebounce(treatSearch, 300);
+  const { data: treatData, isFetching: isTreatFetching } = useQuery({
+    queryKey: ["treatSearch", debouncedTreatSearch],
+    queryFn: async () => {
+      const q = debouncedTreatSearch.toLowerCase().trim();
+      if (q.length < 3) return [];
       const brand = Object.keys(BRAND_TO_GENERIC).find(b => q.includes(b));
-      const term = brand ? BRAND_TO_GENERIC[brand] : treatSearch;
+      const term = brand ? BRAND_TO_GENERIC[brand] : debouncedTreatSearch;
 
       const { data } = await supabase
         .from("nhia_items" as any)
@@ -249,13 +256,24 @@ export default function HospitalNewRequest() {
         .or(`name.ilike.%${term}%,code.ilike.%${term}%,subcategory.ilike.%${term}%`)
         .eq("is_active", true)
         .limit(100);
+      return data || [];
+    },
+    enabled: debouncedTreatSearch.length >= 3,
+  });
 
-      setTreatResults((data || []) as any[]);
-      setTreatOpen((data || []).length > 0);
-      setTreatLoading(false);
-    }, 300);
-    return () => clearTimeout(t);
-  }, [treatSearch]);
+  useEffect(() => {
+    if (debouncedTreatSearch.length < 3) {
+      setTreatResults([]);
+      setTreatOpen(false);
+    } else {
+      setTreatResults(treatData || []);
+      setTreatOpen((treatData || []).length > 0);
+    }
+  }, [treatData, debouncedTreatSearch]);
+
+  useEffect(() => {
+    setTreatLoading(isTreatFetching);
+  }, [isTreatFetching]);
 
   const total = treatments.reduce((a, t) => a + Number(t.amount) * t.quantity, 0);
 

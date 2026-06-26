@@ -3,7 +3,7 @@ import { Navigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTabVisibilityRefresh } from "@/hooks/use-tab-visibility-refresh";
-import { BarChart3 } from "lucide-react";
+import { BarChart3, ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/lib/errors";
 import * as XLSX from "xlsx";
@@ -34,7 +34,6 @@ import HospitalPerformanceTable from "@/components/reports/HospitalPerformanceTa
 export default function ReportsPage() {
   const { role } = useAuth();
   const normalizedRole = role?.toLowerCase();
-  const isClaimsRole = normalizedRole === "claims";
 
   const [hospitals, setHospitals] = useState<{ id: string; name: string; code?: string }[]>([]);
   const [loadingHospitals, setLoadingHospitals] = useState(false);
@@ -555,8 +554,14 @@ export default function ReportsPage() {
     }
   };
 
-  if (isClaimsRole) {
-    return <Navigate to="/backoffice/claims/all" replace />;
+  if (normalizedRole !== "admin" && normalizedRole !== "finance") {
+    return (
+      <div className="flex h-[400px] flex-col items-center justify-center space-y-4">
+        <ShieldAlert className="h-12 w-12 text-rose-500" />
+        <h2 className="text-xl font-bold text-slate-800">Access Denied</h2>
+        <p className="text-sm text-slate-500">You do not have permission to view performance reports.</p>
+      </div>
+    );
   }
 
   return (
