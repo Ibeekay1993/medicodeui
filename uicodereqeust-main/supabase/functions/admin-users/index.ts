@@ -346,6 +346,62 @@ serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+    const sendPasswordResetEmail = async (targetEmail: string) => {
+      if (!supabase) return;
+      const redirectUrl = Deno.env.get("SITE_URL") || Deno.env.get("PUBLIC_SITE_URL") || "https://medicodeui.web.app";
+      const { data, error } = await supabase.auth.admin.generateLink({
+        type: "recovery",
+        email: targetEmail,
+        options: { redirectTo: `${redirectUrl}/reset-password` },
+      });
+      if (error) throw error;
+      
+      const brevoApiKey = Deno.env.get("BREVO_API_KEY");
+      if (brevoApiKey) {
+        const resetLink = (data as any)?.properties?.action_link || "";
+        const senderRaw = Deno.env.get("BREVO_FROM_EMAIL") || "Ronsberger HMO <noreply@ronsbergerhmo.com>";
+        const senderMatch = senderRaw.match(/^(.+?)\s*<([^>]+)>$/);
+        const brevoSender = senderMatch
+          ? { name: senderMatch[1].trim(), email: senderMatch[2].trim() }
+          : { name: "Ronsberger HMO", email: senderRaw };
+
+        await fetch("https://api.brevo.com/v3/smtp/email", {
+          method: "POST",
+          headers: { "api-key": brevoApiKey, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sender: brevoSender,
+            to: [{ email: targetEmail }],
+            subject: "Password Reset Request — Ronsberger HMO Portal",
+            htmlContent: `
+              <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.08);">
+                <div style="background: linear-gradient(135deg,#0F6E56 0%,#0a5242 100%); padding: 28px 32px; text-align: center;">
+                  <div style="margin-bottom: 14px;">
+                    <img src="https://medicodeui.web.app/ronsberger-logo.png" alt="Ronsberger HMO Logo" width="52" height="52" style="display:inline-block;border-radius:10px;background:rgba(255,255,255,0.15);padding:6px;object-fit:contain;" />
+                  </div>
+                  <div style="margin-bottom: 10px;">
+                    <span style="color:#ffffff;font-size:16px;font-weight:800;letter-spacing:2px;text-transform:uppercase;">Ronsberger </span><span style="color:#93c34b;font-size:16px;font-weight:800;letter-spacing:2px;text-transform:uppercase;">HMO</span>
+                  </div>
+                  <h1 style="color:#ffffff;margin:0;font-size:18px;font-weight:700;">Password Reset Request</h1>
+                  <p style="color:rgba(255,255,255,0.7);margin:6px 0 0;font-size:12px;font-weight:500;letter-spacing:1px;text-transform:uppercase;">Administrative Portal</p>
+                </div>
+                <div style="padding: 28px 32px;">
+                  <p style="color: #475569; font-size: 14px; line-height: 1.6; margin: 0 0 12px;">Your system administrator has initiated a password reset for your account.</p>
+                  <p style="color: #475569; font-size: 14px; line-height: 1.6; margin: 0 0 24px;">Click the button below to set a new password. This link expires in <strong>1 hour</strong>.</p>
+                  <div style="text-align: center; margin: 32px 0;">
+                    <a href="${resetLink}" style="display:inline-block;background-color:#0F6E56;color:#ffffff;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px;letter-spacing:0.05em;box-shadow:0 4px 12px rgba(15,110,86,0.25);">Reset My Password</a>
+                  </div>
+                  <p style="color: #94a3b8; font-size: 11px; text-align: center; margin: 0;">If you did not request this, please contact your administrator immediately.<br/>This is an automated email from Ronsberger HMO Portal.</p>
+                </div>
+                <div style="background:#f8fafc;border-top:1px solid #e2e8f0;padding:20px 32px;text-align:center;">
+                  <p style="color:#94a3b8;font-size:11px;margin:0 0 4px;letter-spacing:0.5px;">Ronsberger HMO - Clinical Authorization Platform</p>
+                  <p style="color:#cbd5e1;font-size:10px;margin:0;">This is an automated message. Please do not reply.</p>
+                </div>
+              </div>
+            `,
+          }),
+        });
+      }
+    };
 
     if (req.method === "PATCH" && action === "update") {
       const { user_id, full_name, email, phone, role, hospital_id, access_status } = body;
@@ -359,8 +415,20 @@ serve(async (req) => {
       }
 
       if (email && email.toLowerCase() !== userData.user.email?.toLowerCase()) {
-        const { error } = await supabase.auth.admin.updateUserById(user_id, { email });
+        // Scramble the password to instantly invalidate old sessions/credentials
+        const tempPassword = crypto.randomUUID() + "A1!";
+        const { error } = await supabase.auth.admin.updateUserById(user_id, { 
+          email,
+          password: tempPassword 
+        });
         if (error) throw new Error(`Email update failed: ${error.message}`);
+
+        // Trigger password reset for the new email to verify ownership and restore access
+        try {
+          await sendPasswordResetEmail(email);
+        } catch (emailErr) {
+          console.warn("Failed to send activation email during email update:", emailErr);
+        }
       }
 
       const userMetadata: any = {};
@@ -435,60 +503,7 @@ serve(async (req) => {
       const { email } = body;
       if (!email) throw new Error("Email is required");
 
-      const redirectUrl = Deno.env.get("SITE_URL") || Deno.env.get("PUBLIC_SITE_URL") || "https://medicodeui.web.app";
-
-      const { data, error } = await supabase.auth.admin.generateLink({
-        type: "recovery",
-        email,
-        options: { redirectTo: `${redirectUrl}/reset-password` },
-      });
-      if (error) throw error;
-
-      const brevoApiKey = Deno.env.get("BREVO_API_KEY");
-      if (brevoApiKey) {
-        const resetLink = (data as any)?.properties?.action_link || "";
-        const senderRaw = Deno.env.get("BREVO_FROM_EMAIL") || "Ronsberger HMO <noreply@ronsbergerhmo.com>";
-        const senderMatch = senderRaw.match(/^(.+?)\s*<([^>]+)>$/);
-        const brevoSender = senderMatch
-          ? { name: senderMatch[1].trim(), email: senderMatch[2].trim() }
-          : { name: "Ronsberger HMO", email: senderRaw };
-
-        await fetch("https://api.brevo.com/v3/smtp/email", {
-          method: "POST",
-          headers: { "api-key": brevoApiKey, "Content-Type": "application/json" },
-          body: JSON.stringify({
-            sender: brevoSender,
-            to: [{ email }],
-            subject: "Password Reset Request — Ronsberger HMO Portal",
-            htmlContent: `
-              <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.08);">
-                <div style="background: linear-gradient(135deg,#0F6E56 0%,#0a5242 100%); padding: 28px 32px; text-align: center;">
-                  <div style="margin-bottom: 14px;">
-                    <img src="https://medicodeui.web.app/ronsberger-logo.png" alt="Ronsberger HMO Logo" width="52" height="52" style="display:inline-block;border-radius:10px;background:rgba(255,255,255,0.15);padding:6px;object-fit:contain;" />
-                  </div>
-                  <div style="margin-bottom: 10px;">
-                    <span style="color:#ffffff;font-size:16px;font-weight:800;letter-spacing:2px;text-transform:uppercase;">Ronsberger </span><span style="color:#93c34b;font-size:16px;font-weight:800;letter-spacing:2px;text-transform:uppercase;">HMO</span>
-                  </div>
-                  <h1 style="color:#ffffff;margin:0;font-size:18px;font-weight:700;">Password Reset Request</h1>
-                  <p style="color:rgba(255,255,255,0.7);margin:6px 0 0;font-size:12px;font-weight:500;letter-spacing:1px;text-transform:uppercase;">Administrative Portal</p>
-                </div>
-                <div style="padding: 28px 32px;">
-                  <p style="color: #475569; font-size: 14px; line-height: 1.6; margin: 0 0 12px;">Your system administrator has initiated a password reset for your account.</p>
-                  <p style="color: #475569; font-size: 14px; line-height: 1.6; margin: 0 0 24px;">Click the button below to set a new password. This link expires in <strong>1 hour</strong>.</p>
-                  <div style="text-align: center; margin: 32px 0;">
-                    <a href="${resetLink}" style="display:inline-block;background-color:#0F6E56;color:#ffffff;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px;letter-spacing:0.05em;box-shadow:0 4px 12px rgba(15,110,86,0.25);">Reset My Password</a>
-                  </div>
-                  <p style="color: #94a3b8; font-size: 11px; text-align: center; margin: 0;">If you did not request this, please contact your administrator immediately.<br/>This is an automated email from Ronsberger HMO Portal.</p>
-                </div>
-                <div style="background:#f8fafc;border-top:1px solid #e2e8f0;padding:20px 32px;text-align:center;">
-                  <p style="color:#94a3b8;font-size:11px;margin:0 0 4px;letter-spacing:0.5px;">Ronsberger HMO - Clinical Authorization Platform</p>
-                  <p style="color:#cbd5e1;font-size:10px;margin:0;">This is an automated message. Please do not reply.</p>
-                </div>
-              </div>
-            `,
-          }),
-        });
-      }
+      await sendPasswordResetEmail(email);
 
       await logAdminUserEvent("ADMIN_USER_PASSWORD_RESET_SENT", {
         function_name: "admin-users",
