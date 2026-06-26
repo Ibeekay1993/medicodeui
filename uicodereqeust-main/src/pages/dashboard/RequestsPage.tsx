@@ -135,7 +135,7 @@ export default function RequestsPage() {
       if (otpLoading[r.id]) return false;
       
       if (role === "utilization_manager" || role === "admin") {
-        return (r.status === "pending" || r.status === "approved") && !otpValues[r.id];
+        return ["pending", "pending_referral", "pending_authorization", "info_provided", "approved"].includes(r.status) && !otpValues[r.id];
       }
       
       if (role === "hospital") {

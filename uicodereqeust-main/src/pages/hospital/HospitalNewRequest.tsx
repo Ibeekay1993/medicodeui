@@ -456,7 +456,7 @@ export default function HospitalNewRequest() {
           method: "POST",
           body: {
             authorization_id: insertedRequest.id,
-            patient_email: patientEmail.trim(),
+            patient_email: patientEmail.trim() || "no-email@medicode.com",
             policy_number: selectedPatient.policy_number,
             otp_type: isReferral ? "ARRIVAL" : "TREATMENT",
             hospital_id: resolvedReferralHospitalId || hospital?.id,

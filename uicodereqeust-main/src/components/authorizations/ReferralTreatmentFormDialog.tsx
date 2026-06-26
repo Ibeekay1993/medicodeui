@@ -149,7 +149,7 @@ export default function ReferralTreatmentFormDialog({
         method: "POST",
         body: {
           authorization_id: request.id,
-          patient_email: request.patient_email,
+          patient_email: request.patient_email || "no-email@medicode.com",
           policy_number: request.policy_number,
           otp_type: "TREATMENT",
           hospital_id: hospital.id

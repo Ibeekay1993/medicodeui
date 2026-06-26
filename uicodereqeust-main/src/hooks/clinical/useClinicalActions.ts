@@ -137,12 +137,12 @@ export function useClinicalActions({
   // Rule: Only show "Generating OTP..." when a new OTP is actually being created.
   //       If an OTP already exists in the DB, show it immediately (no loading flash).
   useEffect(() => {
-    const isPendingOrReview = request && (
-      request.status === "pending" ||
-      request.status === "pending_referral" ||
-      request.status === "pending_authorization"
-    );
-    if (!open || !request || !(isPendingOrReview && request.patient_email)) return;
+      const isPendingOrReview = request && (
+        request.status === "pending" ||
+        request.status === "pending_referral" ||
+        request.status === "pending_authorization"
+      );
+      if (!open || !request || !isPendingOrReview) return;
 
     // If we already have the OTP value in local state, show it immediately — no fetch needed.
     if (otpValue) {
@@ -178,9 +178,36 @@ export function useClinicalActions({
         }
 
         // No existing OTP found — a new one needs to be generated.
-        // Only NOW do we set loading=true (this is "Generating OTP..." state).
         if (!cancelled) {
           setOtpLoading(true);
+          try {
+            await supabase.functions.invoke("send-otp", {
+              method: "POST",
+              body: {
+                authorization_id: request.id,
+                patient_email: request.patient_email || "no-email@medicode.com",
+                policy_number: request.policy_number,
+                otp_type: otpType,
+                hospital_id: request.referred_hospital_id || request.hospital_id,
+              },
+            });
+            // Re-fetch the newly generated OTP
+            const { data: newData, error: newError } = await supabase.rpc("get_otp_value" as any, {
+              p_request_id: request.id,
+              p_otp_type: otpType,
+            });
+            if (!newError && newData) {
+              const newRow = Array.isArray(newData) ? newData[0] : newData;
+              if (newRow?.otp_value && !cancelled) {
+                setOtpValue(newRow.otp_value);
+                setOtpLoading(false);
+                return;
+              }
+            }
+          } catch (e) {
+            console.error("Failed to generate new OTP on the fly:", e);
+          }
+          if (!cancelled) setOtpLoading(false);
         }
       } catch (err) {
         console.error("OTP value fetch error:", err);
@@ -664,7 +691,7 @@ export function useClinicalActions({
         method: "POST",
         body: {
           authorization_id: request.id,
-          patient_email: request.patient_email,
+          patient_email: request.patient_email || "no-email@medicode.com",
           policy_number: request.policy_number,
           otp_type: "ARRIVAL",
           hospital_id: editReferralHospitalId,
