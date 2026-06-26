@@ -513,8 +513,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
              {/* Divider & Current page name - dynamic from route config */}
              <span className="w-px h-5 bg-slate-200" />
              <div className="flex flex-col min-w-0">
-               <span className="text-xs sm:text-sm font-semibold text-slate-800 truncate max-w-[140px] sm:max-w-[300px] md:max-w-[450px]">{pageConfig.title}</span>
-               <span className="hidden sm:block meta-text truncate max-w-[250px] sm:max-w-[500px] md:max-w-[700px]">{pageConfig.description}</span>
+               <span className="text-sm sm:text-base font-bold text-slate-900 truncate max-w-[140px] sm:max-w-[300px] md:max-w-[450px] tracking-tight">{pageConfig.title}</span>
+               <span className="hidden sm:block text-[10px] sm:text-xs text-slate-500 font-medium truncate max-w-[250px] sm:max-w-[500px] md:max-w-[700px] mt-0.5">{pageConfig.description}</span>
              </div>
           </div>
 
