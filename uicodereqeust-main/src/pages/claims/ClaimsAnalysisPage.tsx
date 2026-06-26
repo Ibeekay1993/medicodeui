@@ -385,8 +385,48 @@ export default function ClaimsAnalysisPage() {
         ))}
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-12">
-        <Card className="rounded-2xl border border-slate-100 bg-white shadow-sm xl:col-span-8 hover:shadow-md transition-shadow duration-300">
+      <div className="grid gap-4">
+        <Card className="rounded-2xl border border-slate-100 bg-white shadow-sm hover:shadow-md transition-shadow duration-300">
+          <CardHeader className="flex flex-col gap-3 space-y-0 p-4 sm:flex-row sm:items-center sm:justify-between border-b border-slate-100">
+            <div className="min-w-0">
+              <CardTitle className="text-sm font-bold text-slate-800 tracking-tight">Volume Performance</CardTitle>
+              <p className="text-xs font-semibold text-slate-400 mt-0.5">Recent claim volume by day</p>
+            </div>
+            <div className="flex items-center gap-6 text-right">
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Total Claims</span>
+                <p className="font-mono text-lg font-extrabold text-slate-800 leading-tight mt-0.5">{analysis.total}</p>
+              </div>
+              <div className="hidden sm:block">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Other Status</span>
+                <p className="font-mono text-lg font-extrabold text-slate-600 leading-tight mt-0.5">{analysis.other}</p>
+              </div>
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Total Value</span>
+                <p className="font-mono text-lg font-extrabold text-emerald-600 leading-tight mt-0.5">{money(analysis.totalValue)}</p>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="p-4 overflow-x-auto">
+            <div className="flex gap-4 min-w-max pb-2 pt-4">
+              {analysis.volume.map(([date, count]) => (
+                <div key={date} className="flex flex-col justify-end items-center gap-1.5 w-16 h-32 group cursor-pointer">
+                  <span className="font-mono font-bold text-slate-700 text-xs opacity-0 group-hover:opacity-100 transition-opacity">{count}</span>
+                  <div 
+                    className="w-10 rounded-t-md bg-gradient-to-t from-emerald-500 to-teal-400 shadow-sm transition-all duration-300 group-hover:opacity-80" 
+                    style={{ height: `${Math.max(10, (count / maxVolume) * 100)}%` }} 
+                  />
+                  <span className="text-[10px] font-bold text-slate-500 whitespace-nowrap mt-1">{date}</span>
+                </div>
+              ))}
+              {analysis.volume.length === 0 && (
+                <p className="w-full text-center text-xs font-semibold text-slate-400 py-8">No claims submitted yet</p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="rounded-2xl border border-slate-100 bg-white shadow-sm hover:shadow-md transition-shadow duration-300">
           <CardHeader className="flex flex-col gap-3 space-y-0 p-4 sm:flex-row sm:items-center sm:justify-between border-b border-slate-100">
             <div className="min-w-0">
               <CardTitle className="text-sm font-bold text-slate-800 tracking-tight">All Partner Hospitals</CardTitle>
@@ -395,7 +435,7 @@ export default function ClaimsAnalysisPage() {
           </CardHeader>
           <CardContent className="p-0">
             <div className="hidden overflow-x-auto md:block">
-              <table className="w-full min-w-[760px] text-left">
+              <table className="w-full text-left">
                 <thead className="table-heading">
                   <tr>
                     <th className="p-4 pl-6">Hospital</th>
@@ -404,7 +444,7 @@ export default function ClaimsAnalysisPage() {
                     <th className="p-4">Approved</th>
                     <th className="p-4">Rejected</th>
                     <th className="p-4">Paid</th>
-                    <th className="p-4 pr-6">Claim Value</th>
+                    <th className="p-4 pr-6 text-right">Claim Value</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50">
@@ -412,11 +452,11 @@ export default function ClaimsAnalysisPage() {
                     <tr key={hospital.key} className="text-sm font-semibold text-slate-650 hover:bg-slate-50/40 transition-colors duration-150">
                       <td className="p-4 pl-6">
                         <div className="flex items-center gap-2.5">
-                          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100/80 text-slate-600 border border-slate-200/40">
+                          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100/80 text-slate-600 border border-slate-200/40 shrink-0">
                             <Building2 className="h-4.5 w-4.5" />
                           </div>
-                          <div>
-                            <p className="font-bold text-slate-800 leading-tight">{hospital.name}</p>
+                          <div className="min-w-0">
+                            <p className="font-bold text-slate-800 leading-tight truncate">{hospital.name}</p>
                             <p className="text-xs text-slate-400 mt-1">Latest: {new Date(hospital.latest).toLocaleDateString("en-GB")}</p>
                           </div>
                         </div>
@@ -442,7 +482,7 @@ export default function ClaimsAnalysisPage() {
                           {hospital.paid}
                         </span>
                       </td>
-                      <td className="p-4 pr-6 font-mono font-bold text-emerald-700 text-sm">{money(hospital.value)}</td>
+                      <td className="p-4 pr-6 font-mono font-bold text-emerald-700 text-sm text-right">{money(hospital.value)}</td>
                     </tr>
                   ))}
                   {filteredHospitals.length === 0 && (
@@ -458,28 +498,28 @@ export default function ClaimsAnalysisPage() {
             <DataPagination page={page} totalPages={totalPages} start={start} end={end} total={total} pageSize={pageSize} onPageChange={setPage} className="hidden md:flex p-4 border-t border-slate-100" />
             <div className="space-y-2 bg-slate-50/30 p-3 md:hidden">
               {paginatedHospitals.map((hospital) => (
-                <div key={hospital.key} className="rounded-xl border border-slate-100 bg-white p-3 shadow-sm">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-bold text-slate-800">{hospital.name}</p>
-                      <p className="mt-1 text-xs text-slate-400">Latest: {new Date(hospital.latest).toLocaleDateString("en-GB")}</p>
-                    </div>
-                    <p className="shrink-0 font-mono text-sm font-bold text-emerald-700">{money(hospital.value)}</p>
-                  </div>
-                  <div className="mt-3 grid grid-cols-4 gap-1.5 text-center">
-                    {[
-                      ["Total", hospital.total, "bg-slate-50 text-slate-700 border border-slate-100"],
-                      ["Pending", hospital.pending, "bg-amber-50 text-amber-700 border border-amber-100/50"],
-                      ["Approved", hospital.approved, "bg-emerald-50 text-emerald-700 border border-emerald-100/50"],
-                      ["Rejected", hospital.rejected, "bg-rose-50 text-rose-700 border border-rose-100/50"]
-                    ].map(([label, count, color]) => (
-                      <div key={label} className={cn("rounded-lg p-1.5", color as string)}>
-                        <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">{label}</p>
-                        <p className="font-mono text-xs font-bold mt-0.5">{count}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                 <div key={hospital.key} className="rounded-xl border border-slate-100 bg-white p-3 shadow-sm">
+                   <div className="flex items-start justify-between gap-3">
+                     <div className="min-w-0">
+                       <p className="truncate text-sm font-bold text-slate-800">{hospital.name}</p>
+                       <p className="mt-1 text-xs text-slate-400">Latest: {new Date(hospital.latest).toLocaleDateString("en-GB")}</p>
+                     </div>
+                     <p className="shrink-0 font-mono text-sm font-bold text-emerald-700">{money(hospital.value)}</p>
+                   </div>
+                   <div className="mt-3 grid grid-cols-4 gap-1.5 text-center">
+                     {[
+                       ["Total", hospital.total, "bg-slate-50 text-slate-700 border border-slate-100"],
+                       ["Pending", hospital.pending, "bg-amber-50 text-amber-700 border border-amber-100/50"],
+                       ["Approved", hospital.approved, "bg-emerald-50 text-emerald-700 border border-emerald-100/50"],
+                       ["Rejected", hospital.rejected, "bg-rose-50 text-rose-700 border border-rose-100/50"]
+                     ].map(([label, count, color]) => (
+                       <div key={label} className={cn("rounded-lg p-1.5", color as string)}>
+                         <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">{label}</p>
+                         <p className="font-mono text-xs font-bold mt-0.5">{count}</p>
+                       </div>
+                     ))}
+                   </div>
+                 </div>
               ))}
               {filteredHospitals.length === 0 && (
                 <p className="rounded-xl bg-white p-8 text-center text-xs font-semibold text-slate-400">
@@ -487,53 +527,6 @@ export default function ClaimsAnalysisPage() {
                 </p>
               )}
               <DataPagination page={page} totalPages={totalPages} start={start} end={end} total={total} pageSize={pageSize} onPageChange={setPage} className="rounded-xl border border-slate-100" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="rounded-2xl border border-slate-100 bg-white shadow-sm xl:col-span-4 hover:shadow-md transition-shadow duration-300">
-          <CardHeader className="p-4 border-b border-slate-100">
-            <CardTitle className="text-sm font-bold text-slate-800 tracking-tight">Volume Performance</CardTitle>
-            <p className="text-xs font-semibold text-slate-400 mt-0.5">Recent claim volume by day</p>
-          </CardHeader>
-          <CardContent className="space-y-4 p-4">
-            <div className="rounded-2xl border border-slate-100 bg-gradient-to-br from-slate-50 to-slate-100/40 p-4 shadow-sm">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Total Claims</span>
-                <span className="font-mono text-xl font-extrabold text-slate-800">{analysis.total}</span>
-              </div>
-              <div className="mt-3.5 grid grid-cols-2 gap-2 text-xs">
-                <div className="rounded-xl bg-white p-3 border border-slate-100 shadow-sm">
-                  <span className="text-slate-400 font-bold uppercase text-xs tracking-wider">Other Status</span>
-                  <p className="mt-1 font-mono font-bold text-slate-800">{analysis.other}</p>
-                </div>
-                <div className="rounded-xl bg-white p-3 border border-slate-100 shadow-sm">
-                  <span className="text-slate-400 font-bold uppercase text-xs tracking-wider">Total Value</span>
-                  <p className="mt-1 truncate font-mono font-bold text-emerald-600">{money(analysis.totalValue)}</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-3.5">
-              {analysis.volume.map(([date, count]) => (
-                <div key={date} className="space-y-1.5">
-                  <div className="flex items-center justify-between text-xs font-bold text-slate-500">
-                    <span>{date}</span>
-                    <span className="font-mono font-bold text-slate-850">{count}</span>
-                  </div>
-                  <div className="h-2 overflow-hidden rounded-full bg-slate-100/80">
-                    <div
-                      className="h-full rounded-full bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 shadow-sm"
-                      style={{ width: `${Math.max(8, (count / maxVolume) * 100)}%` }}
-                    />
-                  </div>
-                </div>
-              ))}
-              {analysis.volume.length === 0 && (
-                <p className="rounded-xl bg-slate-50 p-6 text-center text-xs font-semibold text-slate-400">
-                  No claims submitted yet
-                </p>
-              )}
             </div>
           </CardContent>
         </Card>
