@@ -120,7 +120,6 @@ export default function RequestsPage() {
     if (!Array.isArray(requests) || !requests.length || !role || role === "claims") return;
     
     const requestsToFetch = requests.filter(r => {
-      if (!r.patient_email) return false;
       if (otpLoading[r.id]) return false;
       
       if (role === "utilization_manager" || role === "admin") {

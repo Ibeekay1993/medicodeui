@@ -182,8 +182,8 @@ export function RequestList({
                   <td className="px-4 py-4 font-mono text-sm font-bold">
                     {r.source === "whatsapp" || r.source === "whatsapp_parser" ? (
                       <span className="text-emerald-600 font-black" title="Verified via WhatsApp">✓</span>
-                    ) : r.patient_email ? (
-                      r.status === "pending" ? (
+                    ) : (
+                      r.status === "pending" || r.status === "pending_referral" ? (
                         otpLoading[r.id] ? (
                           <Loader2 className="h-3.5 w-3.5 animate-spin text-slate-400" />
                         ) : otpValues[r.id] ? (
@@ -201,13 +201,11 @@ export function RequestList({
                         ) : (
                           <span className="text-amber-700">••••••</span>
                         )
-                      ) : r.status === "approved" ? (
+                      ) : r.status === "approved" || r.status === "referral_approved" || r.status === "referral_accepted" ? (
                         <span className="text-emerald-600 font-black">✓</span>
                       ) : (
                         <span className="text-slate-300">—</span>
                       )
-                    ) : (
-                      <span className="text-slate-300">—</span>
                     )}
                   </td>
                 )}
