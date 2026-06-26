@@ -53,11 +53,6 @@ const importModeOptions: Array<{ value: ImportMode; label: string; description: 
     description: "Creates new codes and skips anything already in the database.",
   },
   {
-    value: "replace",
-    label: "Replace existing values",
-    description: "Creates new codes and overwrites existing fields when the upload has a value.",
-  },
-  {
     value: "wipe",
     label: "Wipe & Replace Database",
     description: "DANGER: Utterly deletes all existing historical data before importing.",
