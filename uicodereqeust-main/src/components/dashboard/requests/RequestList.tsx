@@ -51,7 +51,7 @@ export function RequestList({
       "awaiting delete": "border-amber-200 text-amber-800 bg-amber-50"
     };
     const formattedText = String(s || "").replace(/_/g, " ");
-    return <Badge variant="outline" className={cn("rounded-md px-2.5 py-1 text-xs font-bold uppercase tracking-wider", map[key] || "border-slate-200 bg-slate-50 text-slate-600")}>{formattedText}</Badge>;
+    return <Badge variant="outline" className={cn("rounded-md px-2.5 py-1 text-xs font-bold uppercase tracking-wider whitespace-nowrap w-fit", map[key] || "border-slate-200 bg-slate-50 text-slate-600")}>{formattedText}</Badge>;
   };
 
   const isAwaitingDelete = (r: any) => r.deletion_status === "awaiting_admin_approval";

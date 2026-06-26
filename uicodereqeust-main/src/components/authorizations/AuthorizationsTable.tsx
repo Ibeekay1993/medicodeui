@@ -120,7 +120,7 @@ export default function AuthorizationsTable({
                     </td>
                     <td className="py-4 pr-4">
                       <div className="flex flex-col items-start gap-1.5">
-                        <Badge variant="outline" className={cn("px-2.5 py-0.5 rounded-full border badge-label", (() => {
+                        <Badge variant="outline" className={cn("px-2.5 py-0.5 rounded-full border badge-label whitespace-nowrap w-fit", (() => {
                           const s = String(r.status || "").toLowerCase();
                           const map: Record<string, string> = {
                             approved: `${STATUS_COLORS.approved.bg} ${STATUS_COLORS.approved.text} ${STATUS_COLORS.approved.border}`,
@@ -204,7 +204,7 @@ export default function AuthorizationsTable({
                     <p className="text-xs font-semibold text-slate-500 mt-0.5 leading-snug line-clamp-2">{r.diagnosis}</p>
                   </div>
                   <div className="flex flex-col items-end gap-1 shrink-0">
-                    <Badge variant="outline" className={cn("rounded-full px-2.5 py-0.5 border badge-label text-xs font-bold", (() => {
+                    <Badge variant="outline" className={cn("rounded-full px-2.5 py-0.5 border badge-label text-xs font-bold whitespace-nowrap w-fit", (() => {
                       const s = String(r.status || "").toLowerCase();
                       const map: Record<string, string> = {
                         approved: `${STATUS_COLORS.approved.bg} ${STATUS_COLORS.approved.text} ${STATUS_COLORS.approved.border}`,
