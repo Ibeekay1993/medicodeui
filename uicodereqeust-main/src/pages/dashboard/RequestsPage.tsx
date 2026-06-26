@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -259,25 +260,33 @@ export default function RequestsPage() {
     <div className="space-y-4 max-w-full overflow-x-hidden pb-10 animate-in fade-in duration-500">
 
       <div className="flex flex-wrap items-center gap-2 pb-3">
-          <Select value={statusFilter} onValueChange={(val: any) => { setStatusFilter(val); setCurrentPage(1); }}>
-            <SelectTrigger className="h-8 w-32 rounded-lg bg-slate-100 border-none text-xs font-bold">
-              <SelectValue placeholder="All Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="action_required">Action Needed</SelectItem>
-              <SelectItem value="all">All Status</SelectItem>
-              <SelectItem value="pending">Pending</SelectItem>
-              <SelectItem value="pending_referral">Pending Referral</SelectItem>
-              <SelectItem value="referral_approved">Referral Approved</SelectItem>
-              <SelectItem value="referral_accepted">Referral Accepted</SelectItem>
-              <SelectItem value="pending_authorization">Pending Authorization</SelectItem>
-              <SelectItem value="approved">Approved</SelectItem>
-              <SelectItem value="rejected">Rejected</SelectItem>
-              <SelectItem value="referral_declined">Referral Declined</SelectItem>
-              <SelectItem value="referral_expired">Referral Expired</SelectItem>
-              <SelectItem value="deferred">Deferred</SelectItem>
-            </SelectContent>
-          </Select>
+          <Tabs value={statusFilter === 'action_required' ? 'action_required' : 'all'} onValueChange={(val) => { setStatusFilter(val); setCurrentPage(1); }} className="w-auto">
+            <TabsList className="h-9">
+              <TabsTrigger value="action_required" className="text-xs font-bold px-4">Action Needed</TabsTrigger>
+              <TabsTrigger value="all" className="text-xs font-bold px-4">All Requests</TabsTrigger>
+            </TabsList>
+          </Tabs>
+
+          {statusFilter !== 'action_required' && (
+            <Select value={statusFilter} onValueChange={(val: any) => { setStatusFilter(val); setCurrentPage(1); }}>
+              <SelectTrigger className="h-9 w-36 rounded-lg bg-slate-100 border-none text-xs font-bold">
+                <SelectValue placeholder="Filter by Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="pending_referral">Pending Referral</SelectItem>
+                <SelectItem value="referral_approved">Referral Approved</SelectItem>
+                <SelectItem value="referral_accepted">Referral Accepted</SelectItem>
+                <SelectItem value="pending_authorization">Pending Authorization</SelectItem>
+                <SelectItem value="approved">Approved</SelectItem>
+                <SelectItem value="rejected">Rejected</SelectItem>
+                <SelectItem value="referral_declined">Referral Declined</SelectItem>
+                <SelectItem value="referral_expired">Referral Expired</SelectItem>
+                <SelectItem value="deferred">Deferred</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
           <div className="relative w-48 sm:w-64">
             <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
             <Input placeholder="Search records..." value={search} onChange={e => { setSearch(e.target.value); setCurrentPage(1); }} className="h-8 rounded-lg border-none bg-slate-100 pl-8 text-xs font-bold" />
