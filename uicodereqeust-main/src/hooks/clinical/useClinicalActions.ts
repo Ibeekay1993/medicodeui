@@ -21,6 +21,7 @@ interface UseClinicalActionsProps {
   approvedTotal: number;
   onClose: () => void;
   onUpdated: () => void;
+  initialOtpValue?: string;
 }
 
 export function useClinicalActions({
@@ -30,6 +31,7 @@ export function useClinicalActions({
   approvedTotal,
   onClose,
   onUpdated,
+  initialOtpValue,
 }: UseClinicalActionsProps) {
   const { toast } = useToast();
   const { user, fullName, role } = useAuth();
@@ -68,7 +70,7 @@ export function useClinicalActions({
     reason: string;
   } | null>(null);
 
-  const [otpValue, setOtpValue] = useState<string | null>(null);
+  const [otpValue, setOtpValue] = useState<string | null>(initialOtpValue || null);
   const [otpLoading, setOtpLoading] = useState(false);
 
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
@@ -90,6 +92,7 @@ export function useClinicalActions({
       setRejectReason("");
       setApprovalResult(null);
       setDeclineResult(null);
+      if (initialOtpValue) setOtpValue(initialOtpValue);
 
       const parsedItems = Array.isArray(request.approved_items)
         ? request.approved_items.map((item: any) => ({
@@ -157,7 +160,7 @@ export function useClinicalActions({
     (async () => {
       try {
         // Determine otp_type based on request status
-        const otpType = request.status === "pending_referral" ? "ARRIVAL" : "ARRIVAL";
+        const otpType = request.status === "pending_referral" ? "ARRIVAL" : "TREATMENT";
 
         const { data, error } = await supabase.rpc("get_otp_value" as any, {
           p_request_id: request.id,
@@ -216,7 +219,7 @@ export function useClinicalActions({
     })();
 
     return () => { cancelled = true; };
-  }, [open, request?.id]);
+  }, [open, request?.id, initialOtpValue]);
 
   // Auto-save draft changes every 1.5 seconds if request is pending
   useEffect(() => {

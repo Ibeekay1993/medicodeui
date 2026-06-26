@@ -45,9 +45,10 @@ interface ReviewModalProps {
   open: boolean;
   onClose: () => void;
   onUpdated: () => void;
+  otpValue?: string;
 }
 
-export function ReviewModal({ request, open, onClose, onUpdated }: ReviewModalProps) {
+export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: ReviewModalProps) {
   const { role } = useAuth();
   const [historyPage, setHistoryPage] = useState(1);
 
@@ -67,6 +68,7 @@ export function ReviewModal({ request, open, onClose, onUpdated }: ReviewModalPr
     approvedTotal: tariffSearch.approvedTotal,
     onClose,
     onUpdated,
+    initialOtpValue: otpValue,
   });
 
   // 4. Initialize verification validation hook

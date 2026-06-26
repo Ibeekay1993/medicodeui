@@ -323,7 +323,13 @@ export default function RequestsPage() {
         </div>
       </div>
 
-      <ReviewModal request={selectedRequest} open={!!selectedRequest} onClose={() => setSelectedRequest(null)} onUpdated={() => fetchRequests(currentPage)} />
+      <ReviewModal 
+        request={selectedRequest} 
+        open={!!selectedRequest} 
+        onClose={() => setSelectedRequest(null)} 
+        onUpdated={() => fetchRequests(currentPage)} 
+        otpValue={selectedRequest ? otpValues[selectedRequest.id] : undefined}
+      />
 
       <AlertDialog open={!!deleteTarget} onOpenChange={open => !open && setDeleteTarget(null)}>
         <AlertDialogContent className="rounded-2xl">
