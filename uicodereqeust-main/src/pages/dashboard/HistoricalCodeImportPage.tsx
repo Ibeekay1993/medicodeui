@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 
-type ImportMode = "add" | "merge" | "replace";
+type ImportMode = "add" | "merge" | "replace" | "wipe";
 
 const supportedFields = [
   "record_type",
@@ -55,6 +55,11 @@ const importModeOptions: Array<{ value: ImportMode; label: string; description: 
     value: "replace",
     label: "Replace existing values",
     description: "Creates new codes and overwrites existing fields when the upload has a value.",
+  },
+  {
+    value: "wipe",
+    label: "Wipe & Replace Database",
+    description: "DANGER: Utterly deletes all existing historical data before importing.",
   },
 ];
 
@@ -155,6 +160,11 @@ export default function HistoricalCodeImportPage() {
     if (mappedRows.length === 0) return;
     setImporting(true);
     try {
+      if (mode === "wipe") {
+        const { error: wipeError } = await supabase.rpc("wipe_historical_codes" as any);
+        if (wipeError) throw wipeError;
+      }
+      
       const CHUNK_SIZE = 1000;
       const finalSummary = {
         created_count: 0, updated_count: 0, skipped_count: 0, duplicate_count: 0, error_count: 0, reconciliation_count: 0, unique_rows: 0, batch_id: ""
@@ -192,7 +202,7 @@ export default function HistoricalCodeImportPage() {
   };
 
   const startImport = () => {
-    if (importMode === "replace") {
+    if (importMode === "replace" || importMode === "wipe") {
       setReplaceConfirmation("");
       setReplaceDialogOpen(true);
       return;
@@ -365,30 +375,33 @@ export default function HistoricalCodeImportPage() {
       <AlertDialog open={replaceDialogOpen} onOpenChange={setReplaceDialogOpen}>
         <AlertDialogContent className="max-w-lg">
           <AlertDialogHeader>
-            <AlertDialogTitle>Confirm historical replacement</AlertDialogTitle>
+            <AlertDialogTitle>{importMode === "wipe" ? "Confirm COMPLETE DATABASE WIPE" : "Confirm historical replacement"}</AlertDialogTitle>
             <AlertDialogDescription>
-              Replace mode will overwrite existing historical code fields when the uploaded file contains a new non-empty value. Type replace to continue.
+              {importMode === "wipe" 
+                ? "DANGER: Wipe mode will instantly delete ALL existing historical codes before importing. Type WIPE to confirm."
+                : "Replace mode will overwrite existing historical code fields when the uploaded file contains a new non-empty value. Type replace to continue."}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <Input
             value={replaceConfirmation}
             onChange={(event) => setReplaceConfirmation(event.target.value)}
-            placeholder="Type replace"
+            placeholder={importMode === "wipe" ? "Type WIPE" : "Type replace"}
             autoComplete="off"
+            className={importMode === "wipe" ? "border-rose-300 focus-visible:ring-rose-500" : ""}
           />
           <AlertDialogFooter>
             <AlertDialogCancel disabled={importing} onClick={() => setReplaceConfirmation("")}>Cancel</AlertDialogCancel>
             <AlertDialogAction
               type="button"
-              disabled={replaceConfirmation.trim().toLowerCase() !== "replace" || importing}
+              disabled={(importMode === "wipe" ? replaceConfirmation !== "WIPE" : replaceConfirmation.trim().toLowerCase() !== "replace") || importing}
               onClick={(event) => {
                 event.preventDefault();
-                void runImport("replace");
+                void runImport(importMode);
               }}
               className="bg-rose-600 text-white hover:bg-rose-700"
             >
               {importing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              Replace records
+              {importMode === "wipe" ? "WIPE & Import" : "Replace records"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
