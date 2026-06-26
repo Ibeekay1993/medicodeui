@@ -422,31 +422,27 @@ export default function DashboardHome() {
       {isAdmin && (
         <div className="space-y-3">
           {/* ── Row 1: Clinical Authorizations ── */}
-          <div className="space-y-1 sm:space-y-1.5">
-            <div className="flex items-center gap-2 mb-2 sm:mb-3">
-              <h3 className="font-extrabold uppercase tracking-widest text-slate-500 text-[10px] sm:text-xs">Clinical Authorizations</h3>
-              <div className="flex-1 h-px bg-gradient-to-r from-slate-200 to-transparent"></div>
-            </div>
-            <div className="grid grid-cols-4 gap-1 sm:gap-3">
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold text-slate-900 tracking-tight">Clinical Authorizations</h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 md:gap-5">
               {[
                 { label: "Active Users",    value: stats.users,     icon: Users,         accent: "#378ADD" },
                 { label: "Total Requests",  value: stats.total,     icon: FileText,      accent: "#6366F1" },
                 { label: "Approved",        value: stats.approved,  icon: CheckCircle2,  accent: "#1D9E75" },
                 { label: "Rejected",        value: stats.rejected,  icon: XCircle,       accent: "#E24B4A" },
               ].map((item) => (
-                <div key={item.label} className="premium-card flex flex-col justify-center items-center sm:items-start sm:flex-row gap-1 sm:gap-3 p-1.5 sm:p-4 min-w-0 rounded-xl hover:shadow-md transition-shadow" title={item.label}>
-                  <div
-                    className="hidden sm:flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
-                    style={{ background: `${item.accent}14`, color: item.accent }}
-                  >
-                    <item.icon className="h-4 w-4" strokeWidth={1.75} />
+                <div key={item.label} className="premium-card flex flex-col p-4 sm:p-5 rounded-xl border border-slate-100 bg-white hover:shadow-md transition-shadow relative overflow-hidden" title={item.label}>
+                  <div className="flex justify-between items-start mb-3 sm:mb-4">
+                    <p className="text-sm font-medium text-slate-500 truncate">{item.label}</p>
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md" style={{ background: `${item.accent}14`, color: item.accent }}>
+                      <item.icon className="h-4 w-4" strokeWidth={2} />
+                    </div>
                   </div>
-                  <div className="min-w-0 flex-1 text-center sm:text-left">
-                    <p className="text-[8px] sm:text-xs font-bold uppercase tracking-wider text-slate-500 leading-tight mb-0.5 sm:mb-1.5 line-clamp-2">{item.label}</p>
+                  <div>
                     {loading ? (
                       <div className="mt-0.5"><StatSkeleton /></div>
                     ) : (
-                      <p className="mt-0.5 sm:mt-1.5 text-sm sm:text-lg font-extrabold tabular-nums leading-none text-slate-900 truncate">
+                      <p className="text-2xl sm:text-3xl font-bold tabular-nums text-slate-900 tracking-tight">
                         {Number(item.value).toLocaleString()}
                       </p>
                     )}
@@ -457,31 +453,27 @@ export default function DashboardHome() {
           </div>
 
           {/* ── Row 2: Claims Processing ── */}
-          <div className="space-y-1 sm:space-y-1.5">
-            <div className="flex items-center gap-2 mb-2 sm:mb-3">
-              <h3 className="font-extrabold uppercase tracking-widest text-slate-500 text-[10px] sm:text-xs">Claims Processing</h3>
-              <div className="flex-1 h-px bg-gradient-to-r from-slate-200 to-transparent"></div>
-            </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-1 sm:gap-3">
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold text-slate-900 tracking-tight">Claims Processing</h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 md:gap-5">
               {[
                 { label: "Submitted",     value: claimStats.submitted,                  accent: "#378ADD", format: "number", icon: FileText },
                 { label: "Paid",          value: claimStats.paid,                       accent: "#10B981", format: "number", icon: CheckCircle2 },
                 { label: "Appr. Value",   value: money(claimStats.approvedValue),       accent: "#1D9E75", format: "money", icon: Banknote },
                 { label: "Contested",     value: claimStats.contested,                  accent: "#8B5CF6", format: "number", icon: AlertTriangle },
               ].map((item) => (
-                <div key={item.label} className="premium-card flex flex-col justify-center items-center sm:items-start sm:flex-row gap-1 sm:gap-3 p-1.5 sm:p-4 min-w-0 rounded-xl hover:shadow-md transition-shadow" title={item.label}>
-                  <div
-                    className="hidden sm:flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
-                    style={{ background: `${item.accent}14`, color: item.accent }}
-                  >
-                    <item.icon className="h-4 w-4" strokeWidth={1.75} />
+                <div key={item.label} className="premium-card flex flex-col p-4 sm:p-5 rounded-xl border border-slate-100 bg-white hover:shadow-md transition-shadow relative overflow-hidden" title={item.label}>
+                  <div className="flex justify-between items-start mb-3 sm:mb-4">
+                    <p className="text-sm font-medium text-slate-500 truncate">{item.label}</p>
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md" style={{ background: `${item.accent}14`, color: item.accent }}>
+                      <item.icon className="h-4 w-4" strokeWidth={2} />
+                    </div>
                   </div>
-                  <div className="min-w-0 flex-1 text-center sm:text-left">
-                    <p className="text-[8px] sm:text-xs font-bold uppercase tracking-wider text-slate-500 leading-tight mb-0.5 sm:mb-1.5 line-clamp-2">{item.label}</p>
+                  <div>
                     {loading ? (
                       <div className="mt-0.5"><StatSkeleton /></div>
                     ) : (
-                      <p className="text-sm sm:text-lg font-extrabold tabular-nums leading-none truncate text-slate-900 mt-0.5 sm:mt-1">
+                      <p className="text-2xl sm:text-3xl font-bold tabular-nums text-slate-900 tracking-tight">
                         {item.format === "number" ? Number(item.value).toLocaleString() : item.value}
                       </p>
                     )}
@@ -492,31 +484,27 @@ export default function DashboardHome() {
           </div>
 
           {/* ── Row 3: Payment & Finance ── */}
-          <div className="space-y-1 sm:space-y-1.5">
-            <div className="flex items-center gap-2 mb-2 sm:mb-3">
-              <h3 className="font-extrabold uppercase tracking-widest text-slate-500 text-[10px] sm:text-xs">Payment &amp; Finance</h3>
-              <div className="flex-1 h-px bg-gradient-to-r from-slate-200 to-transparent"></div>
-            </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-1 sm:gap-3">
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold text-slate-900 tracking-tight">Payment &amp; Finance</h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 md:gap-5">
               {[
                 { label: "Awaiting Value",  value: money(financeStats.awaitingValue),      accent: "#BA7517", icon: Clock },
                 { label: "Paid Value",      value: money(financeStats.paidValue),          accent: "#1D9E75", icon: Banknote },
                 { label: "Settled Batches", value: financeStats.paidBatches,               accent: "#0F766E", icon: Layers },
                 { label: "Batches Value",   value: money(financeStats.totalBatchesValue),  accent: "#EC4899", icon: Wallet },
               ].map((item) => (
-                <div key={item.label} className="premium-card flex flex-col justify-center items-center sm:items-start sm:flex-row gap-1 sm:gap-3 p-1.5 sm:p-4 min-w-0 rounded-xl hover:shadow-md transition-shadow" title={item.label}>
-                  <div
-                    className="hidden sm:flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
-                    style={{ background: `${item.accent}14`, color: item.accent }}
-                  >
-                    <item.icon className="h-4 w-4" strokeWidth={1.75} />
+                <div key={item.label} className="premium-card flex flex-col p-4 sm:p-5 rounded-xl border border-slate-100 bg-white hover:shadow-md transition-shadow relative overflow-hidden" title={item.label}>
+                  <div className="flex justify-between items-start mb-3 sm:mb-4">
+                    <p className="text-sm font-medium text-slate-500 truncate">{item.label}</p>
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md" style={{ background: `${item.accent}14`, color: item.accent }}>
+                      <item.icon className="h-4 w-4" strokeWidth={2} />
+                    </div>
                   </div>
-                  <div className="min-w-0 flex-1 text-center sm:text-left">
-                    <p className="text-[8px] sm:text-xs font-bold uppercase tracking-wider text-slate-500 leading-tight mb-0.5 sm:mb-1.5 line-clamp-2">{item.label}</p>
+                  <div>
                     {loading ? (
                       <div className="mt-0.5"><StatSkeleton /></div>
                     ) : (
-                      <p className="text-sm sm:text-lg font-extrabold tabular-nums leading-none truncate text-slate-900 mt-0.5 sm:mt-1">{item.value}</p>
+                      <p className="text-2xl sm:text-3xl font-bold tabular-nums text-slate-900 tracking-tight">{item.value}</p>
                     )}
                   </div>
                 </div>
@@ -527,26 +515,25 @@ export default function DashboardHome() {
       )}
 
       {isFinance && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-1 sm:gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 md:gap-5">
           {[
             { label: "Awaiting Value", value: money(financeStats.awaitingValue), accent: "#BA7517", icon: Clock },
             { label: "Paid Value", value: money(financeStats.paidValue), accent: "#1D9E75", icon: Banknote },
             { label: "Settled Batches", value: financeStats.paidBatches, accent: "#0F766E", icon: Layers },
             { label: "Total Batches Value", value: money(financeStats.totalBatchesValue), accent: "#EC4899", icon: Wallet },
           ].map((item) => (
-            <div key={item.label} className="premium-card flex flex-col justify-center items-center sm:items-start sm:flex-row gap-1 sm:gap-3 p-1.5 sm:p-4 min-w-0 rounded-xl hover:shadow-md transition-shadow animate-in fade-in duration-300" title={item.label}>
-              <div
-                className="hidden sm:flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
-                style={{ background: `${item.accent}14`, color: item.accent }}
-              >
-                <item.icon className="h-4 w-4" strokeWidth={1.75} />
+            <div key={item.label} className="premium-card flex flex-col p-4 sm:p-5 rounded-xl border border-slate-100 bg-white hover:shadow-md transition-shadow relative overflow-hidden animate-in fade-in duration-300" title={item.label}>
+              <div className="flex justify-between items-start mb-3 sm:mb-4">
+                <p className="text-sm font-medium text-slate-500 truncate">{item.label}</p>
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md" style={{ background: `${item.accent}14`, color: item.accent }}>
+                  <item.icon className="h-4 w-4" strokeWidth={2} />
+                </div>
               </div>
-              <div className="min-w-0 flex-1 text-center sm:text-left">
-                <p className="line-clamp-2 text-[8px] sm:text-xs font-bold uppercase tracking-wider text-slate-500 leading-tight mb-0.5 sm:mb-1.5">{item.label}</p>
+              <div>
                 {loading ? (
                   <div className="mt-0.5"><StatSkeleton /></div>
                 ) : (
-                  <p className="truncate text-sm sm:text-lg font-extrabold leading-none text-slate-900 tabular-nums mt-0.5 sm:mt-1">
+                  <p className="text-2xl sm:text-3xl font-bold tabular-nums text-slate-900 tracking-tight">
                     {item.value}
                   </p>
                 )}
@@ -557,18 +544,22 @@ export default function DashboardHome() {
       )}
 
       {isNurseOrOther && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-1.5 sm:gap-2.5 overflow-x-hidden">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-5 overflow-x-hidden">
           {mainStats.map((item) => {
             return (
-              <div key={item.label} className="premium-card p-1.5 sm:p-4 flex flex-col justify-center min-w-0 text-center sm:text-left rounded-xl" title={item.label}>
-                <p className="text-[8px] sm:text-xs font-bold uppercase tracking-wider text-slate-500 leading-tight mb-0.5 sm:mb-1.5 line-clamp-2">{item.label}</p>
-                {loading ? (
-                  <div className="mt-0.5"><StatSkeleton /></div>
-                ) : (
-                  <p className="mt-0.5 sm:mt-1 text-sm sm:text-lg font-extrabold leading-none text-slate-900 truncate tabular-nums">
-                    {Number(item.value).toLocaleString()}
-                  </p>
-                )}
+              <div key={item.label} className="premium-card flex flex-col p-4 sm:p-5 rounded-xl border border-slate-100 bg-white hover:shadow-md transition-shadow relative overflow-hidden" title={item.label}>
+                <div className="flex justify-between items-start mb-3 sm:mb-4">
+                  <p className="text-sm font-medium text-slate-500 truncate">{item.label}</p>
+                </div>
+                <div>
+                  {loading ? (
+                    <div className="mt-0.5"><StatSkeleton /></div>
+                  ) : (
+                    <p className="text-2xl sm:text-3xl font-bold tabular-nums text-slate-900 tracking-tight">
+                      {Number(item.value).toLocaleString()}
+                    </p>
+                  )}
+                </div>
               </div>
             );
           })}
@@ -576,7 +567,7 @@ export default function DashboardHome() {
       )}
 
       {isClaims && (
-        <div className="grid grid-cols-4 lg:grid-cols-7 gap-1 sm:gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 sm:gap-4 md:gap-5">
           {[
             { label: "Claims Submitted", value: claimStats.submitted, accent: "#378ADD" },
             { label: "Approved", value: claimStats.approved, accent: "#1D9E75" },
@@ -585,19 +576,21 @@ export default function DashboardHome() {
             { label: "Contested", value: claimStats.contested, accent: "#8B5CF6" },
             { label: "Approved Value", value: money(claimStats.approvedValue), accent: "#1D9E75" },
             { label: "Savings", value: money(claimStats.declinedValue), accent: "#0F766E" },
-          ].map(({ label, value, accent: _accent }) => (
-            <Card key={label} className="premium-card overflow-hidden animate-in fade-in duration-300 rounded-xl" title={label}>
-              <CardContent className="p-1.5 sm:p-4 text-center sm:text-left">
-                <p className="line-clamp-2 text-[8px] sm:text-xs font-bold uppercase tracking-wider text-slate-500 leading-tight mb-0.5 sm:mb-1.5">{label}</p>
+          ].map((item) => (
+            <div key={item.label} className="premium-card flex flex-col p-4 sm:p-5 rounded-xl border border-slate-100 bg-white hover:shadow-md transition-shadow relative overflow-hidden" title={item.label}>
+              <div className="flex justify-between items-start mb-3 sm:mb-4">
+                <p className="text-sm font-medium text-slate-500 truncate">{item.label}</p>
+              </div>
+              <div>
                 {loading ? (
                   <div className="mt-0.5"><StatSkeleton /></div>
                 ) : (
-                  <p className="truncate text-sm sm:text-lg font-extrabold leading-none text-slate-900 tabular-nums mt-0.5 sm:mt-1">
-                    {value}
+                  <p className="text-2xl sm:text-3xl font-bold tabular-nums text-slate-900 tracking-tight">
+                    {Number(item.value).toLocaleString()}
                   </p>
                 )}
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           ))}
         </div>
       )}
