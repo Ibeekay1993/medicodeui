@@ -265,14 +265,13 @@ export default function ReportsPage() {
         "Diagnosis": r.diagnosis,
         "Treatment": r.treatment,
         "Hospital": r.requesting_hospital,
-        "Source": r.source,
         "Auth Code": r.authorization_code,
         "Status": (r.status || "").toUpperCase(),
         "Amount of Care per Request": r.requested_amount || 0,
         "Requested Amount": r.requested_amount || 0,
         "Approved Amount": r.approved_amount || 0,
         "Rejected Amount": r.rejected_amount || 0,
-        "Decision Reason": r.rejection_reason || r.decision_reason || "",
+        "Decision Note": r.rejection_reason || r.decision_reason || "",
         "Clinician": r.clinician || "",
         "Created At": r.created_at || "",
         "Decided At": r.decided_at || "",
@@ -290,14 +289,13 @@ export default function ReportsPage() {
         { wch: 20 }, // Diagnosis
         { wch: 20 }, // Treatment
         { wch: 28 }, // Hospital
-        { wch: 14 }, // Source
         { wch: 16 }, // Auth Code
         { wch: 16 }, // Status
         { wch: 26 }, // Amount of Care per Request
         { wch: 18 }, // Requested Amount
         { wch: 18 }, // Approved Amount
         { wch: 18 }, // Rejected Amount
-        { wch: 24 }, // Decision Reason
+        { wch: 24 }, // Decision Note
         { wch: 18 }, // Clinician
         { wch: 16 }, // Created At
         { wch: 16 }  // Decided At
