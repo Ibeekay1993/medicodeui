@@ -37,6 +37,7 @@ const supportedFields = [
   "patient_name",
   "hospital_name",
   "date_of_birth",
+  "diagnosis",
   "legacy_creation_date",
 ];
 
@@ -72,6 +73,7 @@ const guessField = (header: string) => {
   if (normalized.includes("beneficiary") || normalized.includes("enrollee")) return "beneficiary_code";
   if (normalized.includes("hospital")) return normalized.includes("name") ? "hospital_name" : "hospital_code";
   if (normalized.includes("payment")) return "payment_reference";
+  if (normalized.includes("diagnosis") || normalized.includes("condition")) return "diagnosis";
   if (normalized === "code" || normalized.includes("legacy_code")) return "original_code";
   return "";
 };
@@ -222,8 +224,31 @@ export default function HistoricalCodeImportPage() {
 
   return (
     <div className="mx-auto max-w-5xl space-y-4 pb-12 animate-in fade-in duration-500">
+      <div className="mb-6 grid gap-2 lg:grid-cols-4">
+        {importModeOptions.map((option) => (
+          <button
+            key={option.value}
+            type="button"
+            onClick={() => setImportMode(option.value)}
+            className={`rounded-xl border p-3 text-left transition ${
+              importMode === option.value
+                ? option.value === "replace" || option.value === "wipe"
+                  ? "border-rose-300 bg-rose-50"
+                  : "border-emerald-300 bg-emerald-50"
+                : "border-slate-100 bg-white hover:border-slate-200"
+            }`}
+          >
+            <p className={`text-xs font-black uppercase tracking-widest ${option.value === "replace" || option.value === "wipe" ? "text-rose-700" : "text-slate-700"}`}>{option.label}</p>
+            <p className="mt-1 text-xs font-medium leading-5 text-slate-500">{option.description}</p>
+          </button>
+        ))}
+      </div>
+
       <div className="pb-3 border-b border-slate-200">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm font-medium text-slate-600">
+            Selected Action: <strong className="text-slate-900">{importModeOptions.find((option) => option.value === importMode)?.label}</strong>
+          </p>
           <label className="inline-flex h-8 cursor-pointer items-center justify-center rounded-lg bg-slate-900 px-3 text-xs font-bold text-white shrink-0">
             <Upload className="mr-1.5 h-3.5 w-3.5" />
             Upload CSV/XLSX
@@ -259,28 +284,8 @@ export default function HistoricalCodeImportPage() {
                 </div>
                 <Button onClick={startImport} disabled={importing || analysis.unique === 0} className="h-9 rounded-lg bg-[#1A5F4A] text-sm font-medium normal-case text-white hover:bg-[#0F3D30]">
                   {importing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
-                  {importModeOptions.find((option) => option.value === importMode)?.label}
+                  Execute: {importModeOptions.find((option) => option.value === importMode)?.label}
                 </Button>
-              </div>
-
-              <div className="mb-4 grid gap-2 lg:grid-cols-3">
-                {importModeOptions.map((option) => (
-                  <button
-                    key={option.value}
-                    type="button"
-                    onClick={() => setImportMode(option.value)}
-                    className={`rounded-xl border p-3 text-left transition ${
-                      importMode === option.value
-                        ? option.value === "replace"
-                          ? "border-rose-300 bg-rose-50"
-                          : "border-emerald-300 bg-emerald-50"
-                        : "border-slate-100 bg-white hover:border-slate-200"
-                    }`}
-                  >
-                    <p className={`text-xs font-black uppercase tracking-widest ${option.value === "replace" ? "text-rose-700" : "text-slate-700"}`}>{option.label}</p>
-                    <p className="mt-1 text-xs font-medium leading-5 text-slate-500">{option.description}</p>
-                  </button>
-                ))}
               </div>
 
               <div className="mb-4 grid gap-2 md:grid-cols-3">
