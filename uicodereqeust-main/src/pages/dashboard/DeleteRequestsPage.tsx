@@ -165,7 +165,7 @@ export default function DeleteRequestsPage() {
               ["Claims Ledger Risk", money(stats.valueAtRisk)],
             ] as [string, any][]).map(([label, value]) => (
               <div key={label} className="premium-card p-2 sm:p-4 flex flex-col justify-center min-w-0 text-center sm:text-left rounded-xl" title={label}>
-                <p className="text-[8px] sm:text-[10px] font-bold uppercase tracking-wider text-slate-500 leading-tight mb-0.5 sm:mb-1.5 line-clamp-2 md:truncate">{label as string}</p>
+                <p className="text-[8px] sm:text-[10px] font-bold uppercase tracking-wider text-slate-500 leading-tight mb-0.5 sm:mb-1.5 line-clamp-2">{label as string}</p>
                 <p className="text-sm sm:text-lg font-extrabold tabular-nums leading-none truncate text-slate-900 mt-0.5">
                   {value as any}
                 </p>

@@ -377,7 +377,7 @@ export default function ClaimsAnalysisPage() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-1 sm:gap-3">
         {metrics.map((metric) => (
           <div key={metric.label} className="premium-card p-1.5 sm:p-4 flex flex-col justify-center min-w-0 text-center sm:text-left rounded-xl" title={metric.label}>
-            <p className="text-[8px] sm:text-xs font-bold uppercase tracking-wider text-slate-500 leading-tight md:leading-none mb-0.5 sm:mb-1.5 line-clamp-2 md:truncate">{metric.label}</p>
+            <p className="text-[8px] sm:text-xs font-bold uppercase tracking-wider text-slate-500 leading-tight mb-0.5 sm:mb-1.5 line-clamp-2">{metric.label}</p>
             <p className="text-sm sm:text-lg font-extrabold tabular-nums leading-none truncate text-slate-900 mt-0.5 sm:mt-1">
               {metric.count} <span className="text-[8px] sm:text-[10px] text-slate-400 font-normal ml-1 tracking-normal">{metric.value}</span>
             </p>

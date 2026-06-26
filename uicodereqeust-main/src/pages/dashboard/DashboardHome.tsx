@@ -436,7 +436,7 @@ export default function DashboardHome() {
                     <item.icon className="h-4 w-4" strokeWidth={1.75} />
                   </div>
                   <div className="min-w-0 flex-1 text-center sm:text-left">
-                    <p className="text-[8px] sm:text-xs font-bold uppercase tracking-wider text-slate-500 leading-tight md:leading-none mb-0.5 sm:mb-1.5 line-clamp-2 md:truncate">{item.label}</p>
+                    <p className="text-[8px] sm:text-xs font-bold uppercase tracking-wider text-slate-500 leading-tight mb-0.5 sm:mb-1.5 line-clamp-2">{item.label}</p>
                     {loading ? (
                       <div className="mt-0.5"><StatSkeleton /></div>
                     ) : (
@@ -461,7 +461,7 @@ export default function DashboardHome() {
                 { label: "Contested",     value: claimStats.contested,                  accent: "#8B5CF6", format: "number" },
               ].map(({ label, value, accent: _accent, format }) => (
                 <div key={label} className="premium-card p-1.5 sm:p-4 flex flex-col justify-center min-w-0 text-center sm:text-left rounded-xl" title={label}>
-                  <p className="text-[8px] sm:text-xs font-bold uppercase tracking-wider text-slate-500 leading-tight md:leading-none mb-0.5 sm:mb-1.5 line-clamp-2 md:truncate">{label}</p>
+                  <p className="text-[8px] sm:text-xs font-bold uppercase tracking-wider text-slate-500 leading-tight mb-0.5 sm:mb-1.5 line-clamp-2">{label}</p>
                   {loading ? (
                     <div className="mt-0.5"><StatSkeleton /></div>
                   ) : (
@@ -485,7 +485,7 @@ export default function DashboardHome() {
                 { label: "Batches Value",   value: money(financeStats.totalBatchesValue),  accent: "#EC4899" },
               ].map(({ label, value, accent: _accent }) => (
                 <div key={label} className="premium-card p-1.5 sm:p-4 flex flex-col justify-center min-w-0 text-center sm:text-left rounded-xl" title={label}>
-                  <p className="text-[8px] sm:text-xs font-bold uppercase tracking-wider text-slate-500 leading-tight md:leading-none mb-0.5 sm:mb-1.5 line-clamp-2 md:truncate">{label}</p>
+                  <p className="text-[8px] sm:text-xs font-bold uppercase tracking-wider text-slate-500 leading-tight mb-0.5 sm:mb-1.5 line-clamp-2">{label}</p>
                   {loading ? (
                     <div className="mt-0.5"><StatSkeleton /></div>
                   ) : (
@@ -507,7 +507,7 @@ export default function DashboardHome() {
             { label: "Total Batches Value", value: money(financeStats.totalBatchesValue), accent: "#EC4899" },
           ].map(({ label, value, accent: _accent }) => (
             <div key={label} className="premium-card p-1.5 sm:p-4 flex flex-col justify-center min-w-0 text-center sm:text-left rounded-xl animate-in fade-in duration-300" title={label}>
-              <p className="line-clamp-2 md:truncate text-[8px] sm:text-xs font-bold uppercase tracking-wider text-slate-500 leading-tight md:leading-none mb-0.5 sm:mb-1.5">{label}</p>
+              <p className="line-clamp-2 text-[8px] sm:text-xs font-bold uppercase tracking-wider text-slate-500 leading-tight mb-0.5 sm:mb-1.5">{label}</p>
               {loading ? (
                 <div className="mt-0.5"><StatSkeleton /></div>
               ) : (
@@ -525,7 +525,7 @@ export default function DashboardHome() {
           {mainStats.map((item) => {
             return (
               <div key={item.label} className="premium-card p-1.5 sm:p-4 flex flex-col justify-center min-w-0 text-center sm:text-left rounded-xl" title={item.label}>
-                <p className="text-[8px] sm:text-xs font-bold uppercase tracking-wider text-slate-500 leading-tight md:leading-none mb-0.5 sm:mb-1.5 line-clamp-2 md:truncate">{item.label}</p>
+                <p className="text-[8px] sm:text-xs font-bold uppercase tracking-wider text-slate-500 leading-tight mb-0.5 sm:mb-1.5 line-clamp-2">{item.label}</p>
                 {loading ? (
                   <div className="mt-0.5"><StatSkeleton /></div>
                 ) : (
@@ -552,7 +552,7 @@ export default function DashboardHome() {
           ].map(({ label, value, accent: _accent }) => (
             <Card key={label} className="premium-card overflow-hidden animate-in fade-in duration-300 rounded-xl" title={label}>
               <CardContent className="p-1.5 sm:p-4 text-center sm:text-left">
-                <p className="line-clamp-2 md:truncate text-[8px] sm:text-xs font-bold uppercase tracking-wider text-slate-500 leading-tight md:leading-none mb-0.5 sm:mb-1.5">{label}</p>
+                <p className="line-clamp-2 text-[8px] sm:text-xs font-bold uppercase tracking-wider text-slate-500 leading-tight mb-0.5 sm:mb-1.5">{label}</p>
                 {loading ? (
                   <div className="mt-0.5"><StatSkeleton /></div>
                 ) : (
