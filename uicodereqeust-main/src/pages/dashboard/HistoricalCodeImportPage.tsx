@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import * as XLSX from "xlsx";
 import { Upload, FileSpreadsheet, Loader2, CheckCircle2, AlertTriangle, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -93,6 +93,7 @@ export default function HistoricalCodeImportPage() {
   const [replaceConfirmation, setReplaceConfirmation] = useState("");
   const [importing, setImporting] = useState(false);
   const [summary, setSummary] = useState<any | null>(null);
+  const [hasHeaders, setHasHeaders] = useState(true);
 
   const mappedRows = useMemo(() => {
     return rows.map((row) => {
@@ -138,20 +139,34 @@ export default function HistoricalCodeImportPage() {
     };
   }, [mappedRows]);
 
-  const handleFile = async (file?: File) => {
-    if (!file) return;
-    setFile(file);
-    setFileName(file.name);
-    setSummary(null);
-    const buffer = await file.arrayBuffer();
+  const parseFile = async (f: File, headersIncluded: boolean) => {
+    const buffer = await f.arrayBuffer();
     const workbook = XLSX.read(buffer, { type: "array", cellDates: true });
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
-    const parsed = XLSX.utils.sheet_to_json<Record<string, any>>(sheet, { defval: "", raw: false });
+    const parsed = XLSX.utils.sheet_to_json<Record<string, any>>(sheet, { 
+      defval: "", 
+      raw: false,
+      ...(headersIncluded ? {} : { header: "A" }) 
+    });
     const parsedHeaders = parsed[0] ? Object.keys(parsed[0]) : [];
     setHeaders(parsedHeaders);
     setRows(parsed);
     setMapping(Object.fromEntries(parsedHeaders.map((header) => [header, guessField(header)])));
   };
+
+  const handleFile = async (f?: File) => {
+    if (!f) return;
+    setFile(f);
+    setFileName(f.name);
+    setSummary(null);
+    await parseFile(f, hasHeaders);
+  };
+
+  useEffect(() => {
+    if (file) {
+      parseFile(file, hasHeaders);
+    }
+  }, [hasHeaders]);
 
   const runImport = async (mode: ImportMode = importMode) => {
     if (mappedRows.length === 0) return;
@@ -238,10 +253,21 @@ export default function HistoricalCodeImportPage() {
 
       {importMode && (
         <div className="pb-3 border-b border-slate-200">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-sm font-medium text-slate-600">
-              Selected Action: <strong className="text-slate-900">{importModeOptions.find((option) => option.value === importMode)?.label}</strong>
-            </p>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-6">
+              <p className="text-sm font-medium text-slate-600">
+                Selected Action: <strong className="text-slate-900">{importModeOptions.find((option) => option.value === importMode)?.label}</strong>
+              </p>
+              <label className="flex items-center gap-2 text-sm font-medium text-slate-700 cursor-pointer select-none">
+                <input 
+                  type="checkbox" 
+                  checked={hasHeaders} 
+                  onChange={(e) => setHasHeaders(e.target.checked)}
+                  className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer"
+                />
+                File contains header row
+              </label>
+            </div>
             <label className="inline-flex h-8 cursor-pointer items-center justify-center rounded-lg bg-slate-900 px-3 text-xs font-bold text-white shrink-0">
               <Upload className="mr-1.5 h-3.5 w-3.5" />
               Upload CSV/XLSX
