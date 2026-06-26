@@ -156,25 +156,25 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
           {/* Process Tracker */}
           {request?.referred_hospital_name ? (
             <div className="mt-3.5 pt-3 border-t border-slate-100 flex flex-row items-start justify-between w-full text-center text-[7px] sm:text-[9px] md:text-xs font-black uppercase tracking-wider text-slate-400">
-              <div className={cn("flex flex-col items-center gap-1 sm:gap-1.5 w-[18%]", ["pending_referral"].includes(request.status) ? "text-blue-600 animate-pulse font-bold" : "text-emerald-600")}>
+              <div className={cn("flex flex-col items-center gap-1 sm:gap-1.5 w-[18%]", ["pending_referral"].includes(request.status) ? "text-blue-600 font-bold" : "text-emerald-600")}>
                 <span className={cn("h-4 w-4 md:h-5 md:w-5 shrink-0 rounded-full flex items-center justify-center border font-bold text-[8px] md:text-xs", ["pending_referral"].includes(request.status) ? "bg-blue-50 border-blue-200" : "bg-emerald-50 border-emerald-200")}>1</span>
                 <span className="leading-tight">Referral Requested</span>
               </div>
               <div className="flex justify-center items-center mt-1.5 sm:mt-2 text-slate-300"><ChevronRight className="w-3 h-3 md:w-4 md:h-4" /></div>
 
-              <div className={cn("flex flex-col items-center gap-1 sm:gap-1.5 w-[18%]", ["referral_approved"].includes(request.status) ? "text-blue-600 animate-pulse font-bold" : ["pending_referral"].includes(request.status) ? "text-slate-300" : "text-emerald-600")}>
+              <div className={cn("flex flex-col items-center gap-1 sm:gap-1.5 w-[18%]", ["referral_approved"].includes(request.status) ? "text-blue-600 font-bold" : ["pending_referral"].includes(request.status) ? "text-slate-300" : "text-emerald-600")}>
                 <span className={cn("h-4 w-4 md:h-5 md:w-5 shrink-0 rounded-full flex items-center justify-center border font-bold text-[8px] md:text-xs", ["referral_approved"].includes(request.status) ? "bg-blue-50 border-blue-200" : ["pending_referral"].includes(request.status) ? "bg-slate-50 border-slate-200" : "bg-emerald-50 border-emerald-200")}>2</span>
                 <span className="leading-tight">Insurer Approved</span>
               </div>
               <div className="flex justify-center items-center mt-1.5 sm:mt-2 text-slate-300"><ChevronRight className="w-3 h-3 md:w-4 md:h-4" /></div>
 
-              <div className={cn("flex flex-col items-center gap-1 sm:gap-1.5 w-[18%]", ["referral_accepted"].includes(request.status) ? "text-blue-600 animate-pulse font-bold" : ["pending_referral", "referral_approved", "referral_declined", "referral_expired"].includes(request.status) ? "text-slate-300" : "text-emerald-600")}>
+              <div className={cn("flex flex-col items-center gap-1 sm:gap-1.5 w-[18%]", ["referral_accepted"].includes(request.status) ? "text-blue-600 font-bold" : ["pending_referral", "referral_approved", "referral_declined", "referral_expired"].includes(request.status) ? "text-slate-300" : "text-emerald-600")}>
                 <span className={cn("h-4 w-4 md:h-5 md:w-5 shrink-0 rounded-full flex items-center justify-center border font-bold text-[8px] md:text-xs", ["referral_accepted"].includes(request.status) ? "bg-blue-50 border-blue-200" : ["pending_referral", "referral_approved", "referral_declined", "referral_expired"].includes(request.status) ? "bg-slate-50 border-slate-200" : "bg-emerald-50 border-emerald-200")}>3</span>
                 <span className="leading-tight">Hospital Accepted</span>
               </div>
               <div className="flex justify-center items-center mt-1.5 sm:mt-2 text-slate-300"><ChevronRight className="w-3 h-3 md:w-4 md:h-4" /></div>
 
-              <div className={cn("flex flex-col items-center gap-1 sm:gap-1.5 w-[18%]", ["pending_authorization"].includes(request.status) ? "text-blue-600 animate-pulse font-bold" : ["pending_referral", "referral_approved", "referral_declined", "referral_expired", "referral_accepted", "accepted_referral_expired"].includes(request.status) ? "text-slate-300" : "text-emerald-600")}>
+              <div className={cn("flex flex-col items-center gap-1 sm:gap-1.5 w-[18%]", ["pending_authorization"].includes(request.status) ? "text-blue-600 font-bold" : ["pending_referral", "referral_approved", "referral_declined", "referral_expired", "referral_accepted", "accepted_referral_expired"].includes(request.status) ? "text-slate-300" : "text-emerald-600")}>
                 <span className={cn("h-4 w-4 md:h-5 md:w-5 shrink-0 rounded-full flex items-center justify-center border font-bold text-[8px] md:text-xs", ["pending_authorization"].includes(request.status) ? "bg-blue-50 border-blue-200" : ["pending_referral", "referral_approved", "referral_declined", "referral_expired", "referral_accepted", "accepted_referral_expired"].includes(request.status) ? "bg-slate-50 border-slate-200" : "bg-emerald-50 border-emerald-200")}>4</span>
                 <span className="leading-tight">Treatment Review</span>
               </div>

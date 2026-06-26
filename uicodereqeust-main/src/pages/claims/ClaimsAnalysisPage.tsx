@@ -358,7 +358,7 @@ export default function ClaimsAnalysisPage() {
               <span className="text-[8px] sm:text-xs font-bold uppercase tracking-widest text-emerald-600/80">Selected Partner</span>
               <p className="text-sm sm:text-base font-extrabold text-slate-900 tracking-tight leading-tight mt-0.5">{selectedHospital.name}</p>
               <div className="mt-1 flex items-center gap-1.5 text-slate-500">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
                 <p className="text-[10px] sm:text-xs font-medium">Latest claim: {new Date(selectedHospital.latest).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}</p>
               </div>
             </div>

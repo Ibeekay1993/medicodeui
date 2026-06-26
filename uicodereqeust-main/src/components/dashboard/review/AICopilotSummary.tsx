@@ -42,7 +42,7 @@ export function AICopilotSummary({
         className="w-full text-left px-4 py-3 border-b border-violet-100 flex items-center justify-between hover:bg-violet-100/10 active:bg-violet-100/25 transition-colors"
       >
         <div className="flex items-center gap-2.5">
-          <Sparkles className="w-5 h-5 text-violet-600 animate-pulse" />
+          <Sparkles className="w-5 h-5 text-violet-600" />
           <div>
             <p className="text-xs font-black uppercase tracking-widest text-violet-800">AI Copilot Analysis</p>
             <p className="text-xs font-medium text-violet-900/60 mt-0.5">Clinical pattern & fraud detection</p>

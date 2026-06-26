@@ -324,7 +324,7 @@ export default function Register() {
           <Card className="rounded-2xl shadow-2xl border-slate-200 bg-white overflow-hidden">
             <CardHeader className="text-center pb-2">
               <div className="mx-auto mb-4 flex h-[60px] w-[60px] items-center justify-center rounded-2xl bg-amber-50 shadow-xl shadow-amber-500/10 border border-amber-200">
-                <ShieldAlert className="h-7 w-7 text-amber-600 animate-pulse" />
+                <ShieldAlert className="h-7 w-7 text-amber-600" />
               </div>
               <CardTitle className="text-2xl font-black text-slate-900 uppercase italic">
                 Invitation <span className="text-amber-600">Error</span>

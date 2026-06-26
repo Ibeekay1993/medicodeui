@@ -225,7 +225,7 @@ export function RequestList({
                       const diffMins = Math.round((resolved - created) / (1000 * 60));
                       const slaType = diffMins <= 15 ? "good" : diffMins <= 30 ? "warning" : "danger";
                       const timeStr = diffMins >= 60 ? `${Math.floor(diffMins / 60)}h ${diffMins % 60}m` : `${diffMins}m`;
-                      const timeColor = slaType === "good" ? "text-emerald-600" : slaType === "warning" ? "text-amber-600 font-bold" : "text-rose-600 animate-pulse font-bold";
+                      const timeColor = slaType === "good" ? "text-emerald-600" : slaType === "warning" ? "text-amber-600 font-bold" : "text-rose-600 font-bold";
                       return (
                         <div className="flex items-center gap-2">
                           <span className={cn("text-xs font-mono font-bold w-14", timeColor)}>{timeStr}</span>

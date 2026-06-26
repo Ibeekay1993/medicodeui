@@ -43,7 +43,7 @@ export default function HospitalStatsPanel({
       <div className="flex items-center justify-between px-1">
         <div>
           <p className="text-xs font-black uppercase text-slate-400 tracking-widest flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
             Claims Analysis Summary
           </p>
           <h4 className="text-xs font-black text-slate-900 uppercase mt-0.5 leading-tight">

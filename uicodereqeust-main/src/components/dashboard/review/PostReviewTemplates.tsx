@@ -79,7 +79,7 @@ export function PostReviewTemplates({
     return (
       <div className="space-y-6 animate-in fade-in zoom-in-95 duration-300">
         <div className="text-center p-6 sm:p-8 bg-emerald-50/70 rounded-3xl border border-emerald-100 relative overflow-hidden shadow-xs">
-          <CheckCircle className="w-12 h-12 sm:w-14 sm:h-14 mx-auto mb-3 text-emerald-600 animate-pulse" />
+          <CheckCircle className="w-12 h-12 sm:w-14 sm:h-14 mx-auto mb-3 text-emerald-600" />
           <p className="text-xs uppercase font-black tracking-widest text-emerald-800/60 mb-2">Approved Auth Code</p>
           <p className="text-3xl sm:text-4xl font-black text-emerald-700 tracking-tighter tabular-nums break-all">
             {approvalResult.authCode}
@@ -227,7 +227,7 @@ export function PostReviewTemplates({
     return (
       <div className="space-y-6 animate-in fade-in zoom-in-95 duration-300">
         <div className="text-center p-6 sm:p-8 bg-rose-50/70 rounded-3xl border border-rose-100 relative overflow-hidden shadow-xs">
-          <XCircle className="w-12 h-12 sm:w-14 sm:h-14 mx-auto mb-3 text-rose-600 animate-pulse" />
+          <XCircle className="w-12 h-12 sm:w-14 sm:h-14 mx-auto mb-3 text-rose-600" />
           <p className="text-xs uppercase font-black tracking-widest text-rose-800/60 mb-2">Decline Note</p>
           <p className="text-xl sm:text-2xl font-black text-rose-700 tracking-tight">
             {declineResult.reason}
