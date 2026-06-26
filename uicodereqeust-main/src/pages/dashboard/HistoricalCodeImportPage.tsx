@@ -1,6 +1,6 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useCallback } from "react";
 import * as XLSX from "xlsx";
-import { Upload, FileSpreadsheet, Loader2, CheckCircle2, AlertTriangle, RefreshCw } from "lucide-react";
+import { Upload, FileSpreadsheet, Loader2, CheckCircle2, AlertTriangle, RefreshCw, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { ShieldAlert } from "lucide-react";
@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   AlertDialog,
@@ -62,14 +63,17 @@ const importModeOptions: Array<{ value: ImportMode; label: string; description: 
 const guessField = (header: string) => {
   const normalized = header.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
   if (supportedFields.includes(normalized)) return normalized;
-  if (normalized.includes("auth")) return "authorization_code";
+  if (normalized.includes("auth") || normalized === "pa_code") return "authorization_code";
   if (normalized.includes("claim")) return "claim_number";
-  if (normalized.includes("policy")) return "policy_number";
-  if (normalized.includes("beneficiary") || normalized.includes("enrollee")) return "beneficiary_code";
-  if (normalized.includes("hospital")) return normalized.includes("name") ? "hospital_name" : "hospital_code";
+  if (normalized.includes("policy") || normalized.includes("hmo_no")) return "policy_number";
+  if (normalized.includes("beneficiary") || normalized.includes("enrollee") || normalized.includes("patient_id")) return "beneficiary_code";
+  if (normalized.includes("hospital") || normalized.includes("provider") || normalized.includes("clinic")) return normalized.includes("name") ? "hospital_name" : "hospital_code";
   if (normalized.includes("payment")) return "payment_reference";
-  if (normalized.includes("diagnosis") || normalized.includes("condition")) return "diagnosis";
-  if (normalized === "code" || normalized.includes("legacy_code")) return "original_code";
+  if (normalized.includes("diagnosis") || normalized.includes("condition") || normalized.includes("ailment")) return "diagnosis";
+  if (normalized.includes("name") && !normalized.includes("hospital")) return "patient_name";
+  if (normalized === "code" || normalized.includes("legacy_code") || normalized.includes("id")) return "original_code";
+  if (normalized.includes("date") && !normalized.includes("birth") && !normalized.includes("dob")) return "legacy_creation_date";
+  if (normalized.includes("dob") || (normalized.includes("date") && normalized.includes("birth"))) return "date_of_birth";
   return "";
 };
 
@@ -94,6 +98,10 @@ export default function HistoricalCodeImportPage() {
   const [importing, setImporting] = useState(false);
   const [summary, setSummary] = useState<any | null>(null);
   const [hasHeaders, setHasHeaders] = useState(true);
+  const [importProgress, setImportProgress] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const rowsPerPage = 50;
 
   const mappedRows = useMemo(() => {
     return rows.map((row) => {
@@ -156,11 +164,46 @@ export default function HistoricalCodeImportPage() {
 
   const handleFile = async (f?: File) => {
     if (!f) return;
+    const isValidType = f.name.endsWith('.csv') || f.name.endsWith('.xls') || f.name.endsWith('.xlsx');
+    if (!isValidType) {
+      toast({ variant: "destructive", title: "Invalid file type", description: "Please upload a CSV or Excel file." });
+      return;
+    }
     setFile(f);
     setFileName(f.name);
     setSummary(null);
+    setCurrentPage(1);
+    setImportProgress(0);
     await parseFile(f, hasHeaders);
   };
+
+  const clearFile = () => {
+    setFile(null);
+    setFileName("");
+    setHeaders([]);
+    setRows([]);
+    setMapping({});
+    setSummary(null);
+    setCurrentPage(1);
+    setImportProgress(0);
+  };
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const droppedFile = e.dataTransfer.files?.[0];
+    if (droppedFile) handleFile(droppedFile);
+  }, [hasHeaders, toast]);
 
   useEffect(() => {
     if (file) {
@@ -183,6 +226,7 @@ export default function HistoricalCodeImportPage() {
       };
 
       for (let i = 0; i < mappedRows.length; i += CHUNK_SIZE) {
+        setImportProgress(Math.round((i / mappedRows.length) * 100));
         const chunk = mappedRows.slice(i, i + CHUNK_SIZE);
         const { data, error } = await supabase.rpc("import_historical_codes" as any, {
           _file_name: `${fileName || "historical-import"} (Part ${Math.floor(i / CHUNK_SIZE) + 1})`,
@@ -201,6 +245,8 @@ export default function HistoricalCodeImportPage() {
         finalSummary.unique_rows += data.unique_rows || 0;
         finalSummary.batch_id = data.batch_id || finalSummary.batch_id;
       }
+      
+      setImportProgress(100);
       
       setSummary(finalSummary);
       toast({ title: "Historical import complete", description: `${finalSummary.created_count} created, ${finalSummary.updated_count} updated, ${finalSummary.skipped_count} skipped.` });
@@ -251,34 +297,35 @@ export default function HistoricalCodeImportPage() {
         ))}
       </div>
 
-      {importMode && (
-        <div className="pb-3 border-b border-slate-200">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-6">
-              <p className="text-sm font-medium text-slate-600">
-                Selected Action: <strong className="text-slate-900">{importModeOptions.find((option) => option.value === importMode)?.label}</strong>
-              </p>
-              <label className="flex items-center gap-2 text-sm font-medium text-slate-700 cursor-pointer select-none">
-                <input 
-                  type="checkbox" 
-                  checked={hasHeaders} 
-                  onChange={(e) => setHasHeaders(e.target.checked)}
-                  className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer"
-                />
-                File contains header row
-              </label>
-            </div>
-            <label className="inline-flex h-8 cursor-pointer items-center justify-center rounded-lg bg-slate-900 px-3 text-xs font-bold text-white shrink-0">
-              <Upload className="mr-1.5 h-3.5 w-3.5" />
-              Upload CSV/XLSX
-              <Input type="file" accept=".csv,.xlsx,.xls" className="hidden" onChange={(event) => handleFile(event.target.files?.[0])} />
+      {importMode && !file && (
+        <div 
+          className={`relative flex flex-col items-center justify-center rounded-2xl border-2 border-dashed p-12 transition-colors duration-200 ${isDragging ? "border-emerald-500 bg-emerald-50" : "border-slate-200 bg-slate-50 hover:border-slate-300 hover:bg-slate-100"}`}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+        >
+          <div className="absolute top-4 right-4 flex items-center gap-2">
+            <label className="flex items-center gap-2 text-sm font-medium text-slate-700 cursor-pointer select-none bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm hover:bg-slate-50 transition-colors">
+              <input 
+                type="checkbox" 
+                checked={hasHeaders} 
+                onChange={(e) => setHasHeaders(e.target.checked)}
+                className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer"
+              />
+              File has headers
             </label>
           </div>
+          <Upload className={`mb-4 h-10 w-10 ${isDragging ? "text-emerald-500" : "text-slate-400"}`} />
+          <h3 className="mb-1 text-lg font-semibold text-slate-900">Drag & Drop your file here</h3>
+          <p className="mb-4 text-sm text-slate-500">Supports .CSV, .XLS, .XLSX (max 50MB)</p>
+          <label className="inline-flex h-10 cursor-pointer items-center justify-center rounded-lg bg-slate-900 px-6 text-sm font-bold text-white shrink-0 hover:bg-slate-800 transition-colors">
+            Browse Files
+            <Input type="file" accept=".csv,.xlsx,.xls" className="hidden" onChange={(event) => handleFile(event.target.files?.[0])} />
+          </label>
         </div>
       )}
 
-
-      {rows.length > 0 && (
+      {importMode && file && rows.length > 0 && (
         <>
           <div className="grid gap-3 md:grid-cols-4">
             {[
@@ -299,14 +346,37 @@ export default function HistoricalCodeImportPage() {
           <Card className="rounded-2xl border-slate-100 bg-white shadow-sm">
             <CardContent className="p-4">
               <div className="mb-3 flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
-                <div className="flex items-center gap-2">
-                  <FileSpreadsheet className="h-4 w-4 text-emerald-600" />
-                  <p className="text-xs font-black uppercase tracking-widest text-slate-500">{fileName}</p>
+                <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                  <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg">
+                    <FileSpreadsheet className="h-4 w-4 text-emerald-600" />
+                    <p className="text-xs font-black uppercase tracking-widest text-slate-600 truncate max-w-[200px]">{fileName}</p>
+                  </div>
+                  <label className="flex items-center gap-2 text-sm font-medium text-slate-700 cursor-pointer select-none">
+                    <input 
+                      type="checkbox" 
+                      checked={hasHeaders} 
+                      onChange={(e) => setHasHeaders(e.target.checked)}
+                      className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer"
+                    />
+                    File has headers
+                  </label>
+                  <Button variant="ghost" size="sm" onClick={clearFile} disabled={importing} className="h-8 text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-50">
+                    <Trash2 className="w-3.5 h-3.5 mr-1.5" />
+                    Clear File
+                  </Button>
                 </div>
-                <Button onClick={startImport} disabled={importing || analysis.unique === 0} className="h-9 rounded-lg bg-[#1A5F4A] text-sm font-medium normal-case text-white hover:bg-[#0F3D30]">
-                  {importing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
-                  Execute: {importModeOptions.find((option) => option.value === importMode)?.label}
-                </Button>
+                <div className="flex items-center gap-3">
+                  {importing && (
+                    <div className="flex items-center gap-3 mr-2 w-[150px]">
+                      <Progress value={importProgress} className="h-2 w-full bg-slate-100 [&>div]:bg-[#1A5F4A]" />
+                      <span className="text-xs font-bold text-slate-500 w-8">{importProgress}%</span>
+                    </div>
+                  )}
+                  <Button onClick={startImport} disabled={importing || analysis.unique === 0} className="h-9 rounded-lg bg-[#1A5F4A] text-sm font-medium normal-case text-white hover:bg-[#0F3D30]">
+                    {importing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+                    {importing ? "Processing..." : `Execute: ${importModeOptions.find((option) => option.value === importMode)?.label}`}
+                  </Button>
+                </div>
               </div>
 
               <div className="mb-4 grid gap-2 md:grid-cols-3">
@@ -337,16 +407,18 @@ export default function HistoricalCodeImportPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50 text-xs font-bold">
-                    {mappedRows.slice(0, 100).map((row, index) => {
+                    {mappedRows.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage).map((row, i) => {
+                      const index = (currentPage - 1) * rowsPerPage + i;
                       const key = `${row.record_type}:${normalizeCode(row.original_code)}`;
                       const duplicate = mappedRows.findIndex((item) => `${item.record_type}:${normalizeCode(item.original_code)}` === key) !== index;
+                      const hasMissingCrucial = !normalizeCode(row.original_code);
                       return (
-                        <tr key={index} className="hover:bg-slate-50">
+                        <tr key={index} className={`hover:bg-slate-50 transition-colors ${hasMissingCrucial ? "bg-rose-50/40" : ""}`}>
                           <td className="p-3">
-                            {!normalizeCode(row.original_code) ? <Badge className="bg-rose-50 text-rose-700">Error</Badge> : duplicate ? <Badge className="bg-amber-50 text-amber-700">Duplicate</Badge> : <Badge className="bg-emerald-50 text-emerald-700">Ready</Badge>}
+                            {hasMissingCrucial ? <Badge className="bg-rose-100 text-rose-700 hover:bg-rose-100">Missing Code</Badge> : duplicate ? <Badge className="bg-amber-50 text-amber-700 hover:bg-amber-50">Duplicate</Badge> : <Badge className="bg-emerald-50 text-emerald-700 hover:bg-emerald-50">Ready</Badge>}
                           </td>
                           <td className="p-3 uppercase text-slate-500">{row.record_type}</td>
-                          <td className="p-3 font-mono text-slate-900">{row.original_code}</td>
+                          <td className={`p-3 font-mono ${hasMissingCrucial ? "text-rose-600 font-bold" : "text-slate-900"}`}>{row.original_code || <span className="text-rose-400 font-medium">Required field</span>}</td>
                           <td className="p-3">{row.policy_number || "-"}</td>
                           <td className="p-3">{row.hospital_name || row.hospital_code || "-"}</td>
                           <td className="p-3">{row.patient_name || "-"}</td>
@@ -356,6 +428,22 @@ export default function HistoricalCodeImportPage() {
                   </tbody>
                 </table>
               </div>
+
+              {mappedRows.length > rowsPerPage && (
+                <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-4">
+                  <p className="text-xs font-medium text-slate-500">
+                    Showing <strong className="text-slate-900">{(currentPage - 1) * rowsPerPage + 1}</strong> to <strong className="text-slate-900">{Math.min(currentPage * rowsPerPage, mappedRows.length)}</strong> of <strong className="text-slate-900">{mappedRows.length}</strong> rows
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="h-8 shadow-sm">
+                      <ChevronLeft className="w-4 h-4 mr-1" /> Prev
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.min(Math.ceil(mappedRows.length / rowsPerPage), p + 1))} disabled={currentPage === Math.ceil(mappedRows.length / rowsPerPage)} className="h-8 shadow-sm">
+                      Next <ChevronRight className="w-4 h-4 ml-1" />
+                    </Button>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         </>
@@ -389,11 +477,11 @@ export default function HistoricalCodeImportPage() {
         </Card>
       )}
 
-      {rows.length === 0 && (
+      {!file && rows.length === 0 && (
         <Card className="rounded-2xl border-dashed border-slate-200 bg-white shadow-sm">
           <CardContent className="flex min-h-[260px] flex-col items-center justify-center p-8 text-center">
             <AlertTriangle className="mb-3 h-8 w-8 text-slate-300" />
-            <p className="text-xs font-black uppercase tracking-widest text-slate-500">Upload a legacy code file to begin reconciliation</p>
+            <p className="text-xs font-black uppercase tracking-widest text-slate-500">Select an action to upload a legacy code file</p>
           </CardContent>
         </Card>
       )}
