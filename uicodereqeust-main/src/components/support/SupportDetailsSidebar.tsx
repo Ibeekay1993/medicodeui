@@ -107,7 +107,7 @@ export function SupportDetailsSidebar({
             {/* Case Reference or Claim Connected */}
             {matchedRequest ? (
               <div className="space-y-3 animate-in fade-in duration-300">
-                <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm space-y-2">
+                <div className="rounded-[16px] border border-slate-100 bg-white p-3.5 shadow-[0_2px_12px_rgba(0,0,0,0.03)] space-y-2">
                   <div className="flex items-center justify-between border-b border-slate-100 pb-2">
                     <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
                       Request Details
@@ -268,7 +268,7 @@ export function SupportDetailsSidebar({
             ) : matchedClaim ? (
               <div className="space-y-3 animate-in fade-in duration-300">
                 {/* Linked Claim Details */}
-                <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm space-y-2">
+                <div className="rounded-[16px] border border-slate-100 bg-white p-3.5 shadow-[0_2px_12px_rgba(0,0,0,0.03)] space-y-2">
                   <div className="flex items-center justify-between border-b border-slate-100 pb-2">
                     <span className="text-xs font-black text-slate-400 uppercase tracking-wider">
                       Linked Claim Details
@@ -309,7 +309,7 @@ export function SupportDetailsSidebar({
                 </div>
 
                 {/* Verification actions */}
-                <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm space-y-2">
+                <div className="rounded-[16px] border border-slate-100 bg-white p-3.5 shadow-[0_2px_12px_rgba(0,0,0,0.03)] space-y-2">
                   <div className="flex items-center justify-between border-b border-slate-100 pb-2">
                     <span className="text-xs font-black text-slate-400 uppercase tracking-wider">
                       Finance & Reimbursement

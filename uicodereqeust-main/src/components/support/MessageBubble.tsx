@@ -103,8 +103,8 @@ export function MessageBubble({
   const bubbleBg = isMsgInternal
     ? "bg-amber-50 border-amber-200 border-l-4 border-l-amber-500 text-amber-900"
     : isOwnMessage
-    ? "bg-brand-600 text-white shadow-brand-900/10"
-    : "bg-white border border-slate-200 text-slate-800 shadow-sm";
+    ? "bg-brand-600 border border-brand-500 text-white shadow-[0_4px_12px_rgba(79,70,229,0.15)]"
+    : "bg-white border border-slate-100 text-slate-800 shadow-[0_2px_8px_rgba(0,0,0,0.04)]";
 
   const textColor = isOwnMessage && !isMsgInternal ? "text-white" : "text-slate-800";
   const timeColor = isOwnMessage && !isMsgInternal ? "text-brand-200" : "text-slate-400";
@@ -128,7 +128,7 @@ export function MessageBubble({
         {/* Message Bubble */}
         <div className="flex flex-col gap-1 min-w-[60px]">
           {/* Inline Name + Time */}
-          <div className={cn("flex items-center gap-1.5 px-1 mb-0.5", isOwnMessage ? "justify-end flex-row-reverse" : "justify-start")}>
+          <div className={cn("flex items-center gap-1.5 px-1.5 mb-1", isOwnMessage ? "justify-end flex-row-reverse" : "justify-start")}>
             <span className="text-[11px] font-semibold text-slate-700">{displayName}</span>
             <span className="text-[10px] font-medium text-slate-400">{timeString}</span>
             {isMsgInternal && <span className="text-[10px] font-bold text-amber-600">(Internal)</span>}
@@ -136,9 +136,9 @@ export function MessageBubble({
           
           <div
             className={cn(
-              "px-3 py-2 rounded-2xl relative",
+              "px-3.5 py-2.5 rounded-[18px] relative",
               bubbleBg,
-              isOwnMessage ? "rounded-br-sm" : "rounded-bl-sm"
+              isOwnMessage ? "rounded-br-[4px]" : "rounded-bl-[4px]"
             )}
           >
             {isMsgInternal && (

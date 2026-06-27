@@ -440,7 +440,7 @@ export function SupportChatArea({
   return (
     <div
       className={cn(
-        "flex-1 flex flex-col h-full bg-slate-50 transition-all duration-300 relative",
+        "flex-1 flex flex-col h-full bg-[#F9FAFC] transition-all duration-300 relative",
         mobileSubView === "CHAT" ? "flex" : "hidden lg:flex"
       )}
     >
@@ -601,7 +601,7 @@ export function SupportChatArea({
               />
             ))}
           </div>
-          <div className="border-t border-slate-200 bg-white/80 backdrop-blur-md p-3">
+          <div className="border-t border-slate-200 bg-[#F9FAFC] p-3 md:p-4 shrink-0 shadow-[0_-4px_12px_rgba(0,0,0,0.02)]">
             {pendingFiles.length > 0 && (
               <div className="flex flex-wrap gap-2 mb-2">
                 {pendingFiles.map((file, i) => (
@@ -623,7 +623,7 @@ export function SupportChatArea({
               </div>
             )}
 
-            <div className="flex items-end gap-2 bg-white border border-slate-200 rounded-xl p-1.5 shadow-sm focus-within:ring-1 focus-within:ring-indigo-500/30 transition-all">
+            <div className="flex items-end gap-2 bg-white border border-slate-200/80 rounded-[20px] p-1.5 shadow-[0_2px_12px_rgba(0,0,0,0.03)] focus-within:ring-2 focus-within:ring-indigo-500/20 transition-all duration-300">
               <input
                 ref={fileInputRef}
                 type="file"
@@ -687,7 +687,7 @@ export function SupportChatArea({
                 type="button"
                 onClick={() => handleSendMessage()}
                 disabled={sending || (!replyText.trim() && pendingFiles.length === 0) || selectedClosed}
-                className="h-9 px-4 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 shrink-0"
+                className="h-9 px-4 rounded-[14px] bg-gradient-to-tr from-brand-600 to-indigo-500 hover:from-brand-700 hover:to-indigo-600 shadow-md shadow-brand-500/20 text-white shrink-0 transition-all duration-300 hover:scale-[1.02] active:scale-95"
               >
                 {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
               </Button>
