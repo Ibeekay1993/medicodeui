@@ -18,6 +18,7 @@ interface RequestListProps {
   onSelectRequest: (r: any) => void;
   onDeleteRequest: (r: any) => void;
   setOtpVerifiedStatus: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
+  isLoading?: boolean;
 }
 
 export function RequestList({
@@ -30,7 +31,8 @@ export function RequestList({
   otpVerifiedStatus,
   onSelectRequest,
   onDeleteRequest,
-  setOtpVerifiedStatus
+  setOtpVerifiedStatus,
+  isLoading
 }: RequestListProps) {
   const { toast } = useToast();
   const [unlockingReqId, setUnlockingReqId] = useState<string | null>(null);
@@ -127,7 +129,14 @@ export function RequestList({
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {requests.length === 0 ? (
+            {isLoading ? (
+              <tr>
+                <td colSpan={isClaimsRole ? 6 : 8} className="py-12 text-center text-xs font-black uppercase tracking-widest text-slate-400">
+                  <Loader2 className="mx-auto mb-3 h-6 w-6 animate-spin text-[#3f3f95]" />
+                  Loading requests...
+                </td>
+              </tr>
+            ) : requests.length === 0 ? (
               <tr>
                 <td colSpan={isClaimsRole ? 6 : 8} className="py-12 text-center text-xs font-black uppercase tracking-widest text-slate-400">
                   No authorization requests found.
@@ -262,7 +271,12 @@ export function RequestList({
 
       {/* Mobile Cards */}
       <div className="block md:hidden divide-y divide-slate-100">
-        {requests.length === 0 ? (
+        {isLoading ? (
+          <div className="py-12 text-center text-xs font-black uppercase tracking-widest text-slate-400 bg-white p-6">
+            <Loader2 className="mx-auto mb-3 h-6 w-6 animate-spin text-[#3f3f95]" />
+            Loading requests...
+          </div>
+        ) : requests.length === 0 ? (
           <div className="py-12 text-center text-xs font-black uppercase tracking-widest text-slate-400 bg-white p-6">
             No authorization requests found.
           </div>

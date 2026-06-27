@@ -309,6 +309,7 @@ export default function RequestsPage() {
           onSelectRequest={setSelectedRequest}
           onDeleteRequest={setDeleteTarget}
           setOtpVerifiedStatus={setOtpVerifiedStatus}
+          isLoading={isLoading}
         />
         {requests.length === 0 && !isLoading && (
           <div className="p-8 text-center text-xs font-bold text-slate-400 uppercase tracking-widest">
