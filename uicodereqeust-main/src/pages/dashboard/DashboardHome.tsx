@@ -432,18 +432,18 @@ export default function DashboardHome() {
                 { label: "Approved",        value: stats.approved,  icon: CheckCircle2,  accent: "#1D9E75" },
                 { label: "Rejected",        value: stats.rejected,  icon: XCircle,       accent: "#E24B4A" },
               ].map((item) => (
-                <div key={item.label} className="premium-card flex flex-col p-2.5 sm:p-3 rounded-xl border border-slate-100 bg-white hover:shadow-md transition-shadow relative overflow-hidden" title={item.label}>
+                <div key={item.label} className="flex flex-col p-3 rounded-xl border border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm transition-all cursor-pointer relative overflow-hidden" title={item.label}>
                   <div className="flex justify-between items-start mb-1.5 sm:mb-2">
-                    <p className="text-xs font-medium text-slate-500 truncate">{item.label}</p>
-                    <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md" style={{ background: `${item.accent}14`, color: item.accent }}>
-                      <item.icon className="h-3 w-3" strokeWidth={2} />
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 leading-tight break-words">{item.label}</p>
+                    <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full" style={{ background: `${item.accent}1A`, color: item.accent }}>
+                      <item.icon className="h-[10px] w-[10px]" strokeWidth={3} />
                     </div>
                   </div>
                   <div>
                     {loading ? (
                       <div className="mt-0.5"><StatSkeleton /></div>
                     ) : (
-                      <p className="text-lg sm:text-xl font-bold tabular-nums text-slate-900 tracking-tight">
+                      <p className="text-base font-black leading-none tracking-tight break-words text-slate-900">
                         {Number(item.value).toLocaleString()}
                       </p>
                     )}
@@ -463,18 +463,18 @@ export default function DashboardHome() {
                 { label: "Appr. Value",   value: money(claimStats.approvedValue),       accent: "#1D9E75", format: "money", icon: Banknote },
                 { label: "Contested",     value: claimStats.contested,                  accent: "#8B5CF6", format: "number", icon: AlertTriangle },
               ].map((item) => (
-                <div key={item.label} className="premium-card flex flex-col p-2.5 sm:p-3 rounded-xl border border-slate-100 bg-white hover:shadow-md transition-shadow relative overflow-hidden" title={item.label}>
+                <div key={item.label} className="flex flex-col p-3 rounded-xl border border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm transition-all cursor-pointer relative overflow-hidden" title={item.label}>
                   <div className="flex justify-between items-start mb-1.5 sm:mb-2">
-                    <p className="text-xs font-medium text-slate-500 truncate">{item.label}</p>
-                    <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md" style={{ background: `${item.accent}14`, color: item.accent }}>
-                      <item.icon className="h-3 w-3" strokeWidth={2} />
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 leading-tight break-words">{item.label}</p>
+                    <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full" style={{ background: `${item.accent}1A`, color: item.accent }}>
+                      <item.icon className="h-[10px] w-[10px]" strokeWidth={3} />
                     </div>
                   </div>
                   <div>
                     {loading ? (
                       <div className="mt-0.5"><StatSkeleton /></div>
                     ) : (
-                      <p className="text-lg sm:text-xl font-bold tabular-nums text-slate-900 tracking-tight">
+                      <p className="text-base font-black leading-none tracking-tight break-words text-slate-900">
                         {item.format === "number" ? Number(item.value).toLocaleString() : item.value}
                       </p>
                     )}
@@ -494,18 +494,18 @@ export default function DashboardHome() {
                 { label: "Settled Batches", value: financeStats.paidBatches,               accent: "#0F766E", icon: Layers },
                 { label: "Batches Value",   value: money(financeStats.totalBatchesValue),  accent: "#EC4899", icon: Wallet },
               ].map((item) => (
-                <div key={item.label} className="premium-card flex flex-col p-2.5 sm:p-3 rounded-xl border border-slate-100 bg-white hover:shadow-md transition-shadow relative overflow-hidden" title={item.label}>
+                <div key={item.label} className="flex flex-col p-3 rounded-xl border border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm transition-all cursor-pointer relative overflow-hidden" title={item.label}>
                   <div className="flex justify-between items-start mb-1.5 sm:mb-2">
-                    <p className="text-xs font-medium text-slate-500 truncate">{item.label}</p>
-                    <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md" style={{ background: `${item.accent}14`, color: item.accent }}>
-                      <item.icon className="h-3 w-3" strokeWidth={2} />
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 leading-tight break-words">{item.label}</p>
+                    <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full" style={{ background: `${item.accent}1A`, color: item.accent }}>
+                      <item.icon className="h-[10px] w-[10px]" strokeWidth={3} />
                     </div>
                   </div>
                   <div>
                     {loading ? (
                       <div className="mt-0.5"><StatSkeleton /></div>
                     ) : (
-                      <p className="text-lg sm:text-xl font-bold tabular-nums text-slate-900 tracking-tight">{item.value}</p>
+                      <p className="text-base font-black leading-none tracking-tight break-words text-slate-900">{item.value}</p>
                     )}
                   </div>
                 </div>
@@ -523,18 +523,18 @@ export default function DashboardHome() {
             { label: "Settled Batches", value: financeStats.paidBatches, accent: "#0F766E", icon: Layers },
             { label: "Total Batches Value", value: money(financeStats.totalBatchesValue), accent: "#EC4899", icon: Wallet },
           ].map((item) => (
-            <div key={item.label} className="premium-card flex flex-col p-2.5 sm:p-3 rounded-xl border border-slate-100 bg-white hover:shadow-md transition-shadow relative overflow-hidden animate-in fade-in duration-300" title={item.label}>
+            <div key={item.label} className="flex flex-col p-3 rounded-xl border border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm transition-all cursor-pointer relative overflow-hidden animate-in fade-in duration-300" title={item.label}>
               <div className="flex justify-between items-start mb-1.5 sm:mb-2">
-                <p className="text-xs font-medium text-slate-500 truncate">{item.label}</p>
-                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md" style={{ background: `${item.accent}14`, color: item.accent }}>
-                  <item.icon className="h-3 w-3" strokeWidth={2} />
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 leading-tight break-words">{item.label}</p>
+                <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full" style={{ background: `${item.accent}1A`, color: item.accent }}>
+                  <item.icon className="h-[10px] w-[10px]" strokeWidth={3} />
                 </div>
               </div>
               <div>
                 {loading ? (
                   <div className="mt-0.5"><StatSkeleton /></div>
                 ) : (
-                  <p className="text-lg sm:text-xl font-bold tabular-nums text-slate-900 tracking-tight">
+                  <p className="text-base font-black leading-none tracking-tight break-words text-slate-900">
                     {item.value}
                   </p>
                 )}
@@ -548,18 +548,18 @@ export default function DashboardHome() {
         <div className="grid grid-cols-4 gap-2 sm:gap-3 md:gap-4 overflow-x-hidden">
           {mainStats.map((item) => {
             return (
-              <div key={item.label} className="premium-card flex flex-col p-2.5 sm:p-3 rounded-xl border border-slate-100 bg-white hover:shadow-md transition-shadow relative overflow-hidden" title={item.label}>
+              <div key={item.label} className="flex flex-col p-3 rounded-xl border border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm transition-all cursor-pointer relative overflow-hidden" title={item.label}>
                 <div className="flex justify-between items-start mb-1.5 sm:mb-2">
-                  <p className="text-xs font-medium text-slate-500 truncate">{item.label}</p>
-                  <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md" style={{ background: `${item.accent}14`, color: item.accent }}>
-                    <item.icon className="h-3 w-3" strokeWidth={2} />
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 leading-tight break-words">{item.label}</p>
+                  <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full" style={{ background: `${item.accent}1A`, color: item.accent }}>
+                    <item.icon className="h-[10px] w-[10px]" strokeWidth={3} />
                   </div>
                 </div>
                 <div>
                   {loading ? (
                     <div className="mt-0.5"><StatSkeleton /></div>
                   ) : (
-                    <p className="text-lg sm:text-xl font-bold tabular-nums text-slate-900 tracking-tight">
+                    <p className="text-base font-black leading-none tracking-tight break-words text-slate-900">
                       {Number(item.value).toLocaleString()}
                     </p>
                   )}
@@ -581,18 +581,18 @@ export default function DashboardHome() {
             { label: "Approved Value", value: money(claimStats.approvedValue), accent: "#1D9E75", icon: Banknote },
             { label: "Savings", value: money(claimStats.declinedValue), accent: "#0F766E", icon: Wallet },
           ].map((item) => (
-            <div key={item.label} className="premium-card flex flex-col p-2.5 sm:p-3 rounded-xl border border-slate-100 bg-white hover:shadow-md transition-shadow relative overflow-hidden" title={item.label}>
+            <div key={item.label} className="flex flex-col p-3 rounded-xl border border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm transition-all cursor-pointer relative overflow-hidden" title={item.label}>
               <div className="flex justify-between items-start mb-1.5 sm:mb-2">
-                <p className="text-xs font-medium text-slate-500 truncate">{item.label}</p>
-                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md" style={{ background: `${item.accent}14`, color: item.accent }}>
-                  <item.icon className="h-3 w-3" strokeWidth={2} />
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 leading-tight break-words">{item.label}</p>
+                <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full" style={{ background: `${item.accent}1A`, color: item.accent }}>
+                  <item.icon className="h-[10px] w-[10px]" strokeWidth={3} />
                 </div>
               </div>
               <div>
                 {loading ? (
                   <div className="mt-0.5"><StatSkeleton /></div>
                 ) : (
-                  <p className="text-lg sm:text-xl font-bold tabular-nums text-slate-900 tracking-tight">
+                  <p className="text-base font-black leading-none tracking-tight break-words text-slate-900">
                     {Number(item.value).toLocaleString()}
                   </p>
                 )}
