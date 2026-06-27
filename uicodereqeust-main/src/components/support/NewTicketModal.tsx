@@ -59,7 +59,7 @@ export function NewTicketModal({
     if (!isOpen) {
       setNewTicket({
         subject: "",
-        department: "Utilization Management",
+        department: "Authorization",
         priority: "normal",
         message: "",
         linkType: "none",
@@ -311,7 +311,7 @@ export function NewTicketModal({
                     setNewTicket({ 
                       ...newTicket, 
                       department: d, 
-                      ...(d !== "Utilization Management" ? { linkType: "none", linkedId: "" } : {})
+                      ...(d !== "Authorization" ? { linkType: "none", linkedId: "" } : {})
                     });
                   }}
                 >
@@ -319,7 +319,7 @@ export function NewTicketModal({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {["Utilization Management", "Claims", "Payment"].map(
+                    {["Authorization", "Claims", "Payment"].map(
                       (item) => (
                         <SelectItem key={item} value={item} className="text-xs font-bold">
                           {item.toUpperCase()}
@@ -352,7 +352,7 @@ export function NewTicketModal({
               </div>
             </div>
 
-            {newTicket.department === "Utilization Management" && (
+            {newTicket.department === "Authorization" && (
               <div className="space-y-2.5 border-t border-b border-slate-100 py-3.5">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-black text-slate-400 uppercase tracking-widest px-1">
