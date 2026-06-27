@@ -417,7 +417,7 @@ export default function HospitalAuthorizations() {
 
       <div className="flex px-4 sm:px-0 pb-2 md:w-[250px]">
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-full bg-slate-50 hover:bg-slate-100/80 border-none text-slate-700 font-bold h-9 text-xs rounded-lg focus:ring-[#10B981] focus:bg-white shadow-none transition-all">
+          <SelectTrigger className="w-full h-9 rounded-lg bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold hover:bg-slate-100/50 transition-colors focus:ring-1 focus:ring-emerald-500 shadow-none">
             <SelectValue placeholder="All Status" />
           </SelectTrigger>
           <SelectContent className="rounded-xl border-slate-200">

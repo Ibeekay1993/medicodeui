@@ -1,7 +1,8 @@
-﻿-- Fix the broken RLS policy for audit logs which was failing due to 'nurse' role changes
+﻿-- Fix the broken RLS policy for audit logs
+-- Restrict read access STRICTLY to admins only
 DROP POLICY IF EXISTS "Staff can read audit logs" ON public.audit_logs;
 
-CREATE POLICY "Staff can read audit logs"
+CREATE POLICY "Admins alone can read audit logs"
   ON public.audit_logs
   FOR SELECT
   TO authenticated
@@ -9,6 +10,6 @@ CREATE POLICY "Staff can read audit logs"
     EXISTS (
       SELECT 1 FROM public.user_roles
       WHERE user_roles.user_id = auth.uid()
-      AND user_roles.role IN ('admin', 'claims', 'utilization_manager', 'hospital')
+      AND user_roles.role = 'admin'
     )
   );

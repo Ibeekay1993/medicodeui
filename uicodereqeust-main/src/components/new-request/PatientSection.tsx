@@ -132,16 +132,16 @@ export default function PatientSection({
       </div>
 
       {/* Patient Email */}
-      <div className="space-y-1.5">
-        <div className="flex items-center justify-between">
+      <div className="space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <Label htmlFor="email-input" className="text-xs font-semibold text-slate-500">
             Patient Email <span className="text-rose-500">*</span>
           </Label>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 bg-slate-50 sm:bg-transparent p-2 sm:p-0 rounded-lg border sm:border-none border-slate-200">
             <Checkbox 
               id="no-email-checkbox" 
               checked={patientEmail === "no-email@medicode.com"}
-              className="h-4 w-4 rounded-[4px] border-slate-300 data-[state=checked]:bg-[#10B981] data-[state=checked]:border-[#10B981]"
+              className="h-4 w-4 shrink-0 rounded-[4px] border-slate-300 data-[state=checked]:bg-[#10B981] data-[state=checked]:border-[#10B981]"
               onCheckedChange={(checked) => {
                 if (checked) {
                   setPatientEmail("no-email@medicode.com");
@@ -150,7 +150,7 @@ export default function PatientSection({
                 }
               }}
             />
-            <Label htmlFor="no-email-checkbox" className="text-xs font-semibold text-slate-500 cursor-pointer">
+            <Label htmlFor="no-email-checkbox" className="text-xs font-semibold text-slate-700 cursor-pointer">
               Patient does not have an email
             </Label>
           </div>
