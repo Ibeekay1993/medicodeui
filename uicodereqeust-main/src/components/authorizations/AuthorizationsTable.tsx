@@ -1,4 +1,4 @@
-import { Copy, MessageSquare } from "lucide-react";
+import { Copy, MessageSquare, Eye } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -237,7 +237,7 @@ export default function AuthorizationsTable({
                     <span className="text-[11px] text-slate-400 shrink-0">{r.created_at ? new Date(r.created_at).toLocaleDateString("en-GB") : "—"}</span>
                   </div>
 
-                  <div className="flex items-center gap-1.5 shrink-0">
+                  <div className="flex items-center gap-2 shrink-0">
                     <Button 
                       variant="outline" 
                       size="sm" 
@@ -252,9 +252,9 @@ export default function AuthorizationsTable({
                           setIsReviewing(true); 
                         }
                       }}
-                      className="h-7 px-2 rounded-md border-slate-200 text-slate-600 hover:bg-slate-50 text-[11px] font-semibold"
+                      className="h-[28px] px-2.5 rounded-md border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 text-[12px] font-semibold flex items-center gap-1.5 shadow-sm"
                     >
-                      <svg className="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                      <Eye className="w-3.5 h-3.5 text-slate-600" />
                       {r.status === "referral_approved" && canSubmitClaimFor(r, hospital)
                         ? "Process"
                         : r.status === "referral_accepted" && canSubmitClaimFor(r, hospital)
@@ -265,10 +265,10 @@ export default function AuthorizationsTable({
                       variant="outline" 
                       size="icon" 
                       onClick={(e) => { e.stopPropagation(); openRequestChat(r); }}
-                      className="h-7 w-7 rounded-full border-slate-200 text-slate-500 hover:bg-slate-100"
+                      className="h-[28px] w-[28px] rounded-md border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 shadow-sm flex items-center justify-center shrink-0"
                       title="Message about this request"
                     >
-                      <MessageSquare className="h-3.5 w-3.5" />
+                      <MessageSquare className="h-4 w-4" />
                     </Button>
                   </div>
                 </div>
