@@ -76,12 +76,9 @@ export function SupportDetailsSidebar({
       {/* Header with mobile back handle */}
       <div className="p-3 border-b border-slate-150 flex items-center justify-between bg-white shrink-0">
         <div>
-          <h2 className="text-xs font-black text-slate-900 tracking-wider uppercase">
+          <h2 className="text-lg font-semibold text-slate-800">
             Dispute Details
           </h2>
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-            Linked authorization, claim, and review actions
-          </p>
         </div>
         <div className="flex items-center gap-1">
           <Button

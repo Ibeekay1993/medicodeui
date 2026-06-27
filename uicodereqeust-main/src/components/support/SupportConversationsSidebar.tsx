@@ -61,9 +61,9 @@ export function SupportConversationsSidebar({
       )}
     >
       {/* Inbox Header & Search */}
-      <div className="p-3 border-b border-slate-150 flex flex-col gap-3 bg-white shrink-0">
+      <div className="p-3 border-b border-slate-150 flex flex-col gap-2 bg-white shrink-0">
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-black text-slate-800 tracking-tight uppercase">Conversations</h2>
+          <h2 className="text-base font-medium text-slate-800 mb-1 mt-1">Conversations</h2>
           <div className="flex items-center gap-1">
             <Button size="sm" className="h-7 rounded text-xs font-bold bg-gradient-to-br from-brand-500 to-indigo-600 hover:from-brand-600 hover:to-indigo-700 px-3 shadow-md shadow-brand-500/20 text-white ring-1 ring-white/20 inset transition-all active:scale-95" onClick={onNewTicketClick}>
               <Plus className="mr-1 h-3.5 w-3.5" /> New
@@ -75,7 +75,7 @@ export function SupportConversationsSidebar({
         </div>
         <div className="relative">
           <Search className="absolute left-2.5 top-2 h-4 w-4 text-slate-400" />
-          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search auth or subject..." className="h-8 rounded bg-slate-50 pl-8 text-xs font-medium border-slate-200" />
+          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search auth or subject..." className="h-10 rounded-md bg-slate-50 pl-8 text-xs font-medium border-slate-200" />
         </div>
       </div>
 

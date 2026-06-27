@@ -127,9 +127,11 @@ export function MessageBubble({
 
         {/* Message Bubble */}
         <div className="flex flex-col gap-1 min-w-[60px]">
-          {/* Sender Name outside bubble if not own message, or if it's internal memo it's fine to show */}
-          <div className={cn("text-[10px] font-bold px-1", isOwnMessage ? "text-right text-slate-500" : "text-left text-slate-500")}>
-            {displayName} {isMsgInternal ? " (Internal Note)" : ""}
+          {/* Inline Name + Time */}
+          <div className={cn("flex items-center gap-1.5 px-1 mb-0.5", isOwnMessage ? "justify-end flex-row-reverse" : "justify-start")}>
+            <span className="text-[11px] font-semibold text-slate-700">{displayName}</span>
+            <span className="text-[10px] font-medium text-slate-400">{timeString}</span>
+            {isMsgInternal && <span className="text-[10px] font-bold text-amber-600">(Internal)</span>}
           </div>
           
           <div

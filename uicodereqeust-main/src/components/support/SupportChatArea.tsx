@@ -468,15 +468,8 @@ export function SupportChatArea({
                     {selected.ticket_number}
                   </Badge>
                 )}
-                {selected.hospitals?.name && (
-                  <Badge
-                    variant="outline"
-                    className="shrink-0 hidden sm:inline-flex rounded border-slate-200 bg-white text-slate-500 text-[10px] font-black px-1.5 py-0 tracking-wider"
-                  >
-                    {selected.hospitals.name.toUpperCase()}
-                  </Badge>
-                )}
-                <h2 className="text-sm font-bold text-slate-800 truncate" title={selected.subject}>
+                <span className="text-slate-300 shrink-0 font-black">&middot;</span>
+                <h2 className="text-sm font-semibold text-slate-800 truncate" title={selected.subject}>
                   {selected.subject}
                 </h2>
               </div>
