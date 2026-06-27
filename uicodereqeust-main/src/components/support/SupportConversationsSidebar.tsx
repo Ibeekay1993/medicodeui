@@ -60,37 +60,22 @@ export function SupportConversationsSidebar({
         leftCollapsed ? "lg:w-0 lg:overflow-hidden lg:border-r-0" : "lg:w-[340px]"
       )}
     >
-      {/* Inbox Header */}
-      <div className="p-4 border-b border-slate-150 flex items-center justify-end bg-white">
-        <div className="flex items-center gap-1">
-          <Button
-            size="sm"
-            className="h-8 rounded-xl bg-brand-600 px-3 text-xs font-bold text-white hover:bg-brand-700 shadow-sm"
-            onClick={onNewTicketClick}
-          >
-            <Plus className="mr-1 h-3.5 w-3.5" /> New
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="hidden lg:flex h-8 w-8 rounded-xl text-slate-400 shrink-0"
-            onClick={() => setLeftCollapsed(true)}
-          >
-            <X className="h-4 w-4" />
-          </Button>
+      {/* Inbox Header & Search */}
+      <div className="p-3 border-b border-slate-150 flex flex-col gap-3 bg-white shrink-0">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-black text-slate-800 tracking-tight uppercase">Conversations</h2>
+          <div className="flex items-center gap-1">
+            <Button size="sm" className="h-7 rounded text-xs font-bold bg-brand-600 hover:bg-brand-700 px-2.5 shadow-sm text-white" onClick={onNewTicketClick}>
+              <Plus className="mr-1 h-3.5 w-3.5" /> New
+            </Button>
+            <Button variant="ghost" size="icon" className="hidden lg:flex h-7 w-7 rounded text-slate-400" onClick={() => setLeftCollapsed(true)}>
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
-      </div>
-
-      {/* Search Input bar */}
-      <div className="px-4 py-3 border-b border-slate-100">
         <div className="relative">
-          <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search policy no., auth code or subject..."
-            className="h-10 rounded-xl border-none bg-slate-50 pl-9 text-sm font-medium text-slate-800 placeholder:text-slate-400 focus-visible:ring-brand-500/20"
-          />
+          <Search className="absolute left-2.5 top-2 h-4 w-4 text-slate-400" />
+          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search auth or subject..." className="h-8 rounded bg-slate-50 pl-8 text-xs font-medium border-slate-200" />
         </div>
       </div>
 
@@ -170,91 +155,33 @@ export function SupportConversationsSidebar({
                   setMobileSubView("CHAT");
                 }}
                 className={cn(
-                  "block w-full p-4 text-left transition-all border-l-4 border-b border-slate-100",
+                  "block w-full p-3 text-left transition-all border-l-4 border-b border-slate-100",
                   isSelected ? "bg-brand-50 border-brand-400" : "border-transparent hover:bg-slate-50"
                 )}
               >
-                <div className="flex flex-col gap-2">
-                  {/* Top Row: Ticket Number & Status Badge */}
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-slate-500">
-                      {item.ticket_number || "TCK-PENDING"}
+                <div className="flex flex-col gap-1">
+                  {/* Top Row: Subject ● Status ● Date */}
+                  <div className="flex items-center gap-2 text-xs">
+                    <span className="font-bold text-slate-900 truncate max-w-[140px]">{item.subject || "Request Support"}</span>
+                    <span className="text-slate-300 shrink-0">•</span>
+                    <span className={cn("font-bold uppercase tracking-wider text-[10px] shrink-0", item.status === "closed" || item.status === "resolved" ? "text-slate-500" : "text-brand-600")}>
+                      {(item.status || "open").replace(/_/g, " ")}
                     </span>
-                    <span
-                      className={cn(
-                        "rounded-md text-xs font-semibold uppercase px-2.5 py-1 tracking-wide border",
-                        item.status === "new"
-                          ? "bg-indigo-50 text-indigo-700 border-indigo-100"
-                          : ["open", "reopened"].includes(item.status)
-                          ? "bg-emerald-50 text-emerald-700 border-emerald-100"
-                          : item.status?.includes("pending")
-                          ? "bg-amber-50 text-amber-700 border-amber-100"
-                          : ["closed", "resolved"].includes(item.status)
-                          ? "bg-emerald-50 text-emerald-600 border-emerald-100"
-                          : "bg-slate-50 text-slate-500 border-slate-200"
-                      )}
-                    >
-                      {(item.status || "").replace(/_/g, " ").toUpperCase()}
+                    <span className="text-slate-300 shrink-0">•</span>
+                    <span className="text-slate-500 font-medium whitespace-nowrap shrink-0 text-[10px]">
+                      {item.last_message_at ? new Date(item.last_message_at).toLocaleDateString([], { day: "numeric", month: "short" }) : new Date(item.created_at).toLocaleDateString([], { day: "numeric", month: "short" })}
                     </span>
                   </div>
 
-                  {/* Title */}
-                  <h3 className="text-sm font-bold text-slate-900 tracking-tight leading-snug">
-                    {item.subject || "Dispute request"}
-                  </h3>
-
-                  {/* Hospital Name */}
-                  <p className="text-sm text-slate-600">
-                    Hospital: <span className="font-semibold text-slate-800">{name}</span>
-                  </p>
-
-                  {/* Department / Priority */}
-                  <div className="flex flex-wrap gap-2">
-                    <span className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-semibold uppercase text-slate-600 tracking-wide">
-                      {item.department || "GENERAL"}
-                    </span>
+                  {/* Bottom Row: Hospital ● Priority */}
+                  <div className="flex items-center gap-2 text-[11px] text-slate-500">
+                    <span className="font-medium truncate">{name}</span>
                     {item.priority && (
-                      <span
-                        className={cn(
-                          "rounded-md px-2 py-1 text-xs font-semibold uppercase tracking-wide border",
-                          item.priority === "urgent"
-                            ? "text-rose-700 bg-rose-50 border-rose-200"
-                            : item.priority === "high"
-                            ? "text-amber-700 bg-amber-50 border-amber-200"
-                            : "text-slate-600 bg-white border-slate-200"
-                        )}
-                      >
-                        {item.priority}
-                      </span>
+                      <>
+                        <span className="text-slate-300 shrink-0">•</span>
+                        <span className={cn("font-bold capitalize shrink-0", item.priority === "urgent" || item.priority === "high" ? "text-rose-600" : "")}>{item.priority}</span>
+                      </>
                     )}
-                  </div>
-
-                  {/* Preview Snippet */}
-                  <p className="line-clamp-2 text-sm leading-relaxed text-slate-500">
-                    {previewMessage || "Awaiting welcome check..."}
-                  </p>
-
-                  {/* Date/Time stamp */}
-                  <div className="text-xs font-medium text-slate-400">
-                    {item.last_message_at
-                      ? new Date(item.last_message_at).toLocaleDateString([], {
-                          month: "short",
-                          day: "numeric",
-                        }) +
-                        ", " +
-                        new Date(item.last_message_at).toLocaleTimeString([], {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })
-                      : new Date(item.created_at).toLocaleDateString([], {
-                          month: "short",
-                          day: "numeric",
-                        }) +
-                        ", " +
-                        new Date(item.created_at).toLocaleTimeString([], {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
                   </div>
                 </div>
               </button>

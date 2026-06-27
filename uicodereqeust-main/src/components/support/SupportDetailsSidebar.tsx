@@ -74,12 +74,12 @@ export function SupportDetailsSidebar({
       )}
     >
       {/* Header with mobile back handle */}
-      <div className="p-4 border-b border-slate-150 flex items-center justify-between bg-white shrink-0">
+      <div className="p-3 border-b border-slate-150 flex items-center justify-between bg-white shrink-0">
         <div>
           <h2 className="text-xs font-black text-slate-900 tracking-wider uppercase">
             Dispute Details
           </h2>
-          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-0.5">
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
             Linked authorization, claim, and review actions
           </p>
         </div>
@@ -104,13 +104,13 @@ export function SupportDetailsSidebar({
       </div>
 
       {/* Dynamic linked content rendering */}
-      <div className="p-4 flex-1 space-y-5">
+      <div className="p-3 flex-1 space-y-3">
         {selected ? (
           <>
             {/* Case Reference or Claim Connected */}
             {matchedRequest ? (
-              <div className="space-y-4 animate-in fade-in duration-300">
-                <div className="rounded-xl border border-slate-200 bg-white p-3.5 shadow-sm space-y-3">
+              <div className="space-y-3 animate-in fade-in duration-300">
+                <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm space-y-2">
                   <div className="flex items-center justify-between border-b border-slate-100 pb-2">
                     <span className="text-xs font-black text-slate-400 uppercase tracking-wider">
                       Linked Authorization Details
@@ -120,120 +120,120 @@ export function SupportDetailsSidebar({
                     </Badge>
                   </div>
 
-                  <div className="space-y-2 text-xs">
-                    <div>
-                      <span className="text-xs font-bold text-slate-400 uppercase tracking-wide block">
+                  <div className="flex flex-col gap-1.5 text-xs leading-none">
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">
                         Request Reference
                       </span>
-                      <span className="font-mono font-black text-slate-900 text-xs">
+                      <span className="font-mono font-black text-slate-900 text-xs leading-none">
                         {matchedRequest.request_id || matchedRequest.authorization_code || "REQ-LINKED"}
                       </span>
                     </div>
-                    <div>
-                      <span className="text-xs font-bold text-slate-400 uppercase tracking-wide block">
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">
                         Decision Status
                       </span>
                       <span className="font-black text-slate-800 text-xs uppercase">
                         {matchedRequest.status || "PENDING"}
                       </span>
                     </div>
-                    <div>
-                      <span className="text-xs font-bold text-slate-400 uppercase tracking-wide block">
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">
                         Authorization Code
                       </span>
-                      <span className="font-mono font-black text-slate-900 text-xs">
+                      <span className="font-mono font-black text-slate-900 text-xs leading-none">
                         {matchedRequest.status === "approved"
                           ? matchedRequest.authorization_code || "PENDING"
                           : "NONE"}
                       </span>
                     </div>
-                    <div>
-                      <span className="text-xs font-bold text-slate-400 uppercase tracking-wide block">
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">
                         Decision Note
                       </span>
-                      <span className="font-bold text-slate-600 leading-snug block">
+                      <span className="font-bold text-slate-600 leading-tight">
                         {getDecisionReason(matchedRequest) || "No decision note recorded"}
                       </span>
                     </div>
-                    <div>
-                      <span className="text-xs font-bold text-slate-400 uppercase tracking-wide block">
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">
                         Patient Name
                       </span>
-                      <span className="font-extrabold text-slate-800 text-xs">
+                      <span className="font-extrabold text-slate-800 text-xs leading-none">
                         {matchedRequest.patient_name}
                       </span>
                     </div>
-                    <div>
-                      <span className="text-xs font-bold text-slate-400 uppercase tracking-wide block">
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">
                         Policy Number
                       </span>
-                      <span className="font-mono font-black text-slate-900 text-xs">
+                      <span className="font-mono font-black text-slate-900 text-xs leading-none">
                         {matchedRequest.policy_number}
                       </span>
                     </div>
-                    <div>
-                      <span className="text-xs font-bold text-slate-400 uppercase tracking-wide block">
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">
                         Hospital
                       </span>
-                      <span className="font-black text-slate-800 text-xs">
+                      <span className="font-black text-slate-800 text-xs leading-none">
                         {matchedRequest.hospital_name || "Requesting hospital"}
                       </span>
                     </div>
                     {matchedRequest.requesting_hospital_name && (
-                      <div>
-                        <span className="text-xs font-bold text-slate-400 uppercase tracking-wide block">
+                      <div className="flex flex-col gap-0.5">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">
                           Requesting Hospital
                         </span>
-                        <span className="font-black text-slate-800 text-xs">
+                        <span className="font-black text-slate-800 text-xs leading-none">
                           {matchedRequest.requesting_hospital_name}
                         </span>
                       </div>
                     )}
                     {matchedRequest.referring_hospital_name &&
                       matchedRequest.referring_hospital_name !== matchedRequest.hospital_name && (
-                        <div>
-                          <span className="text-xs font-bold text-slate-400 uppercase tracking-wide block">
+                        <div className="flex flex-col gap-0.5">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">
                             Referring Hospital
                           </span>
-                          <span className="font-black text-slate-800 text-xs">
+                          <span className="font-black text-slate-800 text-xs leading-none">
                             {matchedRequest.referring_hospital_name}
                           </span>
                         </div>
                       )}
                     {matchedRequest.referred_hospital_name && (
-                      <div>
-                        <span className="text-xs font-bold text-slate-400 uppercase tracking-wide block">
+                      <div className="flex flex-col gap-0.5">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">
                           Referred / Claim Owner
                         </span>
-                        <span className="font-black text-slate-800 text-xs">
+                        <span className="font-black text-slate-800 text-xs leading-none">
                           {matchedRequest.referred_hospital_name || matchedRequest.claiming_hospital_name}
                         </span>
                       </div>
                     )}
-                    <div>
-                      <span className="text-xs font-bold text-slate-400 uppercase tracking-wide block">
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">
                         Clinical Diagnosis
                       </span>
-                      <span className="font-extrabold text-slate-700 leading-snug block">
+                      <span className="font-extrabold text-slate-700 leading-tight">
                         {matchedRequest.diagnosis}
                       </span>
                     </div>
                     {matchedRequest.treatment && (
-                      <div>
-                        <span className="text-xs font-bold text-slate-400 uppercase tracking-wide block">
+                      <div className="flex flex-col gap-0.5">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">
                           Proposed Treatment
                         </span>
-                        <span className="font-bold text-slate-600 leading-snug block">
+                        <span className="font-bold text-slate-600 leading-tight">
                           {matchedRequest.treatment}
                         </span>
                       </div>
                     )}
                     {matchedRequest.clinical_notes && (
-                      <div>
-                        <span className="text-xs font-bold text-slate-400 uppercase tracking-wide block">
+                      <div className="flex flex-col gap-0.5">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">
                           Clinical Notes
                         </span>
-                        <span className="font-bold text-slate-600 leading-snug block">
+                        <span className="font-bold text-slate-600 leading-tight">
                           {matchedRequest.clinical_notes}
                         </span>
                       </div>
@@ -243,7 +243,7 @@ export function SupportDetailsSidebar({
                         <span className="text-xs font-bold text-slate-400 uppercase tracking-wide">
                           Tariff Value
                         </span>
-                        <span className="font-black text-slate-900 text-xs">
+                        <span className="font-black text-slate-900 text-xs leading-none">
                           ₦{Number(matchedRequest.estimated_cost).toLocaleString()}
                         </span>
                       </div>
@@ -269,9 +269,9 @@ export function SupportDetailsSidebar({
                 </div>
               </div>
             ) : matchedClaim ? (
-              <div className="space-y-4 animate-in fade-in duration-300">
+              <div className="space-y-3 animate-in fade-in duration-300">
                 {/* Linked Claim Details */}
-                <div className="rounded-xl border border-slate-200 bg-white p-3.5 shadow-sm space-y-3">
+                <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm space-y-2">
                   <div className="flex items-center justify-between border-b border-slate-100 pb-2">
                     <span className="text-xs font-black text-slate-400 uppercase tracking-wider">
                       Linked Claim Details
@@ -281,20 +281,20 @@ export function SupportDetailsSidebar({
                     </Badge>
                   </div>
 
-                  <div className="space-y-2 text-xs">
-                    <div>
-                      <span className="text-xs font-bold text-slate-400 uppercase tracking-wide block">
+                  <div className="flex flex-col gap-1.5 text-xs leading-none">
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">
                         Patient Name
                       </span>
-                      <span className="font-extrabold text-slate-800 text-xs">
+                      <span className="font-extrabold text-slate-800 text-xs leading-none">
                         {matchedClaim.patient_name}
                       </span>
                     </div>
-                    <div>
-                      <span className="text-xs font-bold text-slate-400 uppercase tracking-wide block">
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">
                         Authorization Code
                       </span>
-                      <span className="font-mono font-black text-slate-900 text-xs">
+                      <span className="font-mono font-black text-slate-900 text-xs leading-none">
                         {matchedClaim.auth_code || "PENDING"}
                       </span>
                     </div>
@@ -303,7 +303,7 @@ export function SupportDetailsSidebar({
                         <span className="text-xs font-bold text-slate-400 uppercase tracking-wide">
                           Claim Amount
                         </span>
-                        <span className="font-black text-slate-900 text-xs">
+                        <span className="font-black text-slate-900 text-xs leading-none">
                           ₦{Number(matchedClaim.total_amount).toLocaleString()}
                         </span>
                       </div>
@@ -312,7 +312,7 @@ export function SupportDetailsSidebar({
                 </div>
 
                 {/* Verification actions */}
-                <div className="rounded-xl border border-slate-200 bg-white p-3.5 shadow-sm space-y-3">
+                <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm space-y-2">
                   <div className="flex items-center justify-between border-b border-slate-100 pb-2">
                     <span className="text-xs font-black text-slate-400 uppercase tracking-wider">
                       Finance & Reimbursement
@@ -363,7 +363,7 @@ export function SupportDetailsSidebar({
               </div>
             ) : (
               /* Link Case Reference Selector */
-              <div className="space-y-4 animate-in fade-in duration-300">
+              <div className="space-y-3 animate-in fade-in duration-300">
                 <div className="flex items-center gap-3 p-3 bg-slate-50 border border-slate-200/60 rounded-xl select-none">
                   <div className="h-8 w-8 bg-slate-100 rounded-lg flex items-center justify-center text-slate-400 shrink-0 shadow-inner">
                     <Link2 className="h-4 w-4 text-indigo-500" />
