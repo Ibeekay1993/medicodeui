@@ -55,9 +55,9 @@ export function SupportConversationsSidebar({
   return (
     <div
       className={cn(
-        "w-full lg:w-[340px] border-r border-slate-200/80 bg-white flex flex-col h-full shrink-0 transition-all duration-300",
+        "w-full lg:w-[280px] border-r border-slate-200/80 bg-white flex flex-col h-full shrink-0 transition-all duration-300",
         mobileSubView === "LIST" ? "flex" : "hidden lg:flex",
-        leftCollapsed ? "lg:w-0 lg:overflow-hidden lg:border-r-0" : "lg:w-[340px]"
+        leftCollapsed ? "lg:w-0 lg:overflow-hidden lg:border-r-0" : "lg:w-[280px]"
       )}
     >
       {/* Inbox Header & Search */}

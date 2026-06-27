@@ -304,15 +304,15 @@ export default function HospitalPortalPage() {
           { label: "Pending Payout", val: `₦${metrics.pendingPayout.toLocaleString()}`, color: "text-purple-600", icon: Banknote, accent: "#8B5CF6" },
           { label: "Paid", val: `₦${metrics.paidClaims.toLocaleString()}`, color: "text-emerald-600", icon: ShieldCheck, accent: "#10B981" },
         ].map((m, i) => (
-          <div key={i} className="premium-card flex flex-col p-3 rounded-xl border border-slate-100 bg-white hover:shadow-md transition-shadow relative overflow-hidden" title={m.label}>
-            <div className="flex justify-between items-start mb-2">
-              <p className="text-xs font-medium text-slate-500 truncate">{m.label}</p>
+          <div key={i} className="premium-card flex flex-1 min-w-0 flex-col p-3 rounded-xl border border-slate-100 bg-white hover:shadow-md transition-shadow relative overflow-hidden" title={m.label}>
+            <div className="flex justify-between items-start mb-1">
+              <p className="text-xs text-slate-500 flex items-center gap-1.5">{m.label}</p>
               <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md" style={{ background: `${m.accent}14`, color: m.accent }}>
                 <m.icon className="h-3 w-3" strokeWidth={2} />
               </div>
             </div>
             <div>
-              <p className={cn("text-base sm:text-lg font-extrabold tracking-tight truncate", m.color)}>{m.val}</p>
+              <p className={cn("text-[clamp(14px,4vw,20px)] font-semibold mt-1 leading-tight whitespace-nowrap text-ellipsis overflow-hidden", m.color)}>{m.val}</p>
             </div>
           </div>
         ))}
@@ -320,44 +320,44 @@ export default function HospitalPortalPage() {
       
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 mt-4">
         <Card className="premium-card rounded-xl border border-slate-100 shadow-sm bg-white overflow-hidden transition-shadow hover:shadow-md">
-          <CardHeader className="p-4 border-b border-slate-100/50 flex flex-row items-center justify-between">
-            <CardTitle className="text-xs font-black uppercase tracking-widest text-slate-500">Quick Actions</CardTitle>
+          <CardHeader className="p-3 sm:p-4 flex flex-row items-center justify-between">
+            <CardTitle className="text-[14px] font-medium text-slate-500 tracking-normal capitalize">Quick Actions</CardTitle>
           </CardHeader>
           <CardContent className="p-3 sm:p-4 grid grid-cols-3 gap-2 sm:gap-3">
             <Button
               variant="outline"
               onClick={() => navigate("/dashboard/new-request")}
-              className="h-auto p-2 sm:p-4 flex flex-col gap-1 sm:gap-2 items-center justify-center border-slate-200 hover:border-emerald-500 hover:bg-emerald-50/50 hover:text-emerald-700 transition-all rounded-xl group"
+              className="h-auto p-2 sm:p-3 flex flex-col gap-1 items-center justify-center border-slate-200 hover:border-emerald-500 hover:bg-emerald-50/50 hover:text-emerald-700 transition-all rounded-xl group"
             >
-              <FileText className="h-5 w-5 sm:h-6 sm:w-6 text-emerald-600 mb-1 group-hover:scale-110 transition-transform" />
-              <span className="font-bold text-[10px] sm:text-sm leading-tight text-center">Create Request</span>
+              <FileText className="h-5 w-5 text-emerald-600 mb-1 group-hover:scale-110 transition-transform" />
+              <span className="text-xs leading-tight min-h-[2.6em] flex items-center justify-center text-center">New Auth<br/>Request</span>
             </Button>
             
             <Button
               variant="outline"
               onClick={() => navigate("/dashboard/claims")}
-              className="h-auto p-2 sm:p-4 flex flex-col gap-1 sm:gap-2 items-center justify-center border-slate-200 hover:border-blue-500 hover:bg-blue-50/50 hover:text-blue-700 transition-all rounded-xl group"
+              className="h-auto p-2 sm:p-3 flex flex-col gap-1 items-center justify-center border-slate-200 hover:border-blue-500 hover:bg-blue-50/50 hover:text-blue-700 transition-all rounded-xl group"
             >
-              <Send className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600 mb-1 group-hover:scale-110 transition-transform" />
-              <span className="font-bold text-[10px] sm:text-sm leading-tight text-center">Submit Claim</span>
+              <Send className="h-5 w-5 text-blue-600 mb-1 group-hover:scale-110 transition-transform" />
+              <span className="text-xs leading-tight min-h-[2.6em] flex items-center justify-center text-center">Submit<br/>Claim</span>
             </Button>
 
             <Button
               variant="outline"
               onClick={() => navigate("/dashboard/messages")}
-              className="h-auto p-2 sm:p-4 flex flex-col gap-1 sm:gap-2 items-center justify-center border-slate-200 hover:border-purple-500 hover:bg-purple-50/50 hover:text-purple-700 transition-all rounded-xl group"
+              className="h-auto p-2 sm:p-3 flex flex-col gap-1 items-center justify-center border-slate-200 hover:border-purple-500 hover:bg-purple-50/50 hover:text-purple-700 transition-all rounded-xl group"
             >
-              <MessageSquare className="h-5 w-5 sm:h-6 sm:w-6 text-purple-600 mb-1 group-hover:scale-110 transition-transform" />
-              <span className="font-bold text-[10px] sm:text-sm leading-tight text-center">Support</span>
+              <MessageSquare className="h-5 w-5 text-purple-600 mb-1 group-hover:scale-110 transition-transform" />
+              <span className="text-xs leading-tight min-h-[2.6em] flex items-center justify-center text-center">Support</span>
             </Button>
           </CardContent>
         </Card>
 
         <Card className="premium-card rounded-xl border border-slate-100 shadow-sm bg-white overflow-hidden transition-shadow hover:shadow-md">
-          <CardHeader className="p-4 border-b border-slate-100/50 flex flex-row items-center justify-between">
-            <CardTitle className="text-xs font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
+          <CardHeader className="p-3 sm:p-4 flex flex-row items-center justify-between">
+            <CardTitle className="text-[14px] font-medium text-slate-500 tracking-normal capitalize flex items-center gap-2">
               <Megaphone className="h-4 w-4 text-amber-500" />
-              HMO Announcements
+              Announcements
             </CardTitle>
           </CardHeader>
           <div className="p-0">
