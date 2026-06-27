@@ -498,13 +498,13 @@ export default function HospitalNewRequest() {
   };
 
   return (
-    <div className="max-w-2xl mx-auto pb-24 animate-in fade-in duration-300">
+    <div className="max-w-2xl mx-auto pb-10 animate-in fade-in duration-300">
       <div className="flex items-center gap-4 mb-4">
         <Button variant="ghost" size="icon" onClick={() => navigate("/dashboard")} className="rounded-full h-8 w-8 bg-white border border-slate-100 shadow-sm shrink-0">
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div className="flex flex-col">
-          <h1 className="text-xl font-black text-slate-800">New Authorization Request</h1>
+          <h1 className="text-base sm:text-xl font-black text-slate-800">New Authorization Request</h1>
           <p className="text-xs font-semibold text-slate-400">Step {step} of 4</p>
         </div>
       </div>
