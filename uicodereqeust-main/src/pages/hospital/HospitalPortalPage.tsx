@@ -297,22 +297,24 @@ export default function HospitalPortalPage() {
       {/* Dashboard Stats */}
       <div className="grid gap-2 sm:gap-4 grid-cols-3 md:grid-cols-3 lg:grid-cols-6">
         {[
-          { label: "Approved", val: metrics.approvedCount.toLocaleString(), color: "text-emerald-600", icon: CheckCircle2, accent: "#10B981" },
-          { label: "Pending", val: metrics.pendingCount.toLocaleString(), color: "text-amber-600", icon: Clock, accent: "#F59E0B" },
-          { label: "Rejected", val: metrics.deniedCount.toLocaleString(), color: "text-rose-600", icon: XCircle, accent: "#EF4444" },
-          { label: "Portfolio", val: `₦${metrics.totalValue.toLocaleString()}`, color: "text-blue-600", icon: TrendingUp, accent: "#3B82F6" },
-          { label: "Unpaid", val: `₦${metrics.pendingPayout.toLocaleString()}`, color: "text-purple-600", icon: Banknote, accent: "#8B5CF6" },
-          { label: "Paid", val: `₦${metrics.paidClaims.toLocaleString()}`, color: "text-emerald-600", icon: ShieldCheck, accent: "#10B981" },
+          { label: "Approved", val: metrics.approvedCount, isZero: metrics.approvedCount === 0, color: "text-emerald-600", icon: CheckCircle2, accent: "#10B981" },
+          { label: "Pending", val: metrics.pendingCount, isZero: metrics.pendingCount === 0, color: "text-amber-600", icon: Clock, accent: "#F59E0B" },
+          { label: "Rejected", val: metrics.deniedCount, isZero: metrics.deniedCount === 0, color: "text-rose-600", icon: XCircle, accent: "#EF4444" },
+          { label: "Portfolio", val: `₦${metrics.totalValue.toLocaleString()}`, isZero: metrics.totalValue === 0, color: "text-blue-600", icon: TrendingUp, accent: "#3B82F6" },
+          { label: "Unpaid", val: `₦${metrics.pendingPayout.toLocaleString()}`, isZero: metrics.pendingPayout === 0, color: "text-purple-600", icon: Banknote, accent: "#8B5CF6" },
+          { label: "Paid", val: `₦${metrics.paidClaims.toLocaleString()}`, isZero: metrics.paidClaims === 0, color: "text-emerald-600", icon: ShieldCheck, accent: "#10B981" },
         ].map((m, i) => (
-          <div key={i} className="premium-card flex flex-1 min-w-0 flex-col p-3 rounded-xl border border-slate-100 bg-white hover:shadow-md transition-shadow relative overflow-hidden" title={m.label}>
-            <div className="flex justify-between items-start mb-1 gap-1">
-              <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-slate-500 flex items-start leading-tight break-words">{m.label}</p>
-              <div className="flex h-5 w-5 sm:h-6 sm:w-6 shrink-0 items-center justify-center rounded-md" style={{ background: `${m.accent}14`, color: m.accent }}>
-                <m.icon className="h-3 w-3" strokeWidth={2.5} />
+          <div key={i} className="flex flex-1 min-w-0 flex-col p-3 rounded-xl border border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm transition-all cursor-pointer relative overflow-hidden" title={m.label}>
+            <div className="flex justify-between items-start mb-2 gap-1">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 leading-tight break-words">{m.label}</p>
+              <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full" style={{ background: `${m.accent}1A`, color: m.accent }}>
+                <m.icon className="h-[10px] w-[10px]" strokeWidth={3} />
               </div>
             </div>
-            <div>
-              <p className={cn("text-[clamp(12px,3vw,20px)] font-bold mt-0.5 leading-tight break-words", m.color)}>{m.val}</p>
+            <div className="mt-auto">
+              <h3 className={cn("text-base font-black leading-none tracking-tight break-words", m.isZero ? "text-slate-400" : m.color)}>
+                {m.val}
+              </h3>
             </div>
           </div>
         ))}

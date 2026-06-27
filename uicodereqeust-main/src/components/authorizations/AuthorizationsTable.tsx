@@ -190,110 +190,117 @@ export default function AuthorizationsTable({
         {paginatedRequests.map(r => {
           const claimStatus = claimStatusFor(r);
           return (
-            <Card key={r.id} className="rounded-xl border-slate-200 bg-white shadow-sm overflow-hidden cursor-pointer active:scale-[0.98] transition-all duration-150" onClick={() => { 
+            <Card key={r.id} className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden cursor-pointer active:scale-[0.98] transition-all duration-150" onClick={() => { 
                 setSelectedRequest(r); 
                 if (r.status === "referral_approved" && canSubmitClaimFor(r, hospital)) onProcessReferral?.(r);
                 else if (r.status === "referral_accepted" && canSubmitClaimFor(r, hospital)) onSubmitTreatmentPlan?.(r);
                 else setIsReviewing(true); 
               }}>
-              <CardContent className="p-4 space-y-2.5">
-                {/* Header: Name + Status + Date */}
-                <div className="flex justify-between items-start">
-                  <div className="flex-1 min-w-0 pr-3">
-                    <p className="text-sm font-black uppercase leading-tight text-slate-950">{r.patient_name}</p>
-                    <p className="text-xs font-semibold text-slate-600 mt-0.5 leading-snug line-clamp-2">{r.diagnosis}</p>
-                  </div>
-                  <div className="flex flex-col items-end gap-1 shrink-0">
-                    <Badge variant="outline" className={cn("rounded-full px-2.5 py-0.5 border badge-label text-xs font-bold whitespace-nowrap w-fit", (() => {
+              <CardContent className="p-4 flex flex-col gap-2">
+                {/* Row 1: Name + Status badge */}
+                <div className="flex items-start justify-between gap-3">
+                  <p className="text-[13px] font-bold uppercase leading-tight text-slate-900 flex-1 min-w-0 break-words">{r.patient_name}</p>
+                  
+                  <div className={cn("inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide shrink-0", (() => {
+                    const s = String(r.status || "").toLowerCase();
+                    const map: Record<string, string> = {
+                      approved: "bg-emerald-50 text-emerald-600",
+                      referral_approved: "bg-slate-100 text-slate-600",
+                      pending: "bg-amber-50 text-amber-600",
+                      rejected: "bg-rose-50 text-rose-600",
+                    };
+                    return map[s] || "bg-slate-50 text-slate-500 border border-slate-200";
+                  })())}>
+                    <span className={cn("w-1.5 h-1.5 rounded-full", (() => {
                       const s = String(r.status || "").toLowerCase();
                       const map: Record<string, string> = {
-                        approved: `${STATUS_COLORS.approved.bg} ${STATUS_COLORS.approved.text} ${STATUS_COLORS.approved.border}`,
-                        referral_approved: `${STATUS_COLORS.referral_approved.bg} ${STATUS_COLORS.referral_approved.text} ${STATUS_COLORS.referral_approved.border}`,
-                        pending: `${STATUS_COLORS.pending.bg} ${STATUS_COLORS.pending.text} ${STATUS_COLORS.pending.border}`,
-                        rejected: `${STATUS_COLORS.rejected.bg} ${STATUS_COLORS.rejected.text} ${STATUS_COLORS.rejected.border}`,
+                        approved: "bg-emerald-500",
+                        referral_approved: "bg-slate-400",
+                        pending: "bg-amber-500",
+                        rejected: "bg-rose-500",
                       };
-                      return map[s] || "border-slate-200 text-slate-600 bg-slate-50";
-                    })())}>
-                      {(() => {
-                        const st = String(r.status || "");
-                        if (st === "referral_approved") return "REF APPROVED";
-                        if (st === "referral_accepted") return "REF ACCEPTED";
-                        return st.replace("_", " ");
-                      })()}
-                    </Badge>
-                    <span className="text-xs font-mono font-bold text-slate-400">{r.created_at ? new Date(r.created_at).toLocaleDateString("en-GB") : "—"}</span>
+                      return map[s] || "bg-slate-400";
+                    })())} />
+                    {(() => {
+                      const st = String(r.status || "");
+                      if (st === "referral_approved") return "REF APPROVED";
+                      if (st === "referral_accepted") return "REF ACCEPTED";
+                      return st.replace("_", " ");
+                    })()}
                   </div>
                 </div>
 
-                {/* Referral badge inline */}
+                {/* Row 2: Diagnosis, Date, Actions inline */}
+                <div className="flex items-center justify-between gap-2 mt-0.5">
+                  <div className="flex-1 min-w-0 flex items-center gap-2">
+                    <p className="text-xs text-slate-500 truncate">{r.diagnosis || "No diagnosis"}</p>
+                    <span className="text-[11px] text-slate-400 shrink-0">{r.created_at ? new Date(r.created_at).toLocaleDateString("en-GB") : "—"}</span>
+                  </div>
+
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={(e) => { 
+                        e.stopPropagation();
+                        setSelectedRequest(r); 
+                        if (r.status === "referral_approved" && canSubmitClaimFor(r, hospital)) {
+                          onProcessReferral?.(r);
+                        } else if (r.status === "referral_accepted" && canSubmitClaimFor(r, hospital)) {
+                          onSubmitTreatmentPlan?.(r);
+                        } else {
+                          setIsReviewing(true); 
+                        }
+                      }}
+                      className="h-7 px-2 rounded-md border-slate-200 text-slate-600 hover:bg-slate-50 text-[11px] font-semibold"
+                    >
+                      <svg className="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                      {r.status === "referral_approved" && canSubmitClaimFor(r, hospital)
+                        ? "Process"
+                        : r.status === "referral_accepted" && canSubmitClaimFor(r, hospital)
+                        ? "Submit"
+                        : "View"}
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="icon" 
+                      onClick={(e) => { e.stopPropagation(); openRequestChat(r); }}
+                      className="h-7 w-7 rounded-full border-slate-200 text-slate-500 hover:bg-slate-100"
+                      title="Message about this request"
+                    >
+                      <MessageSquare className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Row 3: Referral info */}
                 {isReferralFor(r) && (
-                  <span className="inline-flex items-center rounded-md border border-[#3f3f95]/20 bg-[#3f3f95]/5 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-[#3f3f95]">
-                    Referral To: {claimOwnerNameFor(r)}
-                  </span>
+                  <div className="mt-0.5">
+                    <span className="inline-block max-w-full truncate rounded-md bg-[#F5F3FF] px-2 py-1 text-[11px] font-semibold text-[#8B5CF6]">
+                      Referral To: {claimOwnerNameFor(r)}
+                    </span>
+                  </div>
                 )}
-
+                
                 {/* Code row */}
-                <div className="flex items-center gap-1.5 min-w-0">
-                  {r.deletion_status === "awaiting_admin_approval" ? (
-                    <span className="text-xs font-black text-rose-700">Code Revoked</span>
-                  ) : r.authorization_code ? (
-                    <div className="flex items-center gap-1 min-w-0">
-                      <span className="text-xs font-semibold text-slate-400">Code:</span>
-                      <span className="text-xs font-black text-[#1D9E75] font-mono truncate">{r.authorization_code}</span>
-                      <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleCopyAuth(r); }} className="h-6 w-6 text-slate-400 hover:text-slate-600 shrink-0">
-                        <Copy className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  ) : (
-                    <span className="text-xs font-black text-amber-600">PENDING</span>
-                  )}
-                </div>
-
-                {/* Actions row */}
-                <div className="flex items-center gap-2 pt-0.5 border-t border-slate-100">
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    onClick={(e) => { 
-                      e.stopPropagation();
-                      setSelectedRequest(r); 
-                      if (r.status === "referral_approved" && canSubmitClaimFor(r, hospital)) {
-                        onProcessReferral?.(r);
-                      } else if (r.status === "referral_accepted" && canSubmitClaimFor(r, hospital)) {
-                        onSubmitTreatmentPlan?.(r);
-                      } else {
-                        setIsReviewing(true); 
-                      }
-                    }}
-                    className="h-8 px-3.5 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-bold uppercase tracking-wider"
-                  >
-                    {r.status === "referral_approved" && canSubmitClaimFor(r, hospital)
-                      ? "Process"
-                      : r.status === "referral_accepted" && canSubmitClaimFor(r, hospital)
-                      ? "Submit"
-                      : "View"}
-                  </Button>
-                  {isClaimEligible(r, hospital) && (
-                    claimStatus ? (
-                      <Badge variant="outline" className="rounded-lg border-emerald-200 text-emerald-700 bg-emerald-50 px-2.5 py-1.5 text-[10px] font-bold">
-                        Claimed
-                      </Badge>
-                    ) : canSubmitClaimFor(r, hospital) ? null : (
-                      <Badge variant="outline" className="rounded-lg border-slate-200 bg-slate-50 px-2.5 py-1.5 text-[10px] font-bold text-slate-500">
-                        View Only
-                      </Badge>
-                    )
-                  )}
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    onClick={(e) => { e.stopPropagation(); openRequestChat(r); }}
-                    className="h-7 w-7 rounded-lg border border-slate-200 text-slate-400 hover:bg-slate-100 shrink-0 ml-auto"
-                    title="Message about this request"
-                  >
-                    <MessageSquare className="h-3.5 w-3.5" />
-                  </Button>
-                </div>
+                {(r.authorization_code || r.deletion_status === "awaiting_admin_approval" || !r.authorization_code) && (
+                  <div className="flex items-center gap-1.5 mt-0.5 min-w-0">
+                    {r.deletion_status === "awaiting_admin_approval" ? (
+                      <span className="text-[11px] font-black text-rose-700">Code Revoked</span>
+                    ) : r.authorization_code ? (
+                      <div className="flex items-center gap-1 min-w-0">
+                        <span className="text-[11px] font-semibold text-slate-400">Code:</span>
+                        <span className="text-[11px] font-black text-[#1D9E75] font-mono truncate">{r.authorization_code}</span>
+                        <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleCopyAuth(r); }} className="h-6 w-6 text-slate-400 hover:text-slate-600 shrink-0 ml-1">
+                          <Copy className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <span className="text-[11px] font-black text-amber-600">PENDING</span>
+                    )}
+                  </div>
+                )}
+                
               </CardContent>
             </Card>
           );

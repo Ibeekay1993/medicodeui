@@ -6,8 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useDebounce } from "@/hooks/use-debounce";
 
 import { useToast } from "@/hooks/use-toast";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-
+import { cn } from "@/lib/utils";
 import {
   getApprovedItems,
   claimOwnerNameFor,
@@ -400,24 +399,32 @@ export default function HospitalAuthorizations() {
         loading={loading}
       />
 
-      <div className="flex flex-wrap items-center gap-2">
-        <Select value={statusFilter} onValueChange={(val: any) => setStatusFilter(val)}>
-          <SelectTrigger className="h-8 w-36 rounded-lg bg-slate-100 border-none text-xs font-bold">
-            <SelectValue placeholder="All Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Status</SelectItem>
-            <SelectItem value="pending">Pending</SelectItem>
-            <SelectItem value="pending_referral">Pending Referral</SelectItem>
-            <SelectItem value="referral_approved">Referral Approved</SelectItem>
-            <SelectItem value="referral_accepted">Referral Accepted</SelectItem>
-            <SelectItem value="pending_authorization">Pending Authorization</SelectItem>
-            <SelectItem value="approved">Approved</SelectItem>
-            <SelectItem value="rejected">Rejected</SelectItem>
-            <SelectItem value="referral_declined">Referral Declined</SelectItem>
-            <SelectItem value="referral_expired">Referral Expired</SelectItem>
-          </SelectContent>
-        </Select>
+      <div className="flex overflow-x-auto no-scrollbar gap-2 pb-2 -mx-4 px-4 sm:mx-0 sm:px-0">
+        {[
+          { id: "all", label: "All Status" },
+          { id: "pending", label: "Pending" },
+          { id: "pending_referral", label: "Pending Referral" },
+          { id: "referral_approved", label: "Referral Approved" },
+          { id: "referral_accepted", label: "Referral Accepted" },
+          { id: "pending_authorization", label: "Pending Authorization" },
+          { id: "approved", label: "Approved" },
+          { id: "rejected", label: "Rejected" },
+          { id: "referral_declined", label: "Referral Declined" },
+          { id: "referral_expired", label: "Referral Expired" }
+        ].map(filter => (
+          <button
+            key={filter.id}
+            onClick={() => setStatusFilter(filter.id)}
+            className={cn(
+              "px-3 py-1.5 rounded-full border text-[13px] font-semibold whitespace-nowrap transition-colors flex items-center gap-1.5",
+              statusFilter === filter.id 
+                ? "bg-slate-900 text-white border-slate-900" 
+                : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
+            )}
+          >
+            {filter.label}
+          </button>
+        ))}
       </div>
 
       <AuthorizationsTable
