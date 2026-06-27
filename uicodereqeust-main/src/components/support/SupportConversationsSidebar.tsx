@@ -65,7 +65,7 @@ export function SupportConversationsSidebar({
         <div className="flex items-center justify-between">
           <h2 className="text-base font-medium text-slate-800 mb-1 mt-1">Conversations</h2>
           <div className="flex items-center gap-1">
-            <Button size="sm" className="h-7 rounded text-xs font-bold bg-gradient-to-br from-brand-500 to-indigo-600 hover:from-brand-600 hover:to-indigo-700 px-3 shadow-md shadow-brand-500/20 text-white ring-1 ring-white/20 inset transition-all active:scale-95" onClick={onNewTicketClick}>
+            <Button size="sm" className="h-7 rounded text-xs font-bold bg-gradient-to-br from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 px-3 shadow-md shadow-indigo-500/20 text-white ring-1 ring-white/20 inset transition-all active:scale-95" onClick={onNewTicketClick}>
               <Plus className="mr-1 h-3.5 w-3.5" /> New
             </Button>
             <Button variant="ghost" size="icon" className="hidden lg:flex h-7 w-7 rounded text-slate-400" onClick={() => setLeftCollapsed(true)}>
@@ -131,7 +131,7 @@ export function SupportConversationsSidebar({
       <div className="flex-1 overflow-y-auto divide-y divide-slate-100 bg-white">
         {loading ? (
           <div className="flex h-40 items-center justify-center">
-            <Loader2 className="h-6 w-6 animate-spin text-brand-600" />
+            <Loader2 className="h-6 w-6 animate-spin text-indigo-600" />
           </div>
         ) : filteredConversations.length === 0 ? (
           <div className="p-10 text-center text-sm font-semibold text-slate-400">
@@ -156,7 +156,7 @@ export function SupportConversationsSidebar({
                 }}
                 className={cn(
                   "block w-full p-3 text-left transition-all border-l-4 border-b border-slate-100",
-                  isSelected ? "bg-brand-50 border-brand-400" : "border-transparent hover:bg-slate-50"
+                  isSelected ? "bg-indigo-50 border-indigo-400" : "border-transparent hover:bg-slate-50"
                 )}
               >
                 <div className="flex flex-col gap-1">
@@ -164,7 +164,7 @@ export function SupportConversationsSidebar({
                   <div className="flex items-center gap-2 text-xs">
                     <span className="font-bold text-slate-900 truncate max-w-[140px]">{item.subject || "Request Support"}</span>
                     <span className="text-slate-300 shrink-0">•</span>
-                    <span className={cn("font-bold uppercase tracking-wider text-[10px] shrink-0", item.status === "closed" || item.status === "resolved" ? "text-slate-500" : "text-brand-600")}>
+                    <span className={cn("font-bold uppercase tracking-wider text-[10px] shrink-0", item.status === "closed" || item.status === "resolved" ? "text-slate-500" : "text-indigo-600")}>
                       {(item.status || "open").replace(/_/g, " ")}
                     </span>
                     <span className="text-slate-300 shrink-0">•</span>

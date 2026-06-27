@@ -687,7 +687,7 @@ export function SupportChatArea({
                 type="button"
                 onClick={() => handleSendMessage()}
                 disabled={sending || (!replyText.trim() && pendingFiles.length === 0) || selectedClosed}
-                className="h-9 px-4 rounded-[14px] bg-gradient-to-tr from-brand-600 to-indigo-500 hover:from-brand-700 hover:to-indigo-600 shadow-md shadow-brand-500/20 text-white shrink-0 transition-all duration-300 hover:scale-[1.02] active:scale-95"
+                className="h-9 px-4 rounded-[14px] bg-gradient-to-tr from-indigo-600 to-indigo-500 hover:from-indigo-700 hover:to-indigo-600 shadow-md shadow-indigo-500/20 text-white shrink-0 transition-all duration-300 hover:scale-[1.02] active:scale-95"
               >
                 {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
               </Button>

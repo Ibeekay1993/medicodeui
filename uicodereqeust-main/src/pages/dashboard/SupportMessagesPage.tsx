@@ -653,7 +653,7 @@ const updateClaimStatus = async (status: "approved" | "rejected" | "paid" | "und
           onClick={() => setMobileSubView("LIST")}
           className={cn(
             "flex flex-col items-center gap-1 py-1.5 px-4 rounded-xl transition-all duration-300",
-            mobileSubView === "LIST" ? "text-brand-700 bg-brand-50 shadow-sm ring-1 ring-brand-100 inset" : "text-slate-500 hover:text-slate-700 hover:bg-slate-50/50"
+            mobileSubView === "LIST" ? "text-indigo-700 bg-indigo-50 shadow-sm ring-1 ring-indigo-100 inset" : "text-slate-500 hover:text-slate-700 hover:bg-slate-50/50"
           )}
         >
           <MessageSquare className="h-5 w-5" />
@@ -665,7 +665,7 @@ const updateClaimStatus = async (status: "approved" | "rejected" | "paid" | "und
           disabled={!selected}
           className={cn(
             "flex flex-col items-center gap-1 py-1.5 px-4 rounded-xl transition-all duration-300",
-            mobileSubView === "CHAT" && selected ? "text-brand-700 bg-brand-50 shadow-sm ring-1 ring-brand-100 inset" : "text-slate-400 hover:text-slate-600 hover:bg-slate-50/50"
+            mobileSubView === "CHAT" && selected ? "text-indigo-700 bg-indigo-50 shadow-sm ring-1 ring-indigo-100 inset" : "text-slate-400 hover:text-slate-600 hover:bg-slate-50/50"
           )}
         >
           <Send className="h-5 w-5" />
@@ -677,7 +677,7 @@ const updateClaimStatus = async (status: "approved" | "rejected" | "paid" | "und
           disabled={!selected}
           className={cn(
             "flex flex-col items-center gap-1 py-1.5 px-4 rounded-xl transition-all duration-300",
-            mobileSubView === "INFO" && selected ? "text-brand-700 bg-brand-50 shadow-sm ring-1 ring-brand-100 inset" : "text-slate-400 hover:text-slate-600 hover:bg-slate-50/50"
+            mobileSubView === "INFO" && selected ? "text-indigo-700 bg-indigo-50 shadow-sm ring-1 ring-indigo-100 inset" : "text-slate-400 hover:text-slate-600 hover:bg-slate-50/50"
           )}
         >
           <FileText className="h-5 w-5" />
@@ -691,7 +691,7 @@ const updateClaimStatus = async (status: "approved" | "rejected" | "paid" | "und
         onClick={() => {
           setNewTicketOpen(true);
         }}
-        className="fixed bottom-24 right-5 z-50 lg:bottom-8 lg:right-8 h-14 w-14 rounded-full bg-gradient-to-br from-brand-500 to-indigo-600 text-white shadow-[0_8px_20px_rgb(79,70,229,0.4)] hover:shadow-[0_12px_25px_rgb(79,70,229,0.5)] hover:scale-105 active:scale-90 transition-all duration-300 flex items-center justify-center ring-1 ring-white/20 inset"
+        className="fixed bottom-24 right-5 z-50 lg:bottom-8 lg:right-8 h-14 w-14 rounded-full bg-gradient-to-br from-indigo-500 to-indigo-600 text-white shadow-[0_8px_20px_rgb(79,70,229,0.4)] hover:shadow-[0_12px_25px_rgb(79,70,229,0.5)] hover:scale-105 active:scale-90 transition-all duration-300 flex items-center justify-center ring-1 ring-white/20 inset"
         title="New Conversation"
       >
         <Plus className="h-6 w-6" />

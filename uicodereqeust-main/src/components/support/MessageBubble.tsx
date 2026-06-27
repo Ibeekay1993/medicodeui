@@ -103,11 +103,11 @@ export function MessageBubble({
   const bubbleBg = isMsgInternal
     ? "bg-amber-50 border-amber-200 border-l-4 border-l-amber-500 text-amber-900"
     : isOwnMessage
-    ? "bg-brand-600 border border-brand-500 text-white shadow-[0_4px_12px_rgba(79,70,229,0.15)]"
+    ? "bg-indigo-600 border border-indigo-500 text-white shadow-[0_4px_12px_rgba(79,70,229,0.15)]"
     : "bg-white border border-slate-100 text-slate-800 shadow-[0_2px_8px_rgba(0,0,0,0.04)]";
 
   const textColor = isOwnMessage && !isMsgInternal ? "text-white" : "text-slate-800";
-  const timeColor = isOwnMessage && !isMsgInternal ? "text-brand-200" : "text-slate-400";
+  const timeColor = isOwnMessage && !isMsgInternal ? "text-indigo-200" : "text-slate-400";
 
   return (
     <div className={cn("flex w-full animate-in fade-in slide-in-from-bottom-1 duration-200 my-1", isOwnMessage ? "justify-end" : "justify-start")}>
@@ -155,12 +155,12 @@ export function MessageBubble({
             </p>
 
             {msg.attachment_url && (
-              <div className={cn("mt-2 p-2 rounded-xl border flex items-center justify-between gap-3", isOwnMessage && !isMsgInternal ? "bg-brand-700/50 border-brand-500" : "bg-slate-50 border-slate-200")}>
+              <div className={cn("mt-2 p-2 rounded-xl border flex items-center justify-between gap-3", isOwnMessage && !isMsgInternal ? "bg-indigo-700/50 border-indigo-500" : "bg-slate-50 border-slate-200")}>
                 <div className="flex items-center gap-2 overflow-hidden">
-                  <div className={cn("p-1.5 rounded-lg shrink-0", isOwnMessage && !isMsgInternal ? "bg-brand-500 text-white" : "bg-indigo-100 text-indigo-600")}>
+                  <div className={cn("p-1.5 rounded-lg shrink-0", isOwnMessage && !isMsgInternal ? "bg-indigo-500 text-white" : "bg-indigo-100 text-indigo-600")}>
                      <Paperclip className="h-4 w-4" />
                   </div>
-                  <span className={cn("text-xs font-medium truncate max-w-[180px]", isOwnMessage && !isMsgInternal ? "text-brand-50" : "text-slate-700")}>
+                  <span className={cn("text-xs font-medium truncate max-w-[180px]", isOwnMessage && !isMsgInternal ? "text-indigo-50" : "text-slate-700")}>
                     {msg.attachment_name || "Attachment"}
                   </span>
                 </div>
@@ -168,7 +168,7 @@ export function MessageBubble({
                   type="button"
                   onClick={() => downloadAttachment(msg.attachment_url, msg.attachment_name)}
                   className={cn("text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-md transition-colors", 
-                    isOwnMessage && !isMsgInternal ? "bg-brand-500 hover:bg-brand-400 text-white" : "bg-slate-200 hover:bg-slate-300 text-slate-700"
+                    isOwnMessage && !isMsgInternal ? "bg-indigo-500 hover:bg-indigo-400 text-white" : "bg-slate-200 hover:bg-slate-300 text-slate-700"
                   )}
                 >
                   Download
