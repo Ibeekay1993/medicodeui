@@ -258,17 +258,17 @@ export function LiveChat() {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="w-[94vw] sm:max-w-[400px] h-[80vh] sm:h-[550px] p-0 overflow-hidden border-none shadow-2xl rounded-3xl bg-slate-50 flex flex-col">
 
-          <DialogHeader className="p-6 bg-slate-900 text-white shrink-0">
+          <DialogHeader className="p-6 bg-[#3f3f95] text-white shrink-0">
             <DialogTitle className="text-sm font-black uppercase tracking-tight italic">Live <span className="text-emerald-400">Support</span></DialogTitle>
             <div className="flex items-center justify-between gap-2 mt-1.5">
-              <p className="text-xs font-black text-slate-400 uppercase tracking-widest">
+              <p className="text-xs font-black text-slate-200/80 uppercase tracking-widest">
                 {conversation?.ticket_number || "Support Ticket Inbox"}
               </p>
               <div className="flex items-center gap-1.5">
                 <button
-                  onClick={handleToggleIcon}
-                  className="text-xs font-black uppercase tracking-widest text-slate-500 hover:text-white bg-slate-800 hover:bg-slate-700 px-2 py-0.5 rounded-md transition-all border border-slate-700"
-                  title={dismissed ? "Show floating chat icon" : "Hide floating chat icon"}
+                   onClick={handleToggleIcon}
+                   className="text-xs font-black uppercase tracking-widest text-slate-300 hover:text-white bg-[#32327a] hover:bg-[#2c2c6d] px-2 py-0.5 rounded-md transition-all border border-[#32327a]/50"
+                   title={dismissed ? "Show floating chat icon" : "Hide floating chat icon"}
                 >
                   {dismissed ? "Show Icon" : "Hide Icon"}
                 </button>

@@ -169,11 +169,11 @@ export default function ReferralTreatmentFormDialog({
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-xl rounded-2xl border-none shadow-2xl p-0 max-h-[92dvh] overflow-y-auto overflow-x-hidden">
-        <div className="bg-slate-900 p-6 text-white relative">
+        <div className="bg-[#3f3f95] p-6 text-white relative">
           <h2 className="text-sm font-black uppercase tracking-tight italic">
-            Treatment <span className="text-blue-400">Request Form</span>
+            Treatment <span className="text-emerald-400">Request Form</span>
           </h2>
-          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">
+          <p className="text-xs font-bold text-slate-200/80 uppercase tracking-widest mt-1">
             Stage 4: Referral Case Details
           </p>
         </div>
@@ -300,7 +300,7 @@ export default function ReferralTreatmentFormDialog({
             <Button
               onClick={handleSubmit}
               disabled={isSubmitting || treatments.length === 0}
-              className="h-11 flex-1 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-black uppercase text-xs tracking-wider shadow-md"
+              className="h-11 flex-1 rounded-xl bg-[#3f3f95] hover:bg-[#32327a] text-white font-black uppercase text-xs tracking-wider shadow-lg shadow-[#3f3f95]/15"
             >
               {isSubmitting ? (
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />

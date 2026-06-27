@@ -50,11 +50,11 @@ export default function ExportCSVDialog({ open, onOpenChange, onExport, isExport
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md rounded-2xl border-none p-0 overflow-hidden shadow-2xl">
-        <div className="bg-slate-900 p-6 text-white">
+        <div className="bg-[#3f3f95] p-6 text-white">
           <DialogTitle className="text-sm font-black uppercase tracking-wider flex items-center gap-2">
             <Calendar className="h-4 w-4 text-emerald-400" /> Export Authorizations
           </DialogTitle>
-          <DialogDescription className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">
+          <DialogDescription className="text-xs font-bold text-slate-200/80 uppercase tracking-widest mt-1">
             Select a date range to download the CSV ledger
           </DialogDescription>
         </div>

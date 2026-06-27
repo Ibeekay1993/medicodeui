@@ -46,6 +46,7 @@ export default function AuthorizationsHeader({
           <Button 
             onClick={exportCSV} 
             disabled={isExporting || loading} 
+            size="sm"
             className="h-8 px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-sm w-full sm:w-auto"
           >
             {isExporting ? <Loader2 className="h-3 w-3 mr-2 animate-spin" /> : <Download className="h-3 w-3 mr-2" />} 

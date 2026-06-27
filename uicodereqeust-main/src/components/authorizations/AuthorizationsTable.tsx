@@ -276,7 +276,7 @@ export default function AuthorizationsTable({
                 {/* Row 3: Referral info */}
                 {isReferralFor(r) && (
                   <div className="mt-0.5">
-                    <span className="inline-block max-w-full truncate rounded bg-[#F5F3FF] px-1.5 py-0.5 text-[9.5px] font-black uppercase tracking-wider text-[#8B5CF6]">
+                    <span className="inline-block max-w-full rounded bg-[#F5F3FF] px-1.5 py-0.5 text-[9.5px] font-black uppercase tracking-wider text-[#8B5CF6] break-words whitespace-normal leading-snug">
                       Referral To: {claimOwnerNameFor(r)}
                     </span>
                   </div>

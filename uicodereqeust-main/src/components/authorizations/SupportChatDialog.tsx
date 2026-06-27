@@ -23,9 +23,9 @@ export default function SupportChatDialog({
   return (
     <Dialog open={requestChatOpen} onOpenChange={setRequestChatOpen}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto overflow-x-hidden rounded-2xl border-none p-0">
-        <div className="bg-slate-900 p-5 text-white">
+        <div className="bg-[#3f3f95] p-5 text-white">
           <h2 className="text-sm font-black uppercase tracking-tight italic">Request Support Chat</h2>
-          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">
+          <p className="text-xs font-bold text-slate-200/80 uppercase tracking-widest mt-1">
             Raise a request-linked message
           </p>
         </div>
@@ -88,7 +88,7 @@ export default function SupportChatDialog({
           <Button
             onClick={handleCreateRequestSupportChat}
             disabled={requestChatSending || !requestChatDraft.trim()}
-            className="w-full h-11 rounded-xl bg-slate-900 text-xs font-black uppercase tracking-widest hover:bg-slate-800"
+            className="w-full h-11 rounded-xl bg-[#3f3f95] hover:bg-[#32327a] text-xs font-black uppercase tracking-widest text-white shadow-lg shadow-[#3f3f95]/15 transition-all"
           >
             {requestChatSending ? "Creating..." : "Create Request Support Chat"}
           </Button>
