@@ -217,11 +217,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       handleSession(null);
       await supabase.auth.signOut({ scope: "local" });
+    } catch (error) {
+      console.error("AuthContext idle signOut failed", error);
+    } finally {
       if (typeof window !== "undefined") {
         window.location.href = "/login";
       }
-    } catch (error) {
-      console.error("AuthContext idle signOut failed", error);
     }
   }, [session, handleSession]);
 
@@ -315,7 +316,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Run immediately on mount
     if (checkSessionExpiry()) return;
 
-    const activityEvents = ["mousemove", "keydown", "mousedown", "touchstart", "scroll", "click"];
+    const activityEvents = ["mousemove", "keydown", "mousedown", "touchstart", "click"];
     activityEvents.forEach((eventName) => window.addEventListener(eventName, updateActivity, { passive: true, capture: true }));
     window.addEventListener("storage", handleStorageActivity);
     window.addEventListener("visibilitychange", handleFocus);
