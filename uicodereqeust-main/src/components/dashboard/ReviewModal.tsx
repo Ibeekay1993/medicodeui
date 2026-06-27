@@ -327,6 +327,8 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
                           label="Referral Hospital / Claim Owner"
                           value={actions.editReferralHospitalName}
                           selectedId={actions.editReferralHospitalId}
+                          excludeHospitalId={request?.requesting_hospital_id || request?.hospital_id}
+                          excludeHospitalName={request?.requesting_hospital_name || request?.hospital_name}
                           onChange={(next) => {
                             actions.setEditReferralHospitalId(next.id);
                             actions.setEditReferralHospitalName(next.name);

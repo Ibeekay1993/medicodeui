@@ -588,6 +588,20 @@ export function useClinicalActions({
       });
       return;
     }
+    const requestingHospId = request?.requesting_hospital_id || request?.hospital_id;
+    const requestingHospName = request?.requesting_hospital_name || request?.hospital_name || "";
+    if (
+      editReferralHospitalName.trim() &&
+      ((editReferralHospitalId && requestingHospId && editReferralHospitalId === requestingHospId) ||
+       (requestingHospName.trim() && editReferralHospitalName.toLowerCase().trim() === requestingHospName.toLowerCase().trim()))
+    ) {
+      toast({
+        variant: "destructive",
+        title: "Invalid Referral",
+        description: "You cannot refer a patient to the requesting facility itself.",
+      });
+      return;
+    }
     if (!editDecisionNote.trim()) {
       toast({
         variant: "destructive",
@@ -657,6 +671,19 @@ export function useClinicalActions({
         variant: "destructive",
         title: "New referred hospital required",
         description: "Please select a new referred hospital before reassigning.",
+      });
+      return;
+    }
+    const requestingHospId = request?.requesting_hospital_id || request?.hospital_id;
+    const requestingHospName = request?.requesting_hospital_name || request?.hospital_name || "";
+    if (
+      (editReferralHospitalId && requestingHospId && editReferralHospitalId === requestingHospId) ||
+      (requestingHospName.trim() && editReferralHospitalName.toLowerCase().trim() === requestingHospName.toLowerCase().trim())
+    ) {
+      toast({
+        variant: "destructive",
+        title: "Invalid Referral",
+        description: "You cannot refer a patient to the requesting facility itself.",
       });
       return;
     }
