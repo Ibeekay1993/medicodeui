@@ -109,8 +109,8 @@ export function SupportDetailsSidebar({
               <div className="space-y-3 animate-in fade-in duration-300">
                 <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm space-y-2">
                   <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                    <span className="text-xs font-black text-slate-400 uppercase tracking-wider">
-                      Linked Authorization Details
+                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                      Request Details
                     </span>
                     <Badge className="bg-indigo-50 text-indigo-700 border-indigo-100 font-black text-xs px-1.5 uppercase rounded-lg">
                       {matchedRequest.request_id || matchedRequest.authorization_code || "REQ-LINKED"}
@@ -119,69 +119,69 @@ export function SupportDetailsSidebar({
 
                   <div className="flex flex-col gap-1.5 text-xs leading-none">
                     <div className="flex flex-col gap-0.5">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">
+                      <span className="text-[11px] font-medium text-slate-400 uppercase">
                         Request Reference
                       </span>
-                      <span className="font-mono font-black text-slate-900 text-xs leading-none">
+                      <span className="font-medium text-slate-800 text-xs">
                         {matchedRequest.request_id || matchedRequest.authorization_code || "REQ-LINKED"}
                       </span>
                     </div>
                     <div className="flex flex-col gap-0.5">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">
+                      <span className="text-[11px] font-medium text-slate-400 uppercase">
                         Decision Status
                       </span>
-                      <span className="font-black text-slate-800 text-xs uppercase">
+                      <span className="font-medium text-slate-800 text-xs uppercase">
                         {matchedRequest.status || "PENDING"}
                       </span>
                     </div>
                     <div className="flex flex-col gap-0.5">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">
+                      <span className="text-[11px] font-medium text-slate-400 uppercase">
                         Authorization Code
                       </span>
-                      <span className="font-mono font-black text-slate-900 text-xs leading-none">
+                      <span className="font-medium text-slate-800 text-xs">
                         {matchedRequest.status === "approved"
                           ? matchedRequest.authorization_code || "PENDING"
                           : "NONE"}
                       </span>
                     </div>
                     <div className="flex flex-col gap-0.5">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">
+                      <span className="text-[11px] font-medium text-slate-400 uppercase">
                         Decision Note
                       </span>
-                      <span className="font-bold text-slate-600 leading-tight">
+                      <span className="font-medium text-slate-800 text-xs">
                         {getDecisionReason(matchedRequest) || "No decision note recorded"}
                       </span>
                     </div>
                     <div className="flex flex-col gap-0.5">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">
+                      <span className="text-[11px] font-medium text-slate-400 uppercase">
                         Patient Name
                       </span>
-                      <span className="font-extrabold text-slate-800 text-xs leading-none">
+                      <span className="font-medium text-slate-800 text-xs">
                         {matchedRequest.patient_name}
                       </span>
                     </div>
                     <div className="flex flex-col gap-0.5">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">
+                      <span className="text-[11px] font-medium text-slate-400 uppercase">
                         Policy Number
                       </span>
-                      <span className="font-mono font-black text-slate-900 text-xs leading-none">
+                      <span className="font-medium text-slate-800 text-xs">
                         {matchedRequest.policy_number}
                       </span>
                     </div>
                     <div className="flex flex-col gap-0.5">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">
+                      <span className="text-[11px] font-medium text-slate-400 uppercase">
                         Hospital
                       </span>
-                      <span className="font-black text-slate-800 text-xs leading-none">
+                      <span className="font-medium text-slate-800 text-xs">
                         {matchedRequest.hospital_name || "Requesting hospital"}
                       </span>
                     </div>
                     {matchedRequest.requesting_hospital_name && (
                       <div className="flex flex-col gap-0.5">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">
+                      <span className="text-[11px] font-medium text-slate-400 uppercase">
                           Requesting Hospital
                         </span>
-                        <span className="font-black text-slate-800 text-xs leading-none">
+                        <span className="font-medium text-slate-800 text-xs">
                           {matchedRequest.requesting_hospital_name}
                         </span>
                       </div>
@@ -189,26 +189,26 @@ export function SupportDetailsSidebar({
                     {matchedRequest.referring_hospital_name &&
                       matchedRequest.referring_hospital_name !== matchedRequest.hospital_name && (
                         <div className="flex flex-col gap-0.5">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">
+                      <span className="text-[11px] font-medium text-slate-400 uppercase">
                             Referring Hospital
                           </span>
-                          <span className="font-black text-slate-800 text-xs leading-none">
+                          <span className="font-medium text-slate-800 text-xs">
                             {matchedRequest.referring_hospital_name}
                           </span>
                         </div>
                       )}
                     {matchedRequest.referred_hospital_name && (
                       <div className="flex flex-col gap-0.5">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">
+                      <span className="text-[11px] font-medium text-slate-400 uppercase">
                           Referred / Claim Owner
                         </span>
-                        <span className="font-black text-slate-800 text-xs leading-none">
+                        <span className="font-medium text-slate-800 text-xs">
                           {matchedRequest.referred_hospital_name || matchedRequest.claiming_hospital_name}
                         </span>
                       </div>
                     )}
                     <div className="flex flex-col gap-0.5">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">
+                      <span className="text-[11px] font-medium text-slate-400 uppercase">
                         Clinical Diagnosis
                       </span>
                       <span className="font-extrabold text-slate-700 leading-tight">
@@ -217,20 +217,20 @@ export function SupportDetailsSidebar({
                     </div>
                     {matchedRequest.treatment && (
                       <div className="flex flex-col gap-0.5">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">
+                      <span className="text-[11px] font-medium text-slate-400 uppercase">
                           Proposed Treatment
                         </span>
-                        <span className="font-bold text-slate-600 leading-tight">
+                        <span className="font-medium text-slate-800 text-xs">
                           {matchedRequest.treatment}
                         </span>
                       </div>
                     )}
                     {matchedRequest.clinical_notes && (
                       <div className="flex flex-col gap-0.5">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">
+                      <span className="text-[11px] font-medium text-slate-400 uppercase">
                           Clinical Notes
                         </span>
-                        <span className="font-bold text-slate-600 leading-tight">
+                        <span className="font-medium text-slate-800 text-xs">
                           {matchedRequest.clinical_notes}
                         </span>
                       </div>
@@ -280,18 +280,18 @@ export function SupportDetailsSidebar({
 
                   <div className="flex flex-col gap-1.5 text-xs leading-none">
                     <div className="flex flex-col gap-0.5">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">
+                      <span className="text-[11px] font-medium text-slate-400 uppercase">
                         Patient Name
                       </span>
-                      <span className="font-extrabold text-slate-800 text-xs leading-none">
+                      <span className="font-medium text-slate-800 text-xs">
                         {matchedClaim.patient_name}
                       </span>
                     </div>
                     <div className="flex flex-col gap-0.5">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">
+                      <span className="text-[11px] font-medium text-slate-400 uppercase">
                         Authorization Code
                       </span>
-                      <span className="font-mono font-black text-slate-900 text-xs leading-none">
+                      <span className="font-medium text-slate-800 text-xs">
                         {matchedClaim.auth_code || "PENDING"}
                       </span>
                     </div>
