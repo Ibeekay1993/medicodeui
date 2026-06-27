@@ -300,9 +300,9 @@ export default function HospitalPortalPage() {
           { label: "Approved", val: metrics.approvedCount.toLocaleString(), color: "text-emerald-600", icon: CheckCircle2, accent: "#10B981" },
           { label: "Pending", val: metrics.pendingCount.toLocaleString(), color: "text-amber-600", icon: Clock, accent: "#F59E0B" },
           { label: "Rejected", val: metrics.deniedCount.toLocaleString(), color: "text-rose-600", icon: XCircle, accent: "#EF4444" },
-          { label: "Portfolio", val: metrics.totalValue >= 1000000 ? `₦${(metrics.totalValue / 1000000).toFixed(1)}M` : `₦${metrics.totalValue.toLocaleString()}`, color: "text-blue-600", icon: TrendingUp, accent: "#3B82F6" },
-          { label: "Pending Pay", val: metrics.pendingPayout >= 1000000 ? `₦${(metrics.pendingPayout / 1000000).toFixed(1)}M` : `₦${metrics.pendingPayout.toLocaleString()}`, color: "text-purple-600", icon: Banknote, accent: "#8B5CF6" },
-          { label: "Paid", val: metrics.paidClaims >= 1000000 ? `₦${(metrics.paidClaims / 1000000).toFixed(1)}M` : `₦${metrics.paidClaims.toLocaleString()}`, color: "text-emerald-600", icon: ShieldCheck, accent: "#10B981" },
+          { label: "Portfolio", val: `₦${metrics.totalValue.toLocaleString()}`, color: "text-blue-600", icon: TrendingUp, accent: "#3B82F6" },
+          { label: "Pending Pay", val: `₦${metrics.pendingPayout.toLocaleString()}`, color: "text-purple-600", icon: Banknote, accent: "#8B5CF6" },
+          { label: "Paid", val: `₦${metrics.paidClaims.toLocaleString()}`, color: "text-emerald-600", icon: ShieldCheck, accent: "#10B981" },
         ].map((m, i) => (
           <div key={i} className="premium-card flex flex-1 min-w-0 flex-col p-3 rounded-xl border border-slate-100 bg-white hover:shadow-md transition-shadow relative overflow-hidden" title={m.label}>
             <div className="flex justify-between items-start mb-1">
@@ -312,7 +312,7 @@ export default function HospitalPortalPage() {
               </div>
             </div>
             <div>
-              <p className={cn("text-[16px] sm:text-[20px] font-bold mt-0.5 leading-tight whitespace-nowrap text-ellipsis overflow-hidden", m.color)}>{m.val}</p>
+              <p className={cn("text-[clamp(12px,3vw,20px)] font-bold mt-0.5 leading-tight break-words", m.color)}>{m.val}</p>
             </div>
           </div>
         ))}
