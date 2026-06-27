@@ -83,6 +83,12 @@ export default function SupportMessagesPage() {
         } else {
           q = q.eq("created_by", user?.id);
         }
+      } else {
+        if (role === "claims") {
+          q = q.eq("department", "Claims");
+        } else if (role === "utilization_manager") {
+          q = q.eq("department", "Authorization");
+        }
       }
 
       const { data, error } = await q
