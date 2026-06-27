@@ -59,7 +59,7 @@ export function NewTicketModal({
     if (!isOpen) {
       setNewTicket({
         subject: "",
-        department: "General Support",
+        department: "Utilization Management",
         priority: "normal",
         message: "",
         linkType: "none",
@@ -138,12 +138,6 @@ export function NewTicketModal({
         const r = authRequests.find((req) => req.id === newTicket.linkedId);
         if (r?.authorization_code) {
           tags.push(`code:${r.authorization_code}`);
-        }
-      } else if (newTicket.linkType === "claim" && newTicket.linkedId) {
-        tags.push(`claim:${newTicket.linkedId}`);
-        const c = claims.find((cl) => cl.id === newTicket.linkedId);
-        if (c?.auth_code) {
-          tags.push(`code:${c.auth_code}`);
         }
       }
 
@@ -313,13 +307,19 @@ export function NewTicketModal({
                 </label>
                 <Select
                   value={newTicket.department}
-                  onValueChange={(d) => setNewTicket({ ...newTicket, department: d })}
+                  onValueChange={(d) => {
+                    setNewTicket({ 
+                      ...newTicket, 
+                      department: d, 
+                      ...(d !== "Utilization Management" ? { linkType: "none", linkedId: "" } : {})
+                    });
+                  }}
                 >
                   <SelectTrigger className="h-10 rounded-xl text-xs font-bold text-slate-700 bg-slate-50/50 border-none">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {["Nursing", "Claims", "Authorization", "Billing", "General Support"].map(
+                    {["Utilization Management", "Claims", "Payment"].map(
                       (item) => (
                         <SelectItem key={item} value={item} className="text-xs font-bold">
                           {item.toUpperCase()}
@@ -352,34 +352,32 @@ export function NewTicketModal({
               </div>
             </div>
 
-            <div className="space-y-2.5 border-t border-b border-slate-100 py-3.5">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-black text-slate-400 uppercase tracking-widest px-1">
-                  Link Case Connection
-                </span>
-                <Select
-                  value={newTicket.linkType}
-                  onValueChange={(val: any) => setNewTicket({ ...newTicket, linkType: val, linkedId: "" })}
-                >
-                  <SelectTrigger className="h-7 w-[160px] rounded-lg text-xs font-black bg-slate-100 border-none">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none" className="text-xs font-bold">
-                      UNCONNECTED
-                    </SelectItem>
-                    <SelectItem value="request_support" className="text-xs font-bold">
-                      REQUEST SUPPORT
-                    </SelectItem>
-                    <SelectItem value="request" className="text-xs font-bold">
-                      AUTH REQUEST
-                    </SelectItem>
-                    <SelectItem value="claim" className="text-xs font-bold">
-                      HOSPITAL CLAIM
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+            {newTicket.department === "Utilization Management" && (
+              <div className="space-y-2.5 border-t border-b border-slate-100 py-3.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black text-slate-400 uppercase tracking-widest px-1">
+                    Link Case Connection
+                  </span>
+                  <Select
+                    value={newTicket.linkType}
+                    onValueChange={(val: any) => setNewTicket({ ...newTicket, linkType: val, linkedId: "" })}
+                  >
+                    <SelectTrigger className="h-7 w-[160px] rounded-lg text-xs font-black bg-slate-100 border-none">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none" className="text-xs font-bold">
+                        UNCONNECTED
+                      </SelectItem>
+                      <SelectItem value="request_support" className="text-xs font-bold">
+                        REQUEST SUPPORT
+                      </SelectItem>
+                      <SelectItem value="request" className="text-xs font-bold">
+                        AUTH REQUEST
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
 
               {newTicket.linkType !== "none" && (
                 <div className="space-y-2">
@@ -415,17 +413,13 @@ export function NewTicketModal({
                                 {req.diagnosis}
                               </SelectItem>
                             ))
-                        : claims.map((clm) => (
-                            <SelectItem key={clm.id} value={clm.id} className="text-xs font-semibold">
-                              {clm.patient_name} ({clm.claim_number}) - ₦
-                              {Number(clm.total_amount).toLocaleString()}
-                            </SelectItem>
-                          ))}
+                        : null}
                     </SelectContent>
                   </Select>
                 </div>
               )}
             </div>
+            )}
 
             <div className="space-y-1">
               <label className="text-xs font-black uppercase text-slate-400 block px-1">
