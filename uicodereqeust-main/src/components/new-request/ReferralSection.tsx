@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 
 interface ReferralSectionProps {
   hospitalName: string;
+  hospitalId?: string | null;
   referralHospitalName: string;
   referralHospitalId: string | null;
   setReferralHospitalId: (id: string | null) => void;
@@ -12,6 +13,7 @@ interface ReferralSectionProps {
 
 export default function ReferralSection({
   hospitalName,
+  hospitalId,
   referralHospitalName,
   referralHospitalId,
   setReferralHospitalId,
@@ -49,6 +51,8 @@ export default function ReferralSection({
           <HospitalReferralField
             value={referralHospitalName}
             selectedId={referralHospitalId}
+            excludeHospitalId={hospitalId}
+            excludeHospitalName={hospitalName}
             onChange={(next) => {
               setReferralHospitalId(next.id);
               setReferralHospitalName(next.name);

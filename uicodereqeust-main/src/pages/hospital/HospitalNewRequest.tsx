@@ -283,6 +283,24 @@ export default function HospitalNewRequest() {
       isValid = await trigger(["selectedPatient", "phone", "patientEmail", "noEmail"]);
     } else if (step === 2) {
       isValid = await trigger(["diagnoses", "urgency", "referralHospitalId", "referralHospitalName"]);
+      if (isValid) {
+        const refId = form.getValues("referralHospitalId");
+        const refName = form.getValues("referralHospitalName") || "";
+        const currentHospId = hospitalId || hospital?.id;
+        const currentHospName = hospital?.name || "";
+
+        if (
+          (refId && currentHospId && refId === currentHospId) ||
+          (refName.trim() && currentHospName.trim() && refName.toLowerCase().trim() === currentHospName.toLowerCase().trim())
+        ) {
+          toast({
+            variant: "destructive",
+            title: "Invalid Referral",
+            description: "You cannot refer a patient to your own facility.",
+          });
+          isValid = false;
+        }
+      }
     } else if (step === 3) {
       isValid = await trigger(["treatments"]);
     }
@@ -316,6 +334,24 @@ export default function HospitalNewRequest() {
     // If somehow the form submits before step 4 (e.g., pressing Enter), just advance step
     if (step !== 4) {
       handleNextStep();
+      return;
+    }
+
+    // Prevent self-referral
+    const refId = data.referralHospitalId;
+    const refName = data.referralHospitalName || "";
+    const currentHospId = hospitalId || hospital?.id;
+    const currentHospName = hospital?.name || "";
+
+    if (
+      (refId && currentHospId && refId === currentHospId) ||
+      (refName.trim() && currentHospName.trim() && refName.toLowerCase().trim() === currentHospName.toLowerCase().trim())
+    ) {
+      toast({
+        variant: "destructive",
+        title: "Invalid Referral",
+        description: "You cannot refer a patient to your own facility.",
+      });
       return;
     }
 
@@ -562,13 +598,14 @@ export default function HospitalNewRequest() {
                   urgency={urgency}
                   setUrgency={(val) => setValue("urgency", val as any, { shouldValidate: true })}
                 />
-                <ReferralSection
-                  hospitalName={hospital?.name}
-                  referralHospitalName={referralHospitalName}
-                  referralHospitalId={referralHospitalId}
-                  setReferralHospitalId={(val) => setValue("referralHospitalId", val)}
-                  setReferralHospitalName={(val) => setValue("referralHospitalName", val)}
-                />
+                 <ReferralSection
+                   hospitalName={hospital?.name}
+                   hospitalId={hospital?.id}
+                   referralHospitalName={referralHospitalName}
+                   referralHospitalId={referralHospitalId}
+                   setReferralHospitalId={(val) => setValue("referralHospitalId", val)}
+                   setReferralHospitalName={(val) => setValue("referralHospitalName", val)}
+                 />
               </div>
             )}
 

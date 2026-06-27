@@ -24,6 +24,8 @@ type Props = {
   helperText?: string;
   className?: string;
   disabled?: boolean;
+  excludeHospitalId?: string | null;
+  excludeHospitalName?: string | null;
 };
 
 function normalize(value: unknown) {
@@ -70,6 +72,8 @@ export function HospitalReferralField({
   helperText,
   className,
   disabled = false,
+  excludeHospitalId,
+  excludeHospitalName,
 }: Props) {
   const [hospitals, setHospitals] = useState<HospitalOption[]>([]);
   const [open, setOpen] = useState(false);
@@ -122,16 +126,26 @@ export function HospitalReferralField({
 
   const suggestions = useMemo(() => {
     const query = value.trim();
-    const ranked = hospitals
+    const filteredHospitals = hospitals.filter((h) => {
+      if (excludeHospitalId && h.id === excludeHospitalId) return false;
+      if (excludeHospitalName) {
+        const normH = h.name.toLowerCase().trim();
+        const normEx = excludeHospitalName.toLowerCase().trim();
+        if (normH === normEx) return false;
+      }
+      return true;
+    });
+
+    const ranked = filteredHospitals
       .map((hospital) => ({ hospital, score: scoreHospital(hospital, query) }))
       .filter((entry) => entry.score > 0)
       .sort((a, b) => b.score - a.score)
-      .slice(0, 100) // Show up to 100 matches instead of only 8
+      .slice(0, 100)
       .map((entry) => entry.hospital);
 
     if (ranked.length || query.length > 1) return ranked;
-    return hospitals.slice(0, 100); // Show up to 100 matches instead of only 8
-  }, [hospitals, value]);
+    return filteredHospitals.slice(0, 100);
+  }, [hospitals, value, excludeHospitalId, excludeHospitalName]);
 
   const selected = selectedId ? hospitals.find((hospital) => hospital.id === selectedId) : null;
 
