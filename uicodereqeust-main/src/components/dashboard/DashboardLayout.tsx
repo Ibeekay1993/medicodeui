@@ -499,7 +499,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         </button>
       </aside>
 
-      <div className="flex flex-col flex-1 min-w-0 overflow-hidden h-full">
+      <div className="flex flex-col flex-1 min-w-0 overflow-hidden h-full pb-[calc(64px+env(safe-area-inset-bottom))] md:pb-0 relative">
         <header className="flex items-center justify-between h-[72px] sm:h-20 px-2 sm:px-4 bg-white border-b border-slate-100 sticky top-0 z-40 w-full shrink-0">
           <div className="flex items-center gap-3 min-w-0">
             <button onClick={() => navigate(basePath)} className="flex items-center gap-2 hover:opacity-80 transition-opacity shrink-0 md:hidden">
@@ -548,6 +548,32 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             {children || <Outlet />}
           </div>
         </main>
+
+        <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 flex justify-around pb-[env(safe-area-inset-bottom)] z-50">
+          {navigation.slice(0, 4).map((item) => {
+            const isActive = isActiveRoute(item.href);
+            return (
+              <button
+                key={item.name}
+                onClick={() => navigate(item.href)}
+                className={cn(
+                  "flex flex-col items-center justify-center w-full py-2 gap-1 transition-colors",
+                  isActive ? "text-[#3f3f95]" : "text-slate-400 hover:text-slate-600"
+                )}
+              >
+                <div className="relative">
+                  <item.icon className="h-5 w-5" strokeWidth={isActive ? 2.5 : 2} />
+                  {(item.badge ?? 0) > 0 && (
+                    <span className="absolute -top-1 -right-1 flex h-3 w-3 items-center justify-center rounded-full bg-[#01aef2] text-[8px] font-bold text-white ring-1 ring-white">
+                      {(item.badge ?? 0) > 9 ? "9+" : item.badge}
+                    </span>
+                  )}
+                </div>
+                <span className="text-[10px] font-medium leading-none">{item.name === 'Dashboard' ? 'Home' : item.name}</span>
+              </button>
+            );
+          })}
+        </nav>
       </div>
 
       <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>

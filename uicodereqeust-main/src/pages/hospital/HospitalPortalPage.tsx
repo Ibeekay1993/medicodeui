@@ -295,24 +295,24 @@ export default function HospitalPortalPage() {
       </div>
 
       {/* Dashboard Stats */}
-      <div className="grid gap-4 grid-cols-3 md:grid-cols-3 lg:grid-cols-6">
+      <div className="grid gap-2 sm:gap-4 grid-cols-3 md:grid-cols-3 lg:grid-cols-6">
         {[
-          { label: "Approved", val: metrics.approvedCount, color: "text-emerald-600", icon: CheckCircle2, accent: "#10B981" },
-          { label: "Pending", val: metrics.pendingCount, color: "text-amber-600", icon: Clock, accent: "#F59E0B" },
-          { label: "Rejected", val: metrics.deniedCount, color: "text-rose-600", icon: XCircle, accent: "#EF4444" },
-          { label: "Portfolio", val: `₦${metrics.totalValue.toLocaleString()}`, color: "text-blue-600", icon: TrendingUp, accent: "#3B82F6" },
-          { label: "Pending Payout", val: `₦${metrics.pendingPayout.toLocaleString()}`, color: "text-purple-600", icon: Banknote, accent: "#8B5CF6" },
-          { label: "Paid", val: `₦${metrics.paidClaims.toLocaleString()}`, color: "text-emerald-600", icon: ShieldCheck, accent: "#10B981" },
+          { label: "Approved", val: metrics.approvedCount.toLocaleString(), color: "text-emerald-600", icon: CheckCircle2, accent: "#10B981" },
+          { label: "Pending", val: metrics.pendingCount.toLocaleString(), color: "text-amber-600", icon: Clock, accent: "#F59E0B" },
+          { label: "Rejected", val: metrics.deniedCount.toLocaleString(), color: "text-rose-600", icon: XCircle, accent: "#EF4444" },
+          { label: "Portfolio", val: metrics.totalValue >= 1000000 ? `₦${(metrics.totalValue / 1000000).toFixed(1)}M` : `₦${metrics.totalValue.toLocaleString()}`, color: "text-blue-600", icon: TrendingUp, accent: "#3B82F6" },
+          { label: "Pending Pay", val: metrics.pendingPayout >= 1000000 ? `₦${(metrics.pendingPayout / 1000000).toFixed(1)}M` : `₦${metrics.pendingPayout.toLocaleString()}`, color: "text-purple-600", icon: Banknote, accent: "#8B5CF6" },
+          { label: "Paid", val: metrics.paidClaims >= 1000000 ? `₦${(metrics.paidClaims / 1000000).toFixed(1)}M` : `₦${metrics.paidClaims.toLocaleString()}`, color: "text-emerald-600", icon: ShieldCheck, accent: "#10B981" },
         ].map((m, i) => (
           <div key={i} className="premium-card flex flex-1 min-w-0 flex-col p-3 rounded-xl border border-slate-100 bg-white hover:shadow-md transition-shadow relative overflow-hidden" title={m.label}>
             <div className="flex justify-between items-start mb-1">
-              <p className="text-xs text-slate-500 flex items-center gap-1.5">{m.label}</p>
-              <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md" style={{ background: `${m.accent}14`, color: m.accent }}>
-                <m.icon className="h-3 w-3" strokeWidth={2} />
+              <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5 truncate">{m.label}</p>
+              <div className="flex h-5 w-5 sm:h-6 sm:w-6 shrink-0 items-center justify-center rounded-md" style={{ background: `${m.accent}14`, color: m.accent }}>
+                <m.icon className="h-3 w-3" strokeWidth={2.5} />
               </div>
             </div>
             <div>
-              <p className={cn("text-[clamp(14px,4vw,20px)] font-semibold mt-1 leading-tight whitespace-nowrap text-ellipsis overflow-hidden", m.color)}>{m.val}</p>
+              <p className={cn("text-[16px] sm:text-[20px] font-bold mt-0.5 leading-tight whitespace-nowrap text-ellipsis overflow-hidden", m.color)}>{m.val}</p>
             </div>
           </div>
         ))}
@@ -402,6 +402,15 @@ export default function HospitalPortalPage() {
           </div>
         </Card>
       </div>
+
+      {/* Floating Action Button (Mobile Only) */}
+      <button 
+        onClick={() => navigate("/dashboard/new-request")}
+        className="md:hidden fixed bottom-[calc(72px+env(safe-area-inset-bottom))] right-4 w-14 h-14 rounded-full bg-slate-900 text-white flex items-center justify-center shadow-lg z-40 active:scale-95 transition-transform" 
+        aria-label="New Authorization Request"
+      >
+        <Plus className="h-6 w-6" strokeWidth={2.5} />
+      </button>
     </div>
   );
 }
