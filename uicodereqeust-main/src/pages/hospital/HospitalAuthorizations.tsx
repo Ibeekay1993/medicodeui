@@ -400,9 +400,9 @@ export default function HospitalAuthorizations() {
         loading={loading}
       />
 
-      <div className="flex md:hidden px-4 sm:px-0 -mx-4 sm:mx-0 pb-2">
+      <div className="flex px-4 sm:px-0 -mx-4 sm:mx-0 pb-2 md:w-[250px]">
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-full bg-white border-slate-200 text-slate-700 font-bold h-[44px] rounded-xl focus:ring-[#10B981] shadow-sm">
+          <SelectTrigger className="w-full bg-white border-slate-200 text-slate-700 font-bold h-[44px] md:h-[40px] rounded-xl focus:ring-[#10B981] shadow-sm">
             <SelectValue placeholder="All Status" />
           </SelectTrigger>
           <SelectContent className="rounded-xl border-slate-200">
@@ -424,34 +424,6 @@ export default function HospitalAuthorizations() {
             ))}
           </SelectContent>
         </Select>
-      </div>
-
-      <div className="hidden md:flex overflow-x-auto no-scrollbar gap-2 pb-2">
-        {[
-          { id: "all", label: "All Status" },
-          { id: "pending", label: "Pending" },
-          { id: "approved", label: "Approved" },
-          { id: "rejected", label: "Rejected" },
-          { id: "pending_referral", label: "Pending Referral" },
-          { id: "referral_approved", label: "Referral Approved" },
-          { id: "referral_accepted", label: "Referral Accepted" },
-          { id: "pending_authorization", label: "Pending Authorization" },
-          { id: "referral_declined", label: "Referral Declined" },
-          { id: "referral_expired", label: "Referral Expired" }
-        ].map(filter => (
-          <button
-            key={filter.id}
-            onClick={() => setStatusFilter(filter.id)}
-            className={cn(
-              "px-3 py-1.5 rounded-full border text-[13px] font-semibold whitespace-nowrap transition-colors flex items-center gap-1.5",
-              statusFilter === filter.id 
-                ? "bg-[#10B981] text-white border-[#10B981] shadow-sm" 
-                : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
-            )}
-          >
-            {filter.label}
-          </button>
-        ))}
       </div>
 
       <AuthorizationsTable

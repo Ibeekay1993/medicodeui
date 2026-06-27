@@ -239,7 +239,7 @@ export default function AuthorizationsTable({
 
                   <div className="flex items-center gap-2 shrink-0">
                     <Button 
-                      variant="outline" 
+                      variant="ghost" 
                       size="sm" 
                       onClick={(e) => { 
                         e.stopPropagation();
@@ -252,7 +252,7 @@ export default function AuthorizationsTable({
                           setIsReviewing(true); 
                         }
                       }}
-                      className="h-[26px] px-2 rounded-[6px] border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 text-[11px] font-semibold flex items-center gap-1.5 shadow-sm"
+                      className="h-[26px] px-2.5 rounded-full bg-slate-100/80 text-slate-700 hover:bg-slate-200 text-[11px] font-bold flex items-center gap-1.5 border-none shadow-none"
                     >
                       <Eye className="w-3.5 h-3.5 text-slate-600" />
                       {r.status === "referral_approved" && canSubmitClaimFor(r, hospital)
@@ -262,13 +262,13 @@ export default function AuthorizationsTable({
                         : "View"}
                     </Button>
                     <Button 
-                      variant="outline" 
+                      variant="ghost" 
                       size="icon" 
                       onClick={(e) => { e.stopPropagation(); openRequestChat(r); }}
-                      className="h-[26px] w-[26px] rounded-[6px] border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 shadow-sm flex items-center justify-center shrink-0"
+                      className="h-[26px] w-[26px] rounded-full bg-slate-100/80 text-slate-600 hover:bg-slate-200 flex items-center justify-center shrink-0 border-none shadow-none"
                       title="Message about this request"
                     >
-                      <MessageSquare className="h-4 w-4" />
+                      <MessageSquare className="h-3.5 w-3.5" />
                     </Button>
                   </div>
                 </div>
