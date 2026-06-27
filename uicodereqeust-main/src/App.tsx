@@ -13,6 +13,7 @@ import { TabStatePreserver } from "@/components/TabStatePreserver";
 import { Button } from "@/components/ui/button";
 import { ChunkErrorBoundary } from "@/components/ChunkErrorBoundary";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
+import { SessionTimeoutWatcher } from "@/components/SessionTimeoutWatcher";
 
 const Login = lazy(() => import("./pages/Login"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
@@ -97,6 +98,7 @@ const App = () => (
         <ScrollToTop />
         <DeployVersionWatcher />
         <AuthProvider>
+          <SessionTimeoutWatcher />
           <TabStatePreserver />
           <ChunkErrorBoundary>
             <Suspense fallback={<PageLoader />}>

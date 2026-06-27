@@ -47,6 +47,29 @@ serve(async (req) => {
     }
 
     const supabase = getServiceClient();
+
+    // ── Rate Limiting: max 2 invites per email within 15 minutes ────────
+    const RATE_LIMIT_MAX = 2;
+    const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000;
+    const windowStart = new Date(Date.now() - RATE_LIMIT_WINDOW_MS).toISOString();
+
+    const { count: recentAttempts } = await supabase
+      .from("audit_logs")
+      .select("id", { count: "exact", head: true })
+      .eq("action", "ADMIN_USER_INVITED")
+      .eq("entity_id", normalizedEmail)
+      .gte("created_at", windowStart);
+
+    if ((recentAttempts || 0) >= RATE_LIMIT_MAX) {
+      await safeAudit(supabase, "ADMIN_INVITE_RATE_LIMITED", {
+        function_name: "invite-user",
+        email: normalizedEmail,
+        attempts_in_window: recentAttempts,
+      }, "warning");
+      throw new Error(`Rate limit exceeded: Please wait before sending another invitation to this email.`);
+    }
+    // ──────────────────────────────────────────────────────────────────────
+
     const { data: existingRole } = await supabase
       .from("user_roles")
       .select("id, user_id, last_sign_in")
