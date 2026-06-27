@@ -134,7 +134,7 @@ export function RequestList({
                   <p className="text-sm font-black uppercase leading-snug text-slate-950">{r.patient_name}</p>
                   <p className="mt-1 max-w-[360px] text-xs font-semibold leading-snug text-slate-600">{r.diagnosis || "No diagnosis recorded"}</p>
                   {r.referred_hospital_name ? (
-                    <p className="mt-2 inline-flex rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-black uppercase tracking-wide text-slate-700">
+                    <p className="mt-1.5 inline-flex rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[9.5px] font-black uppercase tracking-wider text-slate-500">
                       Referral To: {r.referred_hospital_name}
                     </p>
                   ) : null}

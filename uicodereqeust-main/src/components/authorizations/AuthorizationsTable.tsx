@@ -83,7 +83,7 @@ export default function AuthorizationsTable({
                       <p className="font-black text-slate-950 uppercase leading-snug">{r.patient_name}</p>
 <p className="mt-1 text-xs font-semibold text-slate-600 leading-snug break-words whitespace-normal max-w-[300px]">{r.diagnosis}</p>
                       {isReferralFor(r) && (
-                        <span className="mt-2 inline-flex rounded-md border border-[#3f3f95]/20 bg-[#3f3f95]/5 px-2 py-1 badge-label text-[#3f3f95] max-w-[240px]">
+                        <span className="mt-1.5 inline-flex rounded border border-[#3f3f95]/20 bg-[#3f3f95]/5 px-1.5 py-0.5 text-[9.5px] font-black uppercase tracking-wider text-[#3f3f95] max-w-[240px]">
                           <span className="break-words whitespace-normal leading-snug">Referral To: {claimOwnerNameFor(r)}</span>
                         </span>
                       )}
@@ -276,7 +276,7 @@ export default function AuthorizationsTable({
                 {/* Row 3: Referral info */}
                 {isReferralFor(r) && (
                   <div className="mt-0.5">
-                    <span className="inline-block max-w-full truncate rounded-md bg-[#F5F3FF] px-2 py-1 text-[11px] font-semibold text-[#8B5CF6]">
+                    <span className="inline-block max-w-full truncate rounded bg-[#F5F3FF] px-1.5 py-0.5 text-[9.5px] font-black uppercase tracking-wider text-[#8B5CF6]">
                       Referral To: {claimOwnerNameFor(r)}
                     </span>
                   </div>
