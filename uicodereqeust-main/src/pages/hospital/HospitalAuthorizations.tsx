@@ -23,6 +23,7 @@ import ClaimReviewDialog from "@/components/authorizations/ClaimReviewDialog";
 import ReferralProcessDialog from "@/components/authorizations/ReferralProcessDialog";
 import ReferralTreatmentFormDialog from "@/components/authorizations/ReferralTreatmentFormDialog";
 import { PageLoader } from "@/components/PageLoader";
+import ExportCSVDialog from "@/components/authorizations/ExportCSVDialog";
 
 export default function HospitalAuthorizations() {
   const { user, hospitalId, fullName } = useAuth();
@@ -40,6 +41,7 @@ export default function HospitalAuthorizations() {
   const [isAddingReferralTreatment, setIsAddingReferralTreatment] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
   const [claimStatusByRequestId, setClaimStatusByRequestId] = useState<Map<string, string>>(new Map());
   const [requestChatOpen, setRequestChatOpen] = useState(false);
   const [requestChatRequest, setRequestChatRequest] = useState<any | null>(null);
@@ -325,7 +327,7 @@ export default function HospitalAuthorizations() {
     }
   };
 
-  const exportCSV = async () => {
+  const exportCSV = async (startDate?: string, endDate?: string) => {
     if (!hospital) return;
     setIsExporting(true);
     try {
@@ -337,17 +339,25 @@ export default function HospitalAuthorizations() {
         `claiming_hospital_id.eq.${hospital.id}`
       ];
 
-      const { data: allExportData, error } = await (supabase
+      let query = supabase
         .from("authorization_requests" as any)
         .select("created_at, patient_name, diagnosis, treatment, policy_number, authorization_code, status, clinical_notes, deletion_status")
-        .or(idQuery.join(","))
-        .order("created_at", { ascending: false }) as any);
+        .or(idQuery.join(","));
+
+      if (startDate) {
+        query = query.gte("created_at", `${startDate}T00:00:00.000Z`);
+      }
+      if (endDate) {
+        query = query.lte("created_at", `${endDate}T23:59:59.999Z`);
+      }
+
+      const { data: allExportData, error } = await (query.order("created_at", { ascending: false }) as any);
 
       if (error) throw error;
 
       const exportableRequests = (allExportData || []).filter((r: any) => r.deletion_status !== "awaiting_admin_approval");
       if (!exportableRequests.length) {
-        toast({ title: "No authorizations to export" });
+        toast({ title: "No authorizations found for the selected range" });
         return;
       }
 
@@ -367,7 +377,12 @@ export default function HospitalAuthorizations() {
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
       const link = document.createElement("a");
       link.href = URL.createObjectURL(blob);
-      link.download = `Hospital_Authorizations_${new Date().getTime()}.csv`;
+      
+      const dateSuffix = startDate && endDate 
+        ? `${startDate}_to_${endDate}` 
+        : new Date().getTime().toString();
+      link.download = `Hospital_Authorizations_${dateSuffix}.csv`;
+      
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -395,14 +410,14 @@ export default function HospitalAuthorizations() {
         fullName={fullName || undefined}
         search={search}
         setSearch={setSearch}
-        exportCSV={exportCSV}
+        exportCSV={() => setIsExportDialogOpen(true)}
         isExporting={isExporting}
         loading={loading}
       />
 
-      <div className="flex px-4 sm:px-0 -mx-4 sm:mx-0 pb-2 md:w-[250px]">
+      <div className="flex px-4 sm:px-0 pb-2 md:w-[250px]">
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-full bg-white border-slate-200 text-slate-700 font-bold h-[44px] md:h-[40px] rounded-xl focus:ring-[#10B981] shadow-sm">
+          <SelectTrigger className="w-full bg-slate-50 hover:bg-slate-100/80 border-none text-slate-700 font-bold h-9 text-xs rounded-lg focus:ring-[#10B981] focus:bg-white shadow-none transition-all">
             <SelectValue placeholder="All Status" />
           </SelectTrigger>
           <SelectContent className="rounded-xl border-slate-200">
@@ -485,6 +500,13 @@ export default function HospitalAuthorizations() {
         request={selectedRequest}
         hospital={hospital}
         onUpdated={refresh}
+      />
+
+      <ExportCSVDialog
+        open={isExportDialogOpen}
+        onOpenChange={setIsExportDialogOpen}
+        onExport={exportCSV}
+        isExporting={isExporting}
       />
     </div>
   );
