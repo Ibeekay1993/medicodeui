@@ -252,7 +252,7 @@ export default function AuthorizationsTable({
                           setIsReviewing(true); 
                         }
                       }}
-                      className="h-[28px] px-2.5 rounded-md border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 text-[12px] font-semibold flex items-center gap-1.5 shadow-sm"
+                      className="h-[26px] px-2 rounded-[6px] border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 text-[11px] font-semibold flex items-center gap-1.5 shadow-sm"
                     >
                       <Eye className="w-3.5 h-3.5 text-slate-600" />
                       {r.status === "referral_approved" && canSubmitClaimFor(r, hospital)
@@ -265,7 +265,7 @@ export default function AuthorizationsTable({
                       variant="outline" 
                       size="icon" 
                       onClick={(e) => { e.stopPropagation(); openRequestChat(r); }}
-                      className="h-[28px] w-[28px] rounded-md border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 shadow-sm flex items-center justify-center shrink-0"
+                      className="h-[26px] w-[26px] rounded-[6px] border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 shadow-sm flex items-center justify-center shrink-0"
                       title="Message about this request"
                     >
                       <MessageSquare className="h-4 w-4" />

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useNavigate } from "react-router-dom";
 import { useTabVisibilityRefresh } from "@/hooks/use-tab-visibility-refresh";
 import { useAuth } from "@/contexts/AuthContext";
@@ -399,16 +400,42 @@ export default function HospitalAuthorizations() {
         loading={loading}
       />
 
-      <div className="flex overflow-x-auto no-scrollbar gap-2 pb-2 -mx-4 px-4 sm:mx-0 sm:px-0">
+      <div className="flex md:hidden px-4 sm:px-0 -mx-4 sm:mx-0 pb-2">
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="w-full bg-white border-slate-200 text-slate-700 font-bold h-[44px] rounded-xl focus:ring-[#10B981] shadow-sm">
+            <SelectValue placeholder="All Status" />
+          </SelectTrigger>
+          <SelectContent className="rounded-xl border-slate-200">
+            {[
+              { id: "all", label: "All Status" },
+              { id: "pending", label: "Pending" },
+              { id: "approved", label: "Approved" },
+              { id: "rejected", label: "Rejected" },
+              { id: "pending_referral", label: "Pending Referral" },
+              { id: "referral_approved", label: "Referral Approved" },
+              { id: "referral_accepted", label: "Referral Accepted" },
+              { id: "pending_authorization", label: "Pending Authorization" },
+              { id: "referral_declined", label: "Referral Declined" },
+              { id: "referral_expired", label: "Referral Expired" }
+            ].map(filter => (
+              <SelectItem key={filter.id} value={filter.id} className="font-semibold text-slate-700 focus:bg-emerald-50 focus:text-[#10B981] cursor-pointer">
+                {filter.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="hidden md:flex overflow-x-auto no-scrollbar gap-2 pb-2">
         {[
           { id: "all", label: "All Status" },
           { id: "pending", label: "Pending" },
+          { id: "approved", label: "Approved" },
+          { id: "rejected", label: "Rejected" },
           { id: "pending_referral", label: "Pending Referral" },
           { id: "referral_approved", label: "Referral Approved" },
           { id: "referral_accepted", label: "Referral Accepted" },
           { id: "pending_authorization", label: "Pending Authorization" },
-          { id: "approved", label: "Approved" },
-          { id: "rejected", label: "Rejected" },
           { id: "referral_declined", label: "Referral Declined" },
           { id: "referral_expired", label: "Referral Expired" }
         ].map(filter => (
@@ -418,7 +445,7 @@ export default function HospitalAuthorizations() {
             className={cn(
               "px-3 py-1.5 rounded-full border text-[13px] font-semibold whitespace-nowrap transition-colors flex items-center gap-1.5",
               statusFilter === filter.id 
-                ? "bg-slate-900 text-white border-slate-900" 
+                ? "bg-[#10B981] text-white border-[#10B981] shadow-sm" 
                 : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
             )}
           >
