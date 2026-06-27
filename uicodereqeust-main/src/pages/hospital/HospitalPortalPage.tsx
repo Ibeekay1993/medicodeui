@@ -323,32 +323,32 @@ export default function HospitalPortalPage() {
           <CardHeader className="p-4 border-b border-slate-100/50 flex flex-row items-center justify-between">
             <CardTitle className="text-xs font-black uppercase tracking-widest text-slate-500">Quick Actions</CardTitle>
           </CardHeader>
-          <CardContent className="p-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <CardContent className="p-3 sm:p-4 grid grid-cols-3 gap-2 sm:gap-3">
             <Button
               variant="outline"
               onClick={() => navigate("/dashboard/new-request")}
-              className="h-auto py-4 flex flex-col gap-2 items-center justify-center border-slate-200 hover:border-emerald-500 hover:bg-emerald-50/50 hover:text-emerald-700 transition-all rounded-xl group"
+              className="h-auto p-2 sm:p-4 flex flex-col gap-1 sm:gap-2 items-center justify-center border-slate-200 hover:border-emerald-500 hover:bg-emerald-50/50 hover:text-emerald-700 transition-all rounded-xl group"
             >
-              <FileText className="h-6 w-6 text-emerald-600 mb-1 group-hover:scale-110 transition-transform" />
-              <span className="font-bold text-sm">Create Request</span>
+              <FileText className="h-5 w-5 sm:h-6 sm:w-6 text-emerald-600 mb-1 group-hover:scale-110 transition-transform" />
+              <span className="font-bold text-[10px] sm:text-sm leading-tight text-center">Create Request</span>
             </Button>
             
             <Button
               variant="outline"
               onClick={() => navigate("/dashboard/claims")}
-              className="h-auto py-4 flex flex-col gap-2 items-center justify-center border-slate-200 hover:border-blue-500 hover:bg-blue-50/50 hover:text-blue-700 transition-all rounded-xl group"
+              className="h-auto p-2 sm:p-4 flex flex-col gap-1 sm:gap-2 items-center justify-center border-slate-200 hover:border-blue-500 hover:bg-blue-50/50 hover:text-blue-700 transition-all rounded-xl group"
             >
-              <Send className="h-6 w-6 text-blue-600 mb-1 group-hover:scale-110 transition-transform" />
-              <span className="font-bold text-sm">Submit Claim</span>
+              <Send className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600 mb-1 group-hover:scale-110 transition-transform" />
+              <span className="font-bold text-[10px] sm:text-sm leading-tight text-center">Submit Claim</span>
             </Button>
 
             <Button
               variant="outline"
               onClick={() => navigate("/dashboard/messages")}
-              className="h-auto py-4 flex flex-col gap-2 items-center justify-center border-slate-200 hover:border-purple-500 hover:bg-purple-50/50 hover:text-purple-700 transition-all rounded-xl group"
+              className="h-auto p-2 sm:p-4 flex flex-col gap-1 sm:gap-2 items-center justify-center border-slate-200 hover:border-purple-500 hover:bg-purple-50/50 hover:text-purple-700 transition-all rounded-xl group"
             >
-              <MessageSquare className="h-6 w-6 text-purple-600 mb-1 group-hover:scale-110 transition-transform" />
-              <span className="font-bold text-sm">Message Support</span>
+              <MessageSquare className="h-5 w-5 sm:h-6 sm:w-6 text-purple-600 mb-1 group-hover:scale-110 transition-transform" />
+              <span className="font-bold text-[10px] sm:text-sm leading-tight text-center">Support</span>
             </Button>
           </CardContent>
         </Card>
