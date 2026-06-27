@@ -301,12 +301,12 @@ export default function HospitalPortalPage() {
           { label: "Pending", val: metrics.pendingCount.toLocaleString(), color: "text-amber-600", icon: Clock, accent: "#F59E0B" },
           { label: "Rejected", val: metrics.deniedCount.toLocaleString(), color: "text-rose-600", icon: XCircle, accent: "#EF4444" },
           { label: "Portfolio", val: `₦${metrics.totalValue.toLocaleString()}`, color: "text-blue-600", icon: TrendingUp, accent: "#3B82F6" },
-          { label: "Pending Pay", val: `₦${metrics.pendingPayout.toLocaleString()}`, color: "text-purple-600", icon: Banknote, accent: "#8B5CF6" },
+          { label: "Unpaid", val: `₦${metrics.pendingPayout.toLocaleString()}`, color: "text-purple-600", icon: Banknote, accent: "#8B5CF6" },
           { label: "Paid", val: `₦${metrics.paidClaims.toLocaleString()}`, color: "text-emerald-600", icon: ShieldCheck, accent: "#10B981" },
         ].map((m, i) => (
           <div key={i} className="premium-card flex flex-1 min-w-0 flex-col p-3 rounded-xl border border-slate-100 bg-white hover:shadow-md transition-shadow relative overflow-hidden" title={m.label}>
-            <div className="flex justify-between items-start mb-1">
-              <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5 truncate">{m.label}</p>
+            <div className="flex justify-between items-start mb-1 gap-1">
+              <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-slate-500 flex items-start leading-tight break-words">{m.label}</p>
               <div className="flex h-5 w-5 sm:h-6 sm:w-6 shrink-0 items-center justify-center rounded-md" style={{ background: `${m.accent}14`, color: m.accent }}>
                 <m.icon className="h-3 w-3" strokeWidth={2.5} />
               </div>
