@@ -252,14 +252,14 @@ export function SupportDetailsSidebar({
                       <div className="flex flex-col gap-1.5 mt-2">
                         <Button
                           onClick={() => setReviewRequestOpen(true)}
-                          className="w-full h-8 rounded-lg bg-slate-900 hover:bg-slate-800 text-white font-black uppercase tracking-wider text-xs transition-all"
+                          className="w-full h-8 rounded-lg bg-gradient-to-b from-slate-800 to-slate-900 hover:from-slate-700 hover:to-slate-800 text-white font-black uppercase tracking-wider text-xs transition-all shadow-md shadow-slate-900/20 ring-1 ring-white/10 inset active:scale-[0.98]"
                         >
                           Open Review Modal
                         </Button>
                         <Button
                           onClick={handleUnlinkCase}
                           variant="outline"
-                          className="w-full h-8 rounded-lg text-rose-600 border-rose-250 hover:bg-rose-50 font-black uppercase tracking-wider text-xs transition-all"
+                          className="w-full h-8 rounded-lg text-rose-600 border-rose-200 bg-rose-50/30 hover:bg-rose-50 hover:border-rose-300 font-black uppercase tracking-wider text-xs transition-all active:scale-[0.98]"
                         >
                           Unlink Case
                         </Button>

@@ -65,7 +65,7 @@ export function SupportConversationsSidebar({
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-black text-slate-800 tracking-tight uppercase">Conversations</h2>
           <div className="flex items-center gap-1">
-            <Button size="sm" className="h-7 rounded text-xs font-bold bg-brand-600 hover:bg-brand-700 px-2.5 shadow-sm text-white" onClick={onNewTicketClick}>
+            <Button size="sm" className="h-7 rounded text-xs font-bold bg-gradient-to-br from-brand-500 to-indigo-600 hover:from-brand-600 hover:to-indigo-700 px-3 shadow-md shadow-brand-500/20 text-white ring-1 ring-white/20 inset transition-all active:scale-95" onClick={onNewTicketClick}>
               <Plus className="mr-1 h-3.5 w-3.5" /> New
             </Button>
             <Button variant="ghost" size="icon" className="hidden lg:flex h-7 w-7 rounded text-slate-400" onClick={() => setLeftCollapsed(true)}>

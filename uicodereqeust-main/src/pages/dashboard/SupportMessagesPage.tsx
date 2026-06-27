@@ -646,14 +646,14 @@ const updateClaimStatus = async (status: "approved" | "rejected" | "paid" | "und
         setReviewRequestOpen={setReviewRequestOpen}
       />
 
-      {/* Mobile bottom tab navigation */}
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 px-4 py-2 flex items-center justify-around z-40">
+      {/* Mobile bottom tab navigation (Glass Island) */}
+      <div className="lg:hidden fixed bottom-4 left-4 right-4 bg-white/85 backdrop-blur-xl border border-white/50 shadow-[0_8px_30px_rgb(0,0,0,0.12)] rounded-2xl px-2 py-2 flex items-center justify-around z-40 ring-1 ring-slate-900/5">
         <button
           type="button"
           onClick={() => setMobileSubView("LIST")}
           className={cn(
-            "flex flex-col items-center gap-1 py-1 px-4 rounded-lg transition-colors",
-            mobileSubView === "LIST" ? "text-brand-700 bg-brand-50" : "text-slate-500"
+            "flex flex-col items-center gap-1 py-1.5 px-4 rounded-xl transition-all duration-300",
+            mobileSubView === "LIST" ? "text-brand-700 bg-brand-50 shadow-sm ring-1 ring-brand-100 inset" : "text-slate-500 hover:text-slate-700 hover:bg-slate-50/50"
           )}
         >
           <MessageSquare className="h-5 w-5" />
@@ -664,8 +664,8 @@ const updateClaimStatus = async (status: "approved" | "rejected" | "paid" | "und
           onClick={() => setMobileSubView("CHAT")}
           disabled={!selected}
           className={cn(
-            "flex flex-col items-center gap-1 py-1 px-4 rounded-lg transition-colors",
-            mobileSubView === "CHAT" && selected ? "text-brand-700 bg-brand-50" : "text-slate-400"
+            "flex flex-col items-center gap-1 py-1.5 px-4 rounded-xl transition-all duration-300",
+            mobileSubView === "CHAT" && selected ? "text-brand-700 bg-brand-50 shadow-sm ring-1 ring-brand-100 inset" : "text-slate-400 hover:text-slate-600 hover:bg-slate-50/50"
           )}
         >
           <Send className="h-5 w-5" />
@@ -676,8 +676,8 @@ const updateClaimStatus = async (status: "approved" | "rejected" | "paid" | "und
           onClick={() => setMobileSubView("INFO")}
           disabled={!selected}
           className={cn(
-            "flex flex-col items-center gap-1 py-1 px-4 rounded-lg transition-colors",
-            mobileSubView === "INFO" && selected ? "text-brand-700 bg-brand-50" : "text-slate-400"
+            "flex flex-col items-center gap-1 py-1.5 px-4 rounded-xl transition-all duration-300",
+            mobileSubView === "INFO" && selected ? "text-brand-700 bg-brand-50 shadow-sm ring-1 ring-brand-100 inset" : "text-slate-400 hover:text-slate-600 hover:bg-slate-50/50"
           )}
         >
           <FileText className="h-5 w-5" />
@@ -685,13 +685,13 @@ const updateClaimStatus = async (status: "approved" | "rejected" | "paid" | "und
         </button>
       </div>
 
-      {/* Floating Action Button */}
+      {/* Premium Floating Action Button */}
       <button
         type="button"
         onClick={() => {
           setNewTicketOpen(true);
         }}
-        className="fixed bottom-20 right-5 z-50 lg:bottom-8 lg:right-8 h-14 w-14 rounded-full bg-slate-900 text-white shadow-2xl shadow-slate-900/30 hover:bg-slate-800 hover:scale-110 active:scale-95 transition-all flex items-center justify-center"
+        className="fixed bottom-24 right-5 z-50 lg:bottom-8 lg:right-8 h-14 w-14 rounded-full bg-gradient-to-br from-brand-500 to-indigo-600 text-white shadow-[0_8px_20px_rgb(79,70,229,0.4)] hover:shadow-[0_12px_25px_rgb(79,70,229,0.5)] hover:scale-105 active:scale-90 transition-all duration-300 flex items-center justify-center ring-1 ring-white/20 inset"
         title="New Conversation"
       >
         <Plus className="h-6 w-6" />
