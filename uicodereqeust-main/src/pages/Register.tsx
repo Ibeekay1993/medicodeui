@@ -357,10 +357,10 @@ export default function Register() {
         <Card className="rounded-2xl shadow-2xl border-slate-200 bg-white overflow-hidden">
           <CardHeader className="text-center pb-2">
             <div className="mx-auto mb-4 flex h-[80px] w-[80px] items-center justify-center rounded-2xl bg-white border border-slate-100 shadow-xl p-2 overflow-hidden">
-              <img src="/ronsberger-logo.png" alt="Ronsberger HMO Logo" className="h-full w-full object-contain" />
+              <img src="/ronsberger-logo.webp" alt="Ronsberger HMO Logo" className="h-full w-full object-contain" fetchPriority="high" />
             </div>
             <CardTitle className="text-2xl font-black text-slate-900 uppercase italic">
-              Complete <span className="text-[#93c34b]">Registration</span>
+              Complete <span className="text-[#4d7a22]">Registration</span>
             </CardTitle>
             <CardDescription className="text-xs font-bold text-slate-500 uppercase tracking-widest mt-2">
               Finalize your Ronsberger HMO access

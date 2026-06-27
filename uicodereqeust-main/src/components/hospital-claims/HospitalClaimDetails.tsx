@@ -1,5 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { FormattedAuditNote } from "@/components/ui/FormattedAuditNote";
 import { FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -98,8 +99,8 @@ export default function HospitalClaimDetails({
             <h4 className="text-xs font-black uppercase tracking-widest text-slate-400 mb-2">
               Clinical/Audit Notes
             </h4>
-            <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 text-xs font-medium text-slate-700 leading-relaxed whitespace-pre-line">
-              {selectedClaim.notes}
+            <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm">
+              <FormattedAuditNote text={selectedClaim.notes} />
             </div>
           </div>
         )}

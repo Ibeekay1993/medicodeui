@@ -195,7 +195,7 @@ export default function WhatsAppPage() {
             data.hospital_name = matchedHospitals[0].name;
          }
       } else {
-         data.hospital_name = "WhatsApp Submission";
+         data.hospital_name = "";
       }
 
       if (data.referral_hospital_name) {
@@ -226,21 +226,37 @@ export default function WhatsAppPage() {
     if (!parsedData) return;
     setIsSaving(true);
     try {
+      // Re-match hospital name to get the correct hospital_id
+      let hospitalId = parsedData.hospital_id || null;
+      let hospitalName = parsedData.hospital_name;
+      if (hospitalName && !hospitalId) {
+        const searchName = hospitalName.split(" ").slice(0, 3).join(" ");
+        const { data: matchedHospitals } = await supabase
+          .from("hospitals")
+          .select("id, name")
+          .ilike("name", `%${searchName}%`)
+          .limit(1);
+        if (matchedHospitals && matchedHospitals.length > 0) {
+          hospitalId = matchedHospitals[0].id;
+          hospitalName = matchedHospitals[0].name;
+        }
+      }
+
       const { error } = await supabase.from("authorization_requests").insert([{
         patient_name: parsedData.patient_name,
         policy_number: parsedData.policy_number,
         diagnosis: parsedData.diagnosis,
         treatment: parsedData.treatment,
-        hospital_name: parsedData.hospital_name,
-        hospital_id: parsedData.hospital_id || null,
-        requesting_hospital_id: parsedData.hospital_id || null,
-        requesting_hospital_name: parsedData.hospital_name,
-        referring_hospital_id: parsedData.hospital_id || null,
-        referring_hospital_name: parsedData.hospital_name,
+        hospital_name: hospitalName,
+        hospital_id: hospitalId,
+        requesting_hospital_id: hospitalId,
+        requesting_hospital_name: hospitalName,
+        referring_hospital_id: hospitalId,
+        referring_hospital_name: hospitalName,
         referred_hospital_id: parsedData.referral_hospital_id || null,
         referred_hospital_name: parsedData.referral_hospital_name || null,
-        claiming_hospital_id: parsedData.referral_hospital_id || parsedData.hospital_id || null,
-        claiming_hospital_name: parsedData.referral_hospital_name || parsedData.hospital_name,
+        claiming_hospital_id: parsedData.referral_hospital_id || hospitalId,
+        claiming_hospital_name: parsedData.referral_hospital_name || hospitalName,
         patient_phone: parsedData.patient_phone || null,
         clinical_notes: parsedData.clinical_notes || null,
         whatsapp_raw_message: rawText,
@@ -341,7 +357,18 @@ export default function WhatsAppPage() {
                   </div>
                   <div className="space-y-1">
                     <p className="text-xs font-black uppercase tracking-widest text-slate-400">Requesting Hospital</p>
-                    <p className="text-sm font-semibold text-slate-900 border-b border-slate-200 pb-1 leading-tight break-words">{parsedData.hospital_name || "---"}</p>
+                    <input
+                      type="text"
+                      value={parsedData.hospital_name || ""}
+                      onChange={(e) => setParsedData((prev: any) => ({ ...prev, hospital_name: e.target.value }))}
+                      placeholder="Type hospital name..."
+                      className="w-full text-sm font-semibold text-slate-900 border-b-2 border-slate-200 pb-1 leading-tight break-words bg-transparent outline-none focus:border-emerald-500 transition-colors placeholder:text-slate-300"
+                    />
+                    {!parsedData.hospital_name?.trim() && (
+                      <p className="text-[10px] font-bold text-amber-600 flex items-center gap-1 mt-1">
+                        <AlertTriangle className="h-3 w-3" /> Hospital name is required before saving
+                      </p>
+                    )}
                   </div>
                   <div className="space-y-1 col-span-2 rounded-xl border border-blue-100 bg-blue-50 p-3">
                     <p className="text-xs font-black uppercase tracking-widest text-blue-600">Referral / Treating Hospital</p>
@@ -369,8 +396,8 @@ export default function WhatsAppPage() {
                 <div className="pt-4 mt-auto">
                   <Button 
                     onClick={handleSave} 
-                    disabled={isSaving}
-                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase tracking-widest text-xs h-12 rounded-xl flex items-center gap-2 shadow-lg shadow-emerald-500/20"
+                    disabled={isSaving || !parsedData.hospital_name?.trim()}
+                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase tracking-widest text-xs h-12 rounded-xl flex items-center gap-2 shadow-lg shadow-emerald-500/20 disabled:opacity-50"
                   >
                     {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                     Save to Queue

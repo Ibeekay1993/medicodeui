@@ -23,8 +23,11 @@ export default function ClaimsFilterHeader({
   uniqueHospitals
 }: ClaimsFilterHeaderProps) {
   return (
-    <div className="pb-3 border-b border-slate-200 flex flex-wrap items-center justify-end gap-2">
-      <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+    <div className="premium-card bg-white/80 backdrop-blur-md p-4 rounded-xl border border-slate-100 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4 mb-2 transition-all duration-300 hover:shadow-md">
+      <div className="flex items-center gap-2">
+        <h2 className="text-lg font-black text-slate-900 tracking-tight">Claims Ledger</h2>
+      </div>
+      <div className="flex flex-wrap items-center justify-end gap-3 w-full md:w-auto">
         {/* Status Filter Dropdown */}
         <div className="w-full sm:w-44">
           <Select value={statusTab} onValueChange={(v: any) => setStatusTab(v)}>

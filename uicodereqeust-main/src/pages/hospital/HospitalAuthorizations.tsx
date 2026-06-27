@@ -388,7 +388,7 @@ export default function HospitalAuthorizations() {
   }
 
   return (
-    <div className="space-y-4 max-w-7xl overflow-x-hidden pb-10 animate-in fade-in duration-500">
+    <div className="space-y-4 max-w-full overflow-x-hidden pb-10 animate-in fade-in duration-500">
       <AuthorizationsHeader
         hospitalName={hospital?.name || undefined}
         hospitalCode={hospital?.code || undefined}

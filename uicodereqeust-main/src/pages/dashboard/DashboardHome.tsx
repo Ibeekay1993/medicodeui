@@ -18,6 +18,7 @@ import {
   AlertTriangle,
   Layers,
   Wallet,
+  Activity,
 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
@@ -424,7 +425,7 @@ export default function DashboardHome() {
           {/* ── Row 1: Clinical Authorizations ── */}
           <div className="space-y-2">
             <h3 className="text-sm font-semibold text-slate-900 tracking-tight">Clinical Authorizations</h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3 md:gap-4">
+            <div className="grid grid-cols-4 gap-2 sm:gap-3 md:gap-4">
               {[
                 { label: "Active Users",    value: stats.users,     icon: Users,         accent: "#378ADD" },
                 { label: "Total Requests",  value: stats.total,     icon: FileText,      accent: "#6366F1" },
@@ -455,7 +456,7 @@ export default function DashboardHome() {
           {/* ── Row 2: Claims Processing ── */}
           <div className="space-y-2">
             <h3 className="text-sm font-semibold text-slate-900 tracking-tight">Claims Processing</h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3 md:gap-4">
+            <div className="grid grid-cols-4 gap-2 sm:gap-3 md:gap-4">
               {[
                 { label: "Submitted",     value: claimStats.submitted,                  accent: "#378ADD", format: "number", icon: FileText },
                 { label: "Paid",          value: claimStats.paid,                       accent: "#10B981", format: "number", icon: CheckCircle2 },
@@ -486,7 +487,7 @@ export default function DashboardHome() {
           {/* ── Row 3: Payment & Finance ── */}
           <div className="space-y-2">
             <h3 className="text-sm font-semibold text-slate-900 tracking-tight">Payment &amp; Finance</h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3 md:gap-4">
+            <div className="grid grid-cols-4 gap-2 sm:gap-3 md:gap-4">
               {[
                 { label: "Awaiting Value",  value: money(financeStats.awaitingValue),      accent: "#BA7517", icon: Clock },
                 { label: "Paid Value",      value: money(financeStats.paidValue),          accent: "#1D9E75", icon: Banknote },
@@ -515,7 +516,7 @@ export default function DashboardHome() {
       )}
 
       {isFinance && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3 md:gap-4">
+        <div className="grid grid-cols-4 gap-2 sm:gap-3 md:gap-4">
           {[
             { label: "Awaiting Value", value: money(financeStats.awaitingValue), accent: "#BA7517", icon: Clock },
             { label: "Paid Value", value: money(financeStats.paidValue), accent: "#1D9E75", icon: Banknote },
@@ -544,12 +545,15 @@ export default function DashboardHome() {
       )}
 
       {isNurseOrOther && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 md:gap-4 overflow-x-hidden">
+        <div className="grid grid-cols-4 gap-2 sm:gap-3 md:gap-4 overflow-x-hidden">
           {mainStats.map((item) => {
             return (
               <div key={item.label} className="premium-card flex flex-col p-2.5 sm:p-3 rounded-xl border border-slate-100 bg-white hover:shadow-md transition-shadow relative overflow-hidden" title={item.label}>
                 <div className="flex justify-between items-start mb-1.5 sm:mb-2">
                   <p className="text-xs font-medium text-slate-500 truncate">{item.label}</p>
+                  <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md" style={{ background: `${item.accent}14`, color: item.accent }}>
+                    <item.icon className="h-3 w-3" strokeWidth={2} />
+                  </div>
                 </div>
                 <div>
                   {loading ? (
@@ -567,19 +571,22 @@ export default function DashboardHome() {
       )}
 
       {isClaims && (
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-2 sm:gap-3 md:gap-4">
+        <div className="grid grid-cols-4 lg:grid-cols-7 gap-2 sm:gap-3 md:gap-4">
           {[
-            { label: "Claims Submitted", value: claimStats.submitted, accent: "#378ADD" },
-            { label: "Approved", value: claimStats.approved, accent: "#1D9E75" },
-            { label: "Partial", value: claimStats.partiallyApproved, accent: "#BA7517" },
-            { label: "Rejected", value: claimStats.rejected, accent: "#E24B4A" },
-            { label: "Contested", value: claimStats.contested, accent: "#8B5CF6" },
-            { label: "Approved Value", value: money(claimStats.approvedValue), accent: "#1D9E75" },
-            { label: "Savings", value: money(claimStats.declinedValue), accent: "#0F766E" },
+            { label: "Claims Submitted", value: claimStats.submitted, accent: "#378ADD", icon: FileText },
+            { label: "Approved", value: claimStats.approved, accent: "#1D9E75", icon: CheckCircle2 },
+            { label: "Partial", value: claimStats.partiallyApproved, accent: "#BA7517", icon: Activity },
+            { label: "Rejected", value: claimStats.rejected, accent: "#E24B4A", icon: XCircle },
+            { label: "Contested", value: claimStats.contested, accent: "#8B5CF6", icon: AlertTriangle },
+            { label: "Approved Value", value: money(claimStats.approvedValue), accent: "#1D9E75", icon: Banknote },
+            { label: "Savings", value: money(claimStats.declinedValue), accent: "#0F766E", icon: Wallet },
           ].map((item) => (
             <div key={item.label} className="premium-card flex flex-col p-2.5 sm:p-3 rounded-xl border border-slate-100 bg-white hover:shadow-md transition-shadow relative overflow-hidden" title={item.label}>
               <div className="flex justify-between items-start mb-1.5 sm:mb-2">
                 <p className="text-xs font-medium text-slate-500 truncate">{item.label}</p>
+                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md" style={{ background: `${item.accent}14`, color: item.accent }}>
+                  <item.icon className="h-3 w-3" strokeWidth={2} />
+                </div>
               </div>
               <div>
                 {loading ? (

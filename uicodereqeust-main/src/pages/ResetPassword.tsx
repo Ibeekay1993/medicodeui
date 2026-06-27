@@ -251,7 +251,7 @@ export default function ResetPassword() {
         <Card className="rounded-2xl shadow-2xl border-slate-200 bg-white overflow-hidden">
           <div className="text-center p-6 pb-2">
             <div className="mx-auto mb-4 flex h-[60px] w-[60px] items-center justify-center rounded-2xl bg-slate-900 shadow-xl shadow-slate-900/20">
-              <ShieldCheck className="h-7 w-7 text-[#93c34b]" />
+              <ShieldCheck className="h-7 w-7 text-[#4d7a22]" />
             </div>
             <h1 className="text-2xl font-black text-slate-900 uppercase italic">
               Reset <span className="text-[#3f3f95]">Password</span>

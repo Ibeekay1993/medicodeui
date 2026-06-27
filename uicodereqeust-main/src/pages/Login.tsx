@@ -326,10 +326,10 @@ export default function Login() {
           <CardContent className="p-8 sm:p-10">
             <div className="mb-8 text-center">
               <div className="mx-auto mb-4 flex h-[80px] w-[80px] items-center justify-center rounded-2xl bg-white border border-slate-100 shadow-xl p-2 overflow-hidden">
-                <img src="/ronsberger-logo.png" alt="Ronsberger HMO Logo" className="h-full w-full object-contain" />
+                <img src="/ronsberger-logo.webp" alt="Ronsberger HMO Logo" className="h-full w-full object-contain" fetchPriority="high" />
               </div>
               <h1 className="text-xl font-extrabold text-[#3f3f95] uppercase tracking-normal">
-                Ronsberger <span className="text-[#93c34b]">HMO</span>
+                Ronsberger <span className="text-[#4d7a22]">HMO</span>
               </h1>
               <p className="mt-2 text-xs font-semibold text-slate-700 uppercase tracking-wider">
                 Sign in to your account

@@ -294,67 +294,67 @@ export default function HospitalPortalPage() {
         </div>
       </div>
 
-      {/* Stats: 3 cols × 2 rows on mobile, 6 cols × 1 row on desktop — max 6 well-defined metrics */}
-      <div className="grid gap-2 grid-cols-3 md:grid-cols-3 lg:grid-cols-6">
+      {/* Dashboard Stats */}
+      <div className="grid gap-4 grid-cols-3 md:grid-cols-3 lg:grid-cols-6">
         {[
-          { label: "Approved", val: metrics.approvedCount, color: "text-emerald-600", icon: CheckCircle2, bg: "bg-emerald-50", border: "border-emerald-200" },
-          { label: "Pending", val: metrics.pendingCount, color: "text-amber-600", icon: Clock, bg: "bg-amber-50", border: "border-amber-200" },
-          { label: "Rejected", val: metrics.deniedCount, color: "text-rose-600", icon: XCircle, bg: "bg-rose-50", border: "border-rose-200" },
-          { label: "Portfolio", val: `₦${metrics.totalValue.toLocaleString()}`, color: "text-blue-600", icon: TrendingUp, bg: "bg-blue-50", border: "border-blue-200" },
-          { label: "Pending Payout", val: `₦${metrics.pendingPayout.toLocaleString()}`, color: "text-purple-600", icon: Banknote, bg: "bg-purple-50", border: "border-purple-200" },
-          { label: "Paid", val: `₦${metrics.paidClaims.toLocaleString()}`, color: "text-emerald-600", icon: ShieldCheck, bg: "bg-emerald-50", border: "border-emerald-200" },
+          { label: "Approved", val: metrics.approvedCount, color: "text-emerald-600", icon: CheckCircle2, accent: "#10B981" },
+          { label: "Pending", val: metrics.pendingCount, color: "text-amber-600", icon: Clock, accent: "#F59E0B" },
+          { label: "Rejected", val: metrics.deniedCount, color: "text-rose-600", icon: XCircle, accent: "#EF4444" },
+          { label: "Portfolio", val: `₦${metrics.totalValue.toLocaleString()}`, color: "text-blue-600", icon: TrendingUp, accent: "#3B82F6" },
+          { label: "Pending Payout", val: `₦${metrics.pendingPayout.toLocaleString()}`, color: "text-purple-600", icon: Banknote, accent: "#8B5CF6" },
+          { label: "Paid", val: `₦${metrics.paidClaims.toLocaleString()}`, color: "text-emerald-600", icon: ShieldCheck, accent: "#10B981" },
         ].map((m, i) => (
-          <Card key={i} className={cn("rounded-xl overflow-hidden bg-white shadow-sm transition-all hover:shadow-md duration-300", m.border)}>
-            <CardContent className="p-2.5 sm:p-3 flex items-center gap-2 relative overflow-hidden">
-              <div className={cn("h-8 w-8 rounded-lg flex items-center justify-center shrink-0", m.bg)}>
-                <m.icon className={cn("h-4 w-4", m.color)} />
+          <div key={i} className="premium-card flex flex-col p-3 rounded-xl border border-slate-100 bg-white hover:shadow-md transition-shadow relative overflow-hidden" title={m.label}>
+            <div className="flex justify-between items-start mb-2">
+              <p className="text-xs font-medium text-slate-500 truncate">{m.label}</p>
+              <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md" style={{ background: `${m.accent}14`, color: m.accent }}>
+                <m.icon className="h-3 w-3" strokeWidth={2} />
               </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-[10px] sm:text-xs font-bold text-slate-500 truncate">{m.label}</p>
-                <p className={cn("text-sm sm:text-base font-extrabold tracking-tight truncate", m.color)}>{m.val}</p>
-              </div>
-            </CardContent>
-          </Card>
+            </div>
+            <div>
+              <p className={cn("text-base sm:text-lg font-extrabold tracking-tight truncate", m.color)}>{m.val}</p>
+            </div>
+          </div>
         ))}
       </div>
       
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 mt-4">
-        <Card className="rounded-xl border-slate-100 shadow-sm bg-white overflow-hidden">
-          <CardHeader className="p-4 border-b border-slate-50 flex flex-row items-center justify-between">
+        <Card className="premium-card rounded-xl border border-slate-100 shadow-sm bg-white overflow-hidden transition-shadow hover:shadow-md">
+          <CardHeader className="p-4 border-b border-slate-100/50 flex flex-row items-center justify-between">
             <CardTitle className="text-xs font-black uppercase tracking-widest text-slate-500">Quick Actions</CardTitle>
           </CardHeader>
           <CardContent className="p-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
             <Button
               variant="outline"
               onClick={() => navigate("/dashboard/new-request")}
-              className="h-auto py-4 flex flex-col gap-2 items-center justify-center border-slate-200 hover:border-emerald-500 hover:bg-emerald-50 hover:text-emerald-700 transition-colors"
+              className="h-auto py-4 flex flex-col gap-2 items-center justify-center border-slate-200 hover:border-emerald-500 hover:bg-emerald-50/50 hover:text-emerald-700 transition-all rounded-xl group"
             >
-              <FileText className="h-6 w-6 text-emerald-600 mb-1" />
+              <FileText className="h-6 w-6 text-emerald-600 mb-1 group-hover:scale-110 transition-transform" />
               <span className="font-bold text-sm">Create Request</span>
             </Button>
             
             <Button
               variant="outline"
               onClick={() => navigate("/dashboard/claims")}
-              className="h-auto py-4 flex flex-col gap-2 items-center justify-center border-slate-200 hover:border-blue-500 hover:bg-blue-50 hover:text-blue-700 transition-colors"
+              className="h-auto py-4 flex flex-col gap-2 items-center justify-center border-slate-200 hover:border-blue-500 hover:bg-blue-50/50 hover:text-blue-700 transition-all rounded-xl group"
             >
-              <Send className="h-6 w-6 text-blue-600 mb-1" />
+              <Send className="h-6 w-6 text-blue-600 mb-1 group-hover:scale-110 transition-transform" />
               <span className="font-bold text-sm">Submit Claim</span>
             </Button>
 
             <Button
               variant="outline"
               onClick={() => navigate("/dashboard/messages")}
-              className="h-auto py-4 flex flex-col gap-2 items-center justify-center border-slate-200 hover:border-purple-500 hover:bg-purple-50 hover:text-purple-700 transition-colors"
+              className="h-auto py-4 flex flex-col gap-2 items-center justify-center border-slate-200 hover:border-purple-500 hover:bg-purple-50/50 hover:text-purple-700 transition-all rounded-xl group"
             >
-              <MessageSquare className="h-6 w-6 text-purple-600 mb-1" />
+              <MessageSquare className="h-6 w-6 text-purple-600 mb-1 group-hover:scale-110 transition-transform" />
               <span className="font-bold text-sm">Message Support</span>
             </Button>
           </CardContent>
         </Card>
 
-        <Card className="rounded-xl border-slate-100 shadow-sm bg-white overflow-hidden">
-          <CardHeader className="p-4 border-b border-slate-50 flex flex-row items-center justify-between">
+        <Card className="premium-card rounded-xl border border-slate-100 shadow-sm bg-white overflow-hidden transition-shadow hover:shadow-md">
+          <CardHeader className="p-4 border-b border-slate-100/50 flex flex-row items-center justify-between">
             <CardTitle className="text-xs font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
               <Megaphone className="h-4 w-4 text-amber-500" />
               HMO Announcements
@@ -368,7 +368,7 @@ export default function HospitalPortalPage() {
                 <p className="text-xs font-black uppercase tracking-widest text-slate-300">No new announcements</p>
               </div>
             ) : (
-              <div className="p-4 bg-slate-50 relative min-h-[140px] flex flex-col justify-center transition-all duration-500 ease-in-out">
+              <div className="p-4 bg-slate-50/40 relative min-h-[140px] flex flex-col justify-center transition-all duration-500 ease-in-out">
                 <div className="flex items-center justify-between mb-2">
                   <h4 className="font-bold text-sm text-slate-900">{announcements[currentAnnouncementIndex].title}</h4>
                   <Badge variant="outline" className={cn("text-[10px] font-bold uppercase", 

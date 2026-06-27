@@ -443,12 +443,12 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         <div className="py-4 px-4 mb-4">
           <button onClick={() => navigate(basePath)} className="flex items-center gap-3 hover:opacity-80 transition-opacity text-left w-full overflow-hidden">
             <div className="h-10 w-10 rounded-xl bg-white flex items-center justify-center shrink-0 shadow-md p-1.5 overflow-hidden">
-              <img src="/ronsberger-logo.png" alt="Ronsberger HMO Logo" className="h-full w-full object-contain" />
+              <img src="/ronsberger-logo.webp" alt="Ronsberger HMO Logo" className="h-full w-full object-contain" />
             </div>
             {isSidebarExpanded && (
               <div className="animate-in fade-in slide-in-from-left-2 overflow-hidden flex flex-col justify-center">
                 <p className="text-sm font-bold tracking-tight text-white whitespace-nowrap leading-tight">
-                  RONSBERGER <span className="text-[#93c34b]">HMO</span>
+                  RONSBERGER <span className="text-[#4d7a22]">HMO</span>
                 </p>
                 <p className="badge-label text-slate-400 mt-0.5">
                   Clinical Workspace
@@ -504,7 +504,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           <div className="flex items-center gap-3 min-w-0">
             <button onClick={() => navigate(basePath)} className="flex items-center gap-2 hover:opacity-80 transition-opacity shrink-0 md:hidden">
               <img
-                src="/ronsberger-logo.png"
+                src="/ronsberger-logo.webp"
                 alt="Ronsberger HMO"
                 className="h-7 w-auto object-contain"
                 onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
@@ -554,11 +554,11 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         <SheetContent side="left" className="w-[240px] p-0 border-none bg-slate-900 text-white flex flex-col" style={{ height: "100dvh" }}>
           <div className="p-4 border-b border-white/5 flex items-center gap-2 mb-2">
             <div className="h-8 w-8 rounded-lg bg-white flex items-center justify-center shrink-0 shadow-md p-1 overflow-hidden">
-              <img src="/ronsberger-logo.png" alt="Ronsberger HMO Logo" className="h-full w-full object-contain" />
+              <img src="/ronsberger-logo.webp" alt="Ronsberger HMO Logo" className="h-full w-full object-contain" />
             </div>
             <div className="flex flex-col justify-center">
               <p className="text-sm font-bold tracking-tight text-white whitespace-nowrap leading-tight">
-                RONSBERGER <span className="text-[#93c34b]">HMO</span>
+                RONSBERGER <span className="text-[#4d7a22]">HMO</span>
               </p>
               <p className="badge-label text-slate-400 mt-0.5">
                 Clinical Workspace

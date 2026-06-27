@@ -89,11 +89,11 @@ export class ChunkErrorBoundary extends React.Component<Props, State> {
             <div className="flex justify-center mb-6">
               <div className="flex items-center gap-2 p-2 bg-slate-800/40 border border-slate-700/50 rounded-2xl shadow-inner select-none">
                 <div className="h-8 w-8 rounded-lg bg-white flex items-center justify-center p-1 shadow-md overflow-hidden">
-                  <img src="/ronsberger-logo.png" alt="Ronsberger HMO Logo" className="h-full w-full object-contain" />
+                  <img src="/ronsberger-logo.webp" alt="Ronsberger HMO Logo" className="h-full w-full object-contain" />
                 </div>
                 <div className="text-left pr-2">
                   <p className="text-xs font-black tracking-tight text-white whitespace-nowrap">
-                    Ronsberger <span className="text-[#93c34b]">HMO</span>
+                    Ronsberger <span className="text-[#4d7a22]">HMO</span>
                   </p>
                 </div>
               </div>

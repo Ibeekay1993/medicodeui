@@ -22,22 +22,22 @@ export default function KPIStatsGrid({ stats, isLoading }: KPIStatsGridProps) {
   const kpiGroups = useMemo(
     () => [
       [
-        { label: "Total Codes", value: stats.totalCodes.toLocaleString(), icon: BarChart3, color: "text-slate-700", bg: "bg-slate-100" },
-        { label: "Approved", value: stats.approvedCodes.toLocaleString(), icon: CheckCircle, color: "text-emerald-600", bg: "bg-emerald-50" },
-        { label: "Pending", value: stats.pendingCodes.toLocaleString(), icon: Clock, color: "text-amber-600", bg: "bg-amber-50" },
-        { label: "Rejected", value: stats.rejectedCodes.toLocaleString(), icon: AlertTriangle, color: "text-rose-600", bg: "bg-rose-50" },
+        { label: "Total Codes", value: stats.totalCodes.toLocaleString(), icon: BarChart3, color: "text-slate-700", bg: "bg-slate-100", gradient: "group-hover:bg-slate-200" },
+        { label: "Approved", value: stats.approvedCodes.toLocaleString(), icon: CheckCircle, color: "text-emerald-600", bg: "bg-emerald-50", gradient: "group-hover:bg-emerald-100" },
+        { label: "Pending", value: stats.pendingCodes.toLocaleString(), icon: Clock, color: "text-amber-600", bg: "bg-amber-50", gradient: "group-hover:bg-amber-100" },
+        { label: "Rejected", value: stats.rejectedCodes.toLocaleString(), icon: AlertTriangle, color: "text-rose-600", bg: "bg-rose-50", gradient: "group-hover:bg-rose-100" },
       ],
       [
-        { label: "Requested Amount", value: formatNaira(stats.requestedAmount), icon: DollarSign, color: "text-blue-600", bg: "bg-blue-50" },
-        { label: "Approved Amount", value: formatNaira(stats.approvedAmount), icon: DollarSign, color: "text-emerald-600", bg: "bg-emerald-50" },
-        { label: "Rejected Amount", value: formatNaira(stats.rejectedAmount), icon: DollarSign, color: "text-rose-600", bg: "bg-rose-50" },
-        { label: "Pending Amount", value: formatNaira(stats.pendingAmount), icon: DollarSign, color: "text-amber-600", bg: "bg-amber-50" },
+        { label: "Requested Amount", value: formatNaira(stats.requestedAmount), icon: DollarSign, color: "text-blue-600", bg: "bg-blue-50", gradient: "group-hover:bg-blue-100" },
+        { label: "Approved Amount", value: formatNaira(stats.approvedAmount), icon: DollarSign, color: "text-emerald-600", bg: "bg-emerald-50", gradient: "group-hover:bg-emerald-100" },
+        { label: "Rejected Amount", value: formatNaira(stats.rejectedAmount), icon: DollarSign, color: "text-rose-600", bg: "bg-rose-50", gradient: "group-hover:bg-rose-100" },
+        { label: "Pending Amount", value: formatNaira(stats.pendingAmount), icon: DollarSign, color: "text-amber-600", bg: "bg-amber-50", gradient: "group-hover:bg-amber-100" },
       ],
       [
-        { label: "Approval Rate", value: formatPercent(stats.approvalRate), icon: TrendingUp, color: "text-emerald-600", bg: "bg-emerald-50" },
-        { label: "Rejection Rate", value: formatPercent(stats.rejectionRate), icon: TrendingUp, color: "text-rose-600", bg: "bg-rose-50" },
-        { label: "Avg Processing", value: `${stats.avgProcessingTime.toFixed(1)} hrs`, icon: Clock, color: "text-blue-600", bg: "bg-blue-50" },
-        { label: "Daily Volume", value: `${stats.dailyVolume.toFixed(0)}/day`, icon: Activity, color: "text-violet-600", bg: "bg-violet-50" },
+        { label: "Approval Rate", value: formatPercent(stats.approvalRate), icon: TrendingUp, color: "text-emerald-600", bg: "bg-emerald-50", gradient: "group-hover:bg-emerald-100" },
+        { label: "Rejection Rate", value: formatPercent(stats.rejectionRate), icon: TrendingUp, color: "text-rose-600", bg: "bg-rose-50", gradient: "group-hover:bg-rose-100" },
+        { label: "Avg Processing", value: `${stats.avgProcessingTime.toFixed(1)} hrs`, icon: Clock, color: "text-indigo-600", bg: "bg-indigo-50", gradient: "group-hover:bg-indigo-100" },
+        { label: "Daily Volume", value: `${stats.dailyVolume.toFixed(0)}/day`, icon: Activity, color: "text-violet-600", bg: "bg-violet-50", gradient: "group-hover:bg-violet-100" },
       ],
     ],
     [stats]
@@ -46,17 +46,17 @@ export default function KPIStatsGrid({ stats, isLoading }: KPIStatsGridProps) {
   return (
     <div className="space-y-4">
       {kpiGroups.map((group, groupIndex) => (
-        <div key={groupIndex} className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 sm:gap-4">
+        <div key={groupIndex} className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4">
           {group.map((kpi, index) => (
-            <Card key={index} className="border-slate-100 shadow-none bg-white rounded-xl overflow-hidden">
-              <CardContent className="p-2 sm:p-3 md:p-4 flex items-center gap-1.5 sm:gap-3">
-                <div className={cn("hidden sm:flex h-8 w-8 md:h-10 md:w-10 rounded-md sm:rounded-xl items-center justify-center shrink-0", kpi.bg)}>
-                  <kpi.icon className={cn("h-4 w-4 md:h-5 md:w-5", kpi.color)} />
+            <Card key={index} className="border-slate-100 shadow-sm bg-white rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-md hover:-translate-y-1 group">
+              <CardContent className="p-3 sm:p-4 md:p-5 flex items-center gap-3">
+                <div className={cn("hidden sm:flex h-10 w-10 md:h-12 md:w-12 rounded-xl items-center justify-center shrink-0 transition-colors duration-300", kpi.bg, kpi.gradient)}>
+                  <kpi.icon className={cn("h-5 w-5 md:h-6 md:w-6 transition-transform duration-300 group-hover:scale-110", kpi.color)} />
                 </div>
                 <div className="min-w-0 flex-1 text-center sm:text-left">
-                  <p className="text-xs sm:text-xs md:text-xs font-bold uppercase tracking-wider text-slate-400 truncate leading-none">{kpi.label}</p>
-                  <p className={cn("text-xs sm:text-sm md:text-base lg:text-lg font-black tracking-tight truncate leading-none mt-1 sm:mt-1.5", kpi.color)}>
-                    {isLoading ? <Loader2 className="h-3 w-3 sm:h-3.5 sm:w-3.5 animate-spin mx-auto sm:mx-0" /> : kpi.value}
+                  <p className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-400 truncate leading-tight group-hover:text-slate-500 transition-colors">{kpi.label}</p>
+                  <p className={cn("text-sm sm:text-base md:text-lg lg:text-xl font-black tracking-tight truncate leading-none mt-1.5", kpi.color)}>
+                    {isLoading ? <Loader2 className="h-4 w-4 sm:h-5 sm:w-5 animate-spin mx-auto sm:mx-0" /> : kpi.value}
                   </p>
                 </div>
               </CardContent>

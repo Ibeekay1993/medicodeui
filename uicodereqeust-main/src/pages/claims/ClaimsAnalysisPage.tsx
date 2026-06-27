@@ -38,11 +38,11 @@ type HospitalClaimSummary = {
   pending: number;
   approved: number;
   rejected: number;
-  paid: number;
+  contested: number;
   other: number;
   value: number;
   approvedValue: number;
-  paidValue: number;
+  contestedValue: number;
   latest: string;
 };
 
@@ -58,11 +58,11 @@ function normalizeStatus(status?: string | null) {
   return String(status || "pending").toLowerCase().replace(/\s+/g, "_");
 }
 
-function statusBucket(status?: string | null): "pending" | "approved" | "rejected" | "paid" | "other" {
+function statusBucket(status?: string | null): "pending" | "approved" | "rejected" | "contested" | "other" {
   const normalized = normalizeStatus(status);
   if (["submitted", "pending", "under_investigation", "under_review", "pending_audit", "audit"].includes(normalized)) return "pending";
   if (normalized === "approved") return "approved";
-  if (normalized === "paid") return "paid";
+  if (["contested", "paid"].includes(normalized)) return "contested";
   if (["rejected", "declined", "denied"].includes(normalized)) return "rejected";
   return "other";
 }
@@ -121,12 +121,12 @@ export default function ClaimsAnalysisPage() {
       pending: 0,
       approved: 0,
       rejected: 0,
-      paid: 0,
+      contested: 0,
       other: 0,
       totalValue: 0,
       approvedValue: 0,
       rejectedValue: 0,
-      paidValue: 0
+      contestedValue: 0
     };
 
     const byHospital = new Map<string, HospitalClaimSummary>();
@@ -143,7 +143,7 @@ export default function ClaimsAnalysisPage() {
       base[bucket] += 1;
       if (bucket === "approved") base.approvedValue += amount;
       if (bucket === "rejected") base.rejectedValue += amount;
-      if (bucket === "paid") base.paidValue += amount;
+      if (bucket === "contested") base.contestedValue += amount;
 
       byDate.set(dateKey, (byDate.get(dateKey) || 0) + 1);
 
@@ -154,11 +154,11 @@ export default function ClaimsAnalysisPage() {
         pending: 0,
         approved: 0,
         rejected: 0,
-        paid: 0,
+        contested: 0,
         other: 0,
         value: 0,
         approvedValue: 0,
-        paidValue: 0,
+        contestedValue: 0,
         latest: claim.created_at
       };
 
@@ -166,7 +166,7 @@ export default function ClaimsAnalysisPage() {
       current[bucket] += 1;
       current.value += amount;
       if (bucket === "approved") current.approvedValue += amount;
-      if (bucket === "paid") current.paidValue += amount;
+      if (bucket === "contested") current.contestedValue += amount;
       if (new Date(claim.created_at) > new Date(current.latest)) current.latest = claim.created_at;
       byHospital.set(key, current);
     });
@@ -209,11 +209,11 @@ export default function ClaimsAnalysisPage() {
       pending: 0,
       approved: 0,
       rejected: 0,
-      paid: 0,
+      contested: 0,
       pendingValue: 0,
       approvedValue: 0,
       rejectedValue: 0,
-      paidValue: 0
+      contestedValue: 0
     };
 
     scopedClaims.forEach((claim) => {
@@ -225,7 +225,7 @@ export default function ClaimsAnalysisPage() {
       if (bucket === "pending") base.pendingValue += amount;
       if (bucket === "approved") base.approvedValue += amount;
       if (bucket === "rejected") base.rejectedValue += amount;
-      if (bucket === "paid") base.paidValue += amount;
+      if (bucket === "contested") base.contestedValue += amount;
     });
 
     return base;
@@ -267,9 +267,9 @@ export default function ClaimsAnalysisPage() {
       iconBg: "bg-rose-50/70 text-rose-600 border border-rose-100/60"
     },
     {
-      label: "Paid",
-      count: stats.paid,
-      value: money(stats.paidValue),
+      label: "Contested",
+      count: stats.contested,
+      value: money(stats.contestedValue),
       icon: Wallet,
       borderColor: "border-l-blue-500",
       iconBg: "bg-blue-50/70 text-blue-600 border border-blue-100/60"
@@ -374,13 +374,18 @@ export default function ClaimsAnalysisPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-1 sm:gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-4">
         {metrics.map((metric) => (
-          <div key={metric.label} className="premium-card p-1.5 sm:p-4 flex flex-col justify-center min-w-0 text-center sm:text-left rounded-xl" title={metric.label}>
-            <p className="text-[8px] sm:text-xs font-bold uppercase tracking-wider text-slate-500 leading-tight mb-0.5 sm:mb-1.5 line-clamp-2">{metric.label}</p>
-            <p className="text-sm sm:text-lg font-extrabold tabular-nums leading-none truncate text-slate-900 mt-0.5 sm:mt-1">
-              {metric.count} <span className="text-[8px] sm:text-[10px] text-slate-400 font-normal ml-1 tracking-normal">{metric.value}</span>
-            </p>
+          <div key={metric.label} className="premium-card p-3 sm:p-5 flex items-center gap-3 rounded-2xl overflow-hidden transition-all duration-300 hover:-translate-y-1 group" title={metric.label}>
+            <div className={cn("hidden sm:flex h-10 w-10 md:h-12 md:w-12 rounded-xl items-center justify-center shrink-0 transition-all duration-300 group-hover:scale-110", metric.iconBg)}>
+              <metric.icon className="h-5 w-5 md:h-6 md:w-6" />
+            </div>
+            <div className="min-w-0 flex-1 text-center sm:text-left">
+              <p className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-400 truncate leading-tight group-hover:text-slate-500 transition-colors">{metric.label}</p>
+              <p className="text-sm sm:text-lg lg:text-xl font-black tracking-tight truncate leading-none text-slate-900 mt-1 sm:mt-1.5">
+                {metric.count} <span className="text-[10px] sm:text-xs text-slate-400 font-normal ml-1 tracking-normal">{metric.value}</span>
+              </p>
+            </div>
           </div>
         ))}
       </div>
@@ -443,7 +448,7 @@ export default function ClaimsAnalysisPage() {
                     <th className="p-4">Pending</th>
                     <th className="p-4">Approved</th>
                     <th className="p-4">Rejected</th>
-                    <th className="p-4">Paid</th>
+                    <th className="p-4">Contested</th>
                     <th className="p-4 pr-6 text-right">Claim Value</th>
                   </tr>
                 </thead>
@@ -479,7 +484,7 @@ export default function ClaimsAnalysisPage() {
                       </td>
                       <td className="p-4">
                         <span className="bg-blue-50 text-blue-700 hover:bg-blue-100/50 text-xs font-bold px-2.5 py-0.5 rounded-full border border-blue-100/50 capitalize">
-                          {hospital.paid}
+                          {hospital.contested}
                         </span>
                       </td>
                       <td className="p-4 pr-6 font-mono font-bold text-emerald-700 text-sm text-right">{money(hospital.value)}</td>

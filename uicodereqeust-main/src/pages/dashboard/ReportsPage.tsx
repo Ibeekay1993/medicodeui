@@ -564,46 +564,37 @@ export default function ReportsPage() {
   }
 
   return (
-    <div className="space-y-6 max-w-full overflow-x-hidden pb-10 animate-in fade-in duration-500">
+    <div className="space-y-6 max-w-full overflow-x-hidden pb-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
 
       {/* Filters */}
-      <ReportFilters
-        filters={filters}
-        onChange={(patch) => setFilters((f) => ({ ...f, ...patch }))}
-        hospitals={hospitals}
-        loadingHospitals={loadingHospitals}
-        onExport={exportExcel}
-        isExporting={isExporting}
-      />
+      <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 delay-100 fill-mode-both">
+        <ReportFilters
+          filters={filters}
+          onChange={(patch) => setFilters((f) => ({ ...f, ...patch }))}
+          hospitals={hospitals}
+          loadingHospitals={loadingHospitals}
+          onExport={exportExcel}
+          isExporting={isExporting}
+        />
+      </div>
 
       {/* KPI Stats */}
-      <KPIStatsGrid stats={stats} isLoading={isLoading} />
+      <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 delay-200 fill-mode-both">
+        <KPIStatsGrid stats={stats} isLoading={isLoading} />
+      </div>
 
       {/* Analytics Dashboard */}
-      <div className="space-y-6">
+      <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-300 fill-mode-both">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="p-2 bg-indigo-100 rounded-lg">
-              <BarChart3 className="h-5 w-5 text-indigo-600" />
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl shadow-sm">
+              <BarChart3 className="h-5 w-5 text-white" />
             </div>
-            <h2 className="text-lg font-black uppercase text-slate-900 tracking-wider">Analytics Dashboard</h2>
+            <div>
+              <h2 className="text-lg font-black text-slate-900 tracking-tight">Analytics Dashboard</h2>
+              <p className="text-xs font-semibold text-slate-400">Deep dive into financial and operational metrics</p>
+            </div>
           </div>
-          <button
-            onClick={() => setShowHospitalPerformance(!showHospitalPerformance)}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-full shadow-sm hover:bg-slate-50 transition-colors"
-          >
-            {showHospitalPerformance ? (
-              <>
-                <EyeOff className="w-4 h-4 text-slate-500" />
-                Hide Hospital Performance
-              </>
-            ) : (
-              <>
-                <Eye className="w-4 h-4 text-slate-500" />
-                Show Hospital Performance
-              </>
-            )}
-          </button>
         </div>
 
         {/* Charts Row 1 */}
@@ -612,12 +603,32 @@ export default function ReportsPage() {
           <MonthlyTrendChart data={monthlyTrend} />
         </div>
 
-        {/* Hospital Performance */}
-        {showHospitalPerformance && (
-          <div className="animate-in fade-in slide-in-from-top-4 duration-500">
-            <HospitalPerformanceTable data={hospitalPerformance} />
+        {/* Hospital Performance Toggle & Section */}
+        <div className="flex flex-col gap-4">
+          <div className="flex justify-end">
+            <button
+              onClick={() => setShowHospitalPerformance(!showHospitalPerformance)}
+              className="flex items-center gap-2 px-4 py-2.5 text-xs font-bold text-slate-700 bg-white border border-slate-200 rounded-xl shadow-sm hover:bg-slate-50 hover:shadow transition-all group"
+            >
+              {showHospitalPerformance ? (
+                <>
+                  <EyeOff className="w-4 h-4 text-slate-400 group-hover:text-rose-500 transition-colors" />
+                  Hide Hospital Performance
+                </>
+              ) : (
+                <>
+                  <Eye className="w-4 h-4 text-slate-400 group-hover:text-emerald-500 transition-colors" />
+                  Show Hospital Performance
+                </>
+              )}
+            </button>
           </div>
-        )}
+          {showHospitalPerformance && (
+            <div className="animate-in fade-in slide-in-from-top-4 duration-500">
+              <HospitalPerformanceTable data={hospitalPerformance} />
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

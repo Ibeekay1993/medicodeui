@@ -259,41 +259,45 @@ export default function RequestsPage() {
   return (
     <div className="space-y-4 max-w-full overflow-x-hidden pb-10 animate-in fade-in duration-500">
 
-      <div className="flex flex-wrap items-center gap-2 pb-3">
+      <div className="premium-card bg-white/80 backdrop-blur-md p-4 rounded-xl border border-slate-100 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4 transition-all duration-300 hover:shadow-md">
+        <div className="flex items-center gap-2">
           <Tabs value={statusFilter === 'action_required' ? 'action_required' : 'all'} onValueChange={(val) => { setStatusFilter(val); setCurrentPage(1); }} className="w-auto">
-            <TabsList className="h-9">
-              <TabsTrigger value="action_required" className="text-xs font-bold px-4">Action Needed</TabsTrigger>
-              <TabsTrigger value="all" className="text-xs font-bold px-4">All Requests</TabsTrigger>
+            <TabsList className="h-9 bg-slate-100 rounded-lg">
+              <TabsTrigger value="action_required" className="text-xs font-bold px-4 rounded-md">Action Needed</TabsTrigger>
+              <TabsTrigger value="all" className="text-xs font-bold px-4 rounded-md">All Requests</TabsTrigger>
             </TabsList>
           </Tabs>
+        </div>
 
+        <div className="flex flex-wrap items-center gap-3 w-full md:w-auto justify-end">
           {statusFilter !== 'action_required' && (
             <Select value={statusFilter} onValueChange={(val: any) => { setStatusFilter(val); setCurrentPage(1); }}>
-              <SelectTrigger className="h-9 w-36 rounded-lg bg-slate-100 border-none text-xs font-bold">
+              <SelectTrigger className="h-9 w-40 rounded-lg bg-slate-50 border border-slate-200 text-xs font-bold hover:bg-slate-100/50 transition-colors">
                 <SelectValue placeholder="Filter by Status" />
               </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="pending_referral">Pending Referral</SelectItem>
-                <SelectItem value="referral_approved">Referral Approved</SelectItem>
-                <SelectItem value="referral_accepted">Referral Accepted</SelectItem>
-                <SelectItem value="pending_authorization">Pending Authorization</SelectItem>
-                <SelectItem value="approved">Approved</SelectItem>
-                <SelectItem value="rejected">Rejected</SelectItem>
-                <SelectItem value="referral_declined">Referral Declined</SelectItem>
-                <SelectItem value="referral_expired">Referral Expired</SelectItem>
-                <SelectItem value="deferred">Deferred</SelectItem>
+              <SelectContent className="rounded-xl border-slate-100 shadow-xl">
+                <SelectItem value="all" className="text-xs font-semibold">All Status</SelectItem>
+                <SelectItem value="pending" className="text-xs font-semibold">Pending</SelectItem>
+                <SelectItem value="pending_referral" className="text-xs font-semibold">Pending Referral</SelectItem>
+                <SelectItem value="referral_approved" className="text-xs font-semibold">Referral Approved</SelectItem>
+                <SelectItem value="referral_accepted" className="text-xs font-semibold">Referral Accepted</SelectItem>
+                <SelectItem value="pending_authorization" className="text-xs font-semibold">Pending Authorization</SelectItem>
+                <SelectItem value="approved" className="text-xs font-semibold text-emerald-600">Approved</SelectItem>
+                <SelectItem value="rejected" className="text-xs font-semibold text-rose-600">Rejected</SelectItem>
+                <SelectItem value="referral_declined" className="text-xs font-semibold text-rose-600">Referral Declined</SelectItem>
+                <SelectItem value="referral_expired" className="text-xs font-semibold text-rose-600">Referral Expired</SelectItem>
+                <SelectItem value="deferred" className="text-xs font-semibold text-amber-600">Deferred</SelectItem>
               </SelectContent>
             </Select>
           )}
-          <div className="relative w-48 sm:w-64">
+          <div className="relative w-full sm:w-56">
             <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
-            <Input placeholder="Search records..." value={search} onChange={e => { setSearch(e.target.value); setCurrentPage(1); }} className="h-8 rounded-lg border-none bg-slate-100 pl-8 text-xs font-bold" />
+            <Input placeholder="Search records..." value={search} onChange={e => { setSearch(e.target.value); setCurrentPage(1); }} className="h-9 rounded-lg border border-slate-200 bg-slate-50 pl-8 text-xs font-bold focus-visible:ring-1 focus-visible:ring-slate-300" />
           </div>
         </div>
+      </div>
 
-      <Card className="overflow-hidden rounded-xl border-slate-100 bg-white shadow-sm">
+      <Card className="premium-card overflow-hidden rounded-xl border border-slate-100 bg-white shadow-sm transition-all duration-300 hover:shadow-md">
         <RequestList 
           requests={requests}
           role={role}

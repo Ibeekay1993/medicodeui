@@ -59,9 +59,9 @@ export default function AuthorizationsTable({
 }: AuthorizationsTableProps) {
   return (
     <>
-      <Card className="hidden md:block rounded-xl border-slate-100 bg-white shadow-sm overflow-hidden">
-        <div className="w-full">
-          <table className="w-full text-left border-collapse">
+      <Card className="premium-card hidden md:block rounded-xl border border-slate-100 bg-white shadow-sm overflow-hidden transition-all duration-300 hover:shadow-md">
+        <div className="w-full overflow-x-auto">
+          <table className="w-full text-left border-collapse min-w-[800px]">
             <thead className="table-heading">
               <tr>
                 <th className="p-4">Date</th>
@@ -89,19 +89,19 @@ export default function AuthorizationsTable({
                       )}
                     </td>
                     <td className="py-4 pr-4">
-                      <div className={cn("font-mono font-black text-sm max-w-[260px] flex items-start gap-1",
+                      <div className={cn("font-mono font-black text-sm max-w-[260px] flex items-center gap-1",
                         isRejected(r) 
                           ? "text-rose-700" 
                           : "text-slate-800"
                       )}>
-                        <span className="break-words whitespace-normal leading-snug min-w-0 flex-1">
+                        <span className="break-words whitespace-normal leading-snug min-w-0">
                           {r.deletion_status === "awaiting_admin_approval" 
                             ? "WITHDRAWN – Awaiting Delete" 
                             : r.authorization_code 
                               ? r.authorization_code 
                               : isRejected(r) 
                               ? (
-                                <><span className="text-rose-600">Rejected</span><br /><span className="text-xs font-semibold text-rose-500">Reason: {rejectionReason(r) || "reason not recorded"}</span></>
+                                <span className="text-xs font-semibold text-rose-500">{rejectionReason(r) || "reason not recorded"}</span>
                               )
                               : "PENDING"
                           }
@@ -111,9 +111,9 @@ export default function AuthorizationsTable({
                             variant="ghost" 
                             size="icon" 
                             onClick={(e) => { e.stopPropagation(); handleCopyAuth(r); }} 
-                            className="h-6 w-6 text-slate-400 hover:text-slate-600 shrink-0 mt-0.5"
+                            className="ml-1 h-8 w-8 text-slate-400 hover:text-slate-600 shrink-0"
                           >
-                            <Copy className="h-3.5 w-3.5" />
+                            <Copy className="h-4 w-4" />
                           </Button>
                         )}
                       </div>

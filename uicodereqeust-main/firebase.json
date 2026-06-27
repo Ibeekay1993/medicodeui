@@ -36,11 +36,20 @@
         ]
       },
       {
-        "source": "**/*.@(js|css|woff2)",
+        "source": "**/*.@(js|mjs|css|woff2)",
         "headers": [
           {
             "key": "Cache-Control",
             "value": "max-age=31536000, immutable"
+          }
+        ]
+      },
+      {
+        "source": "**/*.@(webp|png|jpg|jpeg|gif|svg|ico)",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "max-age=604800"
           }
         ]
       },

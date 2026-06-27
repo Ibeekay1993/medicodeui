@@ -607,6 +607,7 @@ export function SupportChatArea({
                 handleAiFeedback={handleAiFeedback} 
               />
             ))}
+          </div>
           <div className="border-t border-slate-200 bg-white/80 backdrop-blur-md p-3">
             {pendingFiles.length > 0 && (
               <div className="flex flex-wrap gap-2 mb-2">
@@ -699,4 +700,14 @@ export function SupportChatArea({
               </Button>
             </div>
           </div>
+        </>
+      ) : (
+        <div className="hidden lg:flex flex-1 flex-col items-center justify-center text-slate-400 font-medium bg-white">
+          <MessageSquare className="w-12 h-12 text-slate-200 mb-4" />
+          <p>Select a conversation to view details</p>
+        </div>
+      )}
+    </div>
+  );
+}
 

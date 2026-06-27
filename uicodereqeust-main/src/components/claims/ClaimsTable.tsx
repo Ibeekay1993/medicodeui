@@ -37,9 +37,9 @@ export default function ClaimsTable({
   return (
     <div className="w-full">
       <div className="space-y-4 min-w-0 w-full">
-        <Card className="rounded-xl border-slate-100 bg-white shadow-sm overflow-hidden">
+        <Card className="premium-card rounded-xl border border-slate-100 bg-white shadow-sm overflow-hidden transition-all duration-300">
           {/* Desktop Table View */}
-          <div className="hidden lg:block overflow-x-auto w-full bg-slate-50/70 p-3">
+          <div className="hidden lg:block overflow-x-auto w-full bg-slate-50/70 p-3 rounded-xl">
             <table className="w-full min-w-0 text-left border-separate border-spacing-y-2 table-fixed">
               <colgroup>
                 <col className="w-[12%]" />

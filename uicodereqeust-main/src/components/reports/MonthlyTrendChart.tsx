@@ -7,8 +7,8 @@ interface MonthlyTrendChartProps {
 
 export default function MonthlyTrendChart({ data }: MonthlyTrendChartProps) {
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 p-6">
-      <h3 className="text-sm font-black uppercase tracking-widest text-slate-900 mb-4">Monthly Financial Trend</h3>
+    <div className="premium-card bg-white rounded-2xl border border-slate-100 p-6 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-300">
+      <h3 className="text-sm font-black uppercase tracking-widest text-slate-800 mb-4">Monthly Financial Trend</h3>
       <ResponsiveContainer width="100%" height={250}>
         <BarChart data={data}>
           <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
