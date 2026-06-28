@@ -1,6 +1,7 @@
 import { Building, Search, ListFilter } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 
 interface ClaimsFilterHeaderProps {
@@ -24,11 +25,18 @@ export default function ClaimsFilterHeader({
 }: ClaimsFilterHeaderProps) {
   return (
     <div className="premium-card bg-white/80 backdrop-blur-md p-4 rounded-xl border border-slate-100 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4 mb-2 transition-all duration-300 hover:shadow-md">
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-4">
         <h2 className="text-lg font-black text-slate-900 tracking-tight">Claims Ledger</h2>
+        <Tabs value={statusTab === 'pending' ? 'pending' : 'all'} onValueChange={(val: any) => setStatusTab(val)} className="w-auto hidden sm:block">
+          <TabsList className="h-8 bg-slate-100 rounded-lg">
+            <TabsTrigger value="pending" className="text-xs font-bold px-4 rounded-md">Action Needed</TabsTrigger>
+            <TabsTrigger value="all" className="text-xs font-bold px-4 rounded-md">All Claims</TabsTrigger>
+          </TabsList>
+        </Tabs>
       </div>
       <div className="flex flex-wrap items-center justify-end gap-3 w-full md:w-auto">
         {/* Status Filter Dropdown */}
+        {statusTab !== 'pending' && (
         <div className="w-full sm:w-44">
           <Select value={statusTab} onValueChange={(v: any) => setStatusTab(v)}>
             <SelectTrigger className="w-full h-8 text-xs font-semibold bg-slate-50 border-none rounded-lg">
@@ -44,6 +52,7 @@ export default function ClaimsFilterHeader({
             </SelectContent>
           </Select>
         </div>
+        )}
 
         {/* Hospital Filter Select */}
         <div className="w-full sm:w-44">
