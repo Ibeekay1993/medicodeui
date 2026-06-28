@@ -91,10 +91,12 @@ export function RequestList({
     e.stopPropagation();
     if (!unlockOtpInput) return;
     
+    const otpType = Boolean(r.is_referral || r.request_type === 'referral' || r.referring_hospital_id) ? 'ARRIVAL' : 'TREATMENT';
+
     const { data, error } = await supabase.rpc("verify_otp" as any, {
       p_request_id: unlockingReqId,
       p_otp_plaintext: unlockOtpInput,
-      p_otp_type: 'AUTHORIZATION',
+      p_otp_type: otpType,
       p_hospital_id: null
     });
     
