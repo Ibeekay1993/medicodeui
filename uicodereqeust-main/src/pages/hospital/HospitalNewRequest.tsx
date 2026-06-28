@@ -700,7 +700,7 @@ export default function HospitalNewRequest() {
               <Button
                 type="button"
                 onClick={handleNextStep}
-                className="h-12 px-8 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold"
+                className="h-12 px-8 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
               >
                 Next Step <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
