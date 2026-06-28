@@ -254,22 +254,25 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
     return [
       { name: "Dashboard", href: basePath, icon: Activity },
+      { name: "New Request", href: "/dashboard/new-request", icon: Zap, hidden: r !== "hospital" },
+      { name: "Authorizations", href: r === "hospital" ? `${basePath}/authorizations` : `${basePath}/requests`, icon: ShieldCheck },
+      { name: "Claims Queue", href: `${basePath}/claims`, icon: Banknote, hidden: r === "utilization_manager" },
+      { name: "Payments", href: `/backoffice/admin/payments/awaiting`, icon: Banknote, hidden: r !== "admin" },
+      { name: "Messages", href: `${basePath}/messages`, icon: MessageSquare, badge: actionableMessages },
+      
+      { name: "Claims Analysis", href: `${basePath}/claims-analysis`, icon: LayoutDashboard, hidden: r !== "admin" },
+      { name: "Claims Reports", href: `${basePath}/claims-reports`, icon: FileSpreadsheet, hidden: r !== "admin" },
+      { name: "Pre-Auth Report", href: `${basePath}/reports`, icon: LayoutDashboard, hidden: r === "hospital" || r === "claims" || r === "finance" },
+      
       { name: "Hospitals", href: `${basePath}/hospitals`, icon: Building2, hidden: r !== "admin" },
       { name: "Users", href: `${basePath}/users`, icon: Users, hidden: r !== "admin" },
+      { name: "WhatsApp Parser", href: `${basePath}/whatsapp`, icon: MessageSquare, hidden: r === "hospital" },
+      
+      { name: "Audit Feed", href: `${basePath}/audit`, icon: Activity, hidden: r !== "admin" },
       { name: "Announcements", href: `${basePath}/announcements`, icon: Megaphone, hidden: r !== "admin" },
       { name: "Delete Requests", href: `${basePath}/delete-requests`, icon: Trash2, hidden: r !== "admin" },
       { name: "NHIS Update", href: `${basePath}/nhis-update`, icon: FileSpreadsheet, hidden: r !== "admin" },
       { name: "Historical Import", href: `${basePath}/historical-import`, icon: FileSpreadsheet, hidden: r !== "admin" },
-      { name: "New Request", href: "/dashboard/new-request", icon: Zap, hidden: r !== "hospital" },
-      { name: "Authorizations", href: r === "hospital" ? `${basePath}/authorizations` : `${basePath}/requests`, icon: ShieldCheck },
-      { name: "Claims Analysis", href: `${basePath}/claims-analysis`, icon: LayoutDashboard, hidden: r !== "admin" },
-      { name: "Claims Queue", href: `${basePath}/claims`, icon: Banknote, hidden: r === "utilization_manager" },
-      { name: "Payments", href: `/backoffice/admin/payments/awaiting`, icon: Banknote, hidden: r !== "admin" },
-      { name: "Claims Reports", href: `${basePath}/claims-reports`, icon: FileSpreadsheet, hidden: r !== "admin" },
-      { name: "Messages", href: `${basePath}/messages`, icon: MessageSquare, badge: actionableMessages },
-      { name: "WhatsApp Parser", href: `${basePath}/whatsapp`, icon: MessageSquare, hidden: r === "hospital" },
-      { name: "Pre-Auth Report", href: `${basePath}/reports`, icon: LayoutDashboard, hidden: r === "hospital" || r === "claims" || r === "finance" },
-      { name: "Audit Feed", href: `${basePath}/audit`, icon: Activity, hidden: r !== "admin" },
       { name: "Settings", href: `${basePath}/settings`, icon: Settings },
     ].filter(item => !item.hidden);
   };
