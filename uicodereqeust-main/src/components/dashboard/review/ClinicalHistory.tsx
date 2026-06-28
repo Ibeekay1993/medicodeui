@@ -42,7 +42,7 @@ export function ClinicalHistory({
           matches++;
         }
       }
-      return matches > 0;
+      return matches >= Math.max(2, reqTokens.length) || (matches > 0 && reqTokens.length === 1);
     });
   }, [visibleHistory, requestPatientName, showFamilyHistory]);
 
@@ -82,29 +82,34 @@ export function ClinicalHistory({
       </button>
 
       {!collapsed && (
-        <div className="animate-in fade-in duration-200">
-          <div className="px-4 pt-3.5">
-            <div className="flex flex-col gap-2 rounded-xl border border-slate-150 bg-slate-50/50 px-3.5 py-2.5 text-xs font-bold uppercase tracking-wider text-slate-500 md:flex-row md:items-center md:justify-between">
+        <div className="animate-in fade-in slide-in-from-top-4 duration-300">
+          <div className="px-4 pt-4">
+            <div className="flex flex-col gap-3 rounded-2xl border border-slate-150 bg-gradient-to-r from-slate-50/80 to-white px-4 py-3 text-xs font-bold uppercase tracking-wider text-slate-500 shadow-sm md:flex-row md:items-center md:justify-between transition-all">
               <div className="flex flex-col gap-1.5">
-                <p>
-                  Viewing history for: <span className="text-slate-800 font-extrabold">{requestPatientName || "Unknown patient"}</span>
+                <p className="flex items-center flex-wrap">
+                  Viewing history for: <span className="text-slate-800 font-extrabold bg-white px-2 py-0.5 rounded-md border border-slate-200 shadow-xs ml-1.5">{requestPatientName || "Unknown patient"}</span>
                 </p>
-                <label className="flex items-center gap-2 cursor-pointer w-fit group">
-                  <input 
-                    type="checkbox" 
-                    className="rounded border-slate-300 text-primary focus:ring-primary h-3.5 w-3.5 cursor-pointer"
-                    checked={showFamilyHistory}
-                    onChange={(e) => {
-                      setShowFamilyHistory(e.target.checked);
-                      setHistoryPage(1);
-                    }}
-                  />
-                  <span className="text-[10px] text-slate-500 font-semibold tracking-wider group-hover:text-slate-700 transition-colors">Show full family history</span>
+                <label className="flex items-center gap-2.5 cursor-pointer w-fit group mt-0.5">
+                  <div className="relative inline-flex h-5 w-9 items-center rounded-full transition-colors duration-300 ease-in-out shadow-inner" style={{ backgroundColor: showFamilyHistory ? '#10b981' : '#e2e8f0' }}>
+                    <input 
+                      type="checkbox" 
+                      className="peer sr-only"
+                      checked={showFamilyHistory}
+                      onChange={(e) => {
+                        setShowFamilyHistory(e.target.checked);
+                        setHistoryPage(1);
+                      }}
+                    />
+                    <span
+                      className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow-sm ring-0 transition duration-300 ease-in-out ${showFamilyHistory ? 'translate-x-5' : 'translate-x-0.5'}`}
+                    />
+                  </div>
+                  <span className="text-[10px] font-black tracking-widest uppercase transition-colors group-hover:text-primary mt-0.5">Show full family history</span>
                 </label>
               </div>
-              <p className="font-mono text-slate-700">
-                Policy: {requestPolicyNumber || "---"}
-              </p>
+              <div className="text-[10px] sm:text-xs md:text-right mt-1 md:mt-0">
+                Policy: <span className="font-extrabold text-slate-700 bg-white px-2 py-0.5 rounded-md border border-slate-200 shadow-xs ml-1">{requestPolicyNumber || "N/A"}</span>
+              </div>
             </div>
           </div>
 

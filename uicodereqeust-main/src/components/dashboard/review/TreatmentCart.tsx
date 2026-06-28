@@ -79,7 +79,7 @@ export function TreatmentCart({
   };
 
   return (
-    <div className="space-y-3.5 rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50/20 to-blue-50/50 p-4 shadow-xs">
+    <div className="space-y-3.5 rounded-2xl border border-blue-100/60 bg-gradient-to-br from-blue-50/40 via-white to-blue-50/20 p-5 shadow-[0_4px_20px_rgb(59,130,246,0.05)] transition-all">
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0 flex-1">
           <div className="text-xs font-black uppercase tracking-widest text-blue-800">

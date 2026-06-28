@@ -53,7 +53,7 @@ export function ClinicalActionControls({
           placeholder="Enter clinical notes justifying approval, or the reason for decline/deferral…"
           value={editDecisionNote}
           onChange={(e) => setEditDecisionNote(e.target.value)}
-          className="min-h-[85px] rounded-xl bg-slate-50/50 border-slate-200 focus:bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all font-medium text-slate-800"
+          className="min-h-[90px] rounded-2xl bg-slate-50/70 border-slate-200/80 focus:bg-white focus:ring-2 focus:ring-primary/30 focus:border-transparent shadow-inner transition-all duration-300 font-medium text-slate-800"
           disabled={isAwaitingDeletion || processing}
         />
         <p className="text-xs font-medium text-slate-400 pl-0.5 leading-snug">
@@ -66,7 +66,7 @@ export function ClinicalActionControls({
         <div className="flex flex-col items-stretch justify-end gap-2 border-t border-slate-100 pt-4 sm:flex-row sm:items-center sm:gap-3">
           {request?.status === "referral_declined" && handleReassign && (
             <Button
-              className="h-12 rounded-xl bg-blue-600 text-xs font-black uppercase tracking-widest text-white hover:bg-blue-700 shadow-md transition-all active:scale-98"
+              className="h-12 rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 text-xs font-black uppercase tracking-widest text-white hover:from-blue-700 hover:to-blue-800 shadow-[0_4px_15px_rgba(37,99,235,0.3)] transition-all duration-300 hover:-translate-y-0.5 active:scale-[0.98]"
               onClick={handleReassign}
               disabled={processing || isAwaitingDeletion}
             >
@@ -79,7 +79,7 @@ export function ClinicalActionControls({
             </Button>
           )}
           <Button
-            className="h-12 rounded-xl bg-slate-800 text-xs font-black uppercase tracking-widest text-white hover:bg-slate-900 shadow-md transition-all active:scale-98"
+            className="h-12 rounded-xl bg-gradient-to-r from-slate-800 to-slate-900 text-xs font-black uppercase tracking-widest text-white hover:from-slate-900 hover:to-black shadow-[0_4px_15px_rgba(15,23,42,0.3)] transition-all duration-300 hover:-translate-y-0.5 active:scale-[0.98]"
             onClick={saveRecordEdits}
             disabled={processing || isAwaitingDeletion}
           >
