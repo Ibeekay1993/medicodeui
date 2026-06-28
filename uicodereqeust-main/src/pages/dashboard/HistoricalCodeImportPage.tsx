@@ -1,6 +1,6 @@
 import { useMemo, useState, useEffect, useCallback } from "react";
 import * as XLSX from "xlsx";
-import { Upload, FileSpreadsheet, Loader2, CheckCircle2, AlertTriangle, RefreshCw, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
+import { Upload, FileSpreadsheet, Loader2, CheckCircle2, AlertTriangle, RefreshCw, Trash2, ChevronLeft, ChevronRight, Info } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { ShieldAlert } from "lucide-react";
@@ -150,7 +150,7 @@ export default function HistoricalCodeImportPage() {
 
   const parseFile = async (f: File, headersIncluded: boolean) => {
     const buffer = await f.arrayBuffer();
-    const workbook = XLSX.read(buffer, { type: "array", cellDates: true });
+    const workbook = XLSX.read(buffer, { type: "array", cellDates: false });
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
     const parsed = XLSX.utils.sheet_to_json<Record<string, any>>(sheet, { 
       defval: "", 
@@ -299,8 +299,16 @@ export default function HistoricalCodeImportPage() {
       </div>
 
       {importMode && !file && (
-        <div 
-          className={`relative flex flex-col items-center justify-center rounded-2xl border-2 border-dashed p-12 transition-colors duration-200 ${isDragging ? "border-emerald-500 bg-emerald-50" : "border-slate-200 bg-slate-50 hover:border-slate-300 hover:bg-slate-100"}`}
+        <>
+          <div className="mb-6 rounded-lg bg-blue-50 p-4 border border-blue-100 flex items-start gap-3">
+            <Info className="h-5 w-5 text-blue-500 shrink-0 mt-0.5" />
+            <div className="text-sm text-blue-900">
+              <p className="font-bold mb-1">Important: Date Formatting</p>
+              <p>To avoid dates like <span className="font-mono bg-blue-100 px-1 rounded">03/09/2026</span> being imported incorrectly, please ensure dates in your Excel file are formatted unambiguously before uploading. We strongly recommend formatting your date columns in Excel as <strong>YYYY-MM-DD</strong> (e.g. <span className="font-mono bg-blue-100 px-1 rounded">2026-04-09</span>) or using the exact British format <strong>DD/MM/YYYY</strong>.</p>
+            </div>
+          </div>
+          <div 
+            className={`relative flex flex-col items-center justify-center rounded-2xl border-2 border-dashed p-12 transition-colors duration-200 ${isDragging ? "border-emerald-500 bg-emerald-50" : "border-slate-200 bg-slate-50 hover:border-slate-300 hover:bg-slate-100"}`}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
