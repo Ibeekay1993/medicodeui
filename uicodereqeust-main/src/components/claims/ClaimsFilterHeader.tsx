@@ -2,6 +2,7 @@ import { Building, Search, ListFilter } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { HospitalSearchSelect } from "@/components/ui/HospitalSearchSelect";
 
 
 interface ClaimsFilterHeaderProps {
@@ -58,20 +59,12 @@ export default function ClaimsFilterHeader({
         )}
 
         {/* Hospital Filter Select */}
-        <div className="w-full sm:w-44">
-          <Select value={selectedHospitalId} onValueChange={setSelectedHospitalId}>
-            <SelectTrigger className="w-full h-8 text-xs font-semibold bg-slate-50 border-none rounded-lg">
-              <Building className="h-3 w-3 text-slate-400 mr-1.5 shrink-0" />
-              <SelectValue placeholder="All Hospitals" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all" className="text-xs font-semibold">All Hospitals</SelectItem>
-              {uniqueHospitals.map(h => (
-                <SelectItem key={h.id} value={h.id} className="text-xs font-semibold">{h.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        <HospitalSearchSelect
+          uniqueHospitals={uniqueHospitals}
+          selectedHospitalId={selectedHospitalId}
+          onHospitalChange={setSelectedHospitalId}
+          className="w-full sm:w-44"
+        />
 
         {/* Search Input */}
         <div className="relative w-full sm:w-56">

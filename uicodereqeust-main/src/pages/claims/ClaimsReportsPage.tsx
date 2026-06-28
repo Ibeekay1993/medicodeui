@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { HospitalSearchSelect } from "@/components/ui/HospitalSearchSelect";
 import { useToast } from "@/hooks/use-toast";
 import {
   DropdownMenu,
@@ -280,22 +281,13 @@ export default function ClaimsReportsPage() {
               ))}
             </SelectContent>
           </Select>
-          <Select value={hospitalId} onValueChange={setHospitalId}>
-            <SelectTrigger className="h-10 rounded-xl border-none bg-slate-50 text-xs font-semibold"><SelectValue placeholder="Hospital" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Hospitals</SelectItem>
-              {loadingHospitals ? (
-                <div className="flex items-center gap-2 px-3 py-2 text-xs text-slate-400 font-semibold">
-                  <Loader2 className="h-3 w-3 animate-spin text-[#93c34b]" />
-                  Loading...
-                </div>
-              ) : (
-                hospitals.map((hospital) => (
-                  <SelectItem key={hospital.id} value={hospital.id}>{hospital.name}</SelectItem>
-                ))
-              )}
-            </SelectContent>
-          </Select>
+          <HospitalSearchSelect
+            uniqueHospitals={hospitals}
+            selectedHospitalId={hospitalId}
+            onHospitalChange={setHospitalId}
+            placeholder="Hospital"
+            className="w-full h-10 rounded-xl bg-slate-50 text-xs font-semibold"
+          />
           <div className="grid grid-cols-2 gap-2">
             <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="h-10 rounded-xl border-none bg-slate-50 text-xs font-semibold" />
             <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="h-10 rounded-xl border-none bg-slate-50 text-xs font-semibold" />
