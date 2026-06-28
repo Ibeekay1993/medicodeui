@@ -53,7 +53,7 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
   const [historyPage, setHistoryPage] = useState(1);
 
   // 1. Determine request metadata
-  const isHospitalDirected = request?.source === "hospital_portal";
+  const isHospitalDirected = ["hospital_portal", "hospital", "portal"].includes(request?.source);
   const requestPatientName = cleanPatientName(request?.patient_name || "");
   const requestPolicyNumber = String(request?.policy_number || "").trim();
 
@@ -270,8 +270,8 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
                       placeholder="Diagnosis..."
                       value={actions.editDiagnosis}
                       onChange={(e) => actions.setEditDiagnosis(e.target.value)}
-                      className="bg-white rounded-xl border-slate-200 font-bold focus:ring-primary/20"
-                      disabled={request?.deletion_status === "awaiting_admin_approval"}
+                      className="bg-white rounded-xl border-slate-200 font-bold focus:ring-primary/20 disabled:bg-slate-50 disabled:text-slate-500 disabled:border-slate-100"
+                      disabled={request?.deletion_status === "awaiting_admin_approval" || isHospitalDirected}
                     />
                   </div>
 
@@ -288,16 +288,16 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
                         if (isHospitalDirected) return;
                         void tariffSearch.parseTreatmentText({ replaceAuto: true, quiet: true });
                       }}
-                      className="bg-white rounded-xl border-slate-200 font-semibold min-h-[80px] focus:ring-primary/20"
-                      disabled={request?.deletion_status === "awaiting_admin_approval"}
+                      className="bg-white rounded-xl border-slate-200 font-semibold min-h-[80px] focus:ring-primary/20 disabled:bg-slate-50 disabled:text-slate-500 disabled:border-slate-100"
+                      disabled={request?.deletion_status === "awaiting_admin_approval" || isHospitalDirected}
                     />
                   </div>
 
                   {/* Referral details container */}
-                  <div className="space-y-3.5 overflow-hidden rounded-2xl border border-blue-100 bg-white p-3 shadow-xs">
+                  <div className="space-y-3.5 overflow-hidden rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
                     <div className="flex items-center justify-between gap-3">
                       <div className="min-w-0">
-                        <div className="text-xs font-black uppercase tracking-widest text-blue-800">
+                        <div className="text-xs font-black uppercase tracking-widest text-slate-700">
                           Referral Hospital / Claim Owner
                         </div>
                         <p className="mt-0.5 text-xs font-semibold text-slate-500">
@@ -311,7 +311,7 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
                         variant="ghost"
                         size="icon"
                         onClick={() => actions.setReferralCollapsed((current) => !current)}
-                        className="h-8 w-8 shrink-0 rounded-xl text-blue-700 hover:bg-blue-50"
+                        className="h-8 w-8 shrink-0 rounded-xl text-slate-600 hover:bg-slate-100"
                       >
                         {actions.referralCollapsed ? (
                           <ChevronDown className="h-4.5 w-4.5" />
@@ -337,7 +337,7 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
                           disabled={request?.deletion_status === "awaiting_admin_approval"}
                         />
                         {actions.editReferralHospitalName.trim() ? (
-                          <div className="rounded-xl border border-blue-200 bg-blue-50 px-3.5 py-2.5 text-xs font-bold leading-relaxed text-blue-900 shadow-inner">
+                          <div className="rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-xs font-bold leading-relaxed text-slate-700 shadow-sm">
                             Request raised by: {request.requesting_hospital_name || request.hospital_name || "Original hospital"}
                             <br />
                             Treatment and claims assigned to: {actions.editReferralHospitalName.trim()}
