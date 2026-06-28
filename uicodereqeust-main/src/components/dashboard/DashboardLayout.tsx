@@ -550,7 +550,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         </main>
 
         <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 flex justify-around pb-[env(safe-area-inset-bottom)] z-50">
-          {navigation.slice(0, 4).map((item) => {
+          {navigation.filter(item => item.name !== "Settings").slice(0, 5).map((item) => {
             const isActive = isActiveRoute(item.href);
             return (
               <button
