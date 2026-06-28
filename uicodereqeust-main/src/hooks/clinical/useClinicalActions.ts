@@ -469,7 +469,7 @@ export function useClinicalActions({
         }
 
         // Send approval email to patient (standard treatment approval)
-        if (targetStatus === "approved" && request.patient_email) {
+        if (targetStatus === "approved" && request.patient_email && !request.patient_email.startsWith("no-email")) {
           supabase.functions
             .invoke("send-approval-email", {
               method: "POST",
@@ -510,7 +510,7 @@ export function useClinicalActions({
         }
 
         // Send referral notification email to patient (when a referral is approved)
-        if (dbStatus === "referral_approved" && request.patient_email) {
+        if (dbStatus === "referral_approved" && request.patient_email && !request.patient_email.startsWith("no-email")) {
           supabase.functions
             .invoke("send-referral-notification", {
               method: "POST",
@@ -628,7 +628,7 @@ export function useClinicalActions({
     await persistRequestUpdate("rejected", "DECLINED");
 
     // Send rejection email to patient if email on file
-    if (request?.patient_email) {
+    if (request?.patient_email && !request.patient_email.startsWith("no-email")) {
       supabase.functions
         .invoke("send-rejection-email", {
           method: "POST",
