@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Copy, Loader2, Trash2, MessageSquare } from "lucide-react";
+import { Copy, Loader2, Trash2, MessageSquare, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -209,6 +209,8 @@ export function RequestList({
                           <span className="text-emerald-600 font-black" title="Verified via WhatsApp">✓</span>
                         ) : otpLoading[r.id] ? (
                           <Loader2 className="h-3.5 w-3.5 animate-spin text-slate-400" />
+                        ) : otpVerifiedStatus[r.id] ? (
+                          <span className="text-emerald-600 font-black flex items-center gap-1" title="OTP successfully consumed"><CheckCircle2 className="w-3.5 h-3.5" /> Consumed</span>
                         ) : otpValues[r.id] ? (
                           <div className="flex items-center gap-1.5">
                             <span className="text-amber-700 font-black tracking-wider">{otpValues[r.id]}</span>

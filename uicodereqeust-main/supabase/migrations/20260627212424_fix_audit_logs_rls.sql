@@ -1,4 +1,4 @@
-﻿-- Fix the broken RLS policy for audit logs
+-- Fix the broken RLS policy for audit logs
 -- Restrict read access STRICTLY to admins only
 DROP POLICY IF EXISTS "Staff can read audit logs" ON public.audit_logs;
 

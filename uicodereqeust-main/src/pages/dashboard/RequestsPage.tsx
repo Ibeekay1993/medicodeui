@@ -135,7 +135,7 @@ export default function RequestsPage() {
       if (otpLoading[r.id]) return false;
       
       if (role === "utilization_manager" || role === "admin") {
-        return ["pending", "pending_referral", "pending_authorization", "info_provided", "approved"].includes(r.status) && !otpValues[r.id];
+        return ["pending", "pending_referral", "pending_authorization", "info_provided", "approved", "referral_approved", "referral_accepted"].includes(r.status) && !otpValues[r.id];
       }
       
       if (role === "hospital") {
@@ -161,13 +161,20 @@ export default function RequestsPage() {
 
           if (!error && data && Array.isArray(data)) {
             const newValues: Record<string, string> = {};
+            const newVerified: Record<string, boolean> = {};
             data.forEach((row: any) => {
               if (row.otp_value && row.authorization_id) {
                 newValues[row.authorization_id] = row.otp_value;
+                if (row.verified) {
+                  newVerified[row.authorization_id] = true;
+                }
               }
             });
             if (Object.keys(newValues).length > 0) {
               setOtpValues(prev => ({ ...prev, ...newValues }));
+            }
+            if (Object.keys(newVerified).length > 0) {
+              setOtpVerifiedStatus(prev => ({ ...prev, ...newVerified }));
             }
             return;
           }
@@ -186,6 +193,9 @@ export default function RequestsPage() {
                   if (role === "utilization_manager" || role === "admin") {
                     if (otpRow.otp_value) {
                       setOtpValues(prev => ({ ...prev, [r.id]: otpRow.otp_value }));
+                      if (otpRow.verified || !!otpRow.consumed_at) {
+                        setOtpVerifiedStatus(prev => ({ ...prev, [r.id]: true }));
+                      }
                     }
                   } else if (role === "hospital") {
                     setOtpVerifiedStatus(prev => ({ 
