@@ -232,7 +232,7 @@ export default function HistoricalCodeImportPage() {
         const { data, error } = await supabase.rpc("import_historical_codes" as any, {
           _file_name: `${fileName || "historical-import"} (Part ${Math.floor(i / CHUNK_SIZE) + 1})`,
           _rows: chunk,
-          _mode: mode,
+          _mode: mode === "wipe" ? "add" : mode,
         });
         
         if (error) throw error;
