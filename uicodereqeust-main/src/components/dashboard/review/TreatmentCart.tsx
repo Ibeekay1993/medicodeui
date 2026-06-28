@@ -79,13 +79,13 @@ export function TreatmentCart({
   };
 
   return (
-    <div className="space-y-3.5 rounded-2xl border border-blue-100/60 bg-gradient-to-br from-blue-50/40 via-white to-blue-50/20 p-5 shadow-[0_4px_20px_rgb(59,130,246,0.05)] transition-all">
+    <div className="space-y-3.5 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[inset_0_1px_4px_rgba(0,0,0,0.02)] transition-all">
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0 flex-1">
-          <div className="text-xs font-black uppercase tracking-widest text-blue-800">
+          <div className="text-xs font-black uppercase tracking-widest text-slate-800">
             Approved Treatment Cart
           </div>
-          <p className="mt-0.5 text-xs font-semibold text-blue-900/60">
+          <p className="mt-0.5 text-xs font-semibold text-slate-500">
             {cartCollapsed
               ? "Tap arrow to view cart and auto-detect controls"
               : "Auto-detect and align clinical codes, quantities, and pricing."}
@@ -103,7 +103,7 @@ export function TreatmentCart({
                 isHospitalDirected ||
                 request?.deletion_status === "awaiting_admin_approval"
               }
-              className="h-8 rounded-xl border-blue-200 bg-white px-3 text-xs font-black uppercase tracking-wider text-blue-700 hover:bg-blue-50 shadow-sm disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+              className="h-8 rounded-xl border-slate-200 bg-white px-3 text-xs font-black uppercase tracking-wider text-slate-700 hover:bg-slate-50 shadow-sm disabled:opacity-40 disabled:cursor-not-allowed transition-all"
             >
               {parseLoading ? (
                 <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
@@ -118,7 +118,7 @@ export function TreatmentCart({
             variant="ghost"
             size="icon"
             onClick={() => setCartCollapsed((current) => !current)}
-            className="h-8 w-8 rounded-xl text-blue-700 hover:bg-blue-100/50"
+            className="h-8 w-8 rounded-xl text-slate-600 hover:bg-slate-100"
           >
             {cartCollapsed ? <ChevronDown className="h-4.5 w-4.5" /> : <ChevronUp className="h-4.5 w-4.5" />}
           </Button>
@@ -129,17 +129,18 @@ export function TreatmentCart({
         <div className="space-y-3.5 animate-in fade-in duration-200">
           {parseStatus && (
             <div className="flex items-center gap-2 rounded-xl border border-blue-100 bg-white px-3 py-2.5 text-xs font-bold text-blue-800 shadow-sm">
+            <div className="flex items-center gap-2 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2.5 text-xs font-bold text-slate-600 shadow-sm">
               {parseLoading ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin text-blue-500" />
+                <Loader2 className="h-3.5 w-3.5 animate-spin text-slate-500" />
               ) : (
-                <Sparkles className="h-3.5 w-3.5 text-blue-500" />
+                <Sparkles className="h-3.5 w-3.5 text-slate-500" />
               )}
               {parseStatus}
             </div>
           )}
 
           {approvedItems.length > 0 ? (
-            <div className="overflow-hidden rounded-xl border border-blue-100 bg-white shadow-xs">
+            <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xs">
               <div className="max-h-64 overflow-auto divide-y divide-slate-100">
                 {approvedItems.map((item) => (
                   <div
@@ -148,7 +149,7 @@ export function TreatmentCart({
                       "p-3 transition-colors",
                       item.declined
                         ? "bg-rose-50/20 hover:bg-rose-50/30"
-                        : "bg-white hover:bg-emerald-50/10"
+                        : "bg-white hover:bg-slate-50/50"
                     )}
                   >
                     <div className="flex items-start justify-between gap-4">
@@ -166,7 +167,7 @@ export function TreatmentCart({
                               "text-xs font-black uppercase tracking-widest",
                               item.declined
                                 ? "text-rose-700 bg-rose-50 border-rose-100"
-                                : "text-emerald-700 bg-emerald-50/50 border-emerald-100"
+                                : "text-slate-700 bg-slate-100 border-slate-200"
                             )}
                           >
                             {item.declined ? "Declined" : item.category || "tariff"}
@@ -179,7 +180,7 @@ export function TreatmentCart({
                                 [item.code || ""]: !prev[item.code || ""],
                               }))
                             }
-                            className="inline-flex items-center gap-1 text-xs font-bold text-slate-400 hover:text-emerald-700 transition-colors"
+                            className="inline-flex items-center gap-1 text-xs font-bold text-slate-400 hover:text-slate-700 transition-colors"
                           >
                             {showItemDetails[item.code || ""] ? (
                               <ChevronUp className="w-3 h-3" />
@@ -268,7 +269,7 @@ export function TreatmentCart({
                         <div className="text-right">
                           <p className={cn(
                             "text-xs font-black",
-                            item.declined ? "text-rose-500 line-through" : "text-emerald-700"
+                            item.declined ? "text-rose-500 line-through" : "text-slate-800"
                           )}>
                             {item.declined ? "Declined" : formatNaira(itemTotal(item))}
                           </p>
@@ -280,7 +281,7 @@ export function TreatmentCart({
                                 className={cn(
                                   "text-xs font-black uppercase transition-colors",
                                   item.declined
-                                    ? "text-emerald-600 hover:text-emerald-700"
+                                    ? "text-slate-600 hover:text-slate-700"
                                     : "text-rose-500 hover:text-rose-700"
                                 )}
                               >
@@ -311,10 +312,10 @@ export function TreatmentCart({
                             <span className="font-mono font-bold text-slate-800">{item.code}</span>
                           </div>
                           <div className="flex justify-between border-b border-slate-200 pb-1">
-                            <span>Unit Price:</span>
-                            <span className="font-bold text-slate-800">
-                              {formatNaira(itemUnitPrice(item))}
-                            </span>
+                            Quantity:{" "}
+                          <span className="font-bold text-slate-800">
+                            {item.quantity}
+                          </span>
                           </div>
                           <div className="flex justify-between border-b border-slate-200 pb-1">
                             <span>Matched via:</span>
@@ -344,27 +345,27 @@ export function TreatmentCart({
               </div>
             </div>
           ) : (
-            <div className="rounded-xl border border-dashed border-blue-200 bg-white/70 p-5 text-center text-xs font-semibold text-blue-900/60 shadow-inner">
+            <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/50 p-5 text-center text-xs font-semibold text-slate-500 shadow-inner">
               No approved items in cart yet. Use auto-detect above or search below to manually append.
             </div>
           )}
 
           {/* Add Item Manually Search Field */}
           <div className="relative space-y-1.5">
-            <Label className="text-xs uppercase font-black text-blue-800 tracking-wider pl-1">
+            <Label className="text-xs uppercase font-black text-slate-700 tracking-wider pl-1">
               Add Item Manually
             </Label>
             <div className="relative">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-blue-400" />
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
               <Input
                 placeholder="Search code, brand name, generic name, or abbreviation..."
                 value={tariffSearch}
                 onChange={(event) => setTariffSearch(event.target.value)}
-                className="bg-white rounded-xl border-blue-200 pl-9.5 pr-8 focus:ring-blue-500/20 font-medium"
+                className="bg-white rounded-xl border-slate-200 pl-9.5 pr-8 focus:ring-slate-500/20 font-medium"
                 disabled={request?.deletion_status === "awaiting_admin_approval"}
               />
               {tariffSearchLoading && (
-                <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-blue-500" />
+                <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-slate-400" />
               )}
             </div>
 
@@ -382,14 +383,14 @@ export function TreatmentCart({
                       setTariffSearch("");
                       setTariffOptions([]);
                     }}
-                    className="flex w-full items-start justify-between gap-3 px-4 py-3 text-left hover:bg-blue-50/50 active:bg-blue-50 transition-colors"
+                    className="flex w-full items-start justify-between gap-3 px-4 py-3 text-left hover:bg-slate-50/50 active:bg-slate-50 transition-colors"
                   >
                     <span className="min-w-0">
                       <span className="block text-xs font-bold text-slate-800">{option.name}</span>
                       <span className="mt-1 flex items-center gap-1.5 flex-wrap">
                         <Badge
                           variant="outline"
-                          className="text-xs font-black uppercase bg-blue-50/50 border-blue-100 text-blue-700"
+                          className="text-xs font-black uppercase bg-slate-50/50 border-slate-200 text-slate-700"
                         >
                           {option.category || "tariff"}
                         </Badge>

@@ -90,7 +90,7 @@ export function ClinicalHistory({
                   Viewing history for: <span className="text-slate-800 font-extrabold bg-white px-2 py-0.5 rounded-md border border-slate-200 shadow-xs ml-1.5">{requestPatientName || "Unknown patient"}</span>
                 </p>
                 <label className="flex items-center gap-2.5 cursor-pointer w-fit group mt-0.5">
-                  <div className="relative inline-flex h-5 w-9 items-center rounded-full transition-colors duration-300 ease-in-out shadow-inner" style={{ backgroundColor: showFamilyHistory ? '#10b981' : '#e2e8f0' }}>
+                  <div className="relative inline-flex h-5 w-9 items-center rounded-full transition-colors duration-300 ease-in-out shadow-inner" style={{ backgroundColor: showFamilyHistory ? '#334155' : '#e2e8f0' }}>
                     <input 
                       type="checkbox" 
                       className="peer sr-only"
@@ -104,7 +104,7 @@ export function ClinicalHistory({
                       className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow-sm ring-0 transition duration-300 ease-in-out ${showFamilyHistory ? 'translate-x-5' : 'translate-x-0.5'}`}
                     />
                   </div>
-                  <span className="text-[10px] font-black tracking-widest uppercase transition-colors group-hover:text-primary mt-0.5">Show full family history</span>
+                  <span className="text-[10px] font-black tracking-widest uppercase transition-colors group-hover:text-slate-800 mt-0.5">Show full family history</span>
                 </label>
               </div>
               <div className="text-[10px] sm:text-xs md:text-right mt-1 md:mt-0">

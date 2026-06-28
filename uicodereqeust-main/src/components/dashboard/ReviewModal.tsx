@@ -103,12 +103,12 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="w-[94vw] max-w-[94vw] sm:max-w-3xl md:max-w-5xl lg:max-w-6xl max-h-[92dvh] overflow-y-auto overflow-x-hidden rounded-[1.5rem] sm:rounded-[2rem] border-0 bg-white/95 backdrop-blur-2xl selection:bg-primary/20 p-0 shadow-[0_8px_40px_rgb(0,0,0,0.08)] ring-1 ring-primary/10">
+      <DialogContent className="w-[94vw] max-w-[94vw] sm:max-w-3xl md:max-w-5xl lg:max-w-6xl max-h-[92dvh] overflow-y-auto overflow-x-hidden rounded-[1.5rem] sm:rounded-[2rem] border-0 bg-white/95 backdrop-blur-2xl selection:bg-slate-200 p-0 shadow-[0_8px_40px_rgb(0,0,0,0.08)] ring-1 ring-slate-200">
         {/* Sticky Header */}
         <div className="sticky top-0 z-30 px-5 py-4 bg-gradient-to-b from-white/95 to-white/90 backdrop-blur-xl border-b border-slate-100 rounded-t-[1.5rem] sm:rounded-t-[2rem] shadow-sm">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0 flex-1">
-              <div className="text-xs font-extrabold text-primary/80 uppercase tracking-widest">
+              <div className="text-xs font-extrabold text-slate-500 uppercase tracking-widest">
                 Clinical Review
               </div>
               <h2 className="text-[10px] sm:text-base font-extrabold text-slate-905 leading-tight line-clamp-2 mt-0.5">
@@ -187,8 +187,8 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
             </div>
           ) : (
             <div className="mt-3.5 pt-2.5 border-t border-slate-100 flex items-start justify-between w-full text-center text-[8px] sm:text-[10px] md:text-xs font-black uppercase tracking-widest text-slate-400">
-              <div className="flex flex-col items-center gap-1 w-1/3 text-primary">
-                <span className="h-4 w-4 md:h-5 md:w-5 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[8px] md:text-xs font-black border border-primary/20">1</span>
+              <div className="flex flex-col items-center gap-1 w-1/3 text-slate-800">
+                <span className="h-4 w-4 md:h-5 md:w-5 rounded-full bg-slate-100 text-slate-800 flex items-center justify-center text-[8px] md:text-xs font-black border border-slate-200">1</span>
                 <span className="leading-tight">Verify Patient</span>
               </div>
               <div className="flex justify-center items-center mt-1.5 sm:mt-2 text-slate-200"><ChevronRight className="w-3 h-3 md:w-4 md:h-4" /></div>

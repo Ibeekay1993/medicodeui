@@ -66,7 +66,7 @@ export function ClinicalActionControls({
         <div className="flex flex-col items-stretch justify-end gap-2 border-t border-slate-100 pt-4 sm:flex-row sm:items-center sm:gap-3">
           {request?.status === "referral_declined" && handleReassign && (
             <Button
-              className="h-12 rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 text-xs font-black uppercase tracking-widest text-white hover:from-blue-700 hover:to-blue-800 shadow-[0_4px_15px_rgba(37,99,235,0.3)] transition-all duration-300 hover:-translate-y-0.5 active:scale-[0.98]"
+              className="h-12 rounded-xl bg-gradient-to-r from-slate-600 to-slate-700 text-xs font-black uppercase tracking-widest text-white hover:from-slate-700 hover:to-slate-800 shadow-[0_4px_15px_rgba(71,85,105,0.3)] transition-all duration-300 hover:-translate-y-0.5 active:scale-[0.98]"
               onClick={handleReassign}
               disabled={processing || isAwaitingDeletion}
             >
