@@ -48,16 +48,19 @@ export default function KPIStatsGrid({ stats, isLoading }: KPIStatsGridProps) {
       {kpiGroups.map((group, groupIndex) => (
         <div key={groupIndex} className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4">
           {group.map((kpi, index) => (
-            <Card key={index} className="border-slate-100 shadow-sm bg-white rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-md hover:-translate-y-1 group">
-              <CardContent className="p-3 sm:p-4 md:p-5 flex items-center gap-3">
-                <div className={cn("hidden sm:flex h-10 w-10 md:h-12 md:w-12 rounded-xl items-center justify-center shrink-0 transition-colors duration-300", kpi.bg, kpi.gradient)}>
-                  <kpi.icon className={cn("h-5 w-5 md:h-6 md:w-6 transition-transform duration-300 group-hover:scale-110", kpi.color)} />
+            <Card key={index} className="border-slate-100 shadow-sm bg-white rounded-xl sm:rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-md hover:-translate-y-1 group">
+              <CardContent className="p-2.5 sm:p-4 md:p-5 flex flex-col sm:flex-row items-start sm:items-center gap-1.5 sm:gap-3">
+                <div className="flex w-full items-center justify-between sm:w-auto sm:justify-start">
+                  <p className="sm:hidden text-[9px] font-bold uppercase tracking-wider text-slate-500 break-words leading-tight pr-1 max-w-[75%]">{kpi.label}</p>
+                  <div className={cn("flex h-6 w-6 sm:h-10 sm:w-10 md:h-12 md:w-12 rounded-md sm:rounded-xl items-center justify-center shrink-0 transition-colors duration-300", kpi.bg, kpi.gradient)}>
+                    <kpi.icon className={cn("h-3.5 w-3.5 sm:h-5 sm:w-5 md:h-6 md:w-6 transition-transform duration-300 group-hover:scale-110", kpi.color)} />
+                  </div>
                 </div>
-                <div className="min-w-0 flex-1 text-center sm:text-left">
-                  <p className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-400 truncate leading-tight group-hover:text-slate-500 transition-colors">{kpi.label}</p>
-                  <p className={cn("text-sm sm:text-base md:text-lg lg:text-xl font-black tracking-tight truncate leading-none mt-1.5", kpi.color)}>
-                    {isLoading ? <Loader2 className="h-4 w-4 sm:h-5 sm:w-5 animate-spin mx-auto sm:mx-0" /> : kpi.value}
-                  </p>
+                <div className="min-w-0 flex-1 text-left w-full">
+                  <p className="hidden sm:block text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-400 break-words leading-tight group-hover:text-slate-500 transition-colors">{kpi.label}</p>
+                  <div className={cn("text-sm sm:text-lg md:text-xl font-black tracking-tight break-words leading-tight sm:mt-1", kpi.color)}>
+                    {isLoading ? <Loader2 className="h-3 w-3 sm:h-4 sm:w-4 animate-spin" /> : kpi.value}
+                  </div>
                 </div>
               </CardContent>
             </Card>

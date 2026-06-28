@@ -432,14 +432,17 @@ export default function DashboardHome() {
                 { label: "Approved",        value: stats.approved,  icon: CheckCircle2,  color: "text-emerald-600" },
                 { label: "Rejected",        value: stats.rejected,  icon: XCircle,       color: "text-rose-600" },
               ].map((item) => (
-                <div key={item.label} className="border-slate-100 shadow-sm bg-white rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-md hover:-translate-y-1 group flex flex-col p-0 cursor-pointer" title={item.label}>
-                  <div className="p-3 sm:p-4 md:p-5 flex items-center gap-3">
-                    <div className="hidden sm:flex h-10 w-10 md:h-12 md:w-12 rounded-xl items-center justify-center shrink-0 transition-colors duration-300 bg-slate-50 group-hover:bg-slate-100">
-                      <item.icon className={cn("h-5 w-5 md:h-6 md:w-6 transition-transform duration-300 group-hover:scale-110", item.color)} />
+                <div key={item.label} className="border-slate-100 shadow-sm bg-white rounded-xl sm:rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-md hover:-translate-y-1 group flex flex-col p-0 cursor-pointer" title={item.label}>
+                  <div className="p-2.5 sm:p-4 md:p-5 flex flex-col sm:flex-row items-start sm:items-center gap-1.5 sm:gap-3">
+                    <div className="flex w-full items-center justify-between sm:w-auto sm:justify-start">
+                      <p className="sm:hidden text-[9px] font-bold uppercase tracking-wider text-slate-500 break-words leading-tight pr-1 max-w-[75%]">{item.label}</p>
+                      <div className="flex h-6 w-6 sm:h-10 sm:w-10 md:h-12 md:w-12 rounded-md sm:rounded-xl items-center justify-center shrink-0 transition-colors duration-300 bg-slate-50 group-hover:bg-slate-100">
+                        <item.icon className={cn("h-3.5 w-3.5 sm:h-5 sm:w-5 md:h-6 md:w-6 transition-transform duration-300 group-hover:scale-110", item.color)} />
+                      </div>
                     </div>
-                    <div className="min-w-0 flex-1 text-center sm:text-left">
-                      <p className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-400 truncate leading-tight group-hover:text-slate-500 transition-colors">{item.label}</p>
-                      <div className={cn("text-sm sm:text-base md:text-lg lg:text-xl font-black tracking-tight truncate leading-none mt-1.5", item.color)}>
+                    <div className="min-w-0 flex-1 text-left w-full">
+                      <p className="hidden sm:block text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-400 break-words leading-tight group-hover:text-slate-500 transition-colors">{item.label}</p>
+                      <div className={cn("text-sm sm:text-lg md:text-xl font-black tracking-tight break-words leading-tight sm:mt-1", item.color)}>
                         {loading ? <StatSkeleton /> : (item.value !== undefined ? Number(item.value).toLocaleString() : 0)}
                       </div>
                     </div>
@@ -459,14 +462,17 @@ export default function DashboardHome() {
                 { label: "Appr. Value",   value: money(claimStats.approvedValue),       color: "text-emerald-600", format: "money", icon: Banknote },
                 { label: "Contested",     value: claimStats.contested,                  color: "text-amber-600", format: "number", icon: AlertTriangle },
               ].map((item) => (
-                <div key={item.label} className="border-slate-100 shadow-sm bg-white rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-md hover:-translate-y-1 group flex flex-col p-0 cursor-pointer" title={item.label}>
-                  <div className="p-3 sm:p-4 md:p-5 flex items-center gap-3">
-                    <div className="hidden sm:flex h-10 w-10 md:h-12 md:w-12 rounded-xl items-center justify-center shrink-0 transition-colors duration-300 bg-slate-50 group-hover:bg-slate-100">
-                      <item.icon className={cn("h-5 w-5 md:h-6 md:w-6 transition-transform duration-300 group-hover:scale-110", item.color)} />
+                <div key={item.label} className="border-slate-100 shadow-sm bg-white rounded-xl sm:rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-md hover:-translate-y-1 group flex flex-col p-0 cursor-pointer" title={item.label}>
+                  <div className="p-2.5 sm:p-4 md:p-5 flex flex-col sm:flex-row items-start sm:items-center gap-1.5 sm:gap-3">
+                    <div className="flex w-full items-center justify-between sm:w-auto sm:justify-start">
+                      <p className="sm:hidden text-[9px] font-bold uppercase tracking-wider text-slate-500 break-words leading-tight pr-1 max-w-[75%]">{item.label}</p>
+                      <div className="flex h-6 w-6 sm:h-10 sm:w-10 md:h-12 md:w-12 rounded-md sm:rounded-xl items-center justify-center shrink-0 transition-colors duration-300 bg-slate-50 group-hover:bg-slate-100">
+                        <item.icon className={cn("h-3.5 w-3.5 sm:h-5 sm:w-5 md:h-6 md:w-6 transition-transform duration-300 group-hover:scale-110", item.color)} />
+                      </div>
                     </div>
-                    <div className="min-w-0 flex-1 text-center sm:text-left">
-                      <p className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-400 truncate leading-tight group-hover:text-slate-500 transition-colors">{item.label}</p>
-                      <div className={cn("text-sm sm:text-base md:text-lg lg:text-xl font-black tracking-tight truncate leading-none mt-1.5", item.color)}>
+                    <div className="min-w-0 flex-1 text-left w-full">
+                      <p className="hidden sm:block text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-400 break-words leading-tight group-hover:text-slate-500 transition-colors">{item.label}</p>
+                      <div className={cn("text-sm sm:text-lg md:text-xl font-black tracking-tight break-words leading-tight sm:mt-1", item.color)}>
                         {loading ? <StatSkeleton /> : (item.format === "number" ? Number(item.value || 0).toLocaleString() : item.value)}
                       </div>
                     </div>
@@ -486,14 +492,17 @@ export default function DashboardHome() {
                 { label: "Settled Batches", value: financeStats.paidBatches,               color: "text-indigo-600", icon: Layers },
                 { label: "Batches Value",   value: money(financeStats.totalBatchesValue),  color: "text-violet-600", icon: Wallet },
               ].map((item) => (
-                <div key={item.label} className="border-slate-100 shadow-sm bg-white rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-md hover:-translate-y-1 group flex flex-col p-0 cursor-pointer" title={item.label}>
-                  <div className="p-3 sm:p-4 md:p-5 flex items-center gap-3">
-                    <div className="hidden sm:flex h-10 w-10 md:h-12 md:w-12 rounded-xl items-center justify-center shrink-0 transition-colors duration-300 bg-slate-50 group-hover:bg-slate-100">
-                      <item.icon className={cn("h-5 w-5 md:h-6 md:w-6 transition-transform duration-300 group-hover:scale-110", item.color)} />
+                <div key={item.label} className="border-slate-100 shadow-sm bg-white rounded-xl sm:rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-md hover:-translate-y-1 group flex flex-col p-0 cursor-pointer" title={item.label}>
+                  <div className="p-2.5 sm:p-4 md:p-5 flex flex-col sm:flex-row items-start sm:items-center gap-1.5 sm:gap-3">
+                    <div className="flex w-full items-center justify-between sm:w-auto sm:justify-start">
+                      <p className="sm:hidden text-[9px] font-bold uppercase tracking-wider text-slate-500 break-words leading-tight pr-1 max-w-[75%]">{item.label}</p>
+                      <div className="flex h-6 w-6 sm:h-10 sm:w-10 md:h-12 md:w-12 rounded-md sm:rounded-xl items-center justify-center shrink-0 transition-colors duration-300 bg-slate-50 group-hover:bg-slate-100">
+                        <item.icon className={cn("h-3.5 w-3.5 sm:h-5 sm:w-5 md:h-6 md:w-6 transition-transform duration-300 group-hover:scale-110", item.color)} />
+                      </div>
                     </div>
-                    <div className="min-w-0 flex-1 text-center sm:text-left">
-                      <p className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-400 truncate leading-tight group-hover:text-slate-500 transition-colors">{item.label}</p>
-                      <div className={cn("text-sm sm:text-base md:text-lg lg:text-xl font-black tracking-tight truncate leading-none mt-1.5", item.color)}>
+                    <div className="min-w-0 flex-1 text-left w-full">
+                      <p className="hidden sm:block text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-400 break-words leading-tight group-hover:text-slate-500 transition-colors">{item.label}</p>
+                      <div className={cn("text-sm sm:text-lg md:text-xl font-black tracking-tight break-words leading-tight sm:mt-1", item.color)}>
                         {loading ? <StatSkeleton /> : item.value}
                       </div>
                     </div>
@@ -513,14 +522,17 @@ export default function DashboardHome() {
             { label: "Settled Batches", value: financeStats.paidBatches,               color: "text-indigo-600", icon: Layers },
             { label: "Batches Value",   value: money(financeStats.totalBatchesValue),  color: "text-violet-600", icon: Wallet },
           ].map((item) => (
-            <div key={item.label} className="border-slate-100 shadow-sm bg-white rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-md hover:-translate-y-1 group flex flex-col p-0 cursor-pointer" title={item.label}>
-              <div className="p-3 sm:p-4 md:p-5 flex items-center gap-3">
-                <div className="hidden sm:flex h-10 w-10 md:h-12 md:w-12 rounded-xl items-center justify-center shrink-0 transition-colors duration-300 bg-slate-50 group-hover:bg-slate-100">
-                  <item.icon className={cn("h-5 w-5 md:h-6 md:w-6 transition-transform duration-300 group-hover:scale-110", item.color)} />
+            <div key={item.label} className="border-slate-100 shadow-sm bg-white rounded-xl sm:rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-md hover:-translate-y-1 group flex flex-col p-0 cursor-pointer" title={item.label}>
+              <div className="p-2.5 sm:p-4 md:p-5 flex flex-col sm:flex-row items-start sm:items-center gap-1.5 sm:gap-3">
+                <div className="flex w-full items-center justify-between sm:w-auto sm:justify-start">
+                  <p className="sm:hidden text-[9px] font-bold uppercase tracking-wider text-slate-500 break-words leading-tight pr-1 max-w-[75%]">{item.label}</p>
+                  <div className="flex h-6 w-6 sm:h-10 sm:w-10 md:h-12 md:w-12 rounded-md sm:rounded-xl items-center justify-center shrink-0 transition-colors duration-300 bg-slate-50 group-hover:bg-slate-100">
+                    <item.icon className={cn("h-3.5 w-3.5 sm:h-5 sm:w-5 md:h-6 md:w-6 transition-transform duration-300 group-hover:scale-110", item.color)} />
+                  </div>
                 </div>
-                <div className="min-w-0 flex-1 text-center sm:text-left">
-                  <p className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-400 truncate leading-tight group-hover:text-slate-500 transition-colors">{item.label}</p>
-                  <div className={cn("text-sm sm:text-base md:text-lg lg:text-xl font-black tracking-tight truncate leading-none mt-1.5", item.color)}>
+                <div className="min-w-0 flex-1 text-left w-full">
+                  <p className="hidden sm:block text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-400 break-words leading-tight group-hover:text-slate-500 transition-colors">{item.label}</p>
+                  <div className={cn("text-sm sm:text-lg md:text-xl font-black tracking-tight break-words leading-tight sm:mt-1", item.color)}>
                     {loading ? <StatSkeleton /> : item.value}
                   </div>
                 </div>
@@ -533,14 +545,17 @@ export default function DashboardHome() {
       {isNurseOrOther && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 md:gap-4 overflow-x-hidden">
           {mainStats.map((item) => (
-            <div key={item.label} className="border-slate-100 shadow-sm bg-white rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-md hover:-translate-y-1 group flex flex-col p-0 cursor-pointer" title={item.label}>
-              <div className="p-3 sm:p-4 md:p-5 flex items-center gap-3">
-                <div className="hidden sm:flex h-10 w-10 md:h-12 md:w-12 rounded-xl items-center justify-center shrink-0 transition-colors duration-300 bg-slate-50 group-hover:bg-slate-100">
-                  <item.icon className={cn("h-5 w-5 md:h-6 md:w-6 transition-transform duration-300 group-hover:scale-110", item.color)} />
+            <div key={item.label} className="border-slate-100 shadow-sm bg-white rounded-xl sm:rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-md hover:-translate-y-1 group flex flex-col p-0 cursor-pointer" title={item.label}>
+              <div className="p-2.5 sm:p-4 md:p-5 flex flex-col sm:flex-row items-start sm:items-center gap-1.5 sm:gap-3">
+                <div className="flex w-full items-center justify-between sm:w-auto sm:justify-start">
+                  <p className="sm:hidden text-[9px] font-bold uppercase tracking-wider text-slate-500 break-words leading-tight pr-1 max-w-[75%]">{item.label}</p>
+                  <div className="flex h-6 w-6 sm:h-10 sm:w-10 md:h-12 md:w-12 rounded-md sm:rounded-xl items-center justify-center shrink-0 transition-colors duration-300 bg-slate-50 group-hover:bg-slate-100">
+                    <item.icon className={cn("h-3.5 w-3.5 sm:h-5 sm:w-5 md:h-6 md:w-6 transition-transform duration-300 group-hover:scale-110", item.color)} />
+                  </div>
                 </div>
-                <div className="min-w-0 flex-1 text-center sm:text-left">
-                  <p className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-400 truncate leading-tight group-hover:text-slate-500 transition-colors">{item.label}</p>
-                  <div className={cn("text-sm sm:text-base md:text-lg lg:text-xl font-black tracking-tight truncate leading-none mt-1.5", item.color)}>
+                <div className="min-w-0 flex-1 text-left w-full">
+                  <p className="hidden sm:block text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-400 break-words leading-tight group-hover:text-slate-500 transition-colors">{item.label}</p>
+                  <div className={cn("text-sm sm:text-lg md:text-xl font-black tracking-tight break-words leading-tight sm:mt-1", item.color)}>
                     {loading ? <StatSkeleton /> : Number(item.value || 0).toLocaleString()}
                   </div>
                 </div>
@@ -561,14 +576,17 @@ export default function DashboardHome() {
             { label: "Appr. Value", value: money(claimStats.approvedValue), color: "text-emerald-600", icon: Banknote },
             { label: "Savings", value: money(claimStats.declinedValue), color: "text-teal-600", icon: Wallet },
           ].map((item) => (
-            <div key={item.label} className="border-slate-100 shadow-sm bg-white rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-md hover:-translate-y-1 group flex flex-col p-0 cursor-pointer" title={item.label}>
-              <div className="p-3 sm:p-4 md:p-5 flex items-center gap-3">
-                <div className="hidden sm:flex h-10 w-10 md:h-12 md:w-12 rounded-xl items-center justify-center shrink-0 transition-colors duration-300 bg-slate-50 group-hover:bg-slate-100">
-                  <item.icon className={cn("h-5 w-5 md:h-6 md:w-6 transition-transform duration-300 group-hover:scale-110", item.color)} />
+            <div key={item.label} className="border-slate-100 shadow-sm bg-white rounded-xl sm:rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-md hover:-translate-y-1 group flex flex-col p-0 cursor-pointer" title={item.label}>
+              <div className="p-2.5 sm:p-4 md:p-5 flex flex-col sm:flex-row items-start sm:items-center gap-1.5 sm:gap-3">
+                <div className="flex w-full items-center justify-between sm:w-auto sm:justify-start">
+                  <p className="sm:hidden text-[9px] font-bold uppercase tracking-wider text-slate-500 break-words leading-tight pr-1 max-w-[75%]">{item.label}</p>
+                  <div className="flex h-6 w-6 sm:h-10 sm:w-10 md:h-12 md:w-12 rounded-md sm:rounded-xl items-center justify-center shrink-0 transition-colors duration-300 bg-slate-50 group-hover:bg-slate-100">
+                    <item.icon className={cn("h-3.5 w-3.5 sm:h-5 sm:w-5 md:h-6 md:w-6 transition-transform duration-300 group-hover:scale-110", item.color)} />
+                  </div>
                 </div>
-                <div className="min-w-0 flex-1 text-center sm:text-left">
-                  <p className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-400 truncate leading-tight group-hover:text-slate-500 transition-colors">{item.label}</p>
-                  <div className={cn("text-sm sm:text-base md:text-lg lg:text-xl font-black tracking-tight truncate leading-none mt-1.5", item.color)}>
+                <div className="min-w-0 flex-1 text-left w-full">
+                  <p className="hidden sm:block text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-400 break-words leading-tight group-hover:text-slate-500 transition-colors">{item.label}</p>
+                  <div className={cn("text-sm sm:text-lg md:text-xl font-black tracking-tight break-words leading-tight sm:mt-1", item.color)}>
                     {loading ? <StatSkeleton /> : (typeof item.value === "number" ? item.value.toLocaleString() : item.value)}
                   </div>
                 </div>
