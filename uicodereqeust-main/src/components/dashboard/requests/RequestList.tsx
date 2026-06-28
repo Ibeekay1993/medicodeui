@@ -201,28 +201,24 @@ export function RequestList({
                       {r.source === "whatsapp" || r.source === "whatsapp_parser" ? (
                         <span className="text-emerald-600 font-black" title="Verified via WhatsApp">✓</span>
                       ) : (
-                        r.status === "pending" || r.status === "pending_referral" ? (
-                          otpLoading[r.id] ? (
-                            <Loader2 className="h-3.5 w-3.5 animate-spin text-slate-400" />
-                          ) : otpValues[r.id] ? (
-                            <div className="flex items-center gap-1.5">
-                              <span className="text-amber-700 font-black tracking-wider">{otpValues[r.id]}</span>
-                              <Button 
-                                variant="ghost" 
-                                size="icon" 
-                                onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(otpValues[r.id]); toast({ title: "OTP Copied" }); }} 
-                                className="h-5 w-5 text-slate-400 hover:text-amber-700"
-                              >
-                                <Copy className="h-3 w-3" />
-                              </Button>
-                            </div>
-                          ) : (
-                            <span className="text-amber-700">••••••</span>
-                          )
-                        ) : isApproved(r) ? (
-                          <span className="text-emerald-600 font-black">✓</span>
+                        r.status === "pending" && r.source === "whatsapp" || r.source === "whatsapp_parser" ? (
+                          <span className="text-emerald-600 font-black" title="Verified via WhatsApp">✓</span>
+                        ) : otpLoading[r.id] ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin text-slate-400" />
+                        ) : otpValues[r.id] ? (
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-amber-700 font-black tracking-wider">{otpValues[r.id]}</span>
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(otpValues[r.id]); toast({ title: "OTP Copied" }); }} 
+                              className="h-5 w-5 text-slate-400 hover:text-amber-700"
+                            >
+                              <Copy className="h-3 w-3" />
+                            </Button>
+                          </div>
                         ) : (
-                          <span className="text-slate-300">—</span>
+                          <span className="text-amber-700">••••••</span>
                         )
                       )}
                     </td>

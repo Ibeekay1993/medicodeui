@@ -106,8 +106,8 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
       <DialogContent className="w-[94vw] max-w-[94vw] sm:max-w-3xl md:max-w-5xl lg:max-w-6xl max-h-[92dvh] overflow-y-auto overflow-x-hidden rounded-[1.5rem] sm:rounded-[2rem] border-0 bg-white/95 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-white to-slate-50/50 backdrop-blur-2xl selection:bg-slate-200 p-0 shadow-[0_8px_40px_rgb(0,0,0,0.08)] ring-1 ring-slate-200">
         {/* Sticky Header */}
         <div className="sticky top-0 z-30 px-5 py-4 bg-gradient-to-b from-white/95 to-white/90 backdrop-blur-xl border-b border-slate-100 rounded-t-[1.5rem] sm:rounded-t-[2rem] shadow-sm">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0 flex-1">
+          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+            <div className="min-w-0 flex-1 w-full">
               <div className="text-xs font-bold text-indigo-500 uppercase tracking-widest">
                 Clinical Review
               </div>
@@ -118,7 +118,7 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
                 <span className="inline-flex items-center rounded-md bg-slate-100 px-2.5 py-0.5 text-xs font-mono font-bold text-slate-800 border border-slate-200 shadow-2xs">
                   Policy: {requestPolicyNumber || "N/A"}
                 </span>
-                {(request?.status === "pending" || request?.status === "pending_referral" || request?.status === "pending_authorization") && role !== "hospital" ? (
+                {role !== "hospital" ? (
                   <span className="inline-flex items-center rounded-md bg-amber-50 px-2 py-0.5 text-xs font-bold text-amber-700 border border-amber-250 shadow-2xs">
                     {actions.otpLoading ? (
                       <span className="animate-pulse">Generating OTP…</span>
@@ -136,9 +136,9 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
               </div>
             </div>
 
-            <div className="text-right max-w-[40%] sm:max-w-[200px] bg-slate-50/50 border border-slate-100 p-2 rounded-xl text-slate-600 shadow-sm shrink-0 self-center overflow-hidden flex flex-col items-end">
+            <div className="text-left sm:text-right w-full sm:max-w-[200px] bg-slate-50/50 border border-slate-100 p-2 rounded-xl text-slate-600 shadow-sm shrink-0 sm:self-center overflow-hidden flex flex-col items-start sm:items-end mt-1 sm:mt-0">
               <div className="text-[10px] sm:text-xs font-black text-indigo-400 uppercase tracking-widest mb-0.5">Contact Details</div>
-              <div className="text-xs sm:text-sm font-bold text-slate-700 truncate leading-none w-full">
+              <div className="text-xs sm:text-sm font-bold text-slate-700 truncate w-full">
                 {request?.patient_phone ? `☎ ${request.patient_phone}` : "—"}
               </div>
               {request?.patient_email && (
