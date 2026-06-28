@@ -60,6 +60,7 @@ export function RequestList({
   const displayStatus = (r: any) => isAwaitingDelete(r) ? "Awaiting Delete" : r.status;
   const rejectionReason = (r: any) => String(r.decision_reason || r.rejection_reason || r.clinical_notes || "").trim();
   const isRejected = (r: any) => ["rejected", "declined", "denied"].includes(String(r.status || "").toLowerCase());
+  const isApproved = (r: any) => String(r.status || "").toLowerCase().includes("approved") || String(r.status || "").toLowerCase().includes("accepted");
   
   const codeOrDecisionText = (r: any) => {
     if (isAwaitingDelete(r)) return "Code revoked - Awaiting Delete";
@@ -157,7 +158,7 @@ export function RequestList({
                   </td>
                   <td className="px-4 py-4 font-mono text-sm font-bold text-slate-700">{r.policy_number || "-"}</td>
                   <td className="px-4 py-4">
-                    {role === "hospital" && r.status === "approved" && !otpVerifiedStatus[r.id] ? (
+                    {role === "hospital" && isApproved(r) && !otpVerifiedStatus[r.id] ? (
                       <div className="flex flex-col gap-1.5" onClick={e => e.stopPropagation()}>
                         {unlockingReqId === r.id ? (
                           <div className="flex items-center gap-1">
@@ -217,7 +218,7 @@ export function RequestList({
                           ) : (
                             <span className="text-amber-700">••••••</span>
                           )
-                        ) : r.status === "approved" || r.status === "referral_approved" || r.status === "referral_accepted" ? (
+                        ) : isApproved(r) ? (
                           <span className="text-emerald-600 font-black">✓</span>
                         ) : (
                           <span className="text-slate-300">—</span>
@@ -282,9 +283,8 @@ export function RequestList({
           </div>
         ) : (
           requests.map((r) => {
-            const isApproved = String(r.status || "").toLowerCase().includes("approved") || String(r.status || "").toLowerCase().includes("accepted");
             const isRej = isRejected(r);
-            const isPend = !isApproved && !isRej;
+            const isPend = !isApproved(r) && !isRej;
             
             return (
               <div key={r.id} className="cursor-pointer bg-white border border-slate-200 rounded-[14px] p-4 shadow-sm transition-all hover:bg-slate-50 active:scale-[0.99] flex flex-col" onClick={() => onSelectRequest(r)}>
@@ -346,7 +346,7 @@ export function RequestList({
                   </div>
                 </div>
 
-                {role === "hospital" && r.status === "approved" && !otpVerifiedStatus[r.id] && (
+                {role === "hospital" && isApproved(r) && !otpVerifiedStatus[r.id] && (
                   <div className="mt-3 pt-3 border-t border-slate-100 flex justify-end" onClick={e => e.stopPropagation()}>
                     {unlockingReqId === r.id ? (
                       <div className="flex items-center gap-2">
