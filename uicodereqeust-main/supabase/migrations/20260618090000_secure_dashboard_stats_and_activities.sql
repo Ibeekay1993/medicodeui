@@ -33,17 +33,14 @@ BEGIN
     WITH auth_stats AS (
       SELECT 
         coalesce(count(*), 0) as total,
-        coalesce(count(*) FILTER (WHERE status = 'approved'), 0) as approved,
-        coalesce(count(*) FILTER (WHERE status = 'rejected'), 0) as rejected,
-        coalesce(count(*) FILTER (WHERE status = 'pending'), 0) as pending
+        coalesce(count(*) FILTER (WHERE status IN ('approved', 'referral_approved', 'referral_accepted')), 0) as approved,
+        coalesce(count(*) FILTER (WHERE status IN ('rejected', 'referral_declined', 'referral_expired')), 0) as rejected,
+        coalesce(count(*) FILTER (WHERE status IN ('pending', 'pending_referral', 'pending_authorization', 'info_provided')), 0) as pending
       FROM public.authorization_requests
-      WHERE hospital_id = v_hospital_id
+      WHERE hospital_id = v_hospital_id AND status != 'deferred'
     ),
     historical_auth AS (
-      SELECT coalesce(count(*), 0) as count
-      FROM public.historical_codes
-      WHERE record_type = 'authorization'
-        AND hospital_code = v_hospital_code
+      SELECT 0 as count
     ),
     claim_stats_summary AS (
       SELECT 
@@ -55,10 +52,7 @@ BEGIN
       WHERE hospital_id = v_hospital_id
     ),
     historical_claim AS (
-      SELECT coalesce(count(*), 0) as count
-      FROM public.historical_codes
-      WHERE record_type = 'claim'
-        AND hospital_code = v_hospital_code
+      SELECT 0 as count
     )
     SELECT row_to_json(t) INTO result
     FROM (
@@ -78,10 +72,11 @@ BEGIN
     WITH auth_stats AS (
       SELECT 
         coalesce(count(*), 0) as total,
-        coalesce(count(*) FILTER (WHERE status = 'approved'), 0) as approved,
-        coalesce(count(*) FILTER (WHERE status = 'rejected'), 0) as rejected,
-        coalesce(count(*) FILTER (WHERE status = 'pending'), 0) as pending
+        coalesce(count(*) FILTER (WHERE status IN ('approved', 'referral_approved', 'referral_accepted')), 0) as approved,
+        coalesce(count(*) FILTER (WHERE status IN ('rejected', 'referral_declined', 'referral_expired')), 0) as rejected,
+        coalesce(count(*) FILTER (WHERE status IN ('pending', 'pending_referral', 'pending_authorization', 'info_provided')), 0) as pending
       FROM public.authorization_requests
+      WHERE status != 'deferred'
     ),
     historical_auth AS (
       SELECT coalesce(count(*), 0) as count

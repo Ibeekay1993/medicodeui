@@ -125,7 +125,8 @@ export default function ReferralTreatmentFormDialog({
           status: "pending_authorization",
           treatment: treatmentText,
           total_amount: total,
-          approved_items: approvedPayload
+          approved_items: approvedPayload,
+          is_unlocked: false
         } as any)
         .eq("id", request.id);
 

@@ -106,6 +106,7 @@ export default function HospitalAuthorizations() {
       let query = supabase
         .from("authorization_requests")
         .select("*", { count: "exact" })
+        .eq("is_historical", false)
         .or(idQuery.join(","));
 
       if (statusFilter !== "all") {

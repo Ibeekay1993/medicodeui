@@ -119,11 +119,15 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
                   Policy: {requestPolicyNumber || "N/A"}
                 </span>
                 {role !== "hospital" ? (
-                  <span className="inline-flex items-center rounded-md bg-amber-50 px-2 py-0.5 text-xs font-bold text-amber-700 border border-amber-250 shadow-2xs">
+                  <span className="inline-flex items-center rounded-md bg-amber-50 px-2 py-0.5 text-xs font-bold text-amber-700 border border-amber-250 shadow-2xs gap-2">
                     {actions.otpLoading ? (
-                      <span className="animate-pulse">Generating OTP…</span>
-                    ) : actions.otpValue ? (
-                      <span className="tracking-wider">OTP: {actions.otpValue}</span>
+                      <span className="animate-pulse">Fetching OTPs…</span>
+                    ) : (actions.arrivalOtp || actions.treatmentOtp) ? (
+                      <>
+                        {actions.arrivalOtp && <span className="tracking-wider">ARRIVAL OTP: {actions.arrivalOtp}</span>}
+                        {actions.arrivalOtp && actions.treatmentOtp && <span className="opacity-50">|</span>}
+                        {actions.treatmentOtp && <span className="tracking-wider">TREATMENT OTP: {actions.treatmentOtp}</span>}
+                      </>
                     ) : (
                       <span>OTP: ••••••</span>
                     )}

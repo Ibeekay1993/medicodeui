@@ -139,68 +139,58 @@ export function useClinicalActions({
   // Fetch OTP if request is pending/under-review and has a patient email.
   // Rule: Only show "Generating OTP..." when a new OTP is actually being created.
   //       If an OTP already exists in the DB, show it immediately (no loading flash).
+  const [arrivalOtp, setArrivalOtp] = useState<string | null>(null);
+  const [treatmentOtp, setTreatmentOtp] = useState<string | null>(null);
+
+  // Re-run fetching whenever request changes.
   useEffect(() => {
-      const isPendingOrReview = request && (
-        request.status === "pending" ||
-        request.status === "pending_referral" ||
-        request.status === "pending_authorization"
-      );
-      if (!open || !request || !isPendingOrReview) return;
+    const isPendingOrReview = request && (
+      request.status === "pending" ||
+      request.status === "pending_referral" ||
+      request.status === "pending_authorization" ||
+      request.status === "referral_accepted" ||
+      request.status === "referral_approved" ||
+      request.status === "approved"
+    );
+    if (!open || !request || !isPendingOrReview) return;
 
-    // If we already have the OTP value in local state, show it immediately — no fetch needed.
-    if (otpValue) {
-      setOtpLoading(false);
-      return;
-    }
-
-    // Do NOT set otpLoading=true here yet — first check if an OTP already exists.
-    // We only set loading=true if there is truly no existing OTP (i.e. a new one must be generated).
     let cancelled = false;
 
     (async () => {
       try {
-        // Determine otp_type based on request status
-        const otpType = request.status === "pending_referral" ? "ARRIVAL" : "TREATMENT";
-
-        const { data, error } = await supabase.rpc("get_otp_value" as any, {
-          p_request_id: request.id,
-          p_otp_type: otpType,
-        });
+        const [arrivalRes, treatmentRes] = await Promise.all([
+          supabase.rpc("get_otp_value" as any, { p_request_id: request.id, p_otp_type: "ARRIVAL" }),
+          supabase.rpc("get_otp_value" as any, { p_request_id: request.id, p_otp_type: "TREATMENT" })
+        ]);
 
         if (cancelled) return;
 
-        if (error) {
-          console.error("Error fetching existing OTP:", error);
-          setOtpLoading(false);
-          return;
+        let foundArrival = null;
+        let foundTreatment = null;
+
+        if (!arrivalRes.error && arrivalRes.data) {
+          const row = Array.isArray(arrivalRes.data) ? arrivalRes.data[0] : arrivalRes.data;
+          if (row?.otp_value) foundArrival = row.otp_value;
         }
 
-        if (data) {
-          const row = Array.isArray(data) ? data[0] : data;
-          const otpVal = row?.otp_value;
-          if (otpVal) {
-            // OTP found in DB — display immediately, no loading state needed
-            setOtpValue(otpVal);
-            setOtpLoading(false);
-            return;
-          }
+        if (!treatmentRes.error && treatmentRes.data) {
+          const row = Array.isArray(treatmentRes.data) ? treatmentRes.data[0] : treatmentRes.data;
+          if (row?.otp_value) foundTreatment = row.otp_value;
         }
 
-        // No existing OTP found
-        // FIX: We do NOT auto-generate a new OTP on mount anymore to prevent multiple spam emails
-        // and mismatched OTPs. The OTP is generated at request creation time.
-        if (!cancelled) {
-          setOtpValue(null);
-          setOtpLoading(false);
-        }
+        setArrivalOtp(foundArrival);
+        setTreatmentOtp(foundTreatment);
+        setOtpLoading(false);
       } catch (err) {
         console.error("OTP value fetch error:", err);
         if (!cancelled) setOtpLoading(false);
       }
     })();
 
-    return () => { cancelled = true; };
-  }, [open, request?.id, initialOtpValue]);
+    return () => {
+      cancelled = true;
+    };
+  }, [open, request?.id]);
 
   // Auto-save draft changes every 1.5 seconds if request is pending
   useEffect(() => {
@@ -871,7 +861,8 @@ const findHospitalIdByName = async (name: string) => {
     setApprovalResult,
     declineResult,
     setDeclineResult,
-    otpValue,
+    arrivalOtp,
+    treatmentOtp,
     otpLoading,
     deleteConfirmOpen,
     setDeleteConfirmOpen,

@@ -39,6 +39,7 @@ const supportedFields = [
   "hospital_name",
   "date_of_birth",
   "diagnosis",
+  "treatment",
   "legacy_creation_date",
 ];
 
@@ -51,7 +52,7 @@ const importModeOptions: Array<{ value: ImportMode; label: string; description: 
   {
     value: "add",
     label: "Add only",
-    description: "Creates new codes and skips anything already in the database.",
+    description: "Simply adds new records to the database. Will not delete or modify existing information.",
   },
   {
     value: "wipe",
@@ -404,6 +405,8 @@ export default function HistoricalCodeImportPage() {
                       <th className="p-3">Policy</th>
                       <th className="p-3">Hospital</th>
                       <th className="p-3">Patient</th>
+                      <th className="p-3">Diagnosis</th>
+                      <th className="p-3">Treatment</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50 text-xs font-bold">
@@ -422,6 +425,8 @@ export default function HistoricalCodeImportPage() {
                           <td className="p-3">{row.policy_number || "-"}</td>
                           <td className="p-3">{row.hospital_name || row.hospital_code || "-"}</td>
                           <td className="p-3">{row.patient_name || "-"}</td>
+                          <td className="p-3 max-w-[200px] truncate" title={row.diagnosis}>{row.diagnosis || "-"}</td>
+                          <td className="p-3 max-w-[200px] truncate" title={row.treatment}>{row.treatment || "-"}</td>
                         </tr>
                       );
                     })}

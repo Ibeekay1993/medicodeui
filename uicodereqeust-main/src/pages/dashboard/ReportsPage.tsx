@@ -135,6 +135,51 @@ export default function ReportsPage() {
         }
       }
 
+      if (!mappedStatuses || mappedStatuses.length === 0 || mappedStatuses.includes("approved")) {
+        page = 0;
+        hasMore = true;
+        while (hasMore) {
+          let q = supabase.from("historical_codes").select("*").eq("record_type", "authorization").order("created_at", { ascending: false });
+          
+          if (filters.hospitalFilter !== "all") {
+            const hospitalName = hospitals.find((h) => h.id === filters.hospitalFilter)?.name || filters.hospitalFilter;
+            q = q.ilike("hospital_name", `%${hospitalName}%`);
+          }
+          if (dateRange.from) q = q.gte("legacy_creation_date", dateRange.from.toISOString().split("T")[0]);
+          if (dateRange.to) q = q.lte("legacy_creation_date", dateRange.to.toISOString().split("T")[0]);
+
+          q = q.range(page * pageSize, (page + 1) * pageSize - 1);
+
+          const { data, error } = await q;
+          if (error) {
+            console.error("Error fetching historical codes:", error);
+            break;
+          }
+
+          if (data && data.length > 0) {
+            const mappedHistorical = data.map((h: any) => ({
+              ...h,
+              status: "approved",
+              request_id: h.original_code,
+              phone: h.raw_data?.patient_phone || "",
+              email: h.raw_data?.patient_email || "",
+              diagnosis: h.raw_data?.diagnosis || "",
+              treatment: h.raw_data?.treatment || "",
+              requesting_hospital: h.hospital_name,
+              total_amount: h.raw_data?.requested_amount || 0,
+              approved_amount: h.raw_data?.approved_amount || 0,
+              created_at: h.legacy_creation_date ? new Date(h.legacy_creation_date).toISOString() : h.created_at,
+              decided_at: h.legacy_creation_date ? new Date(h.legacy_creation_date).toISOString() : h.created_at,
+            }));
+            allData = [...allData, ...mappedHistorical];
+            page++;
+            hasMore = data.length === pageSize;
+          } else {
+            hasMore = false;
+          }
+        }
+      }
+
       const mappedRecords: PreAuthRecord[] = (allData || []).map((item: any) => ({
         id: item.id,
         created_at: item.created_at,

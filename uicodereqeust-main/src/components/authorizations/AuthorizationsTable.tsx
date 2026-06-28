@@ -73,7 +73,7 @@ export default function AuthorizationsTable({
     e.stopPropagation();
     if (!unlockOtpInput) return;
     
-    const otpType = isReferralFor(r) ? 'ARRIVAL' : 'TREATMENT';
+    const otpType = isReferralFor(r) ? 'TREATMENT' : 'ARRIVAL';
     
     const { data, error } = await supabase.rpc("verify_otp" as any, {
       p_request_id: r.id,
@@ -138,7 +138,7 @@ export default function AuthorizationsTable({
                         )}
                       </td>
                       <td className="py-2 pr-4">
-                        {isApproved(r) && !otpVerifiedStatus[r.id] ? (
+                        {isApproved(r) && !r.is_unlocked && !otpVerifiedStatus[r.id] ? (
                           <div className="flex flex-col gap-1.5 mt-1" onClick={e => e.stopPropagation()}>
                             {unlockingReqId === r.id ? (
                               <div className="flex items-center gap-1">
@@ -362,7 +362,7 @@ export default function AuthorizationsTable({
                   {/* Code row */}
                   {(r.authorization_code || r.deletion_status === "awaiting_admin_approval" || !r.authorization_code) && (
                     <div className="flex flex-col gap-1.5 mt-2 min-w-0" onClick={e => e.stopPropagation()}>
-                      {isApproved(r) && !otpVerifiedStatus[r.id] ? (
+                      {isApproved(r) && !r.is_unlocked && !otpVerifiedStatus[r.id] ? (
                         unlockingReqId === r.id ? (
                           <div className="flex items-center gap-2 w-full">
                             <Input

@@ -64,7 +64,7 @@ export function RequestList({
   
   const codeOrDecisionText = (r: any) => {
     if (isAwaitingDelete(r)) return "Code revoked - Awaiting Delete";
-    if (role === "hospital" && isApproved(r) && !otpVerifiedStatus[r.id]) return "🔒 Locked";
+    if (role === "hospital" && isApproved(r) && !r.is_unlocked && !otpVerifiedStatus[r.id]) return "🔒 Locked";
     if (r.authorization_code) return r.authorization_code;
     if (isRejected(r)) return rejectionReason(r) || "Rejected - reason not recorded";
     return "Pending";
@@ -163,7 +163,7 @@ export function RequestList({
                   </td>
                   <td className="px-4 py-4 font-mono text-sm font-bold text-slate-700">{r.policy_number || "-"}</td>
                   <td className="px-4 py-4">
-                    {role === "hospital" && isApproved(r) && !otpVerifiedStatus[r.id] ? (
+                    {role === "hospital" && isApproved(r) && !r.is_unlocked && !otpVerifiedStatus[r.id] ? (
                       <div className="flex flex-col gap-1.5" onClick={e => e.stopPropagation()}>
                         {unlockingReqId === r.id ? (
                           <div className="flex items-center gap-1">
@@ -200,18 +200,20 @@ export function RequestList({
                       </div>
                     )}
                   </td>
-                  {!isClaimsRole && !["hospital"].includes(role || "") && (
-                    <td className="px-4 py-4 font-mono text-sm font-bold">
-                      {r.source === "whatsapp" || r.source === "whatsapp_parser" ? (
-                        <span className="text-emerald-600 font-black" title="Verified via WhatsApp">✓</span>
-                      ) : (
-                        r.status === "pending" && r.source === "whatsapp" || r.source === "whatsapp_parser" ? (
+                    {!isClaimsRole && !["hospital"].includes(role || "") && (
+                      <td className="px-4 py-4 font-mono text-sm font-bold">
+                        {r.is_historical ? (
+                          <span className="text-slate-400 font-black tracking-wider text-xs">N/A</span>
+                        ) : r.source === "whatsapp" || r.source === "whatsapp_parser" ? (
                           <span className="text-emerald-600 font-black" title="Verified via WhatsApp">✓</span>
-                        ) : otpLoading[r.id] ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin text-slate-400" />
-                        ) : otpVerifiedStatus[r.id] ? (
-                          <span className="text-emerald-600 font-black flex items-center gap-1" title="OTP successfully consumed"><CheckCircle2 className="w-3.5 h-3.5" /> Consumed</span>
-                        ) : otpValues[r.id] ? (
+                        ) : (
+                          r.status === "pending" && r.source === "whatsapp" || r.source === "whatsapp_parser" ? (
+                            <span className="text-emerald-600 font-black" title="Verified via WhatsApp">✓</span>
+                          ) : otpLoading[r.id] ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin text-slate-400" />
+                          ) : otpVerifiedStatus[r.id] ? (
+                            <span className="text-emerald-600 font-black flex items-center justify-center" title="OTP successfully consumed"><CheckCircle2 className="w-4 h-4" /></span>
+                          ) : otpValues[r.id] ? (
                           <div className="flex items-center gap-1.5">
                             <span className="text-amber-700 font-black tracking-wider">{otpValues[r.id]}</span>
                             <Button 
@@ -232,6 +234,9 @@ export function RequestList({
                   <td className="px-4 py-4">
                     <div className="flex flex-col items-start gap-1">
                       {statusBadge(displayStatus(r))}
+                      {r.is_historical && (
+                        <Badge variant="outline" className="rounded-md border-indigo-200 bg-indigo-50 px-2 py-1 text-xs font-black uppercase text-indigo-700">Historical</Badge>
+                      )}
                       {isAwaitingDelete(r) && (
                         <Badge variant="outline" className="rounded-md border-amber-200 bg-amber-50 px-2 py-1 text-xs font-black uppercase text-amber-700">Delete pending</Badge>
                       )}
@@ -349,7 +354,7 @@ export function RequestList({
                   </div>
                 </div>
 
-                {role === "hospital" && isApproved(r) && !otpVerifiedStatus[r.id] && (
+                {role === "hospital" && isApproved(r) && !r.is_unlocked && !otpVerifiedStatus[r.id] && (
                   <div className="mt-3 pt-3 border-t border-slate-100 flex justify-end" onClick={e => e.stopPropagation()}>
                     {unlockingReqId === r.id ? (
                       <div className="flex items-center gap-2">
