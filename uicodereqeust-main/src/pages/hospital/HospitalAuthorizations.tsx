@@ -43,6 +43,7 @@ export default function HospitalAuthorizations() {
   const [isExporting, setIsExporting] = useState(false);
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
   const [claimStatusByRequestId, setClaimStatusByRequestId] = useState<Map<string, string>>(new Map());
+  const [otpVerifiedStatus, setOtpVerifiedStatus] = useState<Record<string, boolean>>({});
   const [requestChatOpen, setRequestChatOpen] = useState(false);
   const [requestChatRequest, setRequestChatRequest] = useState<any | null>(null);
   const [requestChatDraft, setRequestChatDraft] = useState("");
@@ -464,6 +465,8 @@ export default function HospitalAuthorizations() {
         total={total}
         pageSize={pageSize}
         setPage={setPage}
+        otpVerifiedStatus={otpVerifiedStatus}
+        setOtpVerifiedStatus={setOtpVerifiedStatus}
       />
 
       <SupportChatDialog

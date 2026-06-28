@@ -1,8 +1,12 @@
-import { Copy, MessageSquare, Eye } from "lucide-react";
+import { useState } from "react";
+import { Copy, MessageSquare, Eye, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { DataPagination } from "@/components/dashboard/DataPagination";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import {
   isReferralFor,
@@ -37,6 +41,8 @@ interface AuthorizationsTableProps {
   total: number;
   pageSize: number;
   setPage: (page: number) => void;
+  otpVerifiedStatus?: Record<string, boolean>;
+  setOtpVerifiedStatus?: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
 }
 
 export default function AuthorizationsTable({
@@ -55,8 +61,40 @@ export default function AuthorizationsTable({
   end,
   total,
   pageSize,
-  setPage
+  setPage,
+  otpVerifiedStatus = {},
+  setOtpVerifiedStatus
 }: AuthorizationsTableProps) {
+  const { toast } = useToast();
+  const [unlockingReqId, setUnlockingReqId] = useState<string | null>(null);
+  const [unlockOtpInput, setUnlockOtpInput] = useState("");
+
+  const handleUnlockOtp = async (r: any, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!unlockOtpInput) return;
+    
+    const { data, error } = await supabase.rpc("verify_otp" as any, {
+      p_request_id: r.id,
+      p_otp_plaintext: unlockOtpInput
+    });
+    
+    if (error) {
+      toast({ variant: "destructive", title: "Unlock Failed", description: error.message });
+      return;
+    }
+    
+    if (data?.verified) {
+      toast({ title: "Unlocked", description: "Authorization code revealed." });
+      setOtpVerifiedStatus?.(prev => ({ ...prev, [r.id]: true }));
+      setUnlockingReqId(null);
+      setUnlockOtpInput("");
+    } else {
+      toast({ variant: "destructive", title: "Unlock Failed", description: data?.error || "Invalid OTP" });
+    }
+  };
+
+  const isApproved = (r: any) => String(r.status || "").toLowerCase().includes("approved") || String(r.status || "").toLowerCase().includes("accepted");
+
   return (
     <>
       <Card className="premium-card hidden md:block rounded-xl border border-slate-100 bg-white shadow-sm overflow-hidden transition-all duration-300 hover:shadow-md">
@@ -96,34 +134,56 @@ export default function AuthorizationsTable({
                         )}
                       </td>
                       <td className="py-2 pr-4">
-                        <div className={cn("font-mono font-black text-sm max-w-[260px] flex items-center gap-1",
-                          isRejected(r) 
-                            ? "text-rose-700" 
-                            : "text-slate-800"
-                        )}>
-                          <span className="break-words whitespace-normal leading-snug min-w-0">
-                            {r.deletion_status === "awaiting_admin_approval" 
-                              ? "WITHDRAWN – Awaiting Delete" 
-                              : r.authorization_code 
-                                ? r.authorization_code 
-                                : isRejected(r) 
-                                ? (
-                                  <span className="text-xs font-semibold text-rose-500">{rejectionReason(r) || "reason not recorded"}</span>
-                                )
-                                : "PENDING"
-                            }
-                          </span>
-                          {r.authorization_code && r.deletion_status !== "awaiting_admin_approval" && (
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
-                              onClick={(e) => { e.stopPropagation(); handleCopyAuth(r); }} 
-                              className="ml-1 h-8 w-8 text-slate-400 hover:text-slate-600 shrink-0"
-                            >
-                              <Copy className="h-4 w-4" />
-                            </Button>
-                          )}
-                        </div>
+                        {isApproved(r) && !otpVerifiedStatus[r.id] ? (
+                          <div className="flex flex-col gap-1.5 mt-1" onClick={e => e.stopPropagation()}>
+                            {unlockingReqId === r.id ? (
+                              <div className="flex items-center gap-1">
+                                <Input
+                                  autoFocus
+                                  value={unlockOtpInput}
+                                  onChange={e => setUnlockOtpInput(e.target.value)}
+                                  placeholder="Enter OTP"
+                                  className="h-8 w-24 text-xs font-mono font-bold"
+                                />
+                                <Button size="sm" onClick={(e) => handleUnlockOtp(r, e)} className="h-8 px-2 text-xs">Unlock</Button>
+                                <Button variant="ghost" size="sm" onClick={() => setUnlockingReqId(null)} className="h-8 px-2 text-xs text-slate-400">Cancel</Button>
+                              </div>
+                            ) : (
+                              <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); setUnlockingReqId(r.id); }} className="h-8 w-fit text-xs border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100">
+                                🔒 Unlock Code
+                              </Button>
+                            )}
+                          </div>
+                        ) : (
+                          <div className={cn("font-mono font-black text-sm max-w-[260px] flex items-center gap-1",
+                            isRejected(r) 
+                              ? "text-rose-700" 
+                              : "text-slate-800"
+                          )}>
+                            <span className="break-words whitespace-normal leading-snug min-w-0">
+                              {r.deletion_status === "awaiting_admin_approval" 
+                                ? "WITHDRAWN – Awaiting Delete" 
+                                : r.authorization_code 
+                                  ? r.authorization_code 
+                                  : isRejected(r) 
+                                  ? (
+                                    <span className="text-xs font-semibold text-rose-500">{rejectionReason(r) || "reason not recorded"}</span>
+                                  )
+                                  : "PENDING"
+                              }
+                            </span>
+                            {r.authorization_code && r.deletion_status !== "awaiting_admin_approval" && (
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                onClick={(e) => { e.stopPropagation(); handleCopyAuth(r); }} 
+                                className="ml-1 h-8 w-8 text-slate-400 hover:text-slate-600 shrink-0"
+                              >
+                                <Copy className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
+                        )}
                       </td>
                       <td className="py-2 pr-4">
                         <div className="flex flex-col items-start gap-1.5">
@@ -297,19 +357,43 @@ export default function AuthorizationsTable({
                   
                   {/* Code row */}
                   {(r.authorization_code || r.deletion_status === "awaiting_admin_approval" || !r.authorization_code) && (
-                    <div className="flex items-center gap-1.5 mt-0.5 min-w-0">
-                      {r.deletion_status === "awaiting_admin_approval" ? (
-                        <span className="text-[11px] font-black text-rose-700">Code Revoked</span>
-                      ) : r.authorization_code ? (
-                        <div className="flex items-center gap-1 min-w-0">
-                          <span className="text-[11px] font-semibold text-slate-400">Code:</span>
-                          <span className="text-[11px] font-black text-[#1D9E75] font-mono truncate">{r.authorization_code}</span>
-                          <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleCopyAuth(r); }} className="h-6 w-6 text-slate-400 hover:text-slate-600 shrink-0 ml-1">
-                            <Copy className="h-3 w-3" />
+                    <div className="flex flex-col gap-1.5 mt-2 min-w-0" onClick={e => e.stopPropagation()}>
+                      {isApproved(r) && !otpVerifiedStatus[r.id] ? (
+                        unlockingReqId === r.id ? (
+                          <div className="flex items-center gap-2 w-full">
+                            <Input
+                              autoFocus
+                              value={unlockOtpInput}
+                              onChange={e => setUnlockOtpInput(e.target.value)}
+                              placeholder="Enter OTP"
+                              className="h-9 flex-1 text-sm font-mono font-bold"
+                            />
+                            <Button size="sm" onClick={(e) => handleUnlockOtp(r, e)} className="h-9 px-3">Unlock</Button>
+                            <Button variant="ghost" size="sm" onClick={() => setUnlockingReqId(null)} className="h-9 px-3 text-slate-400">Cancel</Button>
+                          </div>
+                        ) : (
+                          <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); setUnlockingReqId(r.id); }} className="h-9 w-full text-sm border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 font-bold">
+                            🔒 Unlock Authorization Code
                           </Button>
-                        </div>
+                        )
                       ) : (
-                        <span className="text-[11px] font-black text-amber-600">PENDING</span>
+                        <div className="flex items-center gap-1.5">
+                          {r.deletion_status === "awaiting_admin_approval" ? (
+                            <span className="text-[11px] font-black text-rose-700">Code Revoked</span>
+                          ) : r.authorization_code ? (
+                            <div className="flex items-center gap-1 min-w-0 w-full justify-between bg-slate-50 p-2 rounded-lg border border-slate-100">
+                              <div className="flex flex-col">
+                                <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Auth Code</span>
+                                <span className="text-sm font-black text-[#1D9E75] font-mono truncate">{r.authorization_code}</span>
+                              </div>
+                              <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleCopyAuth(r); }} className="h-8 w-8 text-slate-400 hover:text-slate-600 shrink-0 bg-white shadow-sm border border-slate-200">
+                                <Copy className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <span className="text-[11px] font-black text-amber-600">PENDING</span>
+                          )}
+                        </div>
                       )}
                     </div>
                   )}

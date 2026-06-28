@@ -95,25 +95,47 @@ export default function ReportsPage() {
   const fetchAnalytics = useCallback(async () => {
     setIsLoading(true);
     try {
-      let q = supabase.from("authorization_requests").select("*").order("created_at", { ascending: false });
+      let allData: any[] = [];
+      let page = 0;
+      const pageSize = 1000;
+      let hasMore = true;
+
       const mappedStatuses = preAuthStatusFilterMap[filters.statusFilter];
-      if (mappedStatuses?.length === 1) {
-        q = q.eq("status", mappedStatuses[0]);
-      } else if (mappedStatuses?.length) {
-        q = q.in("status", mappedStatuses);
-      }
-      if (filters.hospitalFilter !== "all") {
-        const hospitalName = hospitals.find((h) => h.id === filters.hospitalFilter)?.name || filters.hospitalFilter;
-        q = q.ilike("requesting_hospital", `%${hospitalName}%`);
-      }
       const dateRange = buildDateFilter(filters.dateFilter, filters.startDate, filters.endDate);
-      if (dateRange.from) q = q.gte("created_at", dateRange.from.toISOString());
-      if (dateRange.to) q = q.lte("created_at", dateRange.to.toISOString());
 
-      const { data, error } = await q;
-      if (error) throw error;
+      while (hasMore) {
+        let q = supabase.from("authorization_requests").select("*").order("created_at", { ascending: false });
+        
+        if (mappedStatuses?.length === 1) {
+          q = q.eq("status", mappedStatuses[0]);
+        } else if (mappedStatuses?.length) {
+          q = q.in("status", mappedStatuses);
+        }
+        if (filters.hospitalFilter !== "all") {
+          const hospitalName = hospitals.find((h) => h.id === filters.hospitalFilter)?.name || filters.hospitalFilter;
+          q = q.ilike("requesting_hospital", `%${hospitalName}%`);
+        }
+        if (dateRange.from) q = q.gte("created_at", dateRange.from.toISOString());
+        if (dateRange.to) q = q.lte("created_at", dateRange.to.toISOString());
 
-      const mappedRecords: PreAuthRecord[] = (data || []).map((item: any) => ({
+        q = q.range(page * pageSize, (page + 1) * pageSize - 1);
+
+        const { data, error } = await q;
+        if (error) {
+          console.error("Error fetching analytics page:", error);
+          break;
+        }
+
+        if (data && data.length > 0) {
+          allData = [...allData, ...data];
+          page++;
+          hasMore = data.length === pageSize;
+        } else {
+          hasMore = false;
+        }
+      }
+
+      const mappedRecords: PreAuthRecord[] = (allData || []).map((item: any) => ({
         id: item.id,
         created_at: item.created_at,
         request_id: item.request_id || "",
