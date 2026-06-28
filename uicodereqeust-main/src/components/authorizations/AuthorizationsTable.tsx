@@ -64,11 +64,11 @@ export default function AuthorizationsTable({
           <table className="w-full text-left border-collapse min-w-[800px]">
             <thead className="table-heading">
               <tr>
-                <th className="p-4">Date</th>
-                <th className="py-4 pr-4">Patient</th>
-                <th className="py-4 pr-4">Code</th>
-                <th className="py-4 pr-4">Status</th>
-                <th className="py-4 pr-4">Action</th>
+                <th className="px-4 py-2">Date</th>
+                <th className="py-2 pr-4">Patient</th>
+                <th className="py-2 pr-4">Code</th>
+                <th className="py-2 pr-4">Status</th>
+                <th className="py-2 pr-4">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
@@ -83,10 +83,10 @@ export default function AuthorizationsTable({
                   const claimStatus = claimStatusFor(r);
                   return (
                     <tr key={r.id} className="hover:bg-slate-50/50 transition-colors text-sm">
-                      <td className="p-4 font-mono font-bold text-slate-600">
+                      <td className="px-4 py-2 font-mono font-bold text-slate-600">
                         {r.created_at ? new Date(r.created_at).toLocaleDateString("en-GB") : "—"}
                       </td>
-                      <td className="py-4 pr-4">
+                      <td className="py-2 pr-4">
                         <p className="font-black text-slate-950 uppercase leading-snug">{r.patient_name}</p>
   <p className="mt-1 text-xs font-semibold text-slate-600 leading-snug break-words whitespace-normal max-w-[300px]">{r.diagnosis}</p>
                         {isReferralFor(r) && (
@@ -95,7 +95,7 @@ export default function AuthorizationsTable({
                           </span>
                         )}
                       </td>
-                      <td className="py-4 pr-4">
+                      <td className="py-2 pr-4">
                         <div className={cn("font-mono font-black text-sm max-w-[260px] flex items-center gap-1",
                           isRejected(r) 
                             ? "text-rose-700" 
@@ -125,7 +125,7 @@ export default function AuthorizationsTable({
                           )}
                         </div>
                       </td>
-                      <td className="py-4 pr-4">
+                      <td className="py-2 pr-4">
                         <div className="flex flex-col items-start gap-1.5">
                           <Badge variant="outline" className={cn("px-2.5 py-0.5 rounded-full border badge-label whitespace-nowrap w-fit", (() => {
                             const s = String(r.status || "").toLowerCase();
@@ -146,7 +146,7 @@ export default function AuthorizationsTable({
                           </Badge>
                         </div>
                       </td>
-                      <td className="py-4 pr-4">
+                      <td className="py-2 pr-4">
                         <div className="flex flex-wrap items-center gap-1.5">
                           <Button 
                             variant="ghost" 

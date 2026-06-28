@@ -56,11 +56,11 @@ export default function HospitalClaimsTable({
               <table className="w-full text-left border-collapse min-w-[500px]">
                 <thead>
                   <tr>
-                    <th className="table-heading p-4">Reference</th>
-                    <th className="table-heading py-4 pr-4">Patient</th>
-                    <th className="table-heading py-4 pr-4">Amount</th>
-                    <th className="table-heading py-4 pr-4">Status</th>
-                    <th className="table-heading py-4 pr-4 text-right">Action</th>
+                    <th className="table-heading px-4 py-2">Reference</th>
+                    <th className="table-heading py-2 pr-4">Patient</th>
+                    <th className="table-heading py-2 pr-4">Amount</th>
+                    <th className="table-heading py-2 pr-4">Status</th>
+                    <th className="table-heading py-2 pr-4 text-right">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50">
@@ -70,14 +70,14 @@ export default function HospitalClaimsTable({
                       onClick={() => onViewDetails(c.id)}
                       className="hover:bg-slate-50 transition-colors text-sm cursor-pointer"
                     >
-                      <td className="p-4 font-mono text-sm font-bold text-slate-500">{c.claim_number}</td>
-                      <td className="py-4 pr-4 text-sm font-black uppercase text-slate-950 leading-tight">
+                      <td className="px-4 py-2 font-mono text-sm font-bold text-slate-500">{c.claim_number}</td>
+                      <td className="py-2 pr-4 text-sm font-black uppercase text-slate-950 leading-tight">
                         {c.patient_name}
                       </td>
-                      <td className="py-4 pr-4 font-mono font-bold text-emerald-600 text-sm">
+                      <td className="py-2 pr-4 font-mono font-bold text-emerald-600 text-sm">
                         ₦{Number(c.total_amount).toLocaleString()}
                       </td>
-                      <td className="py-4 pr-4">
+                      <td className="py-2 pr-4">
                         <Badge
                           variant="outline"
                           className={cn("text-xs font-bold uppercase px-2.5 py-0.5 tracking-wider rounded-full", statusClass(c.status))}
@@ -85,7 +85,7 @@ export default function HospitalClaimsTable({
                           {statusLabel(c.status)}
                         </Badge>
                       </td>
-                      <td className="py-4 pr-4 text-right">
+                      <td className="py-2 pr-4 text-right">
                         <Button
                           variant="outline"
                           size="sm"
