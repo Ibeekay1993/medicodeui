@@ -1,3 +1,4 @@
+import React from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -48,7 +49,7 @@ interface PostReviewTemplatesProps {
   nurseInitials: string;
 }
 
-export function PostReviewTemplates({
+export const PostReviewTemplates = React.memo(function PostReviewTemplates({
   request,
   approvalResult,
   declineResult,
@@ -301,4 +302,4 @@ export function PostReviewTemplates({
   }
 
   return null;
-}
+});

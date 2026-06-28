@@ -103,7 +103,7 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="w-[94vw] max-w-[94vw] sm:max-w-3xl md:max-w-5xl lg:max-w-6xl max-h-[92dvh] overflow-y-auto overflow-x-hidden rounded-[1.5rem] sm:rounded-[2rem] border-0 bg-white/95 backdrop-blur-2xl selection:bg-slate-200 p-0 shadow-[0_8px_40px_rgb(0,0,0,0.08)] ring-1 ring-slate-200">
+      <DialogContent className="w-[94vw] max-w-[94vw] sm:max-w-3xl md:max-w-5xl lg:max-w-6xl max-h-[92dvh] overflow-y-auto overflow-x-hidden rounded-[1.5rem] sm:rounded-[2rem] border-0 bg-white/95 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-white to-slate-50/50 backdrop-blur-2xl selection:bg-slate-200 p-0 shadow-[0_8px_40px_rgb(0,0,0,0.08)] ring-1 ring-slate-200">
         {/* Sticky Header */}
         <div className="sticky top-0 z-30 px-5 py-4 bg-gradient-to-b from-white/95 to-white/90 backdrop-blur-xl border-b border-slate-100 rounded-t-[1.5rem] sm:rounded-t-[2rem] shadow-sm">
           <div className="flex items-start justify-between gap-3">

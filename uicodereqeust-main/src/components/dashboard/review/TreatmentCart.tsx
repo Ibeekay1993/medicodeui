@@ -47,7 +47,7 @@ interface TreatmentCartProps {
   setCartCollapsed: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
-export function TreatmentCart({
+export const TreatmentCart = React.memo(function TreatmentCart({
   request,
   editTreatment,
   setEditTreatment: _setEditTreatment,
@@ -417,4 +417,4 @@ export function TreatmentCart({
       )}
     </div>
   );
-}
+});

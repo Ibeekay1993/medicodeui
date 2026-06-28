@@ -1,4 +1,4 @@
-
+import React from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -22,7 +22,7 @@ interface ClinicalActionControlsProps {
   declineResult: any;
 }
 
-export function ClinicalActionControls({
+export const ClinicalActionControls = React.memo(function ClinicalActionControls({
   request,
   editDecisionNote,
   setEditDecisionNote,
@@ -166,4 +166,4 @@ export function ClinicalActionControls({
       )}
     </div>
   );
-}
+});

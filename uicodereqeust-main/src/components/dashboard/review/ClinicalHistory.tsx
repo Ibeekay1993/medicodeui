@@ -13,7 +13,7 @@ interface ClinicalHistoryProps {
   requestPolicyNumber: string;
 }
 
-export function ClinicalHistory({
+export const ClinicalHistory = React.memo(function ClinicalHistory({
   request: _request,
   visibleHistory,
   historyPage,
@@ -220,4 +220,4 @@ export function ClinicalHistory({
       )}
     </div>
   );
-}
+});

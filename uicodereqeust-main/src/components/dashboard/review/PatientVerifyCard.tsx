@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, ShieldCheck, XCircle, AlertTriangle, ChevronDown, ChevronUp } from "lucide-react";
 import { cleanPatientName } from "@/lib/clinicalUtils";
@@ -16,7 +16,7 @@ interface PatientVerifyCardProps {
   requestPatientName: string;
 }
 
-export function PatientVerifyCard({
+export const PatientVerifyCard = React.memo(function PatientVerifyCard({
   request: _request,
   checking,
   patientMatchStatus,
@@ -163,4 +163,4 @@ export function PatientVerifyCard({
       )}
     </div>
   );
-}
+});
