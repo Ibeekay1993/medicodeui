@@ -9,6 +9,12 @@ import {
   stripCodesAndPricing,
 } from "../_shared/email-template.ts";
 
+function generateSecureOTP(): string {
+  const array = new Uint8Array(6);
+  crypto.getRandomValues(array);
+  return Array.from(array, (b) => b % 10).join("");
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -33,7 +39,7 @@ serve(async (req) => {
     const { data: request, error: fetchError } = await supabase
       .from("authorization_requests")
       .select(
-        "patient_name, patient_email, diagnosis, treatment, hospital_name, authorization_code, policy_number, urgency, approved_items, referred_hospital_name"
+        "patient_name, patient_email, diagnosis, treatment, hospital_name, hospital_id, authorization_code, policy_number, urgency, approved_items, referred_hospital_name, referred_hospital_id"
       )
       .eq("id", authorization_id)
       .maybeSingle();
@@ -49,9 +55,42 @@ serve(async (req) => {
       );
     }
 
+    // ── Generate and Store TREATMENT OTP ─────────────────────────────────────────
+    const otp = generateSecureOTP();
+    const encoder = new TextEncoder();
+    const bytes = encoder.encode(otp);
+    const hashBuffer = await crypto.subtle.digest("SHA-256", bytes);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const otpHash = hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+    const claimingHospitalId = request.referred_hospital_id || request.hospital_id;
+
+    // Clean up old unverified TREATMENT OTPs for this authorization
+    await supabase
+      .from("otp_verifications")
+      .delete()
+      .eq("authorization_id", authorization_id)
+      .eq("otp_type", "TREATMENT")
+      .eq("verified", false);
+
+    // Insert new TREATMENT OTP
+    await supabase
+      .from("otp_verifications")
+      .insert({
+        authorization_id,
+        otp_hash: otpHash,
+        otp_value: otp,
+        email: patientEmail,
+        expires_at: expiresAt,
+        created_by: user.id,
+        otp_type: "TREATMENT",
+        hospital_id: claimingHospitalId,
+      });
+
     if (patientEmail === "no-email@medicode.com") {
       return new Response(
-        JSON.stringify({ success: true, message: "Skipped approval email for placeholder address" }),
+        JSON.stringify({ success: true, message: "Skipped approval email for placeholder address. OTP generated." }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
@@ -94,9 +133,19 @@ serve(async (req) => {
     const bodyHtml = `
       <p style="color:#475569;font-size:14px;line-height:1.6;margin:0 0 8px;">Hello, <strong>${patientName}</strong></p>
       <p style="color:#475569;font-size:14px;line-height:1.6;margin:0 0 20px;">
-        Your treatment request has been approved. You do not need to present any approval code at reception.
-        The approved hospital has been notified and will confirm your approved services with Ronsberger HMO.
+        Your treatment request has been <strong>approved</strong> by Ronsberger HMO. 
       </p>
+
+      <div style="background-color:#f0fdf4; border:1px solid #bbf7d0; border-radius:12px; padding:20px; text-align:center; margin-bottom:24px;">
+        <p style="color:#166534; font-size:14px; font-weight:600; margin:0 0 8px;">Your Treatment Authorization PIN:</p>
+        <div style="font-size:32px; font-weight:900; letter-spacing:4px; color:#14532d; font-family:monospace;">
+          ${otp}
+        </div>
+        <p style="color:#15803d; font-size:13px; margin:12px 0 0 0; line-height:1.5;">
+          Please provide this secure PIN to the reception at your approved hospital to authorize and finalize your treatment. 
+          This PIN will expire in 10 minutes.
+        </p>
+      </div>
 
       <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:20px;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;">
         <tr><td style="background:#f8fafc;padding:12px 16px;border-bottom:1px solid #e2e8f0;">

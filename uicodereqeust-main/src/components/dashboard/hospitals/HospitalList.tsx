@@ -18,6 +18,7 @@ interface HospitalListProps {
   onToggleActive: (hospital: HospitalRow, newActiveState: boolean) => void;
   onDelete: (hospital: HospitalRow) => void;
   linkedUserFor: (hospital: HospitalRow) => string | undefined;
+  usersLinkedCount: (hospital: HospitalRow) => number;
 }
 
 const statusPill = (active: boolean) => active
@@ -35,7 +36,8 @@ export function HospitalList({
   onLink,
   onToggleActive,
   onDelete,
-  linkedUserFor
+  linkedUserFor,
+  usersLinkedCount
 }: HospitalListProps) {
   if (loading) {
     return (
@@ -79,7 +81,7 @@ export function HospitalList({
           <tbody className="divide-y divide-slate-200 text-xs text-slate-600">
             {hospitals.map((hospital) => {
               const active = hospital.is_active !== false;
-              const usersLinked = hospital.user_id ? 1 : 0;
+              const usersLinked = usersLinkedCount(hospital);
               return (
                 <tr key={hospital.id} className="group transition hover:bg-slate-50/50 h-14">
                   <td className="px-4 py-2.5">
@@ -104,7 +106,9 @@ export function HospitalList({
                   </td>
                   <td className="px-4 py-2.5 leading-tight">
                     <div><span className={cn("med-status-pill text-xs py-0.5 px-2", statusPill(active))}>{active ? "ACTIVE" : "INACTIVE"}</span></div>
-                    <div className="text-xs text-slate-400 mt-1">Users: {usersLinked} ({linkedUserFor(hospital) || "Unlinked"})</div>
+                    <div className="text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded-md inline-block mt-2">
+                      Users: {usersLinked} ({linkedUserFor(hospital) || "Unlinked"})
+                    </div>
                   </td>
                   <td className="px-4 py-2.5 text-right">
                     <DropdownMenu>
@@ -140,6 +144,7 @@ export function HospitalList({
       <div className="block lg:hidden divide-y divide-slate-100">
         {hospitals.map((hospital) => {
           const active = hospital.is_active !== false;
+          const usersLinked = usersLinkedCount(hospital);
           return (
             <div key={hospital.id} className="relative p-4 hover:bg-slate-50/50 transition-colors">
               <div className="pr-28 space-y-1.5">

@@ -30,7 +30,7 @@ export default function SupportMessagesPage() {
 
   // UI & Panel Collapsing States
   const [leftCollapsed, setLeftCollapsed] = useState(false);
-  const [rightCollapsed, setRightCollapsed] = useState<boolean>(() => !(role === "claims" || role === "admin"));
+  const [rightCollapsed, setRightCollapsed] = useState<boolean>(true);
 
   const persistedFilters = readJson<{ search: string; filter: string; categoryFilter: string }>(supportLocalKey.filters, { search: "", filter: "all", categoryFilter: "all" });
   // Filter & search states

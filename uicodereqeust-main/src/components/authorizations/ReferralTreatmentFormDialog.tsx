@@ -100,9 +100,11 @@ export default function ReferralTreatmentFormDialog({
 
     setIsSubmitting(true);
     try {
-      const treatmentText = treatments
+      const newTreatmentItems = treatments
         .map((t) => `${t.name} [Code: ${t.code}] (Qty: ${t.quantity} x ₦${t.amount} = ₦${t.quantity * t.amount})`)
         .join("; ");
+
+      const treatmentText = `[ORIGINAL REFERRAL REASON (From ${request.requesting_hospital_name || request.hospital_name || "Referring Hospital"})]:\n${request.treatment || "Not specified"}\n\n[PROPOSED TREATMENT PLAN (From ${hospital.name})]:\n${newTreatmentItems}`;
 
       const approvedPayload = treatments.map((item) => ({
         code: item.code,
@@ -145,19 +147,7 @@ export default function ReferralTreatmentFormDialog({
         }
       });
 
-      // 3. Send NEW OTP (Type: TREATMENT)
-      await supabase.functions.invoke("send-otp", {
-        method: "POST",
-        body: {
-          authorization_id: request.id,
-          patient_email: request.patient_email || "no-email@medicode.com",
-          policy_number: request.policy_number,
-          otp_type: "TREATMENT",
-          hospital_id: hospital.id
-        }
-      });
-
-      toast({ title: "Treatment Submitted", description: "Treatment request submitted. Treatment Consent OTP has been sent to the patient." });
+      toast({ title: "Treatment Submitted", description: "Treatment request submitted. Treatment PIN will be sent to the patient upon HMO approval." });
       onUpdated();
       onClose();
     } catch (err: any) {

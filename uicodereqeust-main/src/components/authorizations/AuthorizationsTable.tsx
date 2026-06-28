@@ -237,7 +237,7 @@ export default function AuthorizationsTable({
                             className="h-8 px-2.5 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-100 text-xs font-black uppercase tracking-wider"
                           >
                             {r.status === "referral_approved" && canSubmitClaimFor(r, hospital)
-                              ? "Process Referral"
+                              ? "Accept Referral"
                               : r.status === "referral_accepted" && canSubmitClaimFor(r, hospital)
                               ? "Submit Treatment"
                               : "View Items"}

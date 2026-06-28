@@ -139,7 +139,7 @@ export default function ReferralProcessDialog({
       <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto overflow-x-hidden rounded-2xl border-none shadow-2xl p-0">
         <div className="bg-[#3f3f95] p-6 text-white relative">
           <h2 className="text-sm font-black uppercase tracking-tight italic">
-            Process <span className="text-emerald-400">Referral</span>
+            Accept <span className="text-white/80">Referral</span>
           </h2>
           <p className="text-xs font-bold text-slate-200/80 uppercase tracking-widest mt-1">
             Stage 3: Acceptance & Physical Arrival
@@ -194,7 +194,7 @@ export default function ReferralProcessDialog({
                 <Button
                   onClick={handleAccept}
                   disabled={isVerifying}
-                  className="h-11 rounded-xl bg-emerald-600 text-white font-black uppercase text-xs tracking-wider hover:bg-emerald-700 transition-all shadow-md active:scale-98"
+                  className="h-11 rounded-xl bg-[#3f3f95] text-white font-black uppercase text-xs tracking-wider hover:bg-[#32327a] transition-all shadow-md active:scale-98"
                 >
                   {isVerifying ? (
                     <Loader2 className="h-4 w-4 animate-spin mr-2" />

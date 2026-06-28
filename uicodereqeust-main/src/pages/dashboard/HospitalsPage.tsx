@@ -111,7 +111,7 @@ export default function HospitalsPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("user_roles")
-        .select("user_id, full_name, email, role")
+        .select("user_id, full_name, email, role, hospital_id")
         .eq("role", "hospital")
         .order("full_name");
       if (error) throw error;
@@ -134,7 +134,17 @@ export default function HospitalsPage() {
   const { page, setPage, pageSize, totalPages, pageItems: paginatedHospitals, start, end, total } = useDataPagination(filtered, 10, 25);
   const selectedHospitals = hospitals.filter((hospital) => selectedIds.includes(hospital.id));
   const allPageSelected = paginatedHospitals.length > 0 && paginatedHospitals.every((hospital) => selectedIds.includes(hospital.id));
-  const linkedUserFor = (hospital: any) => hospital.user_id ? (hospitalUsers.find((user) => user.user_id === hospital.user_id)?.full_name || hospital.user_id) : "No user linked";
+  const linkedUserFor = (hospital: any) => {
+    const linked = hospitalUsers.filter((user) => user.hospital_id === hospital.id || (hospital.user_id && user.user_id === hospital.user_id));
+    if (linked.length > 0) {
+      return linked.map((u) => u.full_name || u.email || "Unknown").join(", ");
+    }
+    return "No user linked";
+  };
+
+  const usersLinkedCount = (hospital: any) => {
+    return hospitalUsers.filter((user) => user.hospital_id === hospital.id || (hospital.user_id && user.user_id === hospital.user_id)).length;
+  };
 
   const resetNewHospital = () => setNewHosp(emptyHospital);
 
@@ -319,6 +329,7 @@ export default function HospitalsPage() {
           onToggleActive={(hospital, active) => setHospitalActive([hospital.id], active)}
           onDelete={deleteHospital}
           linkedUserFor={linkedUserFor}
+          usersLinkedCount={usersLinkedCount}
         />
 
 

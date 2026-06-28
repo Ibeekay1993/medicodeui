@@ -486,38 +486,47 @@ export default function HospitalNewRequest() {
         } catch {}
       }
 
-      // ── Send OTP to patient email ─────────────────────────────────────────
+      // ── Send OTP to patient email (ONLY FOR REFERRALS) ──────────────────────
       try {
-        const { data: otpData, error: otpError } = await supabase.functions.invoke("send-otp", {
-          method: "POST",
-          body: {
-            authorization_id: insertedRequest.id,
-            patient_email: patientEmail.trim() || "no-email@medicode.com",
-            policy_number: selectedPatient.policy_number,
-            otp_type: isReferral ? "ARRIVAL" : "TREATMENT",
-            hospital_id: resolvedReferralHospitalId || hospital?.id,
-          },
-        });
-
-        const fnResult = otpData || {};
+        let fnResult: any = {};
+        let otpError: any = null;
         const isNoEmail = patientEmail.trim() === "no-email@medicode.com";
 
-        if (otpError && !fnResult.message) {
-          toast({ variant: "destructive", title: "OTP send failed", description: otpError?.message || "Could not deliver OTP email." });
-        } else if (fnResult.error) {
-          toast({ variant: "destructive", title: "OTP send failed", description: fnResult.message || "Could not deliver OTP email." });
-        } else if (fnResult.email_status === "failed" && !isNoEmail) {
-          toast({ variant: "destructive", title: "OTP email failed", description: fnResult.error_message || fnResult.message || "Unable to send OTP email. Check email settings." });
-        } else if (fnResult.email_status === "skipped" && !isNoEmail) {
-          toast({ title: "OTP generated", description: fnResult.message || "OTP created but email sending was skipped." });
+        if (isReferral) {
+          const { data, error } = await supabase.functions.invoke("send-otp", {
+            method: "POST",
+            body: {
+              authorization_id: insertedRequest.id,
+              patient_email: patientEmail.trim() || "no-email@medicode.com",
+              policy_number: selectedPatient.policy_number,
+              otp_type: "ARRIVAL",
+              hospital_id: resolvedReferralHospitalId || hospital?.id,
+            },
+          });
+          fnResult = data || {};
+          otpError = error;
+
+          if (otpError && !fnResult.message) {
+            toast({ variant: "destructive", title: "OTP send failed", description: otpError?.message || "Could not deliver OTP email." });
+          } else if (fnResult.error) {
+            toast({ variant: "destructive", title: "OTP send failed", description: fnResult.message || "Could not deliver OTP email." });
+          } else if (fnResult.email_status === "failed" && !isNoEmail) {
+            toast({ variant: "destructive", title: "OTP email failed", description: fnResult.error_message || fnResult.message || "Unable to send OTP email. Check email settings." });
+          } else if (fnResult.email_status === "skipped" && !isNoEmail) {
+            toast({ title: "OTP generated", description: fnResult.message || "OTP created but email sending was skipped." });
+          } else {
+            toast({
+              title: "Referral request submitted",
+              description: isNoEmail 
+                ? `Referral to ${resolvedReferralHospitalName || 'hospital'} submitted.` 
+                : `Referral to ${resolvedReferralHospitalName || 'hospital'} submitted. An Arrival OTP has been sent to the patient.`,
+            });
+          }
         } else {
+          // Standard request - no OTP generated at submission stage anymore
           toast({
-            title: isReferral ? "Referral request submitted" : "Request submitted successfully",
-            description: isNoEmail 
-              ? (isReferral ? `Referral to ${resolvedReferralHospitalName || 'hospital'} submitted.` : "Request submitted. Advise the patient to contact HMO for OTP.")
-              : (isReferral
-                ? `Referral to ${resolvedReferralHospitalName || 'hospital'} submitted. An OTP has been sent to the patient.`
-                : "An OTP has been sent to the patient's email."),
+            title: "Request submitted successfully",
+            description: "Request submitted to HMO. The Treatment PIN will be emailed to the patient upon approval.",
           });
         }
       } catch (err: any) {
