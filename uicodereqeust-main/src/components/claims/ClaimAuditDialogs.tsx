@@ -66,14 +66,14 @@ export default function ClaimAuditDialogs({
         }
       }}>
         <DialogContent className="w-[calc(100vw-2rem)] max-w-md max-h-[90vh] overflow-y-auto overflow-x-hidden rounded-2xl border-slate-200 p-0">
-          <DialogHeader className="border-b border-slate-100 bg-emerald-50 p-5">
+          <DialogHeader className="border-b border-slate-100 bg-slate-50/50 p-5">
             <DialogTitle className="text-sm font-semibold text-slate-900">Approve Claim Item</DialogTitle>
-            <DialogDescription className="text-xs font-medium text-emerald-700 leading-relaxed">
+            <DialogDescription className="text-xs font-medium text-slate-500 leading-relaxed">
               Restore this item into the payable claim list. Add an optional note for audit history.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 p-5">
-            <div className="rounded-xl border border-emerald-100 bg-white p-3">
+            <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-3">
               <p className="text-xs font-semibold text-emerald-600">Item</p>
               <p className="mt-1 text-xs font-semibold text-slate-900">{approvalDialog?.item?.name || approvalDialog?.item?.item_name || "Claim item"}</p>
             </div>
@@ -100,14 +100,14 @@ export default function ClaimAuditDialogs({
         }
       }}>
         <DialogContent className="w-[calc(100vw-2rem)] max-w-md max-h-[90vh] overflow-y-auto overflow-x-hidden rounded-2xl border-slate-200 p-0">
-          <DialogHeader className="border-b border-slate-100 bg-blue-50 p-5">
+          <DialogHeader className="border-b border-slate-100 bg-slate-50/50 p-5">
             <DialogTitle className="text-sm font-semibold text-slate-900">Adjust Approved Quantity</DialogTitle>
-            <DialogDescription className="text-xs font-medium text-blue-700 leading-relaxed">
+            <DialogDescription className="text-xs font-medium text-slate-500 leading-relaxed">
               Enter the payable quantity and the audit reason. This replaces the browser popup with a tracked audit decision.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 p-5">
-            <div className="rounded-xl border border-blue-100 bg-white p-3">
+            <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-3">
               <p className="text-xs font-semibold text-blue-600">Item</p>
               <p className="mt-1 text-xs font-semibold text-slate-900">{adjustDialog?.item?.name || adjustDialog?.item?.item_name || "Claim item"}</p>
               <p className="mt-1 text-xs font-semibold text-slate-500">Original quantity: {adjustDialog ? itemQty(adjustDialog.item) : 0}</p>
@@ -156,7 +156,7 @@ export default function ClaimAuditDialogs({
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 p-5">
-            <div className="rounded-xl border border-rose-100 bg-rose-50 p-3">
+            <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-3">
               <p className="text-xs font-semibold text-rose-600">Item Under Review</p>
               <p className="mt-1 text-xs font-semibold text-slate-900">{declineDialog?.item?.name || declineDialog?.item?.item_name || "Claim item"}</p>
             </div>
@@ -183,9 +183,9 @@ export default function ClaimAuditDialogs({
               />
             </div>
             {declineCategory && declineNote.trim() && (
-              <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-3">
+              <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-3">
                 <p className="text-xs font-semibold text-emerald-600">Hospital-facing explanation</p>
-                <p className="mt-1 text-xs font-semibold leading-relaxed text-emerald-800">
+                <p className="mt-1 text-xs font-semibold leading-relaxed text-slate-700">
                   {buildHospitalExplanation(declineCategory, declineNote, declineDialog?.item?.name || "this item")}
                 </p>
               </div>

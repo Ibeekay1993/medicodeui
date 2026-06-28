@@ -224,20 +224,20 @@ export default function ClaimAuditDrawer({
                     <span className="text-xs font-semibold text-slate-500">Verifying Clinical Records...</span>
                   </div>
                 ) : !verificationData.exists ? (
-                  <div className="bg-rose-50/50 border border-rose-100 p-3 rounded-xl space-y-1.5">
+                  <div className="bg-slate-50/50 border border-slate-200 p-3 rounded-xl space-y-1.5">
                     <div className="flex items-center gap-2 text-rose-700">
                       <XCircle className="w-4 h-4 text-rose-600 shrink-0" />
-                      <span className="text-xs font-semibold text-rose-750">Forgery Detection Alert</span>
+                      <span className="text-xs font-semibold text-rose-600">Forgery Detection Alert</span>
                     </div>
                     <p className="text-xs font-semibold text-rose-600 leading-relaxed">
                       No clinical authorization matching code <span className="font-mono text-rose-800 font-semibold">'{selectedClaim.auth_code}'</span> exists in the database. Direct approval is locked.
                     </p>
                   </div>
                 ) : verificationData.mismatchReasons.length > 0 ? (
-                  <div className="bg-rose-50/50 border border-rose-100 p-3 rounded-xl space-y-2">
+                  <div className="bg-slate-50/50 border border-slate-200 p-3 rounded-xl space-y-2">
                     <div className="flex items-center gap-2 text-rose-700">
                       <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
-                      <span className="text-xs font-semibold text-rose-750">Fraud / Mismatch Alert</span>
+                      <span className="text-xs font-semibold text-rose-600">Fraud / Mismatch Alert</span>
                     </div>
                     <ul className="list-disc list-inside text-xs font-semibold text-rose-600 space-y-1 leading-relaxed">
                       {verificationData.mismatchReasons.map((r, i) => (
@@ -247,10 +247,10 @@ export default function ClaimAuditDrawer({
                     <p className="text-xs font-semibold text-rose-500 mt-1">Manual audit required. Direct approval has been locked.</p>
                   </div>
                 ) : (
-                  <div className="bg-emerald-50/50 border border-emerald-100 p-3 rounded-xl space-y-1.5">
+                  <div className="bg-slate-50/50 border border-slate-200 p-3 rounded-xl space-y-1.5">
                     <div className="flex items-center gap-2 text-emerald-700">
                       <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                      <span className="text-xs font-semibold text-emerald-750">100% Clinically Verified</span>
+                      <span className="text-xs font-semibold text-emerald-600">100% Clinically Verified</span>
                     </div>
                     <p className="text-xs font-medium text-emerald-600 leading-relaxed">
                       Claim details perfectly match approved Clinical Pre-Authorization record <span className="font-mono font-bold text-emerald-700">#{verificationData.authRequest?.request_id}</span>.
@@ -277,9 +277,9 @@ export default function ClaimAuditDrawer({
 
               {/* World Standard clinical guidelines check assistant */}
               {verificationData.exists && (
-                <div className="rounded-2xl border border-blue-100 bg-white p-4 space-y-2 shadow-sm">
-                  <p className="text-xs font-semibold text-blue-700 flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-2 shadow-sm">
+                  <p className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-slate-500" />
                     Clinical Guideline Match
                   </p>
                   <p className="text-xs font-semibold text-slate-600 leading-relaxed">
@@ -304,7 +304,7 @@ export default function ClaimAuditDrawer({
                         </div>
                       )}
                       {hasAudit && (
-                        <div className="rounded-xl border border-amber-100 bg-gradient-to-b from-amber-50/80 to-amber-50/30 p-4 shadow-sm">
+                        <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 shadow-sm">
                           <FormattedAuditNote text={noteSections.audit} />
                         </div>
                       )}
@@ -314,16 +314,16 @@ export default function ClaimAuditDrawer({
               })()}
 
               {(selectedClaim.status === "contested" || selectedClaim.status === "under_contest") && (
-                <div className="space-y-2.5 rounded-xl border border-amber-200 bg-amber-50 p-4">
+                <div className="space-y-2.5 rounded-xl border border-slate-200 bg-slate-50/50 p-4">
                   <span className="text-xs font-semibold text-amber-700 block">Contest Awaiting Re-Audit</span>
-                  <p className="text-xs font-semibold text-amber-700 leading-relaxed">
+                  <p className="text-xs font-semibold text-slate-700 leading-relaxed">
                     <span className="font-semibold">Hospital rebuttal:</span> {selectedClaim.contest_note || selectedClaim.audit_summary?.contest?.hospital_note || "No rebuttal note provided."}
                   </p>
                   <p className="text-sm font-semibold text-amber-800 font-mono">
                     Amount under contest: {money(Number(selectedClaim.under_contest_amount || selectedClaim.audit_summary?.contest?.amount_under_contest || 0))}
                   </p>
                   {Array.isArray(selectedClaim.contest_documents) && selectedClaim.contest_documents.length > 0 && (
-                    <div className="space-y-1.5 border-t border-amber-200 pt-2.5">
+                    <div className="space-y-1.5 border-t border-slate-200 pt-2.5">
                       <p className="text-xs font-semibold text-amber-700">Hospital Uploaded Documents</p>
                       {selectedClaim.contest_documents.map((doc: any, index: number) => (
                         <a
@@ -431,14 +431,14 @@ export default function ClaimAuditDrawer({
                                   </Badge>
                                 )}
                               </div>
-                              {item.code && <p className="text-xs font-mono font-bold text-blue-500 mt-1">Code: {item.code}</p>}
+                              {item.code && <p className="text-xs font-mono font-bold text-slate-500 mt-1">Code: {item.code}</p>}
                               <p className="text-xs font-semibold text-slate-500 mt-1">
                                 {isPreDeclined ? "Declined by Utilization Manager during Pre-Auth" : `Approved: ${qty} of ${originalQty} unit${originalQty > 1 ? 's' : ''}`}
                               </p>
                               {decision.reasonCategory && !isPreDeclined && <p className="mt-1.5 text-xs font-semibold leading-snug text-rose-650">Category: {decision.reasonCategory}</p>}
                               {decision.reason && !isPreDeclined && <p className={cn("mt-1 text-xs font-semibold leading-snug", isDeclined ? "text-rose-600" : "text-amber-600")}>Reason: {decision.reason}</p>}
                               {isPreDeclined && (
-                                <p className="mt-1 text-xs font-semibold leading-snug text-rose-600 bg-rose-50/50 p-1.5 rounded border border-rose-100/30">
+                                <p className="mt-1 text-xs font-semibold leading-snug text-rose-600 bg-slate-50/50 p-1.5 rounded border border-slate-200">
                                   <span className="font-bold">Reason:</span> {item.decline_reason || "Declined during pre-authorization review"}
                                 </p>
                               )}
@@ -460,8 +460,8 @@ export default function ClaimAuditDrawer({
                                     className={cn(
                                       "text-xs font-semibold px-2.5 py-1.5 rounded-lg border transition-all duration-150 active:scale-95",
                                       isDeclined
-                                        ? "bg-emerald-50 text-emerald-600 border-emerald-100 hover:bg-emerald-100"
-                                        : "bg-rose-50 text-rose-600 border-rose-100 hover:bg-rose-100"
+                                        ? "bg-slate-50 text-emerald-600 border-slate-200 hover:bg-slate-100"
+                                        : "bg-slate-50 text-rose-600 border-slate-200 hover:bg-slate-100"
                                     )}
                                   >
                                     {isDeclined ? "Approve Item" : "Decline Item"}
@@ -469,7 +469,7 @@ export default function ClaimAuditDrawer({
                                   {!isDeclined && (
                                     <button
                                       onClick={() => adjustItemQuantity(codeOrName, item)}
-                                      className="text-xs font-semibold px-2.5 py-1.5 rounded-lg border bg-blue-50 text-blue-600 border-blue-100 hover:bg-blue-100 transition-all duration-150 active:scale-95"
+                                      className="text-xs font-semibold px-2.5 py-1.5 rounded-lg border bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100 transition-all duration-150 active:scale-95"
                                     >
                                       Adjust Qty
                                     </button>
@@ -506,21 +506,21 @@ export default function ClaimAuditDrawer({
 
                 {/* Warning info if amount was modified */}
                 {(auditSummary.declined > 0 || auditSummary.declinedCount > 0) && (
-                  <div className="bg-amber-500/5 border border-amber-100 p-3 rounded-xl flex items-start gap-2">
+                  <div className="bg-slate-50/50 border border-slate-200 p-3 rounded-xl flex items-start gap-2">
                     <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-                    <p className="text-xs font-semibold text-amber-700 leading-relaxed">
+                    <p className="text-xs font-semibold text-slate-700 leading-relaxed">
                       Audit savings: {auditSummary.declinedCount} item(s) declined/adjusted. Approved value reduced by <span className="font-mono font-semibold">{money(auditSummary.declined)}</span>.
                     </p>
                   </div>
                 )}
                 <div className="grid grid-cols-3 gap-2 text-center">
-                  <div className="rounded-xl bg-emerald-55 p-3 border border-emerald-100">
+                  <div className="rounded-xl bg-slate-50 p-3 border border-slate-100">
                     <p className="text-xs font-semibold text-emerald-700">Approved Items</p>
-                    <p className="font-mono text-xl font-bold text-emerald-700 mt-1">{auditSummary.approvedCount}</p>
+                    <p className="font-mono text-xl font-bold text-slate-800 mt-1">{auditSummary.approvedCount}</p>
                   </div>
-                  <div className="rounded-xl bg-rose-55 p-3 border border-rose-100">
+                  <div className="rounded-xl bg-slate-50 p-3 border border-slate-100">
                     <p className="text-xs font-semibold text-rose-700">Declined Items</p>
-                    <p className="font-mono text-xl font-bold text-rose-700 mt-1">{auditSummary.declinedCount}</p>
+                    <p className="font-mono text-xl font-bold text-slate-800 mt-1">{auditSummary.declinedCount}</p>
                   </div>
                   <div className="rounded-xl bg-slate-50 p-3 border border-slate-100">
                     <p className="text-xs font-semibold text-slate-500">Final Status</p>

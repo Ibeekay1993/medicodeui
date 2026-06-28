@@ -78,7 +78,7 @@ export default function ClaimReviewDialog({
               </div>
             </div>
             {isReferred ? (
-              <div className="rounded-xl border border-blue-100 bg-blue-50 p-4 text-xs font-bold leading-relaxed text-blue-900">
+              <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 text-xs font-bold leading-relaxed text-slate-700">
                 Request Raised By: {selectedRequest?.requesting_hospital_name || selectedRequest?.hospital_name || "Original hospital"}<br />
                 Treatment and Claims Assigned To: {claimOwnerNameFor(selectedRequest)}<br />
                 {canSubmit
@@ -190,21 +190,21 @@ export default function ClaimReviewDialog({
           </div>
 
           {!canSubmit ? (
-            <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-center text-blue-900">
+            <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 text-center text-slate-700">
               <p className="text-xs font-black uppercase tracking-widest">Claim Restricted</p>
               <p className="mt-1 text-xs font-bold font-sans">
                 Only {claimOwnerNameFor(selectedRequest) || "the treating hospital"} can submit this claim.
               </p>
             </div>
           ) : isLocked ? (
-            <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-center text-rose-900">
+            <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 text-center text-slate-700">
               <p className="text-xs font-black uppercase tracking-widest">Claim Blocked</p>
               <p className="mt-1 text-xs font-bold font-sans">
                 Claims must be submitted by the receiving hospital after referral transfer.
               </p>
             </div>
           ) : !isEligible && !claimStatus ? (
-            <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-center text-amber-900">
+            <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 text-center text-slate-700">
               <p className="text-xs font-black uppercase tracking-widest">Not Eligible for Claim</p>
               <p className="mt-1 text-xs font-bold font-sans">
                 {selectedRequest?.deletion_status === "awaiting_admin_approval"

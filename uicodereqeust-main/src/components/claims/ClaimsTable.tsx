@@ -131,7 +131,7 @@ export default function ClaimsTable({
                   className={cn(
                     "p-2.5 rounded-xl border border-slate-100 bg-white shadow-sm cursor-pointer transition-all duration-200 border-l-4 active:scale-[0.99]",
                     statusColor,
-                    selectedClaimId === c.id ? "ring-1 ring-emerald-200 bg-emerald-50/20" : ""
+                    selectedClaimId === c.id ? "ring-1 ring-slate-300 bg-slate-50" : ""
                   )}
                 >
                   <div className="flex justify-between items-start gap-2">

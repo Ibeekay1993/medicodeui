@@ -248,7 +248,7 @@ export default function ClaimsAnalysisPage() {
       value: money(stats.pendingValue),
       icon: AlertCircle,
       borderColor: "border-l-amber-500",
-      iconBg: "bg-amber-50/70 text-amber-600 border border-amber-100/60"
+      iconBg: "bg-slate-50/70 text-amber-600 border border-slate-100"
     },
     {
       label: "Approved",
@@ -256,7 +256,7 @@ export default function ClaimsAnalysisPage() {
       value: money(stats.approvedValue),
       icon: CheckCircle2,
       borderColor: "border-l-emerald-500",
-      iconBg: "bg-emerald-50/70 text-emerald-600 border border-emerald-100/60"
+      iconBg: "bg-slate-50/70 text-emerald-600 border border-slate-100"
     },
     {
       label: "Rejected",
@@ -264,7 +264,7 @@ export default function ClaimsAnalysisPage() {
       value: money(stats.rejectedValue),
       icon: XCircle,
       borderColor: "border-l-rose-500",
-      iconBg: "bg-rose-50/70 text-rose-600 border border-rose-100/60"
+      iconBg: "bg-slate-50/70 text-rose-600 border border-slate-100"
     },
     {
       label: "Contested",
@@ -272,7 +272,7 @@ export default function ClaimsAnalysisPage() {
       value: money(stats.contestedValue),
       icon: Wallet,
       borderColor: "border-l-blue-500",
-      iconBg: "bg-blue-50/70 text-blue-600 border border-blue-100/60"
+      iconBg: "bg-slate-50/70 text-blue-600 border border-slate-100"
     }
   ];
 
@@ -473,17 +473,17 @@ export default function ClaimsAnalysisPage() {
                         </span>
                       </td>
                       <td className="p-4">
-                        <span className="bg-emerald-50 text-emerald-700 hover:bg-emerald-100/50 text-xs font-bold px-2.5 py-0.5 rounded-full border border-emerald-100/50 capitalize">
+                        <span className="bg-slate-50 text-emerald-700 hover:bg-slate-100 text-xs font-bold px-2.5 py-0.5 rounded-full border border-slate-200 capitalize">
                           {hospital.approved}
                         </span>
                       </td>
                       <td className="p-4">
-                        <span className="bg-rose-50 text-rose-700 hover:bg-rose-100/50 text-xs font-bold px-2.5 py-0.5 rounded-full border border-rose-100/50 capitalize">
+                        <span className="bg-slate-50 text-rose-700 hover:bg-slate-100 text-xs font-bold px-2.5 py-0.5 rounded-full border border-slate-200 capitalize">
                           {hospital.rejected}
                         </span>
                       </td>
                       <td className="p-4">
-                        <span className="bg-blue-50 text-blue-700 hover:bg-blue-100/50 text-xs font-bold px-2.5 py-0.5 rounded-full border border-blue-100/50 capitalize">
+                        <span className="bg-slate-50 text-blue-700 hover:bg-slate-100 text-xs font-bold px-2.5 py-0.5 rounded-full border border-slate-200 capitalize">
                           {hospital.contested}
                         </span>
                       </td>

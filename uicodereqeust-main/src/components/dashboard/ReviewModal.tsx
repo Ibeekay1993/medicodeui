@@ -270,7 +270,7 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
                       placeholder="Diagnosis..."
                       value={actions.editDiagnosis}
                       onChange={(e) => actions.setEditDiagnosis(e.target.value)}
-                      className="bg-white rounded-xl border-slate-200 font-bold focus:ring-primary/20 disabled:bg-slate-50 disabled:text-slate-500 disabled:border-slate-100"
+                      className="bg-white rounded-xl border-slate-200 font-bold focus:ring-primary/20 disabled:bg-slate-50 disabled:text-slate-900 disabled:border-slate-200 disabled:opacity-100"
                       disabled={request?.deletion_status === "awaiting_admin_approval" || isHospitalDirected}
                     />
                   </div>
@@ -288,7 +288,7 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
                         if (isHospitalDirected) return;
                         void tariffSearch.parseTreatmentText({ replaceAuto: true, quiet: true });
                       }}
-                      className="bg-white rounded-xl border-slate-200 font-semibold min-h-[80px] focus:ring-primary/20 disabled:bg-slate-50 disabled:text-slate-500 disabled:border-slate-100"
+                      className="bg-white rounded-xl border-slate-200 font-semibold min-h-[80px] focus:ring-primary/20 disabled:bg-slate-50 disabled:text-slate-900 disabled:border-slate-200 disabled:opacity-100"
                       disabled={request?.deletion_status === "awaiting_admin_approval" || isHospitalDirected}
                     />
                   </div>
