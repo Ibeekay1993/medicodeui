@@ -75,7 +75,9 @@ export default function AuthorizationsTable({
     
     const { data, error } = await supabase.rpc("verify_otp" as any, {
       p_request_id: r.id,
-      p_otp_plaintext: unlockOtpInput
+      p_otp_plaintext: unlockOtpInput,
+      p_otp_type: 'AUTHORIZATION',
+      p_hospital_id: null
     });
     
     if (error) {
