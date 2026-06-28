@@ -128,7 +128,6 @@ export function TreatmentCart({
       {!cartCollapsed && (
         <div className="space-y-3.5 animate-in fade-in duration-200">
           {parseStatus && (
-            <div className="flex items-center gap-2 rounded-xl border border-blue-100 bg-white px-3 py-2.5 text-xs font-bold text-blue-800 shadow-sm">
             <div className="flex items-center gap-2 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2.5 text-xs font-bold text-slate-600 shadow-sm">
               {parseLoading ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin text-slate-500" />
@@ -138,7 +137,6 @@ export function TreatmentCart({
               {parseStatus}
             </div>
           )}
-
           {approvedItems.length > 0 ? (
             <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xs">
               <div className="max-h-64 overflow-auto divide-y divide-slate-100">
