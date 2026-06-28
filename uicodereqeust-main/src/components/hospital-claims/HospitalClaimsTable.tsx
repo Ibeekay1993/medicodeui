@@ -105,46 +105,72 @@ export default function HospitalClaimsTable({
             </div>
 
             {/* Mobile Card List */}
-            <div className="md:hidden divide-y divide-slate-50">
+            <div className="md:hidden flex flex-col gap-3 p-4">
               {paginatedClaims.map(c => (
                 <div
                   key={c.id}
-                  className="p-4 space-y-2 cursor-pointer transition-colors active:bg-slate-50"
+                  className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden cursor-pointer active:scale-[0.98] transition-all duration-150 p-4 flex flex-col gap-2"
                   onClick={() => onViewDetails(c.id)}
                 >
-                  <div className="flex justify-between items-start">
-                    <div className="min-w-0 pr-2">
-                      <p className="text-sm font-black uppercase text-slate-950 leading-tight">
-                        {c.patient_name}
-                      </p>
-                      <p className="font-mono text-sm font-bold text-slate-500 mt-1">{c.claim_number}</p>
-                    </div>
-                    <Badge
-                      variant="outline"
-                      className={cn("text-xs font-bold uppercase px-2 py-0.5 shrink-0 rounded-full", statusClass(c.status))}
-                    >
-                      {statusLabel(c.status)}
-                    </Badge>
-                  </div>
-                  <div className="flex justify-between items-end">
-                    <p className="font-mono font-bold text-emerald-600 text-sm">
-                      ₦{Number(c.total_amount).toLocaleString()}
+                  {/* Row 1: Name + Status */}
+                  <div className="flex items-start justify-between gap-3">
+                    <p className="text-[13px] font-bold uppercase leading-tight text-slate-900 flex-1 min-w-0 break-words">
+                      {c.patient_name}
                     </p>
-                    <span className="font-mono text-sm font-bold text-slate-500">
-                      {c.created_at ? new Date(c.created_at).toLocaleDateString("en-GB") : "—"}
-                    </span>
+                    <div className={cn("inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide shrink-0", (() => {
+                      const s = String(c.status || "").toLowerCase();
+                      const map: Record<string, string> = {
+                        approved: "bg-emerald-50 text-emerald-600",
+                        paid: "bg-emerald-50 text-emerald-600",
+                        pending: "bg-amber-50 text-amber-600",
+                        contested: "bg-violet-50 text-violet-600",
+                        declined: "bg-rose-50 text-rose-600",
+                        rejected: "bg-rose-50 text-rose-600",
+                      };
+                      return map[s] || "bg-slate-50 text-slate-500 border border-slate-200";
+                    })())}>
+                      <span className={cn("w-1.5 h-1.5 rounded-full", (() => {
+                        const s = String(c.status || "").toLowerCase();
+                        const map: Record<string, string> = {
+                          approved: "bg-emerald-500",
+                          paid: "bg-emerald-500",
+                          pending: "bg-amber-500",
+                          contested: "bg-violet-500",
+                          declined: "bg-rose-500",
+                          rejected: "bg-rose-500",
+                        };
+                        return map[s] || "bg-slate-400";
+                      })())} />
+                      {statusLabel(c.status)}
+                    </div>
                   </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onViewDetails(c.id);
-                    }}
-                    className="w-full text-xs font-bold uppercase tracking-wider mt-1"
-                  >
-                    View Details
-                  </Button>
+                  
+                  {/* Row 2: ID, Amount, Date, Button */}
+                  <div className="flex items-center justify-between gap-2 mt-0.5">
+                    <div className="flex-1 min-w-0 flex items-center gap-2">
+                      <p className="font-mono text-xs font-bold text-slate-500 truncate">{c.claim_number}</p>
+                      <span className="text-[11px] text-slate-400 shrink-0">
+                        {c.created_at ? new Date(c.created_at).toLocaleDateString("en-GB") : "—"}
+                      </span>
+                    </div>
+                    
+                    <div className="flex items-center gap-2">
+                      <p className="font-mono font-bold text-emerald-600 text-[13px]">
+                        ₦{Number(c.total_amount).toLocaleString()}
+                      </p>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onViewDetails(c.id);
+                        }}
+                        className="h-7 px-2.5 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-100 text-[10px] font-black uppercase tracking-wider ml-1"
+                      >
+                        View
+                      </Button>
+                    </div>
+                  </div>
                 </div>
               ))}
             </div>
