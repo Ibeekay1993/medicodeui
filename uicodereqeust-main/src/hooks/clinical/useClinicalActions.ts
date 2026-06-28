@@ -169,7 +169,13 @@ export function useClinicalActions({
 
         if (cancelled) return;
 
-        if (!error && data) {
+        if (error) {
+          console.error("Error fetching existing OTP:", error);
+          setOtpLoading(false);
+          return;
+        }
+
+        if (data) {
           const row = Array.isArray(data) ? data[0] : data;
           const otpVal = row?.otp_value;
           if (otpVal) {
