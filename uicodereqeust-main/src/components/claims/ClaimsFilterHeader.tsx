@@ -37,7 +37,7 @@ export default function ClaimsFilterHeader({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all" className="text-xs font-semibold">All Claims</SelectItem>
-              <SelectItem value="pending" className="text-xs font-semibold">Pending Audits</SelectItem>
+              <SelectItem value="pending" className="text-xs font-semibold">Action Needed</SelectItem>
               <SelectItem value="approved" className="text-xs font-semibold">Approved</SelectItem>
               <SelectItem value="contested" className="text-xs font-semibold">Contested</SelectItem>
               <SelectItem value="rejected" className="text-xs font-semibold">Rejected</SelectItem>

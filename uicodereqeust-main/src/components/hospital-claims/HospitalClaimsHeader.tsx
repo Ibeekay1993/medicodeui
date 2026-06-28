@@ -18,13 +18,14 @@ export default function HospitalClaimsHeader({
   loading
 }: HospitalClaimsHeaderProps) {
   return (
-    <div className="pb-3 border-b border-slate-200">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+    <div className="premium-card bg-white/80 backdrop-blur-md p-4 rounded-xl border border-slate-100 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4 transition-all duration-300 hover:shadow-md">
+      <div className="flex items-center gap-2">
         <div>
-          <h1 className="text-lg font-bold tracking-tight text-slate-900">Hospital Claims Tracking</h1>
-          <p className="text-xs text-slate-500">Payment status for submitted claims</p>
+          <h1 className="text-lg font-black text-slate-900 tracking-tight">Hospital Claims Tracking</h1>
+          <p className="text-xs font-semibold text-slate-500">Payment status for submitted claims</p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+      </div>
+      <div className="flex flex-wrap items-center justify-end gap-3 w-full md:w-auto">
           <div className="relative w-48 sm:w-64">
             <Search className="absolute left-2.5 top-2 h-3.5 w-3.5 text-slate-300" />
             <Input
