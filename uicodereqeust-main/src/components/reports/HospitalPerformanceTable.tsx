@@ -38,12 +38,12 @@ export default function HospitalPerformanceTable({ data }: HospitalPerformanceTa
                 </td>
                 <td className="py-4 px-6 text-right font-mono font-bold text-slate-700">{hosp.totalCodes}</td>
                 <td className="py-4 px-6 text-right">
-                  <span className="bg-emerald-50 text-emerald-700 border border-emerald-100/50 text-xs font-bold px-2 py-0.5 rounded-md">
+                  <span className="bg-slate-50 text-emerald-700 border border-slate-200 text-xs font-bold px-2 py-0.5 rounded-md">
                     {hosp.approvedCodes}
                   </span>
                 </td>
                 <td className="py-4 px-6 text-right">
-                  <span className="bg-rose-50 text-rose-700 border border-rose-100/50 text-xs font-bold px-2 py-0.5 rounded-md">
+                  <span className="bg-slate-50 text-rose-700 border border-slate-200 text-xs font-bold px-2 py-0.5 rounded-md">
                     {hosp.rejectedCodes}
                   </span>
                 </td>
@@ -53,10 +53,10 @@ export default function HospitalPerformanceTable({ data }: HospitalPerformanceTa
                     className={cn(
                       "text-xs font-bold px-2.5 py-1 rounded-full border",
                       hosp.approvalRate > 85
-                        ? "bg-emerald-50 text-emerald-700 border-emerald-200/50"
-                        : hosp.approvalRate > 75
-                        ? "bg-amber-50 text-amber-700 border-amber-200/50"
-                        : "bg-rose-50 text-rose-700 border-rose-200/50"
+                        ? "bg-slate-50 text-emerald-700 border-slate-200"
+                        : hosp.approvalRate > 60
+                        ? "bg-slate-50 text-amber-700 border-slate-200"
+                        : "bg-slate-50 text-rose-700 border-slate-200"
                     )}
                   >
                     {hosp.approvalRate.toFixed(1)}%

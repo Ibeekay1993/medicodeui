@@ -339,7 +339,7 @@ export default function AwaitingPaymentPage() {
 
 {/* Warning/Selection Helper Banner */}
         {!isViewOnly && selectedHospitalId === "all" && filteredClaims.length > 0 && (
-          <div className="flex items-center gap-2.5 bg-amber-50 border border-amber-200 p-3 rounded-xl">
+          <div className="flex items-center gap-2.5 bg-slate-50/50 border border-slate-200 p-3 rounded-xl">
             <AlertCircle className="h-4 w-4 text-amber-600 shrink-0" />
             <p className="text-xs font-bold text-amber-700 leading-snug">
               To create a payment batch, select a specific hospital from the filter dropdown first. You can only batch claims for one hospital at a time.

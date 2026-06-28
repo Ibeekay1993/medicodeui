@@ -94,7 +94,7 @@ export default function PatientSection({
 
       {/* Selected patient display */}
       {selectedPatient ? (
-        <div className="flex items-center justify-between bg-emerald-50 border border-emerald-100 rounded-xl px-4 py-3">
+        <div className="flex items-center justify-between bg-slate-50/50 border border-slate-200 rounded-xl px-4 py-3">
           <div className="flex items-center gap-3">
             <CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0" />
             <div>

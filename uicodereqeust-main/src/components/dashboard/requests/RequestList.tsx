@@ -299,7 +299,7 @@ export function RequestList({
                 <div className="flex-1 min-w-0 pr-2">
                   <p className="text-xs font-semibold leading-snug text-slate-600">{r.diagnosis || "No diagnosis recorded"}</p>
                   {isRejected(r) && rejectionReason(r) && (
-                    <p className="mt-2 rounded-lg border border-rose-100 bg-rose-50 p-2 text-xs font-semibold leading-snug text-rose-700">Reason: {rejectionReason(r)}</p>
+                    <p className="mt-2 rounded-lg border border-slate-200 bg-slate-50/50 p-2 text-xs font-semibold leading-snug text-slate-700">Reason: {rejectionReason(r)}</p>
                   )}
                 </div>
               </div>

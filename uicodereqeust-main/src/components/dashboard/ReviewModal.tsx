@@ -263,21 +263,21 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
                 <div className="col-span-2 space-y-3.5">
                   {/* Diagnosis field */}
                   <div className="space-y-1">
-                    <Label className="text-xs uppercase font-black text-slate-400 tracking-wider pl-1">
+                    <Label className="text-xs uppercase font-black text-slate-700 tracking-wider pl-1">
                       Diagnosis
                     </Label>
                     <Input
                       placeholder="Diagnosis..."
                       value={actions.editDiagnosis}
                       onChange={(e) => actions.setEditDiagnosis(e.target.value)}
-                      className="bg-white rounded-xl border-slate-200 font-bold focus:ring-primary/20 disabled:bg-slate-50 disabled:text-slate-900 disabled:border-slate-200 disabled:opacity-100"
+                      className="bg-white rounded-xl border-slate-200 font-bold focus:ring-primary/20 disabled:bg-slate-50 disabled:!text-black disabled:!opacity-100 disabled:border-slate-200"
                       disabled={request?.deletion_status === "awaiting_admin_approval" || isHospitalDirected}
                     />
                   </div>
 
                   {/* Treatment text area */}
                   <div className="space-y-1">
-                    <Label className="text-xs uppercase font-black text-slate-400 tracking-wider pl-1">
+                    <Label className="text-xs uppercase font-black text-slate-700 tracking-wider pl-1">
                       Services / Treatment
                     </Label>
                     <Textarea
@@ -288,7 +288,7 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
                         if (isHospitalDirected) return;
                         void tariffSearch.parseTreatmentText({ replaceAuto: true, quiet: true });
                       }}
-                      className="bg-white rounded-xl border-slate-200 font-semibold min-h-[80px] focus:ring-primary/20 disabled:bg-slate-50 disabled:text-slate-900 disabled:border-slate-200 disabled:opacity-100"
+                      className="bg-white rounded-xl border-slate-200 font-semibold min-h-[80px] focus:ring-primary/20 disabled:bg-slate-50 disabled:!text-black disabled:!opacity-100 disabled:border-slate-200"
                       disabled={request?.deletion_status === "awaiting_admin_approval" || isHospitalDirected}
                     />
                   </div>

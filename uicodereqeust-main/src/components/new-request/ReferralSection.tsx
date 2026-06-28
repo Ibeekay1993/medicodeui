@@ -60,7 +60,7 @@ export default function ReferralSection({
             helperText="The treating hospital you select will own claim submission and payment."
           />
           {referralHospitalName.trim() ? (
-            <div className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-xs font-bold leading-relaxed text-blue-800">
+            <div className="rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-xs font-bold leading-relaxed text-slate-700">
               Request raised by: {hospitalName || "Your hospital"}
               <br />
               Treatment and claims assigned to: {referralHospitalName.trim()}

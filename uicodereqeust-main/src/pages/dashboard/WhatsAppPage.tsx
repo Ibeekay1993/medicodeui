@@ -370,7 +370,7 @@ export default function WhatsAppPage() {
                       </p>
                     )}
                   </div>
-                  <div className="space-y-1 col-span-2 rounded-xl border border-blue-100 bg-blue-50 p-3">
+                  <div className="space-y-1 col-span-2 rounded-xl border border-slate-200 bg-slate-50/50 p-3">
                     <p className="text-xs font-black uppercase tracking-widest text-blue-600">Referral / Treating Hospital</p>
                     <p className="text-sm font-black text-blue-900 leading-tight break-words">{parsedData.referral_hospital_name || "No referral detected"}</p>
                     {parsedData.referral_hospital_name ? (
@@ -388,7 +388,7 @@ export default function WhatsAppPage() {
                   {parsedData.clinical_notes && (
                     <div className="space-y-1 col-span-2">
                       <p className="text-xs font-black uppercase tracking-widest text-blue-500">Referral Notes</p>
-                      <p className="font-semibold text-blue-900 border-b border-blue-200 pb-1 break-words bg-blue-50/50 rounded px-2">{parsedData.clinical_notes}</p>
+                      <p className="font-semibold text-slate-700 border-b border-slate-200 pb-1 break-words bg-slate-50/50 rounded px-2">{parsedData.clinical_notes}</p>
                     </div>
                   )}
                 </div>
