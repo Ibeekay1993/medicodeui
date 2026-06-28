@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -15,6 +16,7 @@ interface AdminControlsCardProps {
 
 export default function AdminControlsCard({ user }: AdminControlsCardProps) {
   const { toast } = useToast();
+  const { role } = useAuth();
 
   // Administrative Global MFA Policy state
   const [enforceMfaPolicy, setEnforceMfaPolicy] = useState(false);
@@ -65,6 +67,7 @@ export default function AdminControlsCard({ user }: AdminControlsCardProps) {
   }, [user]);
 
   const handleToggleMfaPolicy = async () => {
+    if (role !== "admin") return;
     setSavingPolicy(true);
     try {
       const { error } = await (supabase as any)
@@ -89,6 +92,7 @@ export default function AdminControlsCard({ user }: AdminControlsCardProps) {
   };
 
   const handleSaveReportSettings = async () => {
+    if (role !== "admin") return;
     setIsSavingSettings(true);
     try {
       const { error } = await (supabase as any)
@@ -115,6 +119,7 @@ export default function AdminControlsCard({ user }: AdminControlsCardProps) {
   };
 
   const handleTriggerReport = async () => {
+    if (role !== "admin") return;
     setIsTriggeringReport(true);
     try {
       const { data, error } = await supabase.functions.invoke("daily-report", {

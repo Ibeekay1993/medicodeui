@@ -80,7 +80,7 @@ export default function ClaimAuditDrawer({
         <div className="w-12 h-1 bg-slate-200 rounded-full mx-auto my-3 sm:hidden" />
         
         {/* Header */}
-        <div className="px-6 py-4 flex justify-between items-center border-b border-slate-100 shrink-0">
+        <div className="px-4 sm:px-6 py-4 flex justify-between items-center border-b border-slate-100 shrink-0">
           <div>
             <span className="text-xs font-semibold text-slate-500 leading-none">Claims Audit Portal</span>
             <h3 className="text-base font-semibold text-slate-900 mt-1 tracking-tight flex items-center gap-2">
@@ -106,7 +106,7 @@ export default function ClaimAuditDrawer({
         </div>
 
         {/* Content Body */}
-        <div className="px-6 py-5 flex-1 overflow-y-auto">
+        <div className="px-4 sm:px-6 py-5 flex-1 overflow-y-auto">
           <div className="grid gap-6 md:grid-cols-12 items-start">
             
             {/* Left Column: Premium Audit Compliance Workstation */}

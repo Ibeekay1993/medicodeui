@@ -653,6 +653,25 @@ export default function HospitalNewRequest() {
                     <span className="text-xs font-semibold text-slate-500">Total Items:</span>
                     <span className="text-xs font-bold text-slate-900">{treatments.length}</span>
                   </div>
+                  {treatments.length > 0 && (
+                    <div className="pt-2">
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2">Requested Items</p>
+                      <div className="space-y-2">
+                        {treatments.map((t: any, idx: number) => (
+                          <div key={idx} className="flex justify-between items-start text-xs border border-slate-100 rounded-lg p-2 bg-white">
+                            <div className="flex-1 pr-2">
+                              <p className="font-bold text-slate-900">{t.name}</p>
+                              <p className="text-[10px] text-slate-500">Code: {t.code} &middot; {t.category || "Service"}</p>
+                            </div>
+                            <div className="text-right whitespace-nowrap">
+                              <p className="font-bold text-slate-900">{t.quantity} x ₦{t.amount.toLocaleString()}</p>
+                              <p className="text-[10px] text-emerald-600 font-bold">₦{(t.quantity * t.amount).toLocaleString()}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   <div className="flex justify-between border-t border-slate-200 pt-3 mt-3">
                     <span className="text-sm font-black text-slate-900">Total Amount:</span>
                     <span className="text-sm font-black text-emerald-600">₦{total.toLocaleString()}</span>

@@ -196,6 +196,7 @@ export default function UsersPage() {
   const { page, setPage, pageSize, totalPages, pageItems: paginatedUsers, start, end, total } = useDataPagination(filtered);
 
   const handleResendInvite = async (targetUser: any) => {
+    if (role !== "admin") return;
     setResendingUserId(targetUser.id);
     try {
       console.log("Resending invitation for user:", targetUser.email);
@@ -231,6 +232,7 @@ export default function UsersPage() {
   };
 
   const handleDecideRequest = async (requestId: string, decideStatus: "approved" | "rejected") => {
+    if (role !== "admin") return;
     setActioningRequest({ id: requestId, action: decideStatus });
     try {
       const { error } = await (supabase.rpc as any)("decide_profile_name_request", {

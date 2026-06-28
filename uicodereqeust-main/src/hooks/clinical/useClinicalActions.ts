@@ -186,37 +186,12 @@ export function useClinicalActions({
           }
         }
 
-        // No existing OTP found — a new one needs to be generated.
+        // No existing OTP found
+        // FIX: We do NOT auto-generate a new OTP on mount anymore to prevent multiple spam emails
+        // and mismatched OTPs. The OTP is generated at request creation time.
         if (!cancelled) {
-          setOtpLoading(true);
-          try {
-            await supabase.functions.invoke("send-otp", {
-              method: "POST",
-              body: {
-                authorization_id: request.id,
-                patient_email: request.patient_email || "no-email@medicode.com",
-                policy_number: request.policy_number,
-                otp_type: otpType,
-                hospital_id: request.referred_hospital_id || request.hospital_id,
-              },
-            });
-            // Re-fetch the newly generated OTP
-            const { data: newData, error: newError } = await supabase.rpc("get_otp_value" as any, {
-              p_request_id: request.id,
-              p_otp_type: otpType,
-            });
-            if (!newError && newData) {
-              const newRow = Array.isArray(newData) ? newData[0] : newData;
-              if (newRow?.otp_value && !cancelled) {
-                setOtpValue(newRow.otp_value);
-                setOtpLoading(false);
-                return;
-              }
-            }
-          } catch (e) {
-            console.error("Failed to generate new OTP on the fly:", e);
-          }
-          if (!cancelled) setOtpLoading(false);
+          setOtpValue(null);
+          setOtpLoading(false);
         }
       } catch (err) {
         console.error("OTP value fetch error:", err);
@@ -566,6 +541,10 @@ export function useClinicalActions({
 
   const handleApprove = async () => {
     if (processing) return;
+    if (role === "hospital") {
+      toast({ variant: "destructive", title: "Unauthorized", description: "Hospitals cannot approve requests." });
+      return;
+    }
     const isStage2 = request?.status === "pending_referral" && request?.source === "hospital_portal";
     if (!isStage2 && approvedItems.length === 0) {
       toast({
@@ -622,6 +601,10 @@ export function useClinicalActions({
 
   const handleDecline = async () => {
     if (processing) return;
+    if (role === "hospital") {
+      toast({ variant: "destructive", title: "Unauthorized", description: "Hospitals cannot decline requests." });
+      return;
+    }
     if (!editDecisionNote.trim()) {
       toast({
         variant: "destructive",
@@ -658,6 +641,10 @@ export function useClinicalActions({
 
   const handleDefer = async () => {
     if (processing) return;
+    if (role === "hospital") {
+      toast({ variant: "destructive", title: "Unauthorized", description: "Hospitals cannot defer requests." });
+      return;
+    }
     if (!editDecisionNote.trim()) {
       toast({
         variant: "destructive",
@@ -672,6 +659,10 @@ export function useClinicalActions({
 
   const handleReassign = async () => {
     if (processing) return;
+    if (role === "hospital") {
+      toast({ variant: "destructive", title: "Unauthorized", description: "Hospitals cannot reassign requests." });
+      return;
+    }
     if (!editReferralHospitalId) {
       toast({
         variant: "destructive",
@@ -746,6 +737,10 @@ export function useClinicalActions({
   };
 
   const handleDeleteRequest = async () => {
+    if (role === "hospital") {
+      toast({ variant: "destructive", title: "Unauthorized", description: "Hospitals cannot delete requests." });
+      return;
+    }
     if (deleteConfirmText.trim() !== "DELETE") {
       return;
     }
@@ -771,6 +766,10 @@ export function useClinicalActions({
 
   const saveRecordEdits = async () => {
     if (processing) return;
+    if (role === "hospital") {
+      toast({ variant: "destructive", title: "Unauthorized", description: "Hospitals cannot save clinical edits." });
+      return;
+    }
     if (editStatus === "approved") {
       const itemsMissingReason = approvedItems.filter(
         (item) => item.declined && (!item.decline_reason || !item.decline_reason.trim())

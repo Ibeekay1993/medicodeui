@@ -425,7 +425,7 @@ export default function DashboardHome() {
           {/* ── Row 1: Clinical Authorizations ── */}
           <div className="space-y-2">
             <h3 className="text-sm font-semibold text-slate-900 tracking-tight">Clinical Authorizations</h3>
-            <div className="grid grid-cols-4 gap-2 sm:gap-3 md:gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 md:gap-4">
               {[
                 { label: "Active Users",    value: stats.users,     icon: Users,         accent: "#378ADD" },
                 { label: "Total Requests",  value: stats.total,     icon: FileText,      accent: "#6366F1" },
@@ -443,7 +443,7 @@ export default function DashboardHome() {
                     {loading ? (
                       <div className="mt-0.5"><StatSkeleton /></div>
                     ) : (
-                      <p className="text-base font-black leading-none tracking-tight break-words text-slate-900">
+                      <p className="text-lg sm:text-xl font-black leading-none tracking-tight truncate text-slate-900">
                         {Number(item.value).toLocaleString()}
                       </p>
                     )}
@@ -456,7 +456,7 @@ export default function DashboardHome() {
           {/* ── Row 2: Claims Processing ── */}
           <div className="space-y-2">
             <h3 className="text-sm font-semibold text-slate-900 tracking-tight">Claims Processing</h3>
-            <div className="grid grid-cols-4 gap-2 sm:gap-3 md:gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 md:gap-4">
               {[
                 { label: "Submitted",     value: claimStats.submitted,                  accent: "#378ADD", format: "number", icon: FileText },
                 { label: "Paid",          value: claimStats.paid,                       accent: "#10B981", format: "number", icon: CheckCircle2 },
@@ -474,7 +474,7 @@ export default function DashboardHome() {
                     {loading ? (
                       <div className="mt-0.5"><StatSkeleton /></div>
                     ) : (
-                      <p className="text-base font-black leading-none tracking-tight break-words text-slate-900">
+                      <p className="text-lg sm:text-xl font-black leading-none tracking-tight truncate text-slate-900">
                         {item.format === "number" ? Number(item.value).toLocaleString() : item.value}
                       </p>
                     )}
@@ -487,7 +487,7 @@ export default function DashboardHome() {
           {/* ── Row 3: Payment & Finance ── */}
           <div className="space-y-2">
             <h3 className="text-sm font-semibold text-slate-900 tracking-tight">Payment &amp; Finance</h3>
-            <div className="grid grid-cols-4 gap-2 sm:gap-3 md:gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 md:gap-4">
               {[
                 { label: "Awaiting Value",  value: money(financeStats.awaitingValue),      accent: "#BA7517", icon: Clock },
                 { label: "Paid Value",      value: money(financeStats.paidValue),          accent: "#1D9E75", icon: Banknote },
@@ -505,7 +505,7 @@ export default function DashboardHome() {
                     {loading ? (
                       <div className="mt-0.5"><StatSkeleton /></div>
                     ) : (
-                      <p className="text-base font-black leading-none tracking-tight break-words text-slate-900">{item.value}</p>
+                      <p className="text-lg sm:text-xl font-black leading-none tracking-tight truncate text-slate-900">{item.value}</p>
                     )}
                   </div>
                 </div>
@@ -516,7 +516,7 @@ export default function DashboardHome() {
       )}
 
       {isFinance && (
-        <div className="grid grid-cols-4 gap-2 sm:gap-3 md:gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 md:gap-4">
           {[
             { label: "Awaiting Value", value: money(financeStats.awaitingValue), accent: "#BA7517", icon: Clock },
             { label: "Paid Value", value: money(financeStats.paidValue), accent: "#1D9E75", icon: Banknote },
@@ -534,7 +534,7 @@ export default function DashboardHome() {
                 {loading ? (
                   <div className="mt-0.5"><StatSkeleton /></div>
                 ) : (
-                  <p className="text-base font-black leading-none tracking-tight break-words text-slate-900">
+                  <p className="text-lg sm:text-xl font-black leading-none tracking-tight truncate text-slate-900">
                     {item.value}
                   </p>
                 )}
@@ -545,7 +545,7 @@ export default function DashboardHome() {
       )}
 
       {isNurseOrOther && (
-        <div className="grid grid-cols-4 gap-2 sm:gap-3 md:gap-4 overflow-x-hidden">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 md:gap-4 overflow-x-hidden">
           {mainStats.map((item) => {
             return (
               <div key={item.label} className="flex flex-col p-3 rounded-xl border border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm transition-all cursor-pointer relative overflow-hidden" title={item.label}>
@@ -559,7 +559,7 @@ export default function DashboardHome() {
                   {loading ? (
                     <div className="mt-0.5"><StatSkeleton /></div>
                   ) : (
-                    <p className="text-base font-black leading-none tracking-tight break-words text-slate-900">
+                    <p className="text-lg sm:text-xl font-black leading-none tracking-tight truncate text-slate-900">
                       {Number(item.value).toLocaleString()}
                     </p>
                   )}
@@ -571,7 +571,7 @@ export default function DashboardHome() {
       )}
 
       {isClaims && (
-        <div className="grid grid-cols-4 lg:grid-cols-7 gap-2 sm:gap-3 md:gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2 sm:gap-3 md:gap-4">
           {[
             { label: "Claims Submitted", value: claimStats.submitted, accent: "#378ADD", icon: FileText },
             { label: "Approved", value: claimStats.approved, accent: "#1D9E75", icon: CheckCircle2 },
@@ -592,7 +592,7 @@ export default function DashboardHome() {
                 {loading ? (
                   <div className="mt-0.5"><StatSkeleton /></div>
                 ) : (
-                  <p className="text-base font-black leading-none tracking-tight break-words text-slate-900">
+                  <p className="text-lg sm:text-xl font-black leading-none tracking-tight truncate text-slate-900">
                     {Number(item.value).toLocaleString()}
                   </p>
                 )}

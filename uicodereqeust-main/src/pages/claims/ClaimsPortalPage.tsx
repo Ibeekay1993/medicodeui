@@ -138,6 +138,10 @@ export default function ClaimsPortalPage() {
     approvedAmount?: number,
     auditNote?: string
   ) => {
+    if (role === "hospital") {
+      toast({ variant: "destructive", title: "Unauthorized", description: "Hospitals cannot audit claims." });
+      return;
+    }
     const originalAmount = Number(selectedClaim?.total_amount || 0);
     const resolvedAuditItems = verificationData.approvedItems.map((item: any, idx: number) => {
       const key = itemKey(item, idx);
@@ -226,6 +230,11 @@ ${itemDecisionLines.join("\n")}`;
       audit_summary: resolvedSummary,
       line_items: resolvedAuditItems
     };
+
+    // If this was a contest review and it was not fully rejected, move it straight to awaiting_payment
+    if (["contested", "under_contest"].includes(String(selectedClaim?.status).toLowerCase()) && effectiveStatus !== "rejected") {
+      updateData.payment_status = "awaiting_payment";
+    }
 
     const { error } = await supabase
       .from("hospital_claims" as any)

@@ -108,10 +108,10 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
         <div className="sticky top-0 z-30 px-5 py-4 bg-gradient-to-b from-white/95 to-white/90 backdrop-blur-xl border-b border-slate-100 rounded-t-[1.5rem] sm:rounded-t-[2rem] shadow-sm">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0 flex-1">
-              <div className="text-xs font-extrabold text-slate-500 uppercase tracking-widest">
+              <div className="text-xs font-bold text-indigo-500 uppercase tracking-widest">
                 Clinical Review
               </div>
-              <h2 className="text-[10px] sm:text-base font-extrabold text-slate-905 leading-tight line-clamp-2 mt-0.5">
+              <h2 className="text-lg sm:text-2xl font-extrabold text-slate-900 leading-tight truncate mt-0.5">
                 {requestPatientName || "Unknown Patient"}
               </h2>
               <div className="flex items-center gap-2 mt-0.5 flex-wrap">
@@ -136,9 +136,9 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
               </div>
             </div>
 
-            <div className="text-right min-w-[120px] bg-slate-50/50 border border-slate-100 p-2 rounded-xl text-slate-600 shadow-2xs shrink-0 self-center">
-              <div className="text-xs font-black text-slate-400 uppercase tracking-widest mb-0.5">Contact Details</div>
-              <div className="text-xs font-bold text-slate-750 truncate leading-none">
+            <div className="text-right min-w-[100px] sm:min-w-[120px] bg-slate-50/50 border border-slate-100 p-2 rounded-xl text-slate-600 shadow-sm shrink-0 self-center">
+              <div className="text-[10px] sm:text-xs font-black text-indigo-400 uppercase tracking-widest mb-0.5">Contact Details</div>
+              <div className="text-xs sm:text-sm font-bold text-slate-700 truncate leading-none">
                 {request?.patient_phone ? `☎ ${request.patient_phone}` : "—"}
               </div>
               {request?.patient_email && (
@@ -270,8 +270,12 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
                       placeholder="Diagnosis..."
                       value={actions.editDiagnosis}
                       onChange={(e) => actions.setEditDiagnosis(e.target.value)}
-                      className="bg-white rounded-xl border-slate-200 font-bold focus:ring-primary/20 disabled:bg-slate-50 disabled:!text-black disabled:!opacity-100 disabled:border-slate-200"
-                      disabled={request?.deletion_status === "awaiting_admin_approval" || isHospitalDirected}
+                      readOnly={request?.deletion_status === "awaiting_admin_approval" || role === "hospital"}
+                      className={`rounded-xl border-slate-200 font-bold focus:ring-primary/20 ${
+                        request?.deletion_status === "awaiting_admin_approval" || role === "hospital"
+                          ? "bg-slate-50/50 text-slate-900 border-0 shadow-inner focus-visible:ring-0 cursor-default"
+                          : "bg-white"
+                      }`}
                     />
                   </div>
 
@@ -285,11 +289,15 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
                       value={actions.editTreatment}
                       onChange={(e) => actions.setEditTreatment(e.target.value)}
                       onBlur={() => {
-                        if (isHospitalDirected) return;
+                        if (role === "hospital") return;
                         void tariffSearch.parseTreatmentText({ replaceAuto: true, quiet: true });
                       }}
-                      className="bg-white rounded-xl border-slate-200 font-semibold min-h-[80px] focus:ring-primary/20 disabled:bg-slate-50 disabled:!text-black disabled:!opacity-100 disabled:border-slate-200"
-                      disabled={request?.deletion_status === "awaiting_admin_approval" || isHospitalDirected}
+                      readOnly={request?.deletion_status === "awaiting_admin_approval" || role === "hospital"}
+                      className={`rounded-xl border-slate-200 font-semibold min-h-[80px] focus:ring-primary/20 ${
+                        request?.deletion_status === "awaiting_admin_approval" || role === "hospital"
+                          ? "bg-slate-50/50 text-slate-900 border-0 shadow-inner focus-visible:ring-0 cursor-default resize-none"
+                          : "bg-white"
+                      }`}
                     />
                   </div>
 
@@ -334,7 +342,7 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
                             actions.setEditReferralHospitalName(next.name);
                           }}
                           helperText="If this is a referral, the authorization code remains visible to the requester, but claim submission and payment belong only to this treating hospital."
-                          disabled={request?.deletion_status === "awaiting_admin_approval"}
+                          disabled={request?.deletion_status === "awaiting_admin_approval" || role === "hospital"}
                         />
                         {actions.editReferralHospitalName.trim() ? (
                           <div className="rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-xs font-bold leading-relaxed text-slate-700 shadow-sm">
@@ -356,7 +364,7 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
                     request={request}
                     editTreatment={actions.editTreatment}
                     setEditTreatment={actions.setEditTreatment}
-                    isHospitalDirected={isHospitalDirected}
+                    isHospitalDirected={role === "hospital"}
                     parseLoading={tariffSearch.parseLoading}
                     parseStatus={tariffSearch.parseStatus}
                     parseTreatmentText={tariffSearch.parseTreatmentText}
@@ -430,22 +438,34 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
               />
 
               {/* Review decisions control footer */}
-              <ClinicalActionControls
-                request={request}
-                editDecisionNote={actions.editDecisionNote}
-                setEditDecisionNote={actions.setEditDecisionNote}
-                processing={actions.processing}
-                processingAction={actions.processingAction}
-                allowDelete={allowDelete}
-                setDeleteConfirmOpen={actions.setDeleteConfirmOpen}
-                handleApprove={actions.handleApprove}
-                handleDecline={actions.handleDecline}
-                handleReassign={actions.handleReassign}
-                saveRecordEdits={actions.saveRecordEdits}
-                onClose={onClose}
-                approvalResult={actions.approvalResult}
-                declineResult={actions.declineResult}
-              />
+              {role !== "hospital" ? (
+                <ClinicalActionControls
+                  request={request}
+                  editDecisionNote={actions.editDecisionNote}
+                  setEditDecisionNote={actions.setEditDecisionNote}
+                  processing={actions.processing}
+                  processingAction={actions.processingAction}
+                  allowDelete={allowDelete}
+                  setDeleteConfirmOpen={actions.setDeleteConfirmOpen}
+                  handleApprove={actions.handleApprove}
+                  handleDecline={actions.handleDecline}
+                  handleReassign={actions.handleReassign}
+                  saveRecordEdits={actions.saveRecordEdits}
+                  onClose={onClose}
+                  approvalResult={actions.approvalResult}
+                  declineResult={actions.declineResult}
+                />
+              ) : (
+                <div className="flex justify-end pt-4 border-t border-slate-100">
+                  <Button
+                    variant="outline"
+                    className="h-12 px-6 rounded-xl font-black text-xs uppercase tracking-widest border-2 border-slate-200 text-slate-600 hover:bg-slate-50 transition-all"
+                    onClick={onClose}
+                  >
+                    Close
+                  </Button>
+                </div>
+              )}
             </div>
           )}
         </div>

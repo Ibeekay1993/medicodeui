@@ -282,59 +282,63 @@ export function RequestList({
           </div>
         ) : (
           requests.map((r) => (
-            <div key={r.id} className="cursor-pointer space-y-3 p-4 transition-colors hover:bg-slate-50 active:bg-slate-100" onClick={() => onSelectRequest(r)}>
-              <div className="flex justify-between items-start">
-                <div className="flex-1 min-w-0 pr-3">
-                  <p className="text-sm font-black uppercase leading-tight text-slate-950">{r.patient_name}</p>
-                  <p className="mt-1 text-xs font-mono font-bold text-slate-500">{r.policy_number}</p>
-                </div>
-                <div className="flex flex-col items-end gap-1.5 shrink-0">
-                  {statusBadge(displayStatus(r))}
-                  {isAwaitingDelete(r) && (
-                    <Badge variant="outline" className="rounded-md border-amber-200 bg-amber-50 px-2 py-1 text-xs font-black uppercase text-amber-700">Delete pending</Badge>
-                  )}
-                </div>
-              </div>
-              <div className="flex justify-between items-end pt-1">
-                <div className="flex-1 min-w-0 pr-2">
-                  <p className="text-xs font-semibold leading-snug text-slate-600">{r.diagnosis || "No diagnosis recorded"}</p>
+            <div key={r.id} className="cursor-pointer flex p-3.5 gap-3 transition-colors hover:bg-slate-50 active:bg-slate-100" onClick={() => onSelectRequest(r)}>
+              {/* Left Column: Details */}
+              <div className="flex-1 min-w-0 flex flex-col justify-between">
+                <div>
+                  <p className="text-[13px] font-black uppercase leading-tight text-slate-950 truncate">{r.patient_name}</p>
+                  <p className="mt-0.5 text-[11px] font-mono font-bold text-slate-500 truncate">{r.policy_number}</p>
+                  <p className="mt-1 text-[11px] font-semibold leading-snug text-slate-600 line-clamp-1">{r.diagnosis || "No diagnosis recorded"}</p>
+                  
                   {isRejected(r) && rejectionReason(r) && (
-                    <p className="mt-2 rounded-lg border border-slate-200 bg-slate-50/50 p-2 text-xs font-semibold leading-snug text-slate-700">Reason: {rejectionReason(r)}</p>
+                    <p className="mt-1.5 rounded bg-slate-50/50 p-1.5 text-[10px] font-semibold leading-snug text-slate-700 line-clamp-2">Reason: {rejectionReason(r)}</p>
+                  )}
+                  {r.referred_hospital_name ? (
+                    <p className="mt-1 inline-flex rounded bg-slate-50 px-1 py-0.5 text-[9px] font-black uppercase tracking-wider text-slate-500">
+                      Ref: {r.referred_hospital_name}
+                    </p>
+                  ) : null}
+                </div>
+
+                <div className={cn("mt-2 font-mono text-[11px] font-black", (isRejected(r) || isAwaitingDelete(r)) ? "text-rose-700" : r.authorization_code ? "text-slate-800" : "text-slate-400")}>
+                  {codeOrDecisionText(r)}
+                </div>
+              </div>
+              
+              {/* Right Column: Status, Date, Actions */}
+              <div className="flex flex-col items-end shrink-0 w-28 gap-1.5 text-right">
+                {statusBadge(displayStatus(r))}
+                {isAwaitingDelete(r) && (
+                  <Badge variant="outline" className="rounded-md border-amber-200 bg-amber-50 px-2 py-0.5 text-[9px] font-black uppercase text-amber-700">Delete pending</Badge>
+                )}
+                
+                <span className="text-[10px] font-mono font-bold text-slate-400 mt-0.5 whitespace-nowrap">
+                  {new Date(r.created_at).toLocaleDateString("en-GB", { day: '2-digit', month: 'short', year: '2-digit' })} • {new Date(r.created_at).toLocaleTimeString("en-GB", { hour: '2-digit', minute: '2-digit' })}
+                </span>
+
+                <div className="mt-auto pt-2 flex items-center justify-end gap-1.5">
+                  {role === "hospital" && r.status === "approved" && r.patient_email && !otpVerifiedStatus[r.id] ? (
+                    <div className="flex flex-col items-end gap-1" onClick={e => e.stopPropagation()}>
+                      {unlockingReqId === r.id ? (
+                        <div className="flex items-center gap-1">
+                          <Input autoFocus value={unlockOtpInput} onChange={e => setUnlockOtpInput(e.target.value)} placeholder="OTP" className="h-7 w-16 text-[10px] font-mono font-bold px-1.5" />
+                          <Button size="sm" onClick={(e) => handleUnlockOtp(r, e)} className="h-7 px-1.5 text-[10px]">Unlock</Button>
+                        </div>
+                      ) : (
+                        <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); setUnlockingReqId(r.id); }} className="h-7 px-2 text-[10px] border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100">
+                          🔒 Unlock
+                        </Button>
+                      )}
+                    </div>
+                  ) : null}
+
+                  {!isClaimsRole && !isAwaitingDelete(r) && (
+                    <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onDeleteRequest(r); }} className="h-7 w-7 text-slate-400 hover:text-rose-600 hover:bg-rose-50">
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
                   )}
                 </div>
               </div>
-              {role === "hospital" && r.status === "approved" && r.patient_email && !otpVerifiedStatus[r.id] ? (
-                <div className="pt-2" onClick={e => e.stopPropagation()}>
-                  {unlockingReqId === r.id ? (
-                    <div className="flex items-center gap-1">
-                      <Input
-                        autoFocus
-                        value={unlockOtpInput}
-                        onChange={e => setUnlockOtpInput(e.target.value)}
-                        placeholder="Enter OTP"
-                        className="h-8 w-24 text-xs font-mono font-bold"
-                      />
-                      <Button size="sm" onClick={(e) => handleUnlockOtp(r, e)} className="h-8 px-2 text-xs">Unlock</Button>
-                      <Button variant="ghost" size="sm" onClick={() => setUnlockingReqId(null)} className="h-8 px-2 text-xs text-slate-400">Cancel</Button>
-                    </div>
-                  ) : (
-                    <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); setUnlockingReqId(r.id); }} className="h-8 w-fit text-xs border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100">
-                      🔒 Unlock Code
-                    </Button>
-                  )}
-                </div>
-              ) : (
-                <div className="mt-2 flex items-center justify-between border-t border-slate-100 pt-3">
-                  <div className={cn("font-mono text-sm font-black", (isRejected(r) || isAwaitingDelete(r)) ? "text-rose-700" : r.authorization_code ? "text-slate-800" : "text-slate-400")}>
-                    {codeOrDecisionText(r)}
-                  </div>
-                  {!isClaimsRole && !isAwaitingDelete(r) && (
-                    <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onDeleteRequest(r); }} className="h-8 w-8 text-slate-400 hover:text-rose-600 hover:bg-rose-50">
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  )}
-                </div>
-              )}
             </div>
           ))
         )}

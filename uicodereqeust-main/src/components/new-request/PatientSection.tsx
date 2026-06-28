@@ -141,7 +141,7 @@ export default function PatientSection({
             <Checkbox 
               id="no-email-checkbox" 
               checked={patientEmail === "no-email@medicode.com"}
-              className="h-4 w-4 shrink-0 rounded-[4px] border-slate-300 data-[state=checked]:bg-[#10B981] data-[state=checked]:border-[#10B981]"
+              className="h-4 w-4 min-h-[16px] min-w-[16px] max-h-[16px] max-w-[16px] shrink-0 flex-none rounded-[4px] border-slate-300 data-[state=checked]:bg-[#10B981] data-[state=checked]:border-[#10B981]"
               onCheckedChange={(checked) => {
                 if (checked) {
                   setPatientEmail("no-email@medicode.com");

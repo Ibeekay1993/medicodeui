@@ -201,7 +201,7 @@ export const TreatmentCart = React.memo(function TreatmentCart({
                                 updateDeclineReason?.(item.code, e.target.value)
                               }
                               className="h-7 text-xs font-bold rounded-lg border-rose-200 focus:border-rose-400 focus:ring-rose-400/20 bg-rose-50/10 placeholder:text-rose-300 placeholder:font-normal text-rose-800 focus:ring-1"
-                              disabled={request?.deletion_status === "awaiting_admin_approval"}
+                              disabled={request?.deletion_status === "awaiting_admin_approval" || isHospitalDirected}
                             />
                           </div>
                         )}
@@ -224,7 +224,7 @@ export const TreatmentCart = React.memo(function TreatmentCart({
                                 String(Math.max(1, (Number(item.quantity) || 1) - 1))
                               )
                             }
-                            disabled={item.declined || request?.deletion_status === "awaiting_admin_approval"}
+                            disabled={item.declined || request?.deletion_status === "awaiting_admin_approval" || isHospitalDirected}
                           >
                             <Minus className="h-3.5 w-3.5" />
                           </Button>
@@ -247,7 +247,7 @@ export const TreatmentCart = React.memo(function TreatmentCart({
                               event.target.select();
                             }}
                             className="h-7 w-10 border-0 bg-transparent text-center font-black text-xs p-0 outline-none focus:ring-0 cursor-text text-slate-900"
-                            disabled={item.declined || request?.deletion_status === "awaiting_admin_approval"}
+                            disabled={item.declined || request?.deletion_status === "awaiting_admin_approval" || isHospitalDirected}
                           />
                           <Button
                             variant="ghost"
@@ -259,7 +259,7 @@ export const TreatmentCart = React.memo(function TreatmentCart({
                                 String((Number(item.quantity) || 1) + 1)
                               )
                             }
-                            disabled={item.declined || request?.deletion_status === "awaiting_admin_approval"}
+                            disabled={item.declined || request?.deletion_status === "awaiting_admin_approval" || isHospitalDirected}
                           >
                             <Plus className="h-3.5 w-3.5" />
                           </Button>
@@ -271,7 +271,7 @@ export const TreatmentCart = React.memo(function TreatmentCart({
                           )}>
                             {item.declined ? "Declined" : formatNaira(itemTotal(item))}
                           </p>
-                          {request?.deletion_status !== "awaiting_admin_approval" && (
+                          {request?.deletion_status !== "awaiting_admin_approval" && !isHospitalDirected && (
                             <div className="flex items-center justify-end gap-2 mt-1">
                               <button
                                 type="button"
@@ -360,7 +360,7 @@ export const TreatmentCart = React.memo(function TreatmentCart({
                 value={tariffSearch}
                 onChange={(event) => setTariffSearch(event.target.value)}
                 className="bg-white rounded-xl border-slate-200 pl-9.5 pr-8 focus:ring-slate-500/20 font-medium"
-                disabled={request?.deletion_status === "awaiting_admin_approval"}
+                disabled={request?.deletion_status === "awaiting_admin_approval" || isHospitalDirected}
               />
               {tariffSearchLoading && (
                 <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-slate-400" />

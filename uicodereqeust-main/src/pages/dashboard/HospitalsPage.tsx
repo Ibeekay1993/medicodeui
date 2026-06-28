@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
@@ -71,6 +72,7 @@ const HospitalForm = ({ value, onChange }: { value: any; onChange: (next: any) =
 );
 
 export default function HospitalsPage() {
+  const { role } = useAuth();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -137,6 +139,7 @@ export default function HospitalsPage() {
   const resetNewHospital = () => setNewHosp(emptyHospital);
 
   const handleAddHospital = async () => {
+    if (role !== "admin") return;
     if (!newHosp.name || !newHosp.code) {
       toast({ variant: "destructive", title: "Missing Info", description: "Name and provider code are required." });
       return;
@@ -153,6 +156,7 @@ export default function HospitalsPage() {
   };
 
   const handleUpdateHospital = async () => {
+    if (role !== "admin") return;
     if (!editing?.id || !editing.name || !editing.code) {
       toast({ variant: "destructive", title: "Missing Info", description: "Name and provider code are required." });
       return;
@@ -177,6 +181,7 @@ export default function HospitalsPage() {
   };
 
   const setHospitalActive = async (hospitalIds: string[], active: boolean) => {
+    if (role !== "admin") return;
     if (hospitalIds.length === 0) return;
     const { error } = await supabase.from("hospitals").update({ is_active: active }).in("id", hospitalIds);
     if (error) {

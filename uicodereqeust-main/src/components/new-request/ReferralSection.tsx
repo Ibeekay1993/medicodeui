@@ -37,6 +37,7 @@ export default function ReferralSection({
           id="referral-toggle" 
           checked={isReferral}
           onCheckedChange={(checked) => setIsReferral(!!checked)}
+          className="h-4 w-4 min-h-[16px] min-w-[16px] max-h-[16px] max-w-[16px] shrink-0 flex-none"
         />
         <label
           htmlFor="referral-toggle"
