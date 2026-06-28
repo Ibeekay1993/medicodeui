@@ -7,6 +7,7 @@ interface PatientVerifyCardProps {
   request: any;
   checking: boolean;
   patientMatchStatus: "exact" | "partial" | "none" | null;
+  matchedMemberId?: string | null;
   policyVerified: boolean | null;
   nhisVerified: boolean | null;
   familyMembers: any[];
@@ -19,6 +20,7 @@ export function PatientVerifyCard({
   request: _request,
   checking,
   patientMatchStatus,
+  matchedMemberId,
   policyVerified,
   nhisVerified,
   familyMembers,
@@ -115,19 +117,31 @@ export function PatientVerifyCard({
               <div className="mt-3.5 space-y-2">
                 <p className="text-xs font-black uppercase tracking-widest text-emerald-800/60 mb-1 pl-1">Policy Family Tree</p>
                 <div className="grid grid-cols-1 gap-2">
-                  {familyMembers.map((member: any) => (
-                    <div key={member.id} className="flex flex-col gap-1.5 rounded-xl bg-white/90 border border-emerald-100/60 p-3 shadow-xs hover:border-emerald-200 transition-colors">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <Badge variant="outline" className="text-xs font-black uppercase bg-emerald-50 border-emerald-200 text-emerald-700">
-                          {member.role || "MEMBER"}
-                        </Badge>
-                        <span className="text-xs font-bold text-slate-800">{cleanPatientName(member.full_name || `${member.surname || ""} ${member.first_name || ""}`)}</span>
+                  {familyMembers.map((member: any) => {
+                    const isMatched = member.id === matchedMemberId;
+                    return (
+                      <div key={member.id} className={`flex flex-col gap-1.5 rounded-xl p-3 shadow-xs transition-colors ${
+                        isMatched ? "bg-emerald-50/50 border-2 border-emerald-400" : "bg-white/90 border border-emerald-100/60 hover:border-emerald-200"
+                      }`}>
+                        <div className="flex items-start justify-between gap-2 flex-wrap">
+                          <div className="flex items-center gap-2 flex-wrap mt-0.5">
+                            <Badge variant="outline" className="text-xs font-black uppercase bg-emerald-50 border-emerald-200 text-emerald-700">
+                              {member.role || "MEMBER"}
+                            </Badge>
+                            <span className="text-xs font-bold text-slate-800">{cleanPatientName(member.full_name || `${member.surname || ""} ${member.first_name || ""}`)}</span>
+                          </div>
+                          {isMatched && (
+                            <Badge className="text-[10px] font-black uppercase bg-emerald-500 text-white border-none shadow-sm flex items-center gap-1 px-1.5 py-0.5 mt-0.5">
+                              <ShieldCheck className="w-3 h-3" /> Matched Patient
+                            </Badge>
+                          )}
+                        </div>
+                        <p className={`text-[10px] font-bold uppercase tracking-widest ${isMatched ? "text-emerald-700/60" : "text-slate-400"}`}>
+                          {member.phone ? `☎ ${member.phone}` : "No phone"} {member.date_of_birth ? `• DOB: ${new Date(member.date_of_birth).toLocaleDateString("en-GB")}` : ""}
+                        </p>
                       </div>
-                      <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">
-                        {member.phone ? `☎ ${member.phone}` : "No phone"} {member.date_of_birth ? `• DOB: ${new Date(member.date_of_birth).toLocaleDateString("en-GB")}` : ""}
-                      </p>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}

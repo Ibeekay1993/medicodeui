@@ -408,6 +408,7 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
                 request={request}
                 checking={verification.checking}
                 patientMatchStatus={verification.patientMatchStatus}
+                matchedMemberId={verification.matchedMemberId}
                 policyVerified={verification.policyVerified}
                 nhisVerified={verification.nhisVerified}
                 familyMembers={verification.familyMembers}

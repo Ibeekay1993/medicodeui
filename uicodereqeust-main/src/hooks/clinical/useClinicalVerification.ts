@@ -15,6 +15,7 @@ export function useClinicalVerification(
   const [policyVerified, setPolicyVerified] = useState<boolean | null>(null);
   const [patientVerified, setPatientVerified] = useState<boolean | null>(null);
   const [patientMatchStatus, setPatientMatchStatus] = useState<"exact" | "partial" | "none" | null>(null);
+  const [matchedMemberId, setMatchedMemberId] = useState<string | null>(null);
   const [earlyRefill, setEarlyRefill] = useState<{ isEarly: boolean; daysSince: number; lastDate: string } | null>(null);
   const [localHistory, setLocalHistory] = useState<any[]>([]);
   const [sheetHistory, setSheetHistory] = useState<any[]>([]);
@@ -62,6 +63,8 @@ export function useClinicalVerification(
       const hasNameMatch = matchedRows.length > 0;
 
       let matchStatus: "exact" | "partial" | "none" = "none";
+      let bestMatchMemberId: string | null = null;
+      
       if (hasNameMatch || hasPolicyMatch) {
         const reqName = patientName.toLowerCase();
         const reqTokens = reqName.split(/[\s,]+/).filter(Boolean);
@@ -77,7 +80,10 @@ export function useClinicalVerification(
               matches++;
             }
           }
-          if (matches > bestMatch) bestMatch = matches;
+          if (matches > bestMatch) {
+            bestMatch = matches;
+            bestMatchMemberId = row.id;
+          }
         }
 
         if (bestMatch >= Math.max(2, reqTokens.length) || (bestMatch > 0 && reqTokens.length === 1)) {
@@ -86,9 +92,11 @@ export function useClinicalVerification(
           matchStatus = "partial";
         } else {
           matchStatus = "none";
+          bestMatchMemberId = null;
         }
       }
 
+      setMatchedMemberId(bestMatchMemberId);
       setPatientMatchStatus(matchStatus);
       setPolicyVerified(hasPolicyMatch);
       setNhisVerified(hasPolicyMatch || hasNameMatch);
@@ -251,6 +259,7 @@ export function useClinicalVerification(
       setPolicyVerified(null);
       setPatientVerified(null);
       setPatientMatchStatus(null);
+      setMatchedMemberId(null);
       setEarlyRefill(null);
       setLocalHistory([]);
       setSheetHistory([]);
@@ -266,6 +275,7 @@ export function useClinicalVerification(
     policyVerified,
     patientVerified,
     patientMatchStatus,
+    matchedMemberId,
     earlyRefill,
     localHistory,
     sheetHistory,

@@ -22,9 +22,30 @@ export function ClinicalHistory({
   requestPolicyNumber,
 }: ClinicalHistoryProps) {
   const [collapsed, setCollapsed] = React.useState(true);
+  const [showFamilyHistory, setShowFamilyHistory] = React.useState(false);
   const historyPageSize = 5;
 
-  const historyRows = visibleHistory;
+  const historyRows = React.useMemo(() => {
+    if (showFamilyHistory) return visibleHistory;
+    
+    const reqName = String(requestPatientName || "").toLowerCase();
+    const reqTokens = reqName.split(/[\s,]+/).filter(Boolean);
+    
+    if (reqTokens.length === 0) return visibleHistory;
+
+    return visibleHistory.filter((record) => {
+      const rowName = String(record?.patient_name || "").toLowerCase();
+      const rowTokens = rowName.split(/[\s,]+/).filter(Boolean);
+      let matches = 0;
+      for (const token of reqTokens) {
+        if (rowTokens.some((rt) => rt === token || rt.includes(token) || token.includes(rt))) {
+          matches++;
+        }
+      }
+      return matches > 0;
+    });
+  }, [visibleHistory, requestPatientName, showFamilyHistory]);
+
   const historyPageCount = Math.max(1, Math.ceil(historyRows.length / historyPageSize));
   const paginatedHistory = historyRows.slice(
     (historyPage - 1) * historyPageSize,
@@ -50,7 +71,7 @@ export function ClinicalHistory({
             variant="outline"
             className="text-xs font-black uppercase bg-white border-slate-200 text-slate-600 shadow-xs"
           >
-            {visibleHistory.length} record{visibleHistory.length !== 1 ? "s" : ""}
+            {historyRows.length} record{historyRows.length !== 1 ? "s" : ""}
           </Badge>
           {collapsed ? (
             <ChevronDown className="w-4.5 h-4.5 text-slate-500" />
@@ -64,9 +85,23 @@ export function ClinicalHistory({
         <div className="animate-in fade-in duration-200">
           <div className="px-4 pt-3.5">
             <div className="flex flex-col gap-2 rounded-xl border border-slate-150 bg-slate-50/50 px-3.5 py-2.5 text-xs font-bold uppercase tracking-wider text-slate-500 md:flex-row md:items-center md:justify-between">
-              <p>
-                Viewing history for: <span className="text-slate-800 font-extrabold">{requestPatientName || "Unknown patient"}</span>
-              </p>
+              <div className="flex flex-col gap-1.5">
+                <p>
+                  Viewing history for: <span className="text-slate-800 font-extrabold">{requestPatientName || "Unknown patient"}</span>
+                </p>
+                <label className="flex items-center gap-2 cursor-pointer w-fit group">
+                  <input 
+                    type="checkbox" 
+                    className="rounded border-slate-300 text-primary focus:ring-primary h-3.5 w-3.5 cursor-pointer"
+                    checked={showFamilyHistory}
+                    onChange={(e) => {
+                      setShowFamilyHistory(e.target.checked);
+                      setHistoryPage(1);
+                    }}
+                  />
+                  <span className="text-[10px] text-slate-500 font-semibold tracking-wider group-hover:text-slate-700 transition-colors">Show full family history</span>
+                </label>
+              </div>
               <p className="font-mono text-slate-700">
                 Policy: {requestPolicyNumber || "---"}
               </p>
