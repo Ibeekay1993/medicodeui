@@ -332,6 +332,7 @@ export default function HistoricalCodeImportPage() {
             <Input type="file" accept=".csv,.xlsx,.xls" className="hidden" onChange={(event) => handleFile(event.target.files?.[0])} />
           </label>
         </div>
+        </>
       )}
 
       {importMode && file && rows.length > 0 && (
