@@ -407,10 +407,10 @@ export default function DashboardHome() {
         : nurseActions;
 
   const mainStats = [
-    { label: role === "admin" ? "Active Users" : role === "claims" ? "Total Claims" : "Total Load", value: role === "admin" ? stats.users : stats.total, icon: Users, accent: "#378ADD", bg: "rgba(55,138,221,0.1)" },
-    { label: "Facilities", value: stats.hospitals, icon: Building2, accent: "#BA7517", bg: "rgba(186,117,23,0.1)" },
-    { label: "Approved", value: stats.approved, icon: CheckCircle2, accent: "#1D9E75", bg: "rgba(29,158,117,0.1)" },
-    { label: role === "claims" ? "Pending Review" : "Rejected", value: role === "claims" ? stats.pending : stats.rejected, icon: role === "claims" ? Clock : XCircle, accent: role === "claims" ? "#BA7517" : "#E24B4A", bg: role === "claims" ? "rgba(186,117,23,0.1)" : "rgba(226,75,74,0.1)" },
+    { label: role === "admin" ? "Active Users" : role === "claims" ? "Total Claims" : "Total Load", value: role === "admin" ? stats.users : stats.total, icon: Users, color: "text-blue-600" },
+    { label: "Facilities", value: stats.hospitals, icon: Building2, color: "text-slate-700" },
+    { label: "Approved", value: stats.approved, icon: CheckCircle2, color: "text-emerald-600" },
+    { label: role === "claims" ? "Pending Review" : "Rejected", value: role === "claims" ? stats.pending : stats.rejected, icon: role === "claims" ? Clock : XCircle, color: role === "claims" ? "text-amber-600" : "text-rose-600" },
   ];
 
   const isAdmin = role === "admin";
@@ -427,26 +427,22 @@ export default function DashboardHome() {
             <h3 className="text-sm font-semibold text-slate-900 tracking-tight">Clinical Authorizations</h3>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 md:gap-4">
               {[
-                { label: "Active Users",    value: stats.users,     icon: Users,         accent: "#378ADD" },
-                { label: "Total Requests",  value: stats.total,     icon: FileText,      accent: "#6366F1" },
-                { label: "Approved",        value: stats.approved,  icon: CheckCircle2,  accent: "#1D9E75" },
-                { label: "Rejected",        value: stats.rejected,  icon: XCircle,       accent: "#E24B4A" },
+                { label: "Active Users",    value: stats.users,     icon: Users,         color: "text-blue-600" },
+                { label: "Total Requests",  value: stats.total,     icon: FileText,      color: "text-slate-700" },
+                { label: "Approved",        value: stats.approved,  icon: CheckCircle2,  color: "text-emerald-600" },
+                { label: "Rejected",        value: stats.rejected,  icon: XCircle,       color: "text-rose-600" },
               ].map((item) => (
-                <div key={item.label} className="flex flex-col p-3 rounded-xl border border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm transition-all cursor-pointer relative overflow-hidden" title={item.label}>
-                  <div className="flex justify-between items-start mb-1.5 sm:mb-2">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 leading-tight break-words">{item.label}</p>
-                    <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full" style={{ background: `${item.accent}1A`, color: item.accent }}>
-                      <item.icon className="h-[10px] w-[10px]" strokeWidth={3} />
+                <div key={item.label} className="border-slate-100 shadow-sm bg-white rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-md hover:-translate-y-1 group flex flex-col p-0 cursor-pointer" title={item.label}>
+                  <div className="p-3 sm:p-4 md:p-5 flex items-center gap-3">
+                    <div className="hidden sm:flex h-10 w-10 md:h-12 md:w-12 rounded-xl items-center justify-center shrink-0 transition-colors duration-300 bg-slate-50 group-hover:bg-slate-100">
+                      <item.icon className={cn("h-5 w-5 md:h-6 md:w-6 transition-transform duration-300 group-hover:scale-110", item.color)} />
                     </div>
-                  </div>
-                  <div>
-                    {loading ? (
-                      <div className="mt-0.5"><StatSkeleton /></div>
-                    ) : (
-                      <p className="text-lg sm:text-xl font-black leading-none tracking-tight truncate text-slate-900">
-                        {Number(item.value).toLocaleString()}
-                      </p>
-                    )}
+                    <div className="min-w-0 flex-1 text-center sm:text-left">
+                      <p className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-400 truncate leading-tight group-hover:text-slate-500 transition-colors">{item.label}</p>
+                      <div className={cn("text-sm sm:text-base md:text-lg lg:text-xl font-black tracking-tight truncate leading-none mt-1.5", item.color)}>
+                        {loading ? <StatSkeleton /> : (item.value !== undefined ? Number(item.value).toLocaleString() : 0)}
+                      </div>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -458,26 +454,22 @@ export default function DashboardHome() {
             <h3 className="text-sm font-semibold text-slate-900 tracking-tight">Claims Processing</h3>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 md:gap-4">
               {[
-                { label: "Submitted",     value: claimStats.submitted,                  accent: "#378ADD", format: "number", icon: FileText },
-                { label: "Paid",          value: claimStats.paid,                       accent: "#10B981", format: "number", icon: CheckCircle2 },
-                { label: "Appr. Value",   value: money(claimStats.approvedValue),       accent: "#1D9E75", format: "money", icon: Banknote },
-                { label: "Contested",     value: claimStats.contested,                  accent: "#8B5CF6", format: "number", icon: AlertTriangle },
+                { label: "Submitted",     value: claimStats.submitted,                  color: "text-blue-600", format: "number", icon: FileText },
+                { label: "Paid",          value: claimStats.paid,                       color: "text-emerald-600", format: "number", icon: CheckCircle2 },
+                { label: "Appr. Value",   value: money(claimStats.approvedValue),       color: "text-emerald-600", format: "money", icon: Banknote },
+                { label: "Contested",     value: claimStats.contested,                  color: "text-amber-600", format: "number", icon: AlertTriangle },
               ].map((item) => (
-                <div key={item.label} className="flex flex-col p-3 rounded-xl border border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm transition-all cursor-pointer relative overflow-hidden" title={item.label}>
-                  <div className="flex justify-between items-start mb-1.5 sm:mb-2">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 leading-tight break-words">{item.label}</p>
-                    <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full" style={{ background: `${item.accent}1A`, color: item.accent }}>
-                      <item.icon className="h-[10px] w-[10px]" strokeWidth={3} />
+                <div key={item.label} className="border-slate-100 shadow-sm bg-white rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-md hover:-translate-y-1 group flex flex-col p-0 cursor-pointer" title={item.label}>
+                  <div className="p-3 sm:p-4 md:p-5 flex items-center gap-3">
+                    <div className="hidden sm:flex h-10 w-10 md:h-12 md:w-12 rounded-xl items-center justify-center shrink-0 transition-colors duration-300 bg-slate-50 group-hover:bg-slate-100">
+                      <item.icon className={cn("h-5 w-5 md:h-6 md:w-6 transition-transform duration-300 group-hover:scale-110", item.color)} />
                     </div>
-                  </div>
-                  <div>
-                    {loading ? (
-                      <div className="mt-0.5"><StatSkeleton /></div>
-                    ) : (
-                      <p className="text-lg sm:text-xl font-black leading-none tracking-tight truncate text-slate-900">
-                        {item.format === "number" ? Number(item.value).toLocaleString() : item.value}
-                      </p>
-                    )}
+                    <div className="min-w-0 flex-1 text-center sm:text-left">
+                      <p className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-400 truncate leading-tight group-hover:text-slate-500 transition-colors">{item.label}</p>
+                      <div className={cn("text-sm sm:text-base md:text-lg lg:text-xl font-black tracking-tight truncate leading-none mt-1.5", item.color)}>
+                        {loading ? <StatSkeleton /> : (item.format === "number" ? Number(item.value || 0).toLocaleString() : item.value)}
+                      </div>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -489,24 +481,22 @@ export default function DashboardHome() {
             <h3 className="text-sm font-semibold text-slate-900 tracking-tight">Payment &amp; Finance</h3>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 md:gap-4">
               {[
-                { label: "Awaiting Value",  value: money(financeStats.awaitingValue),      accent: "#BA7517", icon: Clock },
-                { label: "Paid Value",      value: money(financeStats.paidValue),          accent: "#1D9E75", icon: Banknote },
-                { label: "Settled Batches", value: financeStats.paidBatches,               accent: "#0F766E", icon: Layers },
-                { label: "Batches Value",   value: money(financeStats.totalBatchesValue),  accent: "#EC4899", icon: Wallet },
+                { label: "Awaiting Value",  value: money(financeStats.awaitingValue),      color: "text-amber-600", icon: Clock },
+                { label: "Paid Value",      value: money(financeStats.paidValue),          color: "text-emerald-600", icon: Banknote },
+                { label: "Settled Batches", value: financeStats.paidBatches,               color: "text-indigo-600", icon: Layers },
+                { label: "Batches Value",   value: money(financeStats.totalBatchesValue),  color: "text-violet-600", icon: Wallet },
               ].map((item) => (
-                <div key={item.label} className="flex flex-col p-3 rounded-xl border border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm transition-all cursor-pointer relative overflow-hidden" title={item.label}>
-                  <div className="flex justify-between items-start mb-1.5 sm:mb-2">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 leading-tight break-words">{item.label}</p>
-                    <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full" style={{ background: `${item.accent}1A`, color: item.accent }}>
-                      <item.icon className="h-[10px] w-[10px]" strokeWidth={3} />
+                <div key={item.label} className="border-slate-100 shadow-sm bg-white rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-md hover:-translate-y-1 group flex flex-col p-0 cursor-pointer" title={item.label}>
+                  <div className="p-3 sm:p-4 md:p-5 flex items-center gap-3">
+                    <div className="hidden sm:flex h-10 w-10 md:h-12 md:w-12 rounded-xl items-center justify-center shrink-0 transition-colors duration-300 bg-slate-50 group-hover:bg-slate-100">
+                      <item.icon className={cn("h-5 w-5 md:h-6 md:w-6 transition-transform duration-300 group-hover:scale-110", item.color)} />
                     </div>
-                  </div>
-                  <div>
-                    {loading ? (
-                      <div className="mt-0.5"><StatSkeleton /></div>
-                    ) : (
-                      <p className="text-lg sm:text-xl font-black leading-none tracking-tight truncate text-slate-900">{item.value}</p>
-                    )}
+                    <div className="min-w-0 flex-1 text-center sm:text-left">
+                      <p className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-400 truncate leading-tight group-hover:text-slate-500 transition-colors">{item.label}</p>
+                      <div className={cn("text-sm sm:text-base md:text-lg lg:text-xl font-black tracking-tight truncate leading-none mt-1.5", item.color)}>
+                        {loading ? <StatSkeleton /> : item.value}
+                      </div>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -518,26 +508,22 @@ export default function DashboardHome() {
       {isFinance && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 md:gap-4">
           {[
-            { label: "Awaiting Value", value: money(financeStats.awaitingValue), accent: "#BA7517", icon: Clock },
-            { label: "Paid Value", value: money(financeStats.paidValue), accent: "#1D9E75", icon: Banknote },
-            { label: "Settled Batches", value: financeStats.paidBatches, accent: "#0F766E", icon: Layers },
-            { label: "Total Batches Value", value: money(financeStats.totalBatchesValue), accent: "#EC4899", icon: Wallet },
+            { label: "Awaiting Value",  value: money(financeStats.awaitingValue),      color: "text-amber-600", icon: Clock },
+            { label: "Paid Value",      value: money(financeStats.paidValue),          color: "text-emerald-600", icon: Banknote },
+            { label: "Settled Batches", value: financeStats.paidBatches,               color: "text-indigo-600", icon: Layers },
+            { label: "Batches Value",   value: money(financeStats.totalBatchesValue),  color: "text-violet-600", icon: Wallet },
           ].map((item) => (
-            <div key={item.label} className="flex flex-col p-3 rounded-xl border border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm transition-all cursor-pointer relative overflow-hidden animate-in fade-in duration-300" title={item.label}>
-              <div className="flex justify-between items-start mb-1.5 sm:mb-2">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 leading-tight break-words">{item.label}</p>
-                <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full" style={{ background: `${item.accent}1A`, color: item.accent }}>
-                  <item.icon className="h-[10px] w-[10px]" strokeWidth={3} />
+            <div key={item.label} className="border-slate-100 shadow-sm bg-white rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-md hover:-translate-y-1 group flex flex-col p-0 cursor-pointer" title={item.label}>
+              <div className="p-3 sm:p-4 md:p-5 flex items-center gap-3">
+                <div className="hidden sm:flex h-10 w-10 md:h-12 md:w-12 rounded-xl items-center justify-center shrink-0 transition-colors duration-300 bg-slate-50 group-hover:bg-slate-100">
+                  <item.icon className={cn("h-5 w-5 md:h-6 md:w-6 transition-transform duration-300 group-hover:scale-110", item.color)} />
                 </div>
-              </div>
-              <div>
-                {loading ? (
-                  <div className="mt-0.5"><StatSkeleton /></div>
-                ) : (
-                  <p className="text-lg sm:text-xl font-black leading-none tracking-tight truncate text-slate-900">
-                    {item.value}
-                  </p>
-                )}
+                <div className="min-w-0 flex-1 text-center sm:text-left">
+                  <p className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-400 truncate leading-tight group-hover:text-slate-500 transition-colors">{item.label}</p>
+                  <div className={cn("text-sm sm:text-base md:text-lg lg:text-xl font-black tracking-tight truncate leading-none mt-1.5", item.color)}>
+                    {loading ? <StatSkeleton /> : item.value}
+                  </div>
+                </div>
               </div>
             </div>
           ))}
@@ -546,56 +532,46 @@ export default function DashboardHome() {
 
       {isNurseOrOther && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 md:gap-4 overflow-x-hidden">
-          {mainStats.map((item) => {
-            return (
-              <div key={item.label} className="flex flex-col p-3 rounded-xl border border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm transition-all cursor-pointer relative overflow-hidden" title={item.label}>
-                <div className="flex justify-between items-start mb-1.5 sm:mb-2">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 leading-tight break-words">{item.label}</p>
-                  <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full" style={{ background: `${item.accent}1A`, color: item.accent }}>
-                    <item.icon className="h-[10px] w-[10px]" strokeWidth={3} />
+          {mainStats.map((item) => (
+            <div key={item.label} className="border-slate-100 shadow-sm bg-white rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-md hover:-translate-y-1 group flex flex-col p-0 cursor-pointer" title={item.label}>
+              <div className="p-3 sm:p-4 md:p-5 flex items-center gap-3">
+                <div className="hidden sm:flex h-10 w-10 md:h-12 md:w-12 rounded-xl items-center justify-center shrink-0 transition-colors duration-300 bg-slate-50 group-hover:bg-slate-100">
+                  <item.icon className={cn("h-5 w-5 md:h-6 md:w-6 transition-transform duration-300 group-hover:scale-110", item.color)} />
+                </div>
+                <div className="min-w-0 flex-1 text-center sm:text-left">
+                  <p className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-400 truncate leading-tight group-hover:text-slate-500 transition-colors">{item.label}</p>
+                  <div className={cn("text-sm sm:text-base md:text-lg lg:text-xl font-black tracking-tight truncate leading-none mt-1.5", item.color)}>
+                    {loading ? <StatSkeleton /> : Number(item.value || 0).toLocaleString()}
                   </div>
                 </div>
-                <div>
-                  {loading ? (
-                    <div className="mt-0.5"><StatSkeleton /></div>
-                  ) : (
-                    <p className="text-lg sm:text-xl font-black leading-none tracking-tight truncate text-slate-900">
-                      {Number(item.value).toLocaleString()}
-                    </p>
-                  )}
-                </div>
               </div>
-            );
-          })}
+            </div>
+          ))}
         </div>
       )}
 
       {isClaims && (
         <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2 sm:gap-3 md:gap-4">
           {[
-            { label: "Claims Submitted", value: claimStats.submitted, accent: "#378ADD", icon: FileText },
-            { label: "Approved", value: claimStats.approved, accent: "#1D9E75", icon: CheckCircle2 },
-            { label: "Partial", value: claimStats.partiallyApproved, accent: "#BA7517", icon: Activity },
-            { label: "Rejected", value: claimStats.rejected, accent: "#E24B4A", icon: XCircle },
-            { label: "Contested", value: claimStats.contested, accent: "#8B5CF6", icon: AlertTriangle },
-            { label: "Approved Value", value: money(claimStats.approvedValue), accent: "#1D9E75", icon: Banknote },
-            { label: "Savings", value: money(claimStats.declinedValue), accent: "#0F766E", icon: Wallet },
+            { label: "Submitted", value: claimStats.submitted, color: "text-blue-600", icon: FileText },
+            { label: "Approved", value: claimStats.approved, color: "text-emerald-600", icon: CheckCircle2 },
+            { label: "Partial", value: claimStats.partiallyApproved, color: "text-amber-600", icon: Activity },
+            { label: "Rejected", value: claimStats.rejected, color: "text-rose-600", icon: XCircle },
+            { label: "Contested", value: claimStats.contested, color: "text-violet-600", icon: AlertTriangle },
+            { label: "Appr. Value", value: money(claimStats.approvedValue), color: "text-emerald-600", icon: Banknote },
+            { label: "Savings", value: money(claimStats.declinedValue), color: "text-teal-600", icon: Wallet },
           ].map((item) => (
-            <div key={item.label} className="flex flex-col p-3 rounded-xl border border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm transition-all cursor-pointer relative overflow-hidden" title={item.label}>
-              <div className="flex justify-between items-start mb-1.5 sm:mb-2">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 leading-tight break-words">{item.label}</p>
-                <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full" style={{ background: `${item.accent}1A`, color: item.accent }}>
-                  <item.icon className="h-[10px] w-[10px]" strokeWidth={3} />
+            <div key={item.label} className="border-slate-100 shadow-sm bg-white rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-md hover:-translate-y-1 group flex flex-col p-0 cursor-pointer" title={item.label}>
+              <div className="p-3 sm:p-4 md:p-5 flex items-center gap-3">
+                <div className="hidden sm:flex h-10 w-10 md:h-12 md:w-12 rounded-xl items-center justify-center shrink-0 transition-colors duration-300 bg-slate-50 group-hover:bg-slate-100">
+                  <item.icon className={cn("h-5 w-5 md:h-6 md:w-6 transition-transform duration-300 group-hover:scale-110", item.color)} />
                 </div>
-              </div>
-              <div>
-                {loading ? (
-                  <div className="mt-0.5"><StatSkeleton /></div>
-                ) : (
-                  <p className="text-lg sm:text-xl font-black leading-none tracking-tight truncate text-slate-900">
-                    {Number(item.value).toLocaleString()}
-                  </p>
-                )}
+                <div className="min-w-0 flex-1 text-center sm:text-left">
+                  <p className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-400 truncate leading-tight group-hover:text-slate-500 transition-colors">{item.label}</p>
+                  <div className={cn("text-sm sm:text-base md:text-lg lg:text-xl font-black tracking-tight truncate leading-none mt-1.5", item.color)}>
+                    {loading ? <StatSkeleton /> : (typeof item.value === "number" ? item.value.toLocaleString() : item.value)}
+                  </div>
+                </div>
               </div>
             </div>
           ))}
