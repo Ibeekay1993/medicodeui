@@ -64,6 +64,7 @@ export function RequestList({
   
   const codeOrDecisionText = (r: any) => {
     if (isAwaitingDelete(r)) return "Code revoked - Awaiting Delete";
+    if (role === "hospital" && isApproved(r) && !otpVerifiedStatus[r.id]) return "🔒 Locked";
     if (r.authorization_code) return r.authorization_code;
     if (isRejected(r)) return rejectionReason(r) || "Rejected - reason not recorded";
     return "Pending";
