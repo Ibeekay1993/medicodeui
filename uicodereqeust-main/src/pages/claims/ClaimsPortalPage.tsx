@@ -27,7 +27,7 @@ export default function ClaimsPortalPage() {
   const [selectedClaimId, setSelectedClaimId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const debouncedSearchTerm = useDebounce(searchTerm, 400);
-  const [statusTab, setStatusTab] = useState<"all" | "pending" | "approved" | "rejected" | "contested">("pending");
+  const [statusTab, setStatusTab] = useState<string>("pending");
   const [selectedHospitalId, setSelectedHospitalId] = useState<string>("all");
   const [isMobileDetailOpen, setIsMobileDetailOpen] = useState(false);
   const [page, setPage] = useState(1);
