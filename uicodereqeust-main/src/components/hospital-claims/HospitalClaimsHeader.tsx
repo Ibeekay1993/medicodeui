@@ -46,6 +46,5 @@ export default function HospitalClaimsHeader({
           </Button>
         </div>
       </div>
-    </div>
-  );
+    );
 }
