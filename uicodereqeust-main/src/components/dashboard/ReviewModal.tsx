@@ -136,13 +136,13 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
               </div>
             </div>
 
-            <div className="text-right min-w-[100px] sm:min-w-[120px] bg-slate-50/50 border border-slate-100 p-2 rounded-xl text-slate-600 shadow-sm shrink-0 self-center">
+            <div className="text-right max-w-[40%] sm:max-w-[200px] bg-slate-50/50 border border-slate-100 p-2 rounded-xl text-slate-600 shadow-sm shrink-0 self-center overflow-hidden flex flex-col items-end">
               <div className="text-[10px] sm:text-xs font-black text-indigo-400 uppercase tracking-widest mb-0.5">Contact Details</div>
-              <div className="text-xs sm:text-sm font-bold text-slate-700 truncate leading-none">
+              <div className="text-xs sm:text-sm font-bold text-slate-700 truncate leading-none w-full">
                 {request?.patient_phone ? `☎ ${request.patient_phone}` : "—"}
               </div>
               {request?.patient_email && (
-                <div className="text-xs font-medium text-slate-550 truncate mt-1 leading-none">
+                <div className="text-xs font-medium text-slate-550 truncate mt-1 leading-none w-full">
                   {request.patient_email === "no-email@medicode.com" ? (
                     <span className="italic opacity-70">No email provided</span>
                   ) : (
