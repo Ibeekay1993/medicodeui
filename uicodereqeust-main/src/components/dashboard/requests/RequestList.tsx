@@ -97,7 +97,7 @@ export function RequestList({
       p_request_id: unlockingReqId,
       p_otp_plaintext: unlockOtpInput,
       p_otp_type: otpType,
-      p_hospital_id: null
+      p_hospital_id: r.referred_hospital_id || r.hospital_id || null
     });
     
     if (error) {

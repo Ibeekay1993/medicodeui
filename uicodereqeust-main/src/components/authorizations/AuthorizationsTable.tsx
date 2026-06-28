@@ -79,7 +79,7 @@ export default function AuthorizationsTable({
       p_request_id: r.id,
       p_otp_plaintext: unlockOtpInput,
       p_otp_type: otpType,
-      p_hospital_id: null
+      p_hospital_id: hospital?.id || r.referred_hospital_id || r.hospital_id || null
     });
     
     if (error) {
