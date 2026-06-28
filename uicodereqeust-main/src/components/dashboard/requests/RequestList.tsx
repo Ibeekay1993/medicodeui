@@ -270,77 +270,99 @@ export function RequestList({
       </div>
 
       {/* Mobile Cards */}
-      <div className="block md:hidden divide-y divide-slate-100">
+      <div className="block md:hidden p-4 space-y-4 bg-slate-50 min-h-[50vh]">
         {isLoading ? (
-          <div className="py-12 text-center text-xs font-black uppercase tracking-widest text-slate-400 bg-white p-6">
+          <div className="py-12 text-center text-xs font-black uppercase tracking-widest text-slate-400 bg-white rounded-xl shadow-sm p-6 border border-slate-100">
             <Loader2 className="mx-auto mb-3 h-6 w-6 animate-spin text-[#3f3f95]" />
             Loading requests...
           </div>
         ) : requests.length === 0 ? (
-          <div className="py-12 text-center text-xs font-black uppercase tracking-widest text-slate-400 bg-white p-6">
+          <div className="py-12 text-center text-xs font-black uppercase tracking-widest text-slate-400 bg-white rounded-xl shadow-sm p-6 border border-slate-100">
             No authorization requests found.
           </div>
         ) : (
-          requests.map((r) => (
-            <div key={r.id} className="cursor-pointer flex p-3.5 gap-3 transition-colors hover:bg-slate-50 active:bg-slate-100" onClick={() => onSelectRequest(r)}>
-              {/* Left Column: Details */}
-              <div className="flex-1 min-w-0 flex flex-col justify-between">
-                <div>
-                  <p className="text-[13px] font-black uppercase leading-tight text-slate-950 truncate">{r.patient_name}</p>
-                  <p className="mt-0.5 text-[11px] font-mono font-bold text-slate-500 truncate">{r.policy_number}</p>
-                  <p className="mt-1 text-[11px] font-semibold leading-snug text-slate-600 line-clamp-1">{r.diagnosis || "No diagnosis recorded"}</p>
-                  
-                  {isRejected(r) && rejectionReason(r) && (
-                    <p className="mt-1.5 rounded bg-slate-50/50 p-1.5 text-[10px] font-semibold leading-snug text-slate-700 line-clamp-2">Reason: {rejectionReason(r)}</p>
-                  )}
-                  {r.referred_hospital_name ? (
-                    <p className="mt-1 inline-flex rounded bg-slate-50 px-1 py-0.5 text-[9px] font-black uppercase tracking-wider text-slate-500">
-                      Ref: {r.referred_hospital_name}
-                    </p>
-                  ) : null}
+          requests.map((r) => {
+            const isApproved = String(r.status || "").toLowerCase().includes("approved") || String(r.status || "").toLowerCase().includes("accepted");
+            const isRej = isRejected(r);
+            const isPend = !isApproved && !isRej;
+            
+            return (
+              <div key={r.id} className="cursor-pointer bg-white border border-slate-200 rounded-[14px] p-4 shadow-sm transition-all hover:bg-slate-50 active:scale-[0.99] flex flex-col" onClick={() => onSelectRequest(r)}>
+                {/* Header Row */}
+                <div className="flex items-start justify-between gap-3 mb-1">
+                  <span className="text-[14px] font-bold text-slate-900 flex-1 min-w-0 uppercase leading-tight">{r.patient_name}</span>
+                  <div className={cn(
+                    "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider shrink-0",
+                    isApproved ? "bg-emerald-50 text-emerald-600" : isRej ? "bg-rose-50 text-rose-600" : "bg-blue-50 text-blue-600"
+                  )}>
+                    <div className={cn(
+                      "w-1.5 h-1.5 rounded-full shrink-0",
+                      isApproved ? "bg-emerald-500" : isRej ? "bg-rose-500" : "bg-blue-500"
+                    )} />
+                    {displayStatus(r).replace(/_/g, " ")}
+                  </div>
                 </div>
-
-                <div className={cn("mt-2 font-mono text-[11px] font-black", (isRejected(r) || isAwaitingDelete(r)) ? "text-rose-700" : r.authorization_code ? "text-slate-800" : "text-slate-400")}>
-                  {codeOrDecisionText(r)}
-                </div>
-              </div>
-              
-              {/* Right Column: Status, Date, Actions */}
-              <div className="flex flex-col items-end shrink-0 w-28 gap-1.5 text-right">
-                {statusBadge(displayStatus(r))}
-                {isAwaitingDelete(r) && (
-                  <Badge variant="outline" className="rounded-md border-amber-200 bg-amber-50 px-2 py-0.5 text-[9px] font-black uppercase text-amber-700">Delete pending</Badge>
-                )}
                 
-                <span className="text-[10px] font-mono font-bold text-slate-400 mt-0.5 whitespace-nowrap">
-                  {new Date(r.created_at).toLocaleDateString("en-GB", { day: '2-digit', month: 'short', year: '2-digit' })} • {new Date(r.created_at).toLocaleTimeString("en-GB", { hour: '2-digit', minute: '2-digit' })}
-                </span>
-
-                <div className="mt-auto pt-2 flex items-center justify-end gap-1.5">
-                  {role === "hospital" && r.status === "approved" && r.patient_email && !otpVerifiedStatus[r.id] ? (
-                    <div className="flex flex-col items-end gap-1" onClick={e => e.stopPropagation()}>
-                      {unlockingReqId === r.id ? (
-                        <div className="flex items-center gap-1">
-                          <Input autoFocus value={unlockOtpInput} onChange={e => setUnlockOtpInput(e.target.value)} placeholder="OTP" className="h-7 w-16 text-[10px] font-mono font-bold px-1.5" />
-                          <Button size="sm" onClick={(e) => handleUnlockOtp(r, e)} className="h-7 px-1.5 text-[10px]">Unlock</Button>
-                        </div>
-                      ) : (
-                        <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); setUnlockingReqId(r.id); }} className="h-7 px-2 text-[10px] border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100">
-                          🔒 Unlock
-                        </Button>
-                      )}
-                    </div>
-                  ) : null}
-
-                  {!isClaimsRole && !isAwaitingDelete(r) && (
-                    <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onDeleteRequest(r); }} className="h-7 w-7 text-slate-400 hover:text-rose-600 hover:bg-rose-50">
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                  )}
+                {/* Diagnosis */}
+                <div className="text-xs text-slate-500 mb-2 truncate font-medium">
+                  {r.diagnosis || "No diagnosis recorded"}
                 </div>
+
+                {/* Referral */}
+                {r.referred_hospital_name && (
+                  <div className="text-[11px] font-semibold text-purple-600 bg-purple-50 px-2 py-1 rounded-md inline-block max-w-full truncate mb-3">
+                    Referral to: {r.referred_hospital_name}
+                  </div>
+                )}
+                {isRej && rejectionReason(r) && (
+                  <div className="text-[11px] font-semibold text-rose-600 bg-rose-50 px-2 py-1 rounded-md inline-block max-w-full line-clamp-2 mb-3">
+                    Reason: {rejectionReason(r)}
+                  </div>
+                )}
+
+                {/* Body / Actions */}
+                <div className="flex justify-between items-end gap-3 mt-1 pt-3 border-t border-slate-100">
+                  <div className="flex flex-col gap-1 min-w-0">
+                    <span className="text-[11px] font-medium text-slate-400">
+                      {new Date(r.created_at).toLocaleDateString("en-GB", { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                    </span>
+                    <span className={cn("text-[11px] font-mono font-bold mt-1", (isRej || isAwaitingDelete(r)) ? "text-rose-600" : r.authorization_code ? "text-slate-800" : "text-slate-400")}>
+                      {codeOrDecisionText(r)}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    <Button variant="outline" size="sm" className="h-8 px-3 rounded-md text-xs font-semibold text-slate-600 border-slate-200 bg-white" onClick={(e) => { e.stopPropagation(); onSelectRequest(r); }}>
+                      View
+                    </Button>
+                    <Button variant="outline" size="icon" className="h-8 w-8 rounded-full text-slate-600 border-slate-200 bg-white" aria-label="Message" onClick={(e) => { e.stopPropagation(); toast({ title: "Opening messages...", description: "Feature available in detailed view." }); onSelectRequest(r); }}>
+                      <MessageSquare className="h-4 w-4" />
+                    </Button>
+                    {!isClaimsRole && !isAwaitingDelete(r) && (
+                      <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onDeleteRequest(r); }} className="h-8 w-8 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-full">
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+
+                {role === "hospital" && r.status === "approved" && r.patient_email && !otpVerifiedStatus[r.id] && (
+                  <div className="mt-3 pt-3 border-t border-slate-100 flex justify-end" onClick={e => e.stopPropagation()}>
+                    {unlockingReqId === r.id ? (
+                      <div className="flex items-center gap-2">
+                        <Input autoFocus value={unlockOtpInput} onChange={e => setUnlockOtpInput(e.target.value)} placeholder="OTP" className="h-8 w-20 text-xs font-mono font-bold px-2" />
+                        <Button size="sm" onClick={(e) => handleUnlockOtp(r, e)} className="h-8 px-3 text-xs bg-amber-500 hover:bg-amber-600 text-white">Unlock</Button>
+                      </div>
+                    ) : (
+                      <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); setUnlockingReqId(r.id); }} className="h-8 px-3 text-xs border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 rounded-md font-semibold">
+                        🔒 Unlock Code
+                      </Button>
+                    )}
+                  </div>
+                )}
               </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
     </>
