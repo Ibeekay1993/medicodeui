@@ -260,7 +260,7 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
             /* Main Clinical Review Layout Form */
             <div className="space-y-4">
               <div className="p-4 sm:p-5 rounded-2xl bg-slate-50 border border-slate-200 grid grid-cols-1 md:grid-cols-2 gap-y-3.5 gap-x-4 md:gap-x-6">
-                <div className="col-span-2 space-y-3.5">
+                <div className="col-span-1 md:col-span-2 space-y-3.5">
                   {/* Diagnosis field */}
                   <div className="space-y-1">
                     <Label className="text-xs uppercase font-black text-slate-700 tracking-wider pl-1">

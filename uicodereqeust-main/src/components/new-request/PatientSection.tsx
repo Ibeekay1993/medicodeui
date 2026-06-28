@@ -138,21 +138,25 @@ export default function PatientSection({
             Patient Email <span className="text-rose-500">*</span>
           </Label>
           <div className="flex items-center gap-2 bg-slate-50 sm:bg-transparent p-2 sm:p-0 rounded-lg border sm:border-none border-slate-200">
-            <Checkbox 
-              id="no-email-checkbox" 
-              checked={patientEmail === "no-email@medicode.com"}
-              className="h-4 w-4 min-h-[16px] min-w-[16px] max-h-[16px] max-w-[16px] shrink-0 flex-none rounded-[4px] border-slate-300 data-[state=checked]:bg-[#10B981] data-[state=checked]:border-[#10B981]"
-              onCheckedChange={(checked) => {
-                if (checked) {
-                  setPatientEmail("no-email@medicode.com");
-                } else {
-                  setPatientEmail("");
-                }
-              }}
-            />
-            <Label htmlFor="no-email-checkbox" className="text-xs font-semibold text-slate-700 cursor-pointer">
-              Patient does not have an email
-            </Label>
+            <label className="flex items-center gap-2.5 cursor-pointer w-fit group mt-0.5">
+              <div className="relative inline-flex h-5 w-9 items-center rounded-full transition-colors duration-300 ease-in-out shadow-inner" style={{ backgroundColor: patientEmail === "no-email@medicode.com" ? '#334155' : '#e2e8f0' }}>
+                <input 
+                  type="checkbox" 
+                  className="peer sr-only"
+                  checked={patientEmail === "no-email@medicode.com"}
+                  onChange={(e) => {
+                    const val = e.target.checked;
+                    if (val) {
+                      setPatientEmail("no-email@medicode.com");
+                    } else if (patientEmail === "no-email@medicode.com") {
+                      setPatientEmail("");
+                    }
+                  }}
+                />
+                <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition duration-300 ease-in-out shadow-sm ${patientEmail === "no-email@medicode.com" ? 'translate-x-4.5' : 'translate-x-1'}`} />
+              </div>
+              <span className="text-xs font-semibold text-slate-700 tracking-wider select-none">Patient does not have an email</span>
+            </label>
           </div>
         </div>
         
