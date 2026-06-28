@@ -252,16 +252,9 @@ serve(async (req) => {
       }
 
       // 2. Pre-generate OTP so it appears immediately in utilization_manager queue
-      if (requestRow.patient_email) {
-        void invokeFunction("send-otp", {
-          authorization_id: requestRow.id,
-          patient_email: requestRow.patient_email,
-          policy_number: requestRow.policy_number,
-          otp_type: "ARRIVAL",
-          hospital_id: finalReferredHospitalId || requestRow.hospital_id,
-        });
-      }
-
+      // NOTE: Removed OTP generation here per user request. The OTP generated
+      // during request creation will be used instead.
+      
       return new Response(
         JSON.stringify({
           success: true,

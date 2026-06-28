@@ -157,7 +157,7 @@ export function RequestList({
                   </td>
                   <td className="px-4 py-4 font-mono text-sm font-bold text-slate-700">{r.policy_number || "-"}</td>
                   <td className="px-4 py-4">
-                    {role === "hospital" && r.status === "approved" && r.patient_email && !otpVerifiedStatus[r.id] ? (
+                    {role === "hospital" && r.status === "approved" && !otpVerifiedStatus[r.id] ? (
                       <div className="flex flex-col gap-1.5" onClick={e => e.stopPropagation()}>
                         {unlockingReqId === r.id ? (
                           <div className="flex items-center gap-1">
@@ -346,7 +346,7 @@ export function RequestList({
                   </div>
                 </div>
 
-                {role === "hospital" && r.status === "approved" && r.patient_email && !otpVerifiedStatus[r.id] && (
+                {role === "hospital" && r.status === "approved" && !otpVerifiedStatus[r.id] && (
                   <div className="mt-3 pt-3 border-t border-slate-100 flex justify-end" onClick={e => e.stopPropagation()}>
                     {unlockingReqId === r.id ? (
                       <div className="flex items-center gap-2">
