@@ -46,6 +46,8 @@ export class ChunkErrorBoundary extends React.Component<Props, State> {
       message.includes("Importing a module script failed") ||
       message.includes("ChunkLoadError") ||
       message === "[object Event]" ||
+      message === "Error" ||
+      message === "TypeError" ||
       (typeof error === 'object' && error?.type === 'error');
 
     if (isChunkError) {
