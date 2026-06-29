@@ -141,6 +141,11 @@ export class ChunkErrorBoundary extends React.Component<Props, State> {
             <p className="mt-3 text-xs md:text-sm font-semibold text-slate-500 leading-relaxed max-w-sm mx-auto">
               We encountered a problem loading this part of the page. This is usually due to a newly deployed update or a temporary network disruption.
             </p>
+            {this.state.error && (
+              <div className="mt-4 p-3 bg-rose-50 border border-rose-100 rounded-lg text-left overflow-auto max-h-32">
+                <p className="text-[10px] font-mono text-rose-600 break-words font-semibold">{this.state.error.message}</p>
+              </div>
+            )}
 
             {/* Action Buttons */}
             <div className="mt-6 flex flex-col gap-3">
