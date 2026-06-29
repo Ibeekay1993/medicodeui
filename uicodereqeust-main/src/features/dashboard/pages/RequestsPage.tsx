@@ -80,7 +80,7 @@ export default function RequestsPage() {
       let q = supabase.from("authorization_requests").select("*", { count: "exact" }).order("created_at", { ascending: false });
       if (search) q = q.or(`patient_name.ilike.%${search}%,policy_number.ilike.%${search}%,request_id.ilike.%${search}%,authorization_code.ilike.%${search}%`);
       if (statusFilter === "action_required") {
-        q = q.in("status", ["pending", "pending_referral", "info_provided"]);
+        q = q.in("status", ["pending", "pending_referral", "pending_authorization", "info_provided"]);
       } else if (statusFilter !== "all") {
         q = q.eq("status", statusFilter);
       }
