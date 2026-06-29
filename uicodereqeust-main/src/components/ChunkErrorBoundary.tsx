@@ -154,6 +154,11 @@ export class ChunkErrorBoundary extends React.Component<Props, State> {
                   String: {String(this.state.error)} | 
                   JSON: {JSON.stringify(this.state.error)}
                 </p>
+                {this.state.errorInfo?.componentStack && (
+                  <pre className="mt-2 text-[9px] font-mono text-slate-600 whitespace-pre-wrap">
+                    {this.state.errorInfo.componentStack}
+                  </pre>
+                )}
               </div>
             )}
 
