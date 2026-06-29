@@ -44,11 +44,11 @@ export function AppRoutes() {
             <Route path="/register" element={<Register />} />
 
             {/* Domain route modules — one component per role portal */}
-            <HospitalRoutes />
-            <AdminRoutes />
-            <UtilizationRoutes />
-            <ClaimsRoutes />
-            <FinanceRoutes />
+            {HospitalRoutes()}
+            {AdminRoutes()}
+            {UtilizationRoutes()}
+            {ClaimsRoutes()}
+            {FinanceRoutes()}
 
             {/* Fallback routes */}
             <Route path="/unauthorized" element={<UnauthorizedPage />} />
