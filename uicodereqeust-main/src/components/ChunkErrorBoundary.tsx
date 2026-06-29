@@ -38,12 +38,15 @@ export class ChunkErrorBoundary extends React.Component<Props, State> {
     this.setState({ error, errorInfo });
     console.error("Workspace error caught by ErrorBoundary:", error, errorInfo);
 
-    const message = `${error?.message ?? ""} ${errorInfo?.componentStack ?? ""}`;
+    // Specifically check for chunk loading errors (both Vite and Webpack styles)
+    const message = error?.message || error?.toString() || '';
     const isChunkError =
       message.includes("Loading CSS chunk") ||
       message.includes("Failed to fetch dynamically imported module") ||
       message.includes("Importing a module script failed") ||
-      message.includes("ChunkLoadError");
+      message.includes("ChunkLoadError") ||
+      message === "[object Event]" ||
+      (typeof error === 'object' && error?.type === 'error');
 
     if (isChunkError) {
       const lastAutoReload = sessionStorage.getItem("last_auto_reload_time");
@@ -143,7 +146,12 @@ export class ChunkErrorBoundary extends React.Component<Props, State> {
             </p>
             {this.state.error && (
               <div className="mt-4 p-3 bg-rose-50 border border-rose-100 rounded-lg text-left overflow-auto max-h-32">
-                <p className="text-[10px] font-mono text-rose-600 break-words font-semibold">{this.state.error.message}</p>
+                <p className="text-[10px] font-mono text-rose-600 break-words font-semibold">
+                  Type: {this.state.error?.constructor?.name || "Unknown"} | 
+                  Msg: {this.state.error?.message || "none"} | 
+                  String: {String(this.state.error)} | 
+                  JSON: {JSON.stringify(this.state.error)}
+                </p>
               </div>
             )}
 
