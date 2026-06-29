@@ -25,7 +25,7 @@ export default function ClaimsFilterHeader({
   uniqueHospitals
 }: ClaimsFilterHeaderProps) {
   return (
-    <div className="premium-card bg-white/80 backdrop-blur-md p-4 rounded-xl border border-slate-100 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4 mb-2 transition-all duration-300 hover:shadow-md">
+    <div className="premium-card bg-white/80 backdrop-blur-md p-4 rounded-xl border border-slate-100 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4 mb-2 transition-all duration-300 hover:shadow-md relative z-[100]">
       <div className="flex items-center gap-4">
         <h2 className="text-lg font-black text-slate-900 tracking-tight">Claims Ledger</h2>
         <Tabs value={statusTab === 'pending' ? 'pending' : 'all'} onValueChange={(val: any) => setStatusTab(val)} className="w-auto hidden sm:block">
