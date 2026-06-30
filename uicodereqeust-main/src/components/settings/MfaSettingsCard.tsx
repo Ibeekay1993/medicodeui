@@ -41,7 +41,6 @@ export default function MfaSettingsCard({ user, fullName }: MfaSettingsCardProps
     try {
       const friendlyName = fullName || user?.email || "User";
 
-      // Clean up any lingering unverified factors that might block this enrollment with a naming conflict
       const { data: factorsData } = await supabase.auth.mfa.listFactors();
       if (factorsData?.all) {
         for (const factor of factorsData.all) {
@@ -63,7 +62,6 @@ export default function MfaSettingsCard({ user, fullName }: MfaSettingsCardProps
     } finally {
       setIsEnrolling(false);
     }
-  };
   };
 
   const handleVerify = async () => {
@@ -92,9 +90,6 @@ export default function MfaSettingsCard({ user, fullName }: MfaSettingsCardProps
       setIsVerifying(false);
     }
   };
-
-  // Unenrollment is now exclusively handled by Admins on the Users page
-  // Users cannot voluntarily disable their MFA when it is globally enforced.
 
   return (
     <Card className="rounded-xl border-slate-100 bg-white shadow-sm overflow-hidden">
@@ -144,7 +139,6 @@ export default function MfaSettingsCard({ user, fullName }: MfaSettingsCardProps
             </p>
             <div className="flex gap-4 items-center justify-center">
               <div className="p-3 bg-white rounded-xl border border-slate-100 shadow-inner">
-                {/* Use the URI rather than the raw SVG string to prevent Data Too Long errors */}
                 <QRCodeSVG value={enrollData.totp.uri} size={120} level="H" />
               </div>
               <div className="space-y-2 flex-1 max-w-[200px]">
