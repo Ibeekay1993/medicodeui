@@ -41,11 +41,11 @@ export default function MfaSetup() {
       try {
         const friendlyName = fullName || user.email || "User";
         
-        // Clean up unverified lingering factors
+        // Clean up any unverified lingering factors (regardless of name) to prevent collision
         const { data: factorsData } = await supabase.auth.mfa.listFactors();
         if (factorsData?.all) {
           for (const factor of factorsData.all) {
-            if (factor.status === "unverified" && factor.friendly_name === friendlyName) {
+            if (factor.status === "unverified") {
               await supabase.auth.mfa.unenroll({ factorId: factor.id });
             }
           }
