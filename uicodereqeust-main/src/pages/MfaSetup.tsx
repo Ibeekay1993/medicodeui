@@ -39,7 +39,8 @@ export default function MfaSetup() {
       setMfaVerified(false);
       
       try {
-        const friendlyName = fullName || user.email || "User";
+        // Use a generic name instead of the user's email to prevent email exposure in the Authenticator App
+        const friendlyName = "Authorized User";
         
         // Clean up unverified lingering factors
         const { data: factorsData } = await supabase.auth.mfa.listFactors();
