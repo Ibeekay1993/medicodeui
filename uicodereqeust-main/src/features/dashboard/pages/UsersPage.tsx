@@ -20,6 +20,7 @@ import {
   X,
   ShieldOff,
   ShieldAlert,
+  ShieldCheck,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -103,6 +104,16 @@ export default function UsersPage() {
 
       if (rolesError) throw rolesError;
 
+      const { data: mfaData, error: mfaError } = await supabase.rpc("admin_get_users_mfa_status");
+      if (mfaError) console.warn("Could not load MFA status", mfaError);
+      
+      const mfaMap = new Map();
+      if (mfaData) {
+        mfaData.forEach((row: any) => {
+          mfaMap.set(row.user_id, row.mfa_enabled);
+        });
+      }
+
       const formatted = (userRoles || []).map((ur: any) => ({
         id: ur.id,
         user_id: ur.user_id,
@@ -119,6 +130,7 @@ export default function UsersPage() {
         last_sign_in: ur.last_sign_in,
         onboarding_completed: ur.onboarding_completed,
         invite_status: ur.invite_status,
+        mfa_enabled: mfaMap.get(ur.user_id) || false,
       }));
 
       formatted.sort((a, b) => String(a.full_name || "").localeCompare(String(b.full_name || "")));
@@ -362,7 +374,14 @@ export default function UsersPage() {
                     return (
                       <tr key={item.id} className="group transition hover:bg-slate-50/50 h-14">
                         <td className="px-4 py-2.5 break-words whitespace-normal">
-                          <div className="font-semibold text-slate-900 leading-snug">{item.full_name || "Unnamed User"}</div>
+                          <div className="font-semibold text-slate-900 leading-snug flex items-center gap-2">
+                            {item.full_name || "Unnamed User"}
+                            {item.mfa_enabled && (
+                              <div className="flex items-center gap-1 bg-emerald-50 text-emerald-600 px-1.5 py-0.5 rounded text-[10px] uppercase font-bold tracking-widest border border-emerald-100 shrink-0" title="MFA Secured">
+                                <ShieldCheck className="w-3 h-3" /> MFA
+                              </div>
+                            )}
+                          </div>
                           {!item.full_name && <div className="text-xs text-rose-600 font-medium mt-0.5">Update name required</div>}
                           <div className="text-slate-400 font-mono text-xs mt-0.5 truncate leading-tight" title={item.email}>{item.email || "No email"}</div>
                           {item.phone && <div className="text-slate-400 text-xs mt-0.5 leading-tight">{item.phone}</div>}
