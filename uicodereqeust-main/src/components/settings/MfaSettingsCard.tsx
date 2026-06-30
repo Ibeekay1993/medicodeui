@@ -39,8 +39,7 @@ export default function MfaSettingsCard({ user, fullName }: MfaSettingsCardProps
   const handleEnroll = async () => {
     setIsEnrolling(true);
     try {
-      // Use a generic name instead of the user's email to prevent email exposure in the Authenticator App
-      const friendlyName = "Authorized User";
+      const friendlyName = fullName || user?.email || "User";
 
       const { data: factorsData } = await supabase.auth.mfa.listFactors();
       if (factorsData?.all) {
