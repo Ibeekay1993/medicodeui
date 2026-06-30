@@ -68,7 +68,7 @@ serve(async (req) => {
       console.error("Error reading daily_report_settings policy:", policyError)
     }
 
-    let recipientEmail = Deno.env.get("DAILY_REPORT_EMAIL") || 'ronsbergercallcentre@gmail.com'
+    let recipientEmail = Deno.env.get("DAILY_REPORT_EMAIL") || ''
     let isEnabled = true
 
     if (policyData && policyData.value) {
@@ -83,6 +83,14 @@ serve(async (req) => {
     // If daily report is disabled and not forced, skip execution
     if (!isEnabled && !forceSend) {
       return new Response(JSON.stringify({ message: "Daily report automation is disabled. Skipping email." }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200,
+      })
+    }
+
+    // If no recipient email is configured, skip execution
+    if (!recipientEmail) {
+      return new Response(JSON.stringify({ message: "No recipient email configured. Please set an email in the Settings page." }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 200,
       })
