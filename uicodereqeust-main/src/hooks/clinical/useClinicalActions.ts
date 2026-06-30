@@ -22,6 +22,8 @@ interface UseClinicalActionsProps {
   onClose: () => void;
   onUpdated: () => void;
   initialOtpValue?: string;
+  editTreatment: string;
+  setEditTreatment: (value: string) => void;
 }
 
 export function useClinicalActions({
@@ -32,6 +34,8 @@ export function useClinicalActions({
   onClose,
   onUpdated,
   initialOtpValue,
+  editTreatment,
+  setEditTreatment,
 }: UseClinicalActionsProps) {
   const { toast } = useToast();
   const { user, fullName, role } = useAuth();
@@ -42,7 +46,6 @@ export function useClinicalActions({
   >(null);
 
   const [editDiagnosis, setEditDiagnosis] = useState("");
-  const [editTreatment, setEditTreatment] = useState("");
   const [editReferralHospitalId, setEditReferralHospitalId] = useState<string | null>(null);
   const [editReferralHospitalName, setEditReferralHospitalName] = useState("");
   const [referralCollapsed, setReferralCollapsed] = useState(true);
@@ -83,7 +86,6 @@ export function useClinicalActions({
   useEffect(() => {
     if (open && request) {
       setEditDiagnosis(request.diagnosis || "");
-      setEditTreatment(request.treatment || "");
       setEditReferralHospitalId(request.referred_hospital_id || null);
       setEditReferralHospitalName(request.referred_hospital_name || "");
       setReferralCollapsed(!request.referred_hospital_name);

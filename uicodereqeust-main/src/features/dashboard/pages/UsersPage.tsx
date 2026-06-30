@@ -18,6 +18,8 @@ import {
   UserPlus,
   UserX,
   X,
+  ShieldOff,
+  ShieldAlert,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -48,6 +50,7 @@ import {
   ResetPasswordModal,
   AccessStatusModal,
   DeleteUserModal,
+  UnenrollMfaModal,
 } from "@/components/users/ActionModals";
 
 export default function UsersPage() {
@@ -64,11 +67,13 @@ export default function UsersPage() {
   const [nameRequests, setNameRequests] = useState<any[]>([]);
   const [loadingRequests, setLoadingRequests] = useState(false);
   const [actioningRequest, setActioningRequest] = useState<{ id: string; action: "approved" | "rejected" } | null>(null);
+  const [isUpdatingAccess, setIsUpdatingAccess] = useState(false);
   const [editingUser, setEditingUser] = useState<any | null>(null);
   const [resetTarget, setResetTarget] = useState<any | null>(null);
   const [accessTarget, setAccessTarget] = useState<any | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
   const [resendingUserId, setResendingUserId] = useState<string | null>(null);
+  const [mfaUnenrollTarget, setMfaUnenrollTarget] = useState<any | null>(null);
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
@@ -116,7 +121,6 @@ export default function UsersPage() {
         invite_status: ur.invite_status,
       }));
 
-      // Sort alphabetically by full name
       formatted.sort((a, b) => String(a.full_name || "").localeCompare(String(b.full_name || "")));
 
       setUsers(formatted);
@@ -199,7 +203,6 @@ export default function UsersPage() {
     if (role !== "admin") return;
     setResendingUserId(targetUser.id);
     try {
-      console.log("Resending invitation for user:", targetUser.email);
       const { data, error } = await supabase.functions.invoke("invite-user", {
         method: "POST",
         body: {
@@ -228,6 +231,32 @@ export default function UsersPage() {
       });
     } finally {
       setResendingUserId(null);
+    }
+  };
+
+  const handleUnenrollMFA = async () => {
+    if (!mfaUnenrollTarget) return;
+    try {
+      setIsUpdatingAccess(true);
+      const { error } = await supabase.rpc("admin_unenroll_mfa", {
+        p_user_id: mfaUnenrollTarget.user_id,
+      });
+      if (error) throw error;
+
+      toast({
+        title: "MFA Unenrolled",
+        description: `MFA has been removed for ${mfaUnenrollTarget.full_name || "User"}.`,
+      });
+      setMfaUnenrollTarget(null);
+    } catch (e: any) {
+      console.error(e);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: e.message || "Failed to unenroll MFA.",
+      });
+    } finally {
+      setIsUpdatingAccess(false);
     }
   };
 
@@ -378,6 +407,9 @@ export default function UsersPage() {
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => setDeleteTarget(item)} className="cursor-pointer text-rose-600 focus:text-rose-700 focus:bg-rose-50">
                                 <Trash2 className="mr-2 h-3.5 w-3.5" /> Delete User
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => setMfaUnenrollTarget(item)} className="cursor-pointer text-rose-600 focus:text-rose-700 focus:bg-rose-50">
+                                <ShieldOff className="mr-2 h-3.5 w-3.5" /> Unenroll MFA
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
@@ -543,6 +575,23 @@ export default function UsersPage() {
           );
         }}
       />
+      <AlertDialog open={!!mfaUnenrollTarget} onOpenChange={(o) => !o && setMfaUnenrollTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Unenroll User MFA?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to remove two-factor authentication for{" "}
+              <strong>{mfaUnenrollTarget?.full_name || mfaUnenrollTarget?.email}</strong>? They will be unprotected and may be forced to re-enroll on their next login if the global policy requires it.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <Button variant="destructive" onClick={handleUnenrollMFA} disabled={isUpdatingAccess}>
+              {isUpdatingAccess ? "Unenrolling..." : "Unenroll MFA"}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

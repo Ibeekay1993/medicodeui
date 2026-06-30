@@ -23,7 +23,7 @@ export default function AdminControlsCard({ user }: AdminControlsCardProps) {
   const [savingPolicy, setSavingPolicy] = useState(false);
 
   // Daily Pre-Auth Report Email state
-  const [reportEmail, setReportEmail] = useState("afolayanibukun33@gmail.com");
+  const [reportEmail, setReportEmail] = useState("");
   const [reportEnabled, setReportEnabled] = useState(true);
   const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [isTriggeringReport, setIsTriggeringReport] = useState(false);
@@ -51,7 +51,7 @@ export default function AdminControlsCard({ user }: AdminControlsCardProps) {
         .maybeSingle();
       if (error) throw error;
       if (data && (data as any).value) {
-        setReportEmail((data as any).value.email || "afolayanibukun33@gmail.com");
+        setReportEmail((data as any).value.email || "");
         setReportEnabled((data as any).value.enabled !== false);
       }
     } catch (e) {

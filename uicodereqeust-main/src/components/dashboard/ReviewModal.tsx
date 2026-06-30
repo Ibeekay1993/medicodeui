@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import {
@@ -57,8 +57,17 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
   const requestPatientName = cleanPatientName(request?.patient_name || "");
   const requestPolicyNumber = String(request?.policy_number || "").trim();
 
-  // 2. Initialize manual/auto tariff search hook
-  const tariffSearch = useTariffSearch(open, request?.treatment || "", request, isHospitalDirected);
+  // 2. Add local state for editTreatment
+  const [editTreatment, setEditTreatment] = useState("");
+
+  useEffect(() => {
+    if (open && request) {
+      setEditTreatment(request.treatment || "");
+    }
+  }, [open, request]);
+
+  // 3. Initialize manual/auto tariff search hook
+  const tariffSearch = useTariffSearch(open, editTreatment, request, isHospitalDirected);
 
   // 3. Initialize decision & saving actions hook
   const actions = useClinicalActions({
@@ -69,6 +78,8 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
     onClose,
     onUpdated,
     initialOtpValue: otpValue,
+    editTreatment,
+    setEditTreatment,
   });
 
   // 4. Initialize verification validation hook

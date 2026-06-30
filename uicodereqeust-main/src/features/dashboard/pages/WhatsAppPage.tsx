@@ -198,6 +198,31 @@ export default function WhatsAppPage() {
          data.hospital_name = "";
       }
 
+      // Auto-Detect NHIA Items
+      let detectedItems: any[] = [];
+      if (data.treatment) {
+        try {
+          const { data: parseResult, error: parseError } = await supabase.functions.invoke("parse-request-text", {
+            body: { text: data.treatment },
+          });
+          if (!parseError && parseResult?.items) {
+            detectedItems = parseResult.items.map((item: any) => ({
+              code: item.code,
+              name: item.name,
+              category: item.category,
+              amount: Number(item.amount || 0),
+              unit_price: Number(item.unit_price || 0),
+              quantity: Number(item.quantity || 1),
+              matched_via: item.matched_via,
+              confidence: item.confidence,
+            }));
+          }
+        } catch (e) {
+          console.error("Auto-detect failed during WhatsApp parse:", e);
+        }
+      }
+      data.approved_items = detectedItems;
+
       if (data.referral_hospital_name) {
          const searchName = data.referral_hospital_name.split(" ").slice(0, 3).join(" ");
          const { data: matchedReferralHospitals } = await supabase
@@ -259,6 +284,7 @@ export default function WhatsAppPage() {
         claiming_hospital_name: parsedData.referral_hospital_name || hospitalName,
         patient_phone: parsedData.patient_phone || null,
         clinical_notes: parsedData.clinical_notes || null,
+        approved_items: parsedData.approved_items || [],
         whatsapp_raw_message: rawText,
         status: "pending",
         source: "whatsapp_parser",
@@ -385,6 +411,22 @@ export default function WhatsAppPage() {
                     <p className="text-xs font-black uppercase tracking-widest text-slate-400">Treatment / Services</p>
                     <p className="font-semibold text-slate-900 border-b border-slate-200 pb-1 break-words">{parsedData.treatment || "---"}</p>
                   </div>
+                  
+                  {parsedData.approved_items && parsedData.approved_items.length > 0 && (
+                    <div className="space-y-2 col-span-2 rounded-xl border border-emerald-100 bg-emerald-50/30 p-3 mt-1">
+                      <p className="text-xs font-black uppercase tracking-widest text-emerald-700 flex items-center gap-1.5">
+                        <Wand2 className="h-3.5 w-3.5" /> Auto-Detected Items
+                      </p>
+                      <div className="space-y-1.5 max-h-[150px] overflow-auto pr-1">
+                        {parsedData.approved_items.map((item: any, idx: number) => (
+                          <div key={idx} className="flex justify-between items-start text-xs bg-white p-2 rounded-lg border border-emerald-100/50 shadow-xs">
+                            <div className="font-bold text-slate-800">{item.name}</div>
+                            <div className="font-mono text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded font-bold ml-2 whitespace-nowrap border border-emerald-100/50">{item.code}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   {parsedData.clinical_notes && (
                     <div className="space-y-1 col-span-2">
                       <p className="text-xs font-black uppercase tracking-widest text-blue-500">Referral Notes</p>

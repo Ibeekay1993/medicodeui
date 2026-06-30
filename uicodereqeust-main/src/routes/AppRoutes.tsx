@@ -4,7 +4,7 @@ import { PageLoader } from "@/components/PageLoader";
 import { ChunkErrorBoundary } from "@/components/ChunkErrorBoundary";
 import ScrollToTop from "@/components/ScrollToTop";
 import { DeployVersionWatcher } from "@/components/DeployVersionWatcher";
-import { SessionTimeoutWatcher } from "@/components/SessionTimeoutWatcher";
+
 import { TabStatePreserver } from "@/components/TabStatePreserver";
 import { RootRedirect } from "./RootRedirect";
 import { UnauthorizedPage } from "./UnauthorizedPage";
@@ -16,6 +16,7 @@ import { FinanceRoutes } from "./FinanceRoutes";
 
 const Login = lazy(() => import("@/pages/Login"));
 const ResetPassword = lazy(() => import("@/pages/ResetPassword"));
+const MfaSetup = lazy(() => import("@/pages/MfaSetup"));
 const Register = lazy(() => import("@/pages/Register"));
 const NotFound = lazy(() => import("@/pages/NotFound"));
 
@@ -31,13 +32,16 @@ export function AppRoutes() {
       {/* Application-level side effects — order matters */}
       <ScrollToTop />
       <DeployVersionWatcher />
-      <SessionTimeoutWatcher />
+
       <TabStatePreserver />
 
       <ChunkErrorBoundary>
         <Suspense fallback={<PageLoader />}>
           <Routes>
-            {/* Public routes */}
+            {/* MFA Forced Setup */}
+            <Route path="/mfa-setup" element={<MfaSetup />} />
+        
+            {/* Protected Dashboard Base Routes */}
             <Route path="/" element={<RootRedirect />} />
             <Route path="/login" element={<Login />} />
             <Route path="/reset-password" element={<ResetPassword />} />

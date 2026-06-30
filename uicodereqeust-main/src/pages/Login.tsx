@@ -55,15 +55,29 @@ export default function Login() {
       if (typeof window !== "undefined") {
         window.sessionStorage.removeItem("ronsberger-intended-path");
       }
-      if (fromPath) {
-        navigate(fromPath, { replace: true });
+      
+      // If session is active, verify they don't have a pending MFA challenge
+      // Hospitals are currently exempted from MFA
+      if (role === "hospital") {
+        navigate("/dashboard", { replace: true });
         return;
       }
-      if (role === "hospital") navigate("/dashboard", { replace: true });
-      else if (role === "admin") navigate("/backoffice/admin", { replace: true });
-      else if (role === "utilization_manager") navigate("/backoffice/utilization-manager", { replace: true });
-      else if (role === "claims") navigate("/backoffice/claims", { replace: true });
-      else navigate("/", { replace: true });
+
+      supabase.auth.mfa.getAuthenticatorAssuranceLevel().then(({ data }) => {
+        if (data && data.nextLevel === "aal2" && data.currentLevel === "aal1") {
+          setShowMfa(true);
+        } else {
+          if (fromPath) {
+            navigate(fromPath, { replace: true });
+            return;
+          }
+          if (role === "hospital") navigate("/dashboard", { replace: true });
+          else if (role === "admin") navigate("/backoffice/admin", { replace: true });
+          else if (role === "utilization_manager") navigate("/backoffice/utilization-manager", { replace: true });
+          else if (role === "claims") navigate("/backoffice/claims", { replace: true });
+          else navigate("/", { replace: true });
+        }
+      });
     }
   }, [session, loading, role, navigate, showMfa, fromPath]);
 
