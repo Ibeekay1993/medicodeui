@@ -68,7 +68,7 @@ serve(async (req) => {
       console.error("Error reading daily_report_settings policy:", policyError)
     }
 
-    let recipientEmail = Deno.env.get("DAILY_REPORT_EMAIL") || 'ayobolanleafolayan@gmail.com'
+    let recipientEmail = Deno.env.get("DAILY_REPORT_EMAIL") || 'ronsbergercallcentre@gmail.com'
     let isEnabled = true
 
     if (policyData && policyData.value) {
