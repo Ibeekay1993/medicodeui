@@ -45,7 +45,7 @@ export class ClaimsService {
   }): Promise<{ claims: ClaimDraft[]; total: number }> {
     let query: any = supabase
       .from("hospital_claims" as any)
-      .select("*", { count: "exact" });
+      .select("*", { count: "estimated" });
 
     if (hospitalId !== "all") {
       query = query.eq("hospital_id", hospitalId);

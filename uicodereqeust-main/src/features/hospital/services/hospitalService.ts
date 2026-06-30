@@ -156,7 +156,7 @@ export class HospitalService {
 
     let query = supabase
       .from("authorization_requests")
-      .select("*", { count: "exact" })
+      .select("*", { count: "estimated" })
       .eq("is_historical", false)
       .or(idQuery.join(","));
 
@@ -253,7 +253,7 @@ export class HospitalService {
 
     let query: any = supabase
       .from("hospital_claims" as any)
-      .select("*", { count: "exact" })
+      .select("*", { count: "estimated" })
       .or(orQuery.join(","));
 
     if (searchTerm.trim()) {

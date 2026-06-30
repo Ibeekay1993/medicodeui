@@ -263,13 +263,13 @@ export default function DashboardHome() {
         console.warn("get_dashboard_stats RPC failed or not found, falling back to legacy queries:", rpcError);
         if (isClaimsRole) {
           const [allClaims, approvedClaims, rejectedClaims, pendingClaims, hospitalsRes, usersRes, historicalClaims] = await Promise.all([
-            supabase.from("hospital_claims" as any).select("*", { count: "exact", head: true }),
-            supabase.from("hospital_claims" as any).select("*", { count: "exact", head: true }).eq("status", "approved"),
-            supabase.from("hospital_claims" as any).select("*", { count: "exact", head: true }).eq("status", "rejected"),
-            supabase.from("hospital_claims" as any).select("*", { count: "exact", head: true }).or("status.eq.submitted,status.eq.pending"),
-            supabase.from("hospitals").select("*", { count: "exact", head: true }),
-            supabase.from("user_roles").select("id", { count: "exact", head: true }),
-            supabase.from("historical_codes" as any).select("*", { count: "exact", head: true }).eq("record_type", "claim"),
+            supabase.from("hospital_claims" as any).select("*", { count: "estimated", head: true }),
+            supabase.from("hospital_claims" as any).select("*", { count: "estimated", head: true }).eq("status", "approved"),
+            supabase.from("hospital_claims" as any).select("*", { count: "estimated", head: true }).eq("status", "rejected"),
+            supabase.from("hospital_claims" as any).select("*", { count: "estimated", head: true }).or("status.eq.submitted,status.eq.pending"),
+            supabase.from("hospitals").select("*", { count: "estimated", head: true }),
+            supabase.from("user_roles").select("id", { count: "estimated", head: true }),
+            supabase.from("historical_codes" as any).select("*", { count: "estimated", head: true }).eq("record_type", "claim"),
           ]);
           setStats({
             total: (allClaims.count || 0) + (historicalClaims.count || 0),
@@ -294,15 +294,15 @@ export default function DashboardHome() {
           setClaimChartData(claimRows);
         } else {
           const [totalRes, approvedRes, rejectedRes, pendingRes, hospitalsRes, usersRes, authChartRes, claimChartRes2, historicalAuths] = await Promise.all([
-            supabase.from("authorization_requests").select("*", { count: "exact", head: true }),
-            supabase.from("authorization_requests").select("*", { count: "exact", head: true }).eq("status", "approved"),
-            supabase.from("authorization_requests").select("*", { count: "exact", head: true }).eq("status", "rejected"),
-            supabase.from("authorization_requests").select("*", { count: "exact", head: true }).eq("status", "pending"),
-            supabase.from("hospitals").select("*", { count: "exact", head: true }),
-            supabase.from("user_roles").select("id", { count: "exact", head: true }),
+            supabase.from("authorization_requests").select("*", { count: "estimated", head: true }),
+            supabase.from("authorization_requests").select("*", { count: "estimated", head: true }).eq("status", "approved"),
+            supabase.from("authorization_requests").select("*", { count: "estimated", head: true }).eq("status", "rejected"),
+            supabase.from("authorization_requests").select("*", { count: "estimated", head: true }).eq("status", "pending"),
+            supabase.from("hospitals").select("*", { count: "estimated", head: true }),
+            supabase.from("user_roles").select("id", { count: "estimated", head: true }),
             supabase.rpc("dashboard_live_activity_7d" as any),
             supabase.rpc("dashboard_claims_activity_7d" as any),
-            supabase.from("historical_codes" as any).select("*", { count: "exact", head: true }).eq("record_type", "authorization"),
+            supabase.from("historical_codes" as any).select("*", { count: "estimated", head: true }).eq("record_type", "authorization"),
           ]);
           setStats({
             total: (totalRes.count || 0) + (historicalAuths.count || 0),

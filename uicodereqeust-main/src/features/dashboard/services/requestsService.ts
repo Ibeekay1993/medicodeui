@@ -19,7 +19,7 @@ export class RequestsService {
 
     let q = supabase
       .from("authorization_requests")
-      .select("*", { count: "exact" })
+      .select("*", { count: "estimated" })
       .order("created_at", { ascending: false });
 
     if (role === "claims") {
