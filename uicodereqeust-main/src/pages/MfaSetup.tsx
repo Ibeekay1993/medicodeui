@@ -20,12 +20,17 @@ export default function MfaSetup() {
   const [isVerifying, setIsVerifying] = useState(false);
   const [initError, setInitError] = useState("");
   
+  const initRef = React.useRef(false);
+
   useEffect(() => {
     async function initMfa() {
       if (!session || !user) {
         setChecking(false);
         return;
       }
+      
+      if (initRef.current) return;
+      initRef.current = true;
       
       const { data, error } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
       if (!error && data) {
@@ -51,15 +56,42 @@ export default function MfaSetup() {
           }
         }
         
-        const { data: enrollRes, error: enrollErr } = await supabase.auth.mfa.enroll({
-          factorType: "totp",
-          issuer: "Ronsberger HMO",
-          friendlyName,
-        });
+        let currentEnrollData = null;
+        try {
+          const { data: enrollRes, error: enrollErr } = await supabase.auth.mfa.enroll({
+            factorType: "totp",
+            issuer: "Ronsberger HMO",
+            friendlyName,
+          });
+          if (enrollErr) throw enrollErr;
+          currentEnrollData = enrollRes;
+        } catch (enrollErr: any) {
+          // If we hit a collision because an unmounted component just created it in the background
+          if (enrollErr.message?.includes("already exists")) {
+            const { data: retryFactors } = await supabase.auth.mfa.listFactors();
+            if (retryFactors?.all) {
+              for (const factor of retryFactors.all) {
+                if (factor.status === "unverified") {
+                  await supabase.auth.mfa.unenroll({ factorId: factor.id });
+                }
+              }
+            }
+            // Retry enroll exactly once
+            const { data: retryRes, error: retryErr } = await supabase.auth.mfa.enroll({
+              factorType: "totp",
+              issuer: "Ronsberger HMO",
+              friendlyName,
+            });
+            if (retryErr) throw retryErr;
+            currentEnrollData = retryRes;
+          } else {
+            throw enrollErr;
+          }
+        }
         
-        if (enrollErr) throw enrollErr;
-        setEnrollData(enrollRes);
+        setEnrollData(currentEnrollData);
       } catch (err: any) {
+        // If we still hit a race condition collision, we can safely ignore it if enrollData was already set
         setInitError(err.message);
       }
       
