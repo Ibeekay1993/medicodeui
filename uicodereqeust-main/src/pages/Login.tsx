@@ -387,17 +387,35 @@ export default function Login() {
                     />
                   </div>
                 </div>
-                <Button
-                  type="submit"
-                  disabled={isLoading}
-                  className="h-12 w-full rounded-xl font-semibold bg-[#3f3f95] hover:bg-[#32327a] text-white shadow-lg shadow-[#3f3f95]/10 active:scale-95 transition-all"
-                >
-                  {isLoading ? (
-                    <Loader2 className="h-4 w-4 animate-spin mx-auto" />
-                  ) : (
-                    "Verify Identity"
-                  )}
-                </Button>
+                <div className="flex flex-col gap-3">
+                  <Button
+                    type="submit"
+                    disabled={isLoading}
+                    className="h-12 w-full rounded-xl font-semibold bg-[#3f3f95] hover:bg-[#32327a] text-white shadow-lg shadow-[#3f3f95]/10 active:scale-95 transition-all"
+                  >
+                    {isLoading ? (
+                      <Loader2 className="h-4 w-4 animate-spin mx-auto" />
+                    ) : (
+                      "Verify Identity"
+                    )}
+                  </Button>
+                  
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    disabled={isLoading}
+                    onClick={async () => {
+                      setIsLoading(true);
+                      await supabase.auth.signOut();
+                      setShowMfa(false);
+                      setMfaCode("");
+                      setIsLoading(false);
+                    }}
+                    className="h-12 w-full rounded-xl font-semibold text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-all"
+                  >
+                    Cancel & Sign Out
+                  </Button>
+                </div>
                 {error && (
                   <p className="text-center text-xs font-semibold text-rose-600 animate-in fade-in slide-in-from-bottom-1">
                     {error}
