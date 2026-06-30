@@ -40,10 +40,22 @@ export default function MfaSettingsCard({ user, fullName, autoEnroll = false }: 
   const handleEnroll = async () => {
     setIsEnrolling(true);
     try {
+      const friendlyName = fullName || user?.email || "User";
+
+      // Clean up any lingering unverified factors that might block this enrollment with a naming conflict
+      const { data: factorsData } = await supabase.auth.mfa.listFactors();
+      if (factorsData?.all) {
+        for (const factor of factorsData.all) {
+          if (factor.status === "unverified" && factor.friendly_name === friendlyName) {
+            await supabase.auth.mfa.unenroll({ factorId: factor.id });
+          }
+        }
+      }
+
       const { data, error } = await supabase.auth.mfa.enroll({
         factorType: "totp",
         issuer: "Ronsberger HMO",
-        friendlyName: fullName || user?.email || "User",
+        friendlyName,
       });
       if (error) throw error;
       setEnrollData(data);
