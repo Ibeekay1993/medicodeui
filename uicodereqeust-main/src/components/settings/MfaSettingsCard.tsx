@@ -11,9 +11,10 @@ import { cn } from "@/lib/utils";
 interface MfaSettingsCardProps {
   user: any;
   fullName: string | null;
+  autoEnroll?: boolean;
 }
 
-export default function MfaSettingsCard({ user, fullName }: MfaSettingsCardProps) {
+export default function MfaSettingsCard({ user, fullName, autoEnroll = false }: MfaSettingsCardProps) {
   const { toast } = useToast();
   const [mfaEnabled, setMfaEnabled] = useState(false);
   const [isEnrolling, setIsEnrolling] = useState(false);
@@ -42,7 +43,7 @@ export default function MfaSettingsCard({ user, fullName }: MfaSettingsCardProps
       const { data, error } = await supabase.auth.mfa.enroll({
         factorType: "totp",
         issuer: "Ronsberger HMO",
-        friendlyName: fullName || "User",
+        friendlyName: fullName || user?.email || "User",
       });
       if (error) throw error;
       setEnrollData(data);
@@ -52,6 +53,12 @@ export default function MfaSettingsCard({ user, fullName }: MfaSettingsCardProps
       setIsEnrolling(false);
     }
   };
+
+  useEffect(() => {
+    if (autoEnroll && !mfaEnabled && !isEnrolling && !enrollData) {
+      handleEnroll();
+    }
+  }, [autoEnroll, mfaEnabled, enrollData]);
 
   const handleVerify = async () => {
     if (!enrollData) return;
@@ -146,7 +153,8 @@ export default function MfaSettingsCard({ user, fullName }: MfaSettingsCardProps
             </p>
             <div className="flex gap-4 items-center justify-center">
               <div className="p-3 bg-white rounded-xl border border-slate-100 shadow-inner">
-                <QRCodeSVG value={enrollData.totp.qr_code} size={120} level="H" />
+                {/* Use the URI rather than the raw SVG string to prevent Data Too Long errors */}
+                <QRCodeSVG value={enrollData.totp.uri} size={120} level="H" />
               </div>
               <div className="space-y-2 flex-1 max-w-[200px]">
                 <Input

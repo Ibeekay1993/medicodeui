@@ -63,7 +63,7 @@ export default function MfaSetup() {
         </div>
         
         {user && (
-          <MfaSettingsCard user={user} fullName={fullName || user?.email || ""} />
+          <MfaSettingsCard user={user} fullName={fullName || user?.email || ""} autoEnroll={true} />
         )}
         
         <div className="mt-8 text-center">
