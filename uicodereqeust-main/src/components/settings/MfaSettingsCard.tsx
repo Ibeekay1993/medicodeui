@@ -11,10 +11,9 @@ import { cn } from "@/lib/utils";
 interface MfaSettingsCardProps {
   user: any;
   fullName: string | null;
-  autoEnroll?: boolean;
 }
 
-export default function MfaSettingsCard({ user, fullName, autoEnroll = false }: MfaSettingsCardProps) {
+export default function MfaSettingsCard({ user, fullName }: MfaSettingsCardProps) {
   const { toast } = useToast();
   const [mfaEnabled, setMfaEnabled] = useState(false);
   const [isEnrolling, setIsEnrolling] = useState(false);
@@ -65,12 +64,7 @@ export default function MfaSettingsCard({ user, fullName, autoEnroll = false }: 
       setIsEnrolling(false);
     }
   };
-
-  useEffect(() => {
-    if (autoEnroll && !mfaEnabled && !isEnrolling && !enrollData) {
-      handleEnroll();
-    }
-  }, [autoEnroll, mfaEnabled, enrollData]);
+  };
 
   const handleVerify = async () => {
     if (!enrollData) return;
@@ -99,19 +93,8 @@ export default function MfaSettingsCard({ user, fullName, autoEnroll = false }: 
     }
   };
 
-  const handleUnenroll = async () => {
-    const { data } = await supabase.auth.mfa.listFactors();
-    const factor = data?.all.find((f) => f.status === "verified");
-    if (!factor) return;
-
-    const { error } = await supabase.auth.mfa.unenroll({ factorId: factor.id });
-    if (error) {
-      toast({ variant: "destructive", title: "Action Failed", description: error.message });
-    } else {
-      toast({ title: "MFA Disabled", description: "Two-factor authentication has been removed." });
-      setMfaEnabled(false);
-    }
-  };
+  // Unenrollment is now exclusively handled by Admins on the Users page
+  // Users cannot voluntarily disable their MFA when it is globally enforced.
 
   return (
     <Card className="rounded-xl border-slate-100 bg-white shadow-sm overflow-hidden">
@@ -140,13 +123,9 @@ export default function MfaSettingsCard({ user, fullName, autoEnroll = false }: 
               </div>
             </div>
             {mfaEnabled ? (
-              <Button
-                variant="outline"
-                onClick={handleUnenroll}
-                className="h-8 px-4 shrink-0 rounded-lg text-xs font-black uppercase tracking-widest border-rose-100 text-rose-600 hover:bg-rose-50"
-              >
-                Disable
-              </Button>
+              <div className="h-8 px-4 flex items-center shrink-0 rounded-lg text-xs font-black uppercase tracking-widest bg-emerald-100 text-emerald-700">
+                Secured
+              </div>
             ) : (
               <Button
                 onClick={handleEnroll}
