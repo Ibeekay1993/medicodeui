@@ -3,7 +3,8 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Loader2, FileSpreadsheet, FileText, CheckCircle2, Clock, FileBox, Coins } from "lucide-react";
 import { useFinanceReports } from "../hooks/usePayments";
-import * as XLSX from "xlsx";
+import * as ExcelJS from "exceljs";
+import { saveAs } from "file-saver";
 import { toast } from "@/components/ui/use-toast";
 
 export default function FinanceReportsPage() {
@@ -57,73 +58,169 @@ export default function FinanceReportsPage() {
     [stats]
   );
 
-  const exportExcel = () => {
+  const exportExcel = async () => {
     if (!data) return;
 
-    const workbook = XLSX.utils.book_new();
+    try {
+      toast({ title: "Preparing Export", description: "Generating premium finance dashboard..." });
 
-    const summaryData = [
-      ["Finance Report Summary"],
-      ["Generated At", new Date().toLocaleString()],
-      [],
-      ["Metric", "Count", "Value"],
-      ["Awaiting Payments", stats.awaitingCount, stats.awaitingValue],
-      ["Paid Claims", stats.paidCount, stats.paidValue],
-      ["Draft Batches", stats.draftBatches, "-"],
-      ["Ready for Payout Batches", stats.readyBatches, "-"],
-      ["Settled Batches", stats.paidBatches, "-"],
-      ["Total Batches Value", "-", stats.totalBatchesValue],
-    ];
-    const wsSummary = XLSX.utils.aoa_to_sheet(summaryData);
-    XLSX.utils.book_append_sheet(workbook, wsSummary, "Summary");
+      const workbook = new ExcelJS.Workbook();
+      workbook.creator = "Medicode System";
+      workbook.created = new Date();
 
-    if (stats.awaitingList && stats.awaitingList.length > 0) {
-      const awaitingData = stats.awaitingList.map((c: any) => ({
-        "Claim Number": c.claim_number,
-        "Hospital": c.hospital_name,
-        "Patient": c.patient_name,
-        "Policy Number": c.policy_number,
-        "Status": c.status,
-        "Payment Status": c.payment_status,
-        "Total Amount": c.total_amount,
-        "Approved Amount": c.approved_amount,
-        "Submitted At": c.submitted_at ? new Date(c.submitted_at).toLocaleDateString() : "",
-      }));
-      const wsAwaiting = XLSX.utils.json_to_sheet(awaitingData);
-      XLSX.utils.book_append_sheet(workbook, wsAwaiting, "Awaiting Payments");
+      const theme = {
+        primary: "FF1E3A8A", // Blue
+        success: "FF10B981", // Green
+        danger: "FFEF4444",  // Red
+        warning: "FFF59E0B", // Amber
+        bg: "FFF8FAFC",      // Light Gray
+        text: "FF374151",    // Dark Gray
+      };
+
+      const headerFill: ExcelJS.FillPattern = {
+        type: "pattern",
+        pattern: "solid",
+        fgColor: { argb: theme.primary },
+      };
+
+      const headerFont: ExcelJS.Font = {
+        color: { argb: "FFFFFFFF" },
+        bold: true,
+        size: 12,
+      };
+
+      const currencyFormat = '"₦"#,##0';
+
+      // ── SHEET 1: Summary ──────────────────────────────────────────────
+      const ws1 = workbook.addWorksheet("Finance Summary", {
+        views: [{ showGridLines: false }],
+        properties: { tabColor: { argb: theme.primary } },
+      });
+
+      ws1.columns = [{ width: 35 }, { width: 25 }, { width: 25 }];
+
+      ws1.addRow(["FINANCE EXECUTIVE DASHBOARD"]).font = { size: 16, bold: true, color: { argb: theme.primary } };
+      ws1.addRow([]);
+
+      const kpiHeader = ws1.addRow(["METRIC", "COUNT", "VALUE"]);
+      kpiHeader.font = headerFont;
+      kpiHeader.fill = headerFill;
+
+      const pushKPI = (metric: string, count: any, value: any, colorArgb?: string) => {
+        const row = ws1.addRow([metric, count, value]);
+        row.getCell(1).font = { bold: true };
+        row.getCell(2).alignment = { horizontal: 'right' };
+        
+        const valCell = row.getCell(3);
+        valCell.font = { bold: true, size: 14, color: colorArgb ? { argb: colorArgb } : undefined };
+        valCell.alignment = { horizontal: 'right' };
+        if (value !== "-") valCell.numFmt = currencyFormat;
+      };
+
+      pushKPI("Awaiting Payments", stats.awaitingCount, stats.awaitingValue, theme.warning);
+      pushKPI("Paid Claims", stats.paidCount, stats.paidValue, theme.success);
+      pushKPI("Draft Batches", stats.draftBatches, "-");
+      pushKPI("Ready for Payout Batches", stats.readyBatches, "-");
+      pushKPI("Settled Batches", stats.paidBatches, "-");
+      pushKPI("Total Batches Value", "-", stats.totalBatchesValue, theme.primary);
+
+      ws1.addRow([]);
+      const metaHeader = ws1.addRow(["REPORT METADATA", "", ""]);
+      metaHeader.font = headerFont;
+      metaHeader.fill = headerFill;
+      ws1.mergeCells(`A${metaHeader.number}:C${metaHeader.number}`);
+      ws1.addRow(["Generated", new Date().toLocaleString(), ""]);
+
+      // Helper to generate styled detailed sheets
+      const addDetailedSheet = (name: string, tabColor: string, columns: any[], rowsData: any[]) => {
+        if (!rowsData || rowsData.length === 0) return;
+        
+        const ws = workbook.addWorksheet(name, {
+          views: [{ state: 'frozen', xSplit: 0, ySplit: 1 }],
+          properties: { tabColor: { argb: tabColor } },
+        });
+
+        ws.columns = columns;
+        ws.getRow(1).font = headerFont;
+        ws.getRow(1).fill = headerFill;
+
+        for (const row of rowsData) {
+          ws.addRow(row);
+        }
+
+        // Apply currency format to amount columns
+        columns.forEach((col, idx) => {
+          if (col.isCurrency) {
+            ws.getColumn(idx + 1).numFmt = currencyFormat;
+          }
+        });
+
+        ws.autoFilter = { from: { row: 1, column: 1 }, to: { row: Math.max(1, rowsData.length), column: columns.length } };
+      };
+
+      // ── SHEET 2: Awaiting Payments ────────────────────────────────────
+      const claimCols = [
+        { header: "Claim Number", key: "claim_number", width: 20 },
+        { header: "Hospital", key: "hospital_name", width: 35 },
+        { header: "Patient", key: "patient_name", width: 25 },
+        { header: "Policy Number", key: "policy_number", width: 20 },
+        { header: "Status", key: "status", width: 15 },
+        { header: "Payment Status", key: "payment_status", width: 20 },
+        { header: "Total Amount", key: "total_amount", width: 20, isCurrency: true },
+        { header: "Approved Amount", key: "approved_amount", width: 20, isCurrency: true },
+        { header: "Submitted At", key: "submitted_at", width: 20 },
+        { header: "Paid At", key: "paid_at", width: 20 },
+      ];
+
+      addDetailedSheet(
+        "Awaiting Payments", 
+        theme.warning, 
+        claimCols, 
+        (stats.awaitingList || []).map((c: any) => ({
+          ...c,
+          submitted_at: c.submitted_at ? new Date(c.submitted_at).toLocaleDateString() : ""
+        }))
+      );
+
+      // ── SHEET 3: Paid Claims ──────────────────────────────────────────
+      addDetailedSheet(
+        "Paid Claims", 
+        theme.success, 
+        claimCols, 
+        (stats.paidList || []).map((c: any) => ({
+          ...c,
+          paid_at: c.paid_at ? new Date(c.paid_at).toLocaleString() : ""
+        }))
+      );
+
+      // ── SHEET 4: Batches ──────────────────────────────────────────────
+      addDetailedSheet(
+        "Batches", 
+        theme.primary, 
+        [
+          { header: "Batch ID", key: "id", width: 35 },
+          { header: "Status", key: "status", width: 15 },
+          { header: "Total Amount", key: "total_amount", width: 20, isCurrency: true },
+          { header: "Claims Count", key: "claims_count", width: 15 },
+          { header: "Created At", key: "created_at", width: 20 },
+          { header: "Paid At", key: "paid_at", width: 20 },
+        ], 
+        (stats.batchesList || []).map((b: any) => ({
+          ...b,
+          created_at: b.created_at ? new Date(b.created_at).toLocaleString() : "",
+          paid_at: b.paid_at ? new Date(b.paid_at).toLocaleString() : ""
+        }))
+      );
+
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+      saveAs(blob, `Finance_Dashboard_${new Date().toISOString().split("T")[0]}.xlsx`);
+      toast({ title: "Export Complete", description: "Your finance dashboard has been downloaded." });
+
+    } catch (err) {
+      console.error(err);
+      toast({ variant: "destructive", title: "Export Failed", description: "Failed to generate Excel dashboard." });
     }
-
-    if (stats.paidList && stats.paidList.length > 0) {
-      const paidData = stats.paidList.map((c: any) => ({
-        "Claim Number": c.claim_number,
-        "Hospital": c.hospital_name,
-        "Patient": c.patient_name,
-        "Policy Number": c.policy_number,
-        "Status": c.status,
-        "Payment Status": c.payment_status,
-        "Total Amount": c.total_amount,
-        "Approved Amount": c.approved_amount,
-        "Paid At": c.paid_at ? new Date(c.paid_at).toLocaleString() : "",
-      }));
-      const wsPaid = XLSX.utils.json_to_sheet(paidData);
-      XLSX.utils.book_append_sheet(workbook, wsPaid, "Paid Claims");
-    }
-
-    if (stats.batchesList && stats.batchesList.length > 0) {
-      const batchData = stats.batchesList.map((b: any) => ({
-        "Batch ID": b.id,
-        "Status": b.status,
-        "Total Amount": b.total_amount,
-        "Claims Count": b.claims_count,
-        "Created At": b.created_at ? new Date(b.created_at).toLocaleString() : "",
-        "Paid At": b.paid_at ? new Date(b.paid_at).toLocaleString() : "",
-      }));
-      const wsBatches = XLSX.utils.json_to_sheet(batchData);
-      XLSX.utils.book_append_sheet(workbook, wsBatches, "Batches");
-    }
-
-    XLSX.writeFile(workbook, `Finance_Report_${new Date().toISOString().split("T")[0]}.xlsx`);
-    toast({ title: "Export Complete", description: "Your finance report has been downloaded." });
   };
 
   const exportCSV = () => {

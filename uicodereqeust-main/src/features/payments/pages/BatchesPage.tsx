@@ -1,4 +1,6 @@
 import { useState, useMemo } from "react";
+import * as ExcelJS from "exceljs";
+import { saveAs } from "file-saver";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -138,6 +140,67 @@ export default function BatchesPage() {
       toast({ title: "Export Complete", description: "CSV sheet generated for bank transfer system." });
     } catch (err: any) {
       toast({ variant: "destructive", title: "Export Failed", description: err.message });
+    }
+  };
+
+  const handleExportExcel = async (batch: any) => {
+    try {
+      const claims = await PaymentsService.getBatchClaims(batch.id);
+
+      if (!claims || claims.length === 0) {
+        toast({ title: "No Claims Found", description: "This batch contains no claims." });
+        return;
+      }
+
+      toast({ title: "Preparing Export", description: "Generating premium Excel batch report..." });
+
+      const workbook = new ExcelJS.Workbook();
+      workbook.creator = "Medicode System";
+      
+      const theme = { primary: "FF1E3A8A", success: "FF10B981", danger: "FFEF4444", bg: "FFF8FAFC" };
+      const headerFill: ExcelJS.FillPattern = { type: "pattern", pattern: "solid", fgColor: { argb: theme.primary } };
+      const headerFont: ExcelJS.Font = { color: { argb: "FFFFFFFF" }, bold: true, size: 12 };
+      const currencyFormat = '"₦"#,##0';
+
+      const ws = workbook.addWorksheet("Batch Report", {
+        views: [{ state: 'frozen', xSplit: 0, ySplit: 1 }],
+        properties: { tabColor: { argb: theme.primary } },
+      });
+
+      ws.columns = [
+        { header: "Claim Number", key: "claimNum", width: 20 },
+        { header: "Patient Name", key: "patient", width: 25 },
+        { header: "Policy Number", key: "policy", width: 20 },
+        { header: "Hospital", key: "hospital", width: 35 },
+        { header: "Approved Amount", key: "appAmt", width: 20 },
+        { header: "Approved Date", key: "appDate", width: 20 },
+      ];
+
+      ws.getRow(1).font = headerFont;
+      ws.getRow(1).fill = headerFill;
+
+      for (const c of claims) {
+        ws.addRow({
+          claimNum: c.claim_number,
+          patient: c.patient_name,
+          policy: c.policy_number,
+          hospital: c.hospital_name,
+          appAmt: c.approved_amount || c.total_amount,
+          appDate: c.approved_at ? new Date(c.approved_at).toLocaleDateString("en-GB") : ""
+        });
+      }
+
+      ws.getColumn('appAmt').numFmt = currencyFormat;
+      ws.autoFilter = { from: { row: 1, column: 1 }, to: { row: Math.max(1, claims.length), column: 6 } };
+
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+      saveAs(blob, `Batch_Report_${batch.batch_reference}_${Date.now()}.xlsx`);
+
+      toast({ title: "Export Complete", description: "Premium Excel report generated." });
+    } catch (err: any) {
+      console.error(err);
+      toast({ variant: "destructive", title: "Export Failed", description: "Failed to generate Excel report." });
     }
   };
 
@@ -417,7 +480,14 @@ export default function BatchesPage() {
                           variant="outline"
                           className="bg-white border-slate-200 text-slate-600 font-bold text-xs uppercase tracking-wider h-7 px-2.5 rounded-lg gap-1"
                         >
-                          <Download className="h-3 w-3" /> Export Sheet
+                          <Download className="h-3 w-3" /> Bank CSV
+                        </Button>
+                        <Button
+                          onClick={() => handleExportExcel(batch)}
+                          variant="outline"
+                          className="bg-white border-slate-200 text-indigo-600 font-bold text-xs uppercase tracking-wider h-7 px-2.5 rounded-lg gap-1"
+                        >
+                          <FileSpreadsheet className="h-3 w-3" /> Excel Report
                         </Button>
                         {canSettlePayments && (
                           <Button
@@ -431,13 +501,22 @@ export default function BatchesPage() {
                     )}
 
                     {batch.status === "paid" && (
-                      <Button
-                        onClick={() => handleExportCSV(batch)}
-                        variant="outline"
-                        className="bg-white border-slate-200 text-slate-600 font-bold text-xs uppercase tracking-wider h-7 px-2.5 rounded-lg gap-1"
-                      >
-                        <Download className="h-3 w-3" /> Export Sheet
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button
+                          onClick={() => handleExportCSV(batch)}
+                          variant="outline"
+                          className="bg-white border-slate-200 text-slate-600 font-bold text-xs uppercase tracking-wider h-7 px-2.5 rounded-lg gap-1"
+                        >
+                          <Download className="h-3 w-3" /> Bank CSV
+                        </Button>
+                        <Button
+                          onClick={() => handleExportExcel(batch)}
+                          variant="outline"
+                          className="bg-white border-slate-200 text-indigo-600 font-bold text-xs uppercase tracking-wider h-7 px-2.5 rounded-lg gap-1"
+                        >
+                          <FileSpreadsheet className="h-3 w-3" /> Excel Report
+                        </Button>
+                      </div>
                     )}
                   </>
                 )}

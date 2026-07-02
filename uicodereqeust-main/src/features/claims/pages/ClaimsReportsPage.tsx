@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import * as XLSX from "xlsx";
+import * as ExcelJS from "exceljs";
+import { saveAs } from "file-saver";
 import { Download, Loader2, Search } from "lucide-react";
 import { ClaimsService } from "../services/claimsService";
 import { Button } from "@/components/ui/button";
@@ -159,44 +160,205 @@ export default function ClaimsReportsPage() {
     URL.revokeObjectURL(url);
   };
 
-  const exportXLSX = () => {
+  const exportXLSX = async () => {
     if (filtered.length === 0) {
       toast({ variant: "destructive", title: "No claims to export", description: "Adjust the filters and try again." });
       return;
     }
-    const workbook = XLSX.utils.book_new();
-    const summary = [
-      ["Claims Report"],
-      ["Generated", new Date().toLocaleString()],
-      ["Status", status],
-      ["Hospital", hospitalId === "all" ? "All Hospitals" : hospitals.find((h) => h.id === hospitalId)?.name || hospitalId],
-      ["Date From", startDate || "All time"],
-      ["Date To", endDate || "All time"],
-      [],
-      ["Claims", totals.count],
-      ["Original Value", totals.original],
-      ["Approved Value", totals.approved],
-      ["Declined/Savings", totals.declined],
-    ];
-    XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(summary), "Summary");
-    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(filtered.map((row) => ({
-      Date: row.created_at ? new Date(row.created_at).toLocaleDateString("en-GB") : "",
-      "Submitted Date": row.submitted_at ? new Date(row.submitted_at).toLocaleDateString("en-GB") : "",
-      "Claim Number": row.claim_number,
-      Hospital: row.hospital_name,
-      Patient: row.patient_name,
-      "Policy Number": row.policy_number,
-      "Authorization Code": row.auth_code,
-      Status: row.status,
-      "Original Amount": row.original_amount,
-      "Approved Amount": row.approved_amount,
-      "Declined Amount": row.declined_amount,
-      "Current Total": row.total_amount,
-      "Payment Reference": row.payment_reference,
-      "Paid At": row.paid_at ? new Date(row.paid_at).toLocaleString() : "",
-      "Audit Note": row.audit_note,
-    }))), "Claims");
-    XLSX.writeFile(workbook, `RonsbergerHMO_Claims_Report_${Date.now()}.xlsx`);
+
+    try {
+      toast({ title: "Preparing Export", description: "Generating premium Excel dashboard..." });
+
+      const workbook = new ExcelJS.Workbook();
+      workbook.creator = "Medicode System";
+      workbook.created = new Date();
+
+      const theme = {
+        primary: "FF1E3A8A", // Blue
+        success: "FF10B981", // Green
+        danger: "FFEF4444",  // Red
+        warning: "FFF59E0B", // Amber
+        bg: "FFF8FAFC",      // Light Gray
+        text: "FF374151",    // Dark Gray
+      };
+
+      const headerFill: ExcelJS.FillPattern = {
+        type: "pattern",
+        pattern: "solid",
+        fgColor: { argb: theme.primary },
+      };
+
+      const headerFont: ExcelJS.Font = {
+        color: { argb: "FFFFFFFF" },
+        bold: true,
+        size: 12,
+      };
+
+      const currencyFormat = '"₦"#,##0';
+
+      // ── SHEET 1: Executive Summary ───────────────────────────────────────
+      const ws1 = workbook.addWorksheet("Executive Summary", {
+        views: [{ showGridLines: false }],
+        properties: { tabColor: { argb: theme.primary } },
+      });
+
+      ws1.columns = [{ width: 35 }, { width: 25 }, { width: 45 }];
+
+      ws1.addRow(["CLAIMS EXECUTIVE DASHBOARD"]).font = { size: 16, bold: true, color: { argb: theme.primary } };
+      ws1.addRow([]);
+
+      const kpiHeader = ws1.addRow(["SUMMARY KPI", "", ""]);
+      kpiHeader.font = headerFont;
+      kpiHeader.fill = headerFill;
+      ws1.mergeCells(`A${kpiHeader.number}:C${kpiHeader.number}`);
+
+      const kpiSubHeader = ws1.addRow(["Metric", "Value", "Notes"]);
+      kpiSubHeader.font = { bold: true };
+      kpiSubHeader.border = { bottom: { style: 'thin', color: { argb: 'FFCCCCCC' } } };
+
+      const pushKPI = (kpi: string, value: any, note: string, isCurrency = false, colorArgb?: string) => {
+        const row = ws1.addRow([kpi, value, note]);
+        row.getCell(1).font = { bold: true };
+        const valCell = row.getCell(2);
+        valCell.font = { bold: true, size: 14, color: colorArgb ? { argb: colorArgb } : undefined };
+        valCell.alignment = { horizontal: 'right' };
+        if (isCurrency) valCell.numFmt = currencyFormat;
+      };
+
+      pushKPI("Total Claims", totals.count, "Number of claims matching filters");
+      pushKPI("Original Value", totals.original, "Total submitted value", true);
+      pushKPI("Approved Value", totals.approved, "Total approved for payment", true, theme.success);
+      pushKPI("Declined / Savings", totals.declined, "Total declined or adjusted", true, theme.danger);
+
+      ws1.addRow([]);
+      const metaHeader = ws1.addRow(["REPORT METADATA", "", ""]);
+      metaHeader.font = headerFont;
+      metaHeader.fill = headerFill;
+      ws1.mergeCells(`A${metaHeader.number}:C${metaHeader.number}`);
+      ws1.addRow(["Generated", new Date().toLocaleString(), ""]);
+      ws1.addRow(["Status Filter", status, ""]);
+      ws1.addRow(["Hospital", hospitalId === "all" ? "All Hospitals" : hospitals.find((h) => h.id === hospitalId)?.name || hospitalId, ""]);
+      ws1.addRow(["Date Range", `${startDate || "All time"} to ${endDate || "All time"}`, ""]);
+
+      // ── SHEET 2: Claims Analysis (Visual) ────────────────────────────────
+      const ws2 = workbook.addWorksheet("Claims Analysis", {
+        views: [{ state: 'frozen', xSplit: 0, ySplit: 1 }],
+        properties: { tabColor: { argb: theme.warning } },
+      });
+
+      ws2.columns = [
+        { header: "Hospital", key: "hospital", width: 35 },
+        { header: "Total Value", key: "total", width: 20 },
+        { header: "Approved Value", key: "approved", width: 20 },
+        { header: "Declined Value", key: "declined", width: 20 },
+      ];
+
+      ws2.getRow(1).font = headerFont;
+      ws2.getRow(1).fill = headerFill;
+
+      // Group by hospital for analysis
+      const hospData: Record<string, { total: number; approved: number; declined: number }> = {};
+      for (const row of filtered) {
+        const h = row.hospital_name || "Unknown";
+        if (!hospData[h]) hospData[h] = { total: 0, approved: 0, declined: 0 };
+        hospData[h].total += Number(row.total_amount) || 0;
+        hospData[h].approved += Number(row.approved_amount) || 0;
+        hospData[h].declined += Number(row.declined_amount) || 0;
+      }
+
+      const hospArr = Object.entries(hospData).sort((a, b) => b[1].total - a[1].total);
+      for (const [name, stats] of hospArr) {
+        ws2.addRow({
+          hospital: name,
+          total: stats.total,
+          approved: stats.approved,
+          declined: stats.declined
+        });
+      }
+
+      ws2.getColumn('total').numFmt = currencyFormat;
+      ws2.getColumn('approved').numFmt = currencyFormat;
+      ws2.getColumn('declined').numFmt = currencyFormat;
+
+      ws2.addConditionalFormatting({
+        ref: `B2:B${Math.max(2, hospArr.length + 1)}`,
+        rules: [{ type: 'dataBar', cfvo: [{ type: 'min' }, { type: 'max' }], color: { argb: theme.primary }, gradient: true }]
+      });
+      ws2.addConditionalFormatting({
+        ref: `C2:C${Math.max(2, hospArr.length + 1)}`,
+        rules: [{ type: 'dataBar', cfvo: [{ type: 'min' }, { type: 'max' }], color: { argb: theme.success }, gradient: true }]
+      });
+      ws2.addConditionalFormatting({
+        ref: `D2:D${Math.max(2, hospArr.length + 1)}`,
+        rules: [{ type: 'dataBar', cfvo: [{ type: 'min' }, { type: 'max' }], color: { argb: theme.danger }, gradient: true }]
+      });
+
+      // ── SHEET 3: Detailed Data ───────────────────────────────────────────
+      const ws3 = workbook.addWorksheet("Detailed Data", {
+        views: [{ state: 'frozen', xSplit: 0, ySplit: 1 }],
+        properties: { tabColor: { argb: theme.bg } },
+      });
+
+      ws3.columns = [
+        { header: "Date", key: "date", width: 15 },
+        { header: "Submitted Date", key: "subDate", width: 15 },
+        { header: "Claim Number", key: "claimNum", width: 20 },
+        { header: "Hospital", key: "hospital", width: 35 },
+        { header: "Patient", key: "patient", width: 25 },
+        { header: "Policy Number", key: "policy", width: 20 },
+        { header: "Auth Code", key: "authCode", width: 20 },
+        { header: "Status", key: "status", width: 15 },
+        { header: "Original Amount", key: "origAmt", width: 20 },
+        { header: "Approved Amount", key: "appAmt", width: 20 },
+        { header: "Declined Amount", key: "decAmt", width: 20 },
+        { header: "Current Total", key: "totalAmt", width: 20 },
+        { header: "Payment Ref", key: "payRef", width: 25 },
+        { header: "Paid At", key: "paidAt", width: 20 },
+        { header: "Audit Note", key: "auditNote", width: 40 },
+      ];
+
+      ws3.getRow(1).font = headerFont;
+      ws3.getRow(1).fill = headerFill;
+
+      for (const row of filtered) {
+        ws3.addRow({
+          date: row.created_at ? new Date(row.created_at).toLocaleDateString("en-GB") : "",
+          subDate: row.submitted_at ? new Date(row.submitted_at).toLocaleDateString("en-GB") : "",
+          claimNum: row.claim_number,
+          hospital: row.hospital_name,
+          patient: row.patient_name,
+          policy: row.policy_number,
+          authCode: row.auth_code,
+          status: row.status,
+          origAmt: row.original_amount,
+          appAmt: row.approved_amount,
+          decAmt: row.declined_amount,
+          totalAmt: row.total_amount,
+          payRef: row.payment_reference,
+          paidAt: row.paid_at ? new Date(row.paid_at).toLocaleString() : "",
+          auditNote: row.audit_note,
+        });
+      }
+
+      ws3.getColumn('origAmt').numFmt = currencyFormat;
+      ws3.getColumn('appAmt').numFmt = currencyFormat;
+      ws3.getColumn('decAmt').numFmt = currencyFormat;
+      ws3.getColumn('totalAmt').numFmt = currencyFormat;
+
+      ws3.autoFilter = {
+        from: { row: 1, column: 1 },
+        to: { row: Math.max(1, filtered.length), column: 15 }
+      };
+
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+      saveAs(blob, `RonsbergerHMO_Claims_Dashboard_${Date.now()}.xlsx`);
+      toast({ title: "Export Complete", description: "Your claims dashboard has been downloaded." });
+
+    } catch (error) {
+      console.error("Export error:", error);
+      toast({ variant: "destructive", title: "Export Failed", description: "There was an error generating the Excel file." });
+    }
   };
 
   const exportReconciliationXLSX = async () => {
@@ -205,21 +367,70 @@ export default function ClaimsReportsPage() {
       toast({ variant: "destructive", title: "No reconciliation data", description: "No matched authorization, claim, or payment rows were found." });
       return;
     }
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(rows.map((row: any) => ({
-      Hospital: row.hospital_name,
-      Patient: row.patient_name,
-      "Policy Number": row.policy_number,
-      "Authorization Code": row.auth_code,
-      "Authorized Amount": row.authorized_amount,
-      "Claim Number": row.claim_number,
-      "Claimed Amount": row.claimed_amount,
-      "Approved Amount": row.approved_amount,
-      "Paid Amount": row.paid_amount,
-      "Outstanding Balance": row.outstanding_balance,
-      Status: row.claim_status,
-    }))), "Reconciliation");
-    XLSX.writeFile(workbook, `RonsbergerHMO_Claims_Reconciliation_${Date.now()}.xlsx`);
+    
+    try {
+      toast({ title: "Preparing Export", description: "Generating reconciliation report..." });
+      const workbook = new ExcelJS.Workbook();
+      workbook.creator = "Medicode System";
+      
+      const theme = { primary: "FF1E3A8A", success: "FF10B981", danger: "FFEF4444", bg: "FFF8FAFC" };
+      const headerFill: ExcelJS.FillPattern = { type: "pattern", pattern: "solid", fgColor: { argb: theme.primary } };
+      const headerFont: ExcelJS.Font = { color: { argb: "FFFFFFFF" }, bold: true, size: 12 };
+      const currencyFormat = '"₦"#,##0';
+
+      const ws = workbook.addWorksheet("Reconciliation", {
+        views: [{ state: 'frozen', xSplit: 0, ySplit: 1 }],
+        properties: { tabColor: { argb: theme.bg } },
+      });
+
+      ws.columns = [
+        { header: "Hospital", key: "hospital", width: 35 },
+        { header: "Patient", key: "patient", width: 25 },
+        { header: "Policy Number", key: "policy", width: 20 },
+        { header: "Auth Code", key: "authCode", width: 20 },
+        { header: "Authorized Amount", key: "authAmt", width: 20 },
+        { header: "Claim Number", key: "claimNum", width: 20 },
+        { header: "Claimed Amount", key: "claimAmt", width: 20 },
+        { header: "Approved Amount", key: "appAmt", width: 20 },
+        { header: "Paid Amount", key: "paidAmt", width: 20 },
+        { header: "Outstanding Balance", key: "balAmt", width: 20 },
+        { header: "Status", key: "status", width: 15 },
+      ];
+
+      ws.getRow(1).font = headerFont;
+      ws.getRow(1).fill = headerFill;
+
+      for (const row of rows) {
+        ws.addRow({
+          hospital: row.hospital_name,
+          patient: row.patient_name,
+          policy: row.policy_number,
+          authCode: row.auth_code,
+          authAmt: row.authorized_amount,
+          claimNum: row.claim_number,
+          claimAmt: row.claimed_amount,
+          appAmt: row.approved_amount,
+          paidAmt: row.paid_amount,
+          balAmt: row.outstanding_balance,
+          status: row.claim_status,
+        });
+      }
+
+      ws.getColumn('authAmt').numFmt = currencyFormat;
+      ws.getColumn('claimAmt').numFmt = currencyFormat;
+      ws.getColumn('appAmt').numFmt = currencyFormat;
+      ws.getColumn('paidAmt').numFmt = currencyFormat;
+      ws.getColumn('balAmt').numFmt = currencyFormat;
+
+      ws.autoFilter = { from: { row: 1, column: 1 }, to: { row: Math.max(1, rows.length), column: 11 } };
+
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+      saveAs(blob, `RonsbergerHMO_Claims_Reconciliation_${Date.now()}.xlsx`);
+    } catch (err) {
+      console.error(err);
+      toast({ variant: "destructive", title: "Export Failed", description: "Failed to generate reconciliation Excel file." });
+    }
   };
 
 
