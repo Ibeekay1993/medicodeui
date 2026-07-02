@@ -32,8 +32,8 @@ export function FinanceRoutes() {
         <Route path="awaiting" element={<AwaitingPaymentPage />} />
         <Route path="batches" element={<BatchesPage />} />
         <Route path="paid" element={<PaidClaimsPage />} />
-        <Route path="reports" element={<FinanceReportsPage />} />
       </Route>
+      <Route path="payment-reports" element={<FinanceReportsPage />} />
       <Route path="settings" element={<SettingsPage />} />
     </Route>
   );

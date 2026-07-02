@@ -46,8 +46,8 @@ export function AdminRoutes() {
         <Route path="awaiting" element={<AwaitingPaymentPage />} />
         <Route path="batches" element={<BatchesPage />} />
         <Route path="paid" element={<PaidClaimsPage />} />
-        <Route path="reports" element={<FinanceReportsPage />} />
       </Route>
+      <Route path="payment-reports" element={<FinanceReportsPage />} />
       <Route path="messages" element={<SupportMessagesPage />} />
       <Route path="reports" element={<ReportsPage />} />
       <Route path="audit" element={<AuditLogsPage />} />
