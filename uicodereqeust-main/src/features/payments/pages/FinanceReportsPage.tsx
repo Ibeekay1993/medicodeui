@@ -314,27 +314,27 @@ export default function FinanceReportsPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         {cards.map((c) => {
           const isBatchCount = c.label.includes("Batches") && !c.label.includes("Value");
           return (
-            <Card key={c.label} className={`rounded-2xl border ${c.border} bg-gradient-to-br ${c.bg} shadow-sm overflow-hidden relative transition-all duration-200 hover:shadow-md hover:-translate-y-1`}>
-              <div className="p-6 relative z-10">
-                <div className="flex items-center justify-between mb-4">
-                  <p className="text-xs font-bold uppercase tracking-widest text-slate-500">{c.label}</p>
-                  <div className="p-2 bg-white rounded-lg shadow-sm">
+            <Card key={c.label} className={`rounded-xl border ${c.border} bg-gradient-to-br ${c.bg} shadow-sm overflow-hidden relative transition-all duration-200 hover:shadow-md hover:-translate-y-1`}>
+              <div className="p-4 relative z-10">
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">{c.label}</p>
+                  <div className="p-1.5 bg-white rounded-lg shadow-sm">
                     {c.icon}
                   </div>
                 </div>
-                <p className="text-3xl font-black text-slate-900 tracking-tight">
+                <p className="text-2xl font-black text-slate-900 tracking-tight">
                   {isBatchCount ? c.count.toLocaleString() : formatMoney(c.value)}
                 </p>
-                <div className="mt-3 flex items-center text-xs font-medium text-slate-600 bg-white/50 w-fit px-2.5 py-1 rounded-full">
+                <div className="mt-2 flex items-center text-[10px] font-medium text-slate-600 bg-white/50 w-fit px-2 py-0.5 rounded-full">
                   {isBatchCount ? "Total Count: " : "Claims Count: "}
                   <span className="ml-1 font-bold text-slate-900">{c.count.toLocaleString()}</span>
                 </div>
               </div>
-              <div className="absolute -right-6 -bottom-6 w-32 h-32 bg-white/40 rounded-full blur-2xl z-0 pointer-events-none" />
+              <div className="absolute -right-4 -bottom-4 w-24 h-24 bg-white/40 rounded-full blur-xl z-0 pointer-events-none" />
             </Card>
           );
         })}

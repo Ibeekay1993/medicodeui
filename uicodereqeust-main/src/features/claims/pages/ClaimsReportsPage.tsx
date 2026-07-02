@@ -459,7 +459,7 @@ export default function ClaimsReportsPage() {
         </DropdownMenu>
       </div>
 
-      <Card className="rounded-2xl border-slate-100 bg-white shadow-sm relative z-[100]">
+      <Card className="rounded-2xl border-slate-100 bg-white shadow-sm relative z-10">
         <CardContent className="grid gap-3 p-4 md:grid-cols-5">
           <div className="relative md:col-span-2">
             <Search className="absolute left-3 top-3 h-4 w-4 text-slate-300" />
