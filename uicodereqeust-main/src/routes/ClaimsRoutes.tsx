@@ -21,7 +21,7 @@ export function ClaimsRoutes() {
       path="/backoffice/claims"
       element={
         <ProtectedRoute
-          allowedRoles={["claims", "admin"]}
+          allowedRoles={["claims"]}
           loginPath="/login"
           fallbackPath="/unauthorized"
         >

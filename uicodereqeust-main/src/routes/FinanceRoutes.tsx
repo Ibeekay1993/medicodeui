@@ -18,7 +18,7 @@ export function FinanceRoutes() {
       path="/backoffice/finance"
       element={
         <ProtectedRoute
-          allowedRoles={["finance", "admin"]}
+          allowedRoles={["finance"]}
           loginPath="/login"
           fallbackPath="/unauthorized"
         >

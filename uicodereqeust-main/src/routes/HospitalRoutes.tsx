@@ -18,7 +18,7 @@ export function HospitalRoutes() {
       path="/dashboard"
       element={
         <ProtectedRoute
-          allowedRoles={["hospital", "admin", "utilization_manager", "claims"]}
+          allowedRoles={["hospital"]}
           loginPath="/login"
           fallbackPath="/unauthorized"
         >
@@ -26,38 +26,10 @@ export function HospitalRoutes() {
         </ProtectedRoute>
       }
     >
-      <Route
-        index
-        element={
-          <ProtectedRoute allowedRoles={["hospital"]} fallbackPath="/unauthorized">
-            <HospitalPortalPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="new-request"
-        element={
-          <ProtectedRoute allowedRoles={["hospital"]} fallbackPath="/unauthorized">
-            <HospitalNewRequest />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="authorizations"
-        element={
-          <ProtectedRoute allowedRoles={["hospital"]} fallbackPath="/unauthorized">
-            <HospitalAuthorizations />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="claims"
-        element={
-          <ProtectedRoute allowedRoles={["hospital"]} fallbackPath="/unauthorized">
-            <HospitalClaims />
-          </ProtectedRoute>
-        }
-      />
+      <Route index element={<HospitalPortalPage />} />
+      <Route path="new-request" element={<HospitalNewRequest />} />
+      <Route path="authorizations" element={<HospitalAuthorizations />} />
+      <Route path="claims" element={<HospitalClaims />} />
       <Route path="messages" element={<SupportMessagesPage />} />
       <Route path="settings" element={<SettingsPage />} />
     </Route>
