@@ -128,7 +128,8 @@ export default function ReferralTreatmentFormDialog({
           treatment: treatmentText,
           total_amount: total,
           approved_items: approvedPayload,
-          is_unlocked: false
+          is_unlocked: false,
+          treatment_submitted_at: new Date().toISOString()
         } as any)
         .eq("id", request.id);
 

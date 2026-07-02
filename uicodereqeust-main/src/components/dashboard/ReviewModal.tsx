@@ -290,10 +290,22 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
             <div className="space-y-4">
               <div className="p-4 sm:p-5 rounded-2xl bg-slate-50 border border-slate-200 grid grid-cols-1 md:grid-cols-2 gap-y-3.5 gap-x-4 md:gap-x-6">
                 <div className="col-span-1 md:col-span-2 space-y-3.5">
+                  {/* Referral Treatment Banner */}
+                  {request?.referred_hospital_name && ["pending_authorization"].includes(request?.status || "") && (
+                    <div className="p-3 rounded-xl bg-blue-50 border border-blue-100 flex items-start gap-3 shadow-sm mb-2">
+                      <div className="h-8 w-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center shrink-0 font-bold">ℹ</div>
+                      <div>
+                        <p className="text-sm font-black text-blue-900 leading-tight">Referral Treatment Review</p>
+                        <p className="text-xs text-blue-700 mt-0.5 font-medium">This is a treatment request submitted by the referred hospital. Please review the original diagnosis below.</p>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Diagnosis field */}
                   <div className="space-y-1">
-                    <Label className="text-xs uppercase font-black text-slate-700 tracking-wider pl-1">
-                      Diagnosis
+                    <Label className="text-xs uppercase font-black text-slate-700 tracking-wider pl-1 flex items-center gap-2">
+                      {request?.referred_hospital_name ? "Original Referral Diagnosis" : "Diagnosis"}
+                      {request?.referred_hospital_name && <span className="bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded text-[9px] uppercase font-bold tracking-widest">Referral</span>}
                     </Label>
                     <Input
                       placeholder="Diagnosis..."

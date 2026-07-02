@@ -12,6 +12,7 @@ const PaymentsLayout = lazy(() => import("@/features/payments/components/Payment
 const AwaitingPaymentPage = lazy(() => import("@/features/payments/pages/AwaitingPaymentPage"));
 const BatchesPage = lazy(() => import("@/features/payments/pages/BatchesPage"));
 const PaidClaimsPage = lazy(() => import("@/features/payments/pages/PaidClaimsPage"));
+const FinanceReportsPage = lazy(() => import("@/features/payments/pages/FinanceReportsPage"));
 const SupportMessagesPage = lazy(() => import("@/features/dashboard/pages/SupportMessagesPage"));
 const ReportsPage = lazy(() => import("@/features/dashboard/pages/ReportsPage"));
 const AuditLogsPage = lazy(() => import("@/features/dashboard/pages/AuditLogsPage"));
@@ -45,6 +46,7 @@ export function AdminRoutes() {
         <Route path="awaiting" element={<AwaitingPaymentPage />} />
         <Route path="batches" element={<BatchesPage />} />
         <Route path="paid" element={<PaidClaimsPage />} />
+        <Route path="reports" element={<FinanceReportsPage />} />
       </Route>
       <Route path="messages" element={<SupportMessagesPage />} />
       <Route path="reports" element={<ReportsPage />} />

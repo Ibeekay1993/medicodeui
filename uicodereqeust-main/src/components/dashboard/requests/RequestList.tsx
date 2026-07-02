@@ -245,7 +245,7 @@ export function RequestList({
                   <td className="px-4 py-4">
                     <div className="flex flex-col items-start gap-1.5">
                       {(() => {
-                        const created = new Date(r.created_at).getTime();
+                        const created = r.treatment_submitted_at ? new Date(r.treatment_submitted_at).getTime() : new Date(r.created_at).getTime();
                         const resolved = r.decided_at ? new Date(r.decided_at).getTime() : Date.now();
                         const diffMins = Math.round((resolved - created) / (1000 * 60));
                         const slaType = diffMins <= 15 ? "good" : diffMins <= 30 ? "warning" : "danger";

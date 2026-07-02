@@ -237,6 +237,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         { name: "Dashboard", href: basePath, icon: Activity },
         { name: "Claims Queue", href: `${basePath}/all`, icon: Banknote },
         { name: "Claims Analysis", href: `${basePath}/analysis`, icon: LayoutDashboard },
+        { name: "Payments", href: `${basePath}/payments/awaiting`, icon: Banknote },
         { name: "Claims Reports", href: `${basePath}/reports`, icon: FileSpreadsheet },
         { name: "Messages", href: `${basePath}/messages`, icon: MessageSquare, badge: actionableMessages },
         { name: "Settings", href: `${basePath}/settings`, icon: Settings }
@@ -247,7 +248,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       return [
         { name: "Dashboard", href: basePath, icon: Activity },
         { name: "Payments", href: `${basePath}/payments/awaiting`, icon: Banknote },
-        { name: "Reports", href: `${basePath}/reports`, icon: FileSpreadsheet },
+        { name: "Payment Reports", href: `${basePath}/payment-reports`, icon: FileSpreadsheet },
         { name: "Settings", href: `${basePath}/settings`, icon: Settings }
       ];
     }
@@ -262,6 +263,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       
       { name: "Claims Analysis", href: `${basePath}/claims-analysis`, icon: LayoutDashboard, hidden: r !== "admin" },
       { name: "Claims Reports", href: `${basePath}/claims-reports`, icon: FileSpreadsheet, hidden: r !== "admin" },
+      { name: "Payment Reports", href: `${basePath}/payment-reports`, icon: FileSpreadsheet, hidden: r !== "admin" },
       { name: "Pre-Auth Report", href: `${basePath}/reports`, icon: LayoutDashboard, hidden: r === "hospital" || r === "claims" || r === "finance" },
       
       { name: "Hospitals", href: `${basePath}/hospitals`, icon: Building2, hidden: r !== "admin" },
@@ -334,8 +336,11 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     if (path.startsWith("/backoffice/finance/payments/paid")) {
       return { title: "Paid Claims", description: "History of paid and settled claims" };
     }
-    if (path.startsWith("/backoffice/finance/reports")) {
-      return { title: "Claims Reports", description: "Download claims queue, payment, and audit reports" };
+    if (path.startsWith("/backoffice/finance/payment-reports")) {
+      return { title: "Payment Reports", description: "Payment & settlement activity overview" };
+    }
+    if (path.startsWith("/backoffice/admin/payment-reports")) {
+      return { title: "Payment Reports", description: "Payment & settlement activity overview" };
     }
     if (path.startsWith("/backoffice/finance/settings")) {
       return { title: "Settings", description: "Manage security policies & account details" };
