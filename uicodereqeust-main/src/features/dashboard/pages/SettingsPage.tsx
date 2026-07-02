@@ -16,7 +16,7 @@ export default function SettingsPage() {
         refreshProfile={refreshProfile}
       />
 
-      <MfaSettingsCard user={user} fullName={fullName} />
+      {role !== "hospital" && <MfaSettingsCard user={user} fullName={fullName} role={role} />}
 
       {role === "admin" && <AdminControlsCard user={user} />}
     </div>

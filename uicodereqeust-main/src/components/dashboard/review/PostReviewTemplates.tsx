@@ -174,7 +174,7 @@ export const PostReviewTemplates = React.memo(function PostReviewTemplates({
           </p>
           <p className="flex flex-wrap justify-between gap-1 pb-1">
             <strong className="text-slate-500 uppercase tracking-wider text-xs">Registry Date:</strong>
-            <span className="font-bold text-slate-800">{new Date().toLocaleDateString("en-GB")}</span>
+            <span className="font-bold text-slate-800">{new Date(request?.created_at || new Date()).toLocaleDateString("en-GB")}</span>
           </p>
         </div>
 

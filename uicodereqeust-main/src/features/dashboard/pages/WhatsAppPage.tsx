@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -57,8 +57,8 @@ export default function WhatsAppPage() {
   const normalizeLine = (value: string) =>
     value
       .replace(/\r/g, "")
-      .replace(/[*•]/g, "")
-      .replace(/^[\s\-–—•]+/, "")
+      .replace(/[\*\u2022]/g, "")
+      .replace(/^[\s\-\u2013\u2014\u2022]+/, "")
       .trim();
 
   const isSectionHeader = (line: string) =>
@@ -267,35 +267,69 @@ export default function WhatsAppPage() {
         }
       }
 
-      const { error } = await supabase.from("authorization_requests").insert([{
-        patient_name: parsedData.patient_name,
-        policy_number: parsedData.policy_number,
-        diagnosis: parsedData.diagnosis,
-        treatment: parsedData.treatment,
-        hospital_name: hospitalName,
-        hospital_id: hospitalId,
-        requesting_hospital_id: hospitalId,
-        requesting_hospital_name: hospitalName,
-        referring_hospital_id: hospitalId,
-        referring_hospital_name: hospitalName,
-        referred_hospital_id: parsedData.referral_hospital_id || null,
-        referred_hospital_name: parsedData.referral_hospital_name || null,
-        claiming_hospital_id: parsedData.referral_hospital_id || hospitalId,
-        claiming_hospital_name: parsedData.referral_hospital_name || hospitalName,
-        patient_phone: parsedData.patient_phone || null,
-        clinical_notes: parsedData.clinical_notes || null,
-        approved_items: parsedData.approved_items || [],
-        whatsapp_raw_message: rawText,
-        status: "pending",
-        source: "whatsapp_parser",
-        submitted_by: user?.id,
-        request_id: `REQ-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
-        urgency: "routine"
-      }]);
-
+      const { data: insertedRequest, error } = await supabase
+        .from("authorization_requests")
+        .insert([{
+          patient_name: parsedData.patient_name,
+          policy_number: parsedData.policy_number,
+          diagnosis: parsedData.diagnosis,
+          treatment: parsedData.treatment,
+          hospital_name: hospitalName,
+          hospital_id: hospitalId,
+          requesting_hospital_id: hospitalId,
+          requesting_hospital_name: hospitalName,
+          referring_hospital_id: hospitalId,
+          referring_hospital_name: hospitalName,
+          referred_hospital_id: parsedData.referral_hospital_id || null,
+          referred_hospital_name: parsedData.referral_hospital_name || null,
+          claiming_hospital_id: parsedData.referral_hospital_id || hospitalId,
+          claiming_hospital_name: parsedData.referral_hospital_name || hospitalName,
+          patient_phone: parsedData.patient_phone || null,
+          clinical_notes: parsedData.clinical_notes || null,
+          approved_items: parsedData.approved_items || [],
+          whatsapp_raw_message: rawText,
+          status: "pending",
+          source: "whatsapp_parser",
+          submitted_by: user?.id,
+          request_id: `REQ-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
+          urgency: "routine"
+        }])
+        .select("id")
+        .single();
       if (error) throw error;
-      
-      toast({ title: "Request Created", description: "The authorization request has been added to the queue." });
+      if (!insertedRequest?.id) throw new Error("Request created but no ID returned");
+
+      try {
+        const { error: otpError } = await supabase.functions.invoke("send-otp", {
+          method: "POST",
+          body: {
+            authorization_id: insertedRequest.id,
+            patient_email: "no-email@medicode.com",
+            policy_number: parsedData.policy_number || undefined,
+            otp_type: "ARRIVAL",
+            hospital_id: hospitalId || null,
+          },
+        });
+
+        if (otpError) {
+          console.warn("WhatsApp PIN generation failed:", otpError);
+          toast({
+            variant: "destructive",
+            title: "Request saved",
+            description: "The request was queued, but PIN generation needs attention.",
+          });
+        } else {
+          toast({ title: "Request Created", description: "The authorization request has been added to the queue and PIN was generated." });
+        }
+      } catch (otpGenerationError: any) {
+        console.warn("WhatsApp PIN generation exception:", otpGenerationError);
+        toast({
+          variant: "destructive",
+          title: "Request saved",
+          description: "The request was queued, but PIN generation needs attention.",
+        });
+      }
+
       setRawText("");
       setParsedData(null);
     } catch (error: any) {
@@ -453,3 +487,5 @@ export default function WhatsAppPage() {
     </div>
   );
 }
+
+

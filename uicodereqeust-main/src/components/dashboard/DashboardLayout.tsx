@@ -547,7 +547,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         </header>
 
         <main className={cn("app-main flex-1 min-w-0 h-full", location.pathname.includes("/messages") ? "overflow-hidden" : "overflow-x-hidden overflow-y-auto")}>
-          <div className={cn("max-w-full h-full", location.pathname.includes("/messages") ? "p-0" : "px-1.5 py-2 sm:p-4 md:p-5")}>
+          <div className={cn("max-w-full h-full", location.pathname.includes("/messages") ? "p-0" : "px-0 py-2 sm:p-4 md:p-5")}>
             {children || <Outlet />}
           </div>
         </main>

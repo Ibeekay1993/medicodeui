@@ -145,8 +145,8 @@ export default function AuthorizationsTable({
                                 <Input
                                   autoFocus
                                   value={unlockOtpInput}
-                                  onChange={e => setUnlockOtpInput(e.target.value)}
-                                  placeholder="Enter OTP"
+                                  onChange={e => setUnlockOtpInput(e.target.value.toUpperCase())}
+                                  placeholder="Enter PIN"
                                   className="h-8 w-24 text-xs font-mono font-bold"
                                 />
                                 <Button size="sm" onClick={(e) => handleUnlockOtp(r, e)} className="h-8 px-2 text-xs">Unlock</Button>
@@ -366,12 +366,12 @@ export default function AuthorizationsTable({
                         unlockingReqId === r.id ? (
                           <div className="flex items-center gap-2 w-full">
                             <Input
-                              autoFocus
-                              value={unlockOtpInput}
-                              onChange={e => setUnlockOtpInput(e.target.value)}
-                              placeholder="Enter OTP"
-                              className="h-9 flex-1 text-sm font-mono font-bold"
-                            />
+                          autoFocus
+                          value={unlockOtpInput}
+                          onChange={e => setUnlockOtpInput(e.target.value.toUpperCase())}
+                          placeholder="PIN"
+                          className="h-9 w-24 text-sm font-mono font-bold"
+                        />
                             <Button size="sm" onClick={(e) => handleUnlockOtp(r, e)} className="h-9 px-3">Unlock</Button>
                             <Button variant="ghost" size="sm" onClick={() => setUnlockingReqId(null)} className="h-9 px-3 text-slate-400">Cancel</Button>
                           </div>

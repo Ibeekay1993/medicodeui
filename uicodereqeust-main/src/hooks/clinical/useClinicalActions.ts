@@ -138,11 +138,13 @@ export function useClinicalActions({
     }
   }, [open, request]);
 
-  // Fetch OTP if request is pending/under-review and has a patient email.
-  // Rule: Only show "Generating OTP..." when a new OTP is actually being created.
-  //       If an OTP already exists in the DB, show it immediately (no loading flash).
+  // Fetch PIN if request is pending/under-review and has a patient email.
+  // Rule: Only show "Generating PIN..." when a new PIN is actually being created.
+  //       If a PIN already exists in the DB, show it immediately (no loading flash).
   const [arrivalOtp, setArrivalOtp] = useState<string | null>(null);
+  const [arrivalOtpVerified, setArrivalOtpVerified] = useState<boolean>(false);
   const [treatmentOtp, setTreatmentOtp] = useState<string | null>(null);
+  const [treatmentOtpVerified, setTreatmentOtpVerified] = useState<boolean>(false);
 
   // Re-run fetching whenever request changes.
   useEffect(() => {
@@ -172,19 +174,25 @@ export function useClinicalActions({
 
         if (!arrivalRes.error && arrivalRes.data) {
           const row = Array.isArray(arrivalRes.data) ? arrivalRes.data[0] : arrivalRes.data;
-          if (row?.otp_value) foundArrival = row.otp_value;
+          if (row?.otp_value) {
+            foundArrival = row.otp_value;
+            setArrivalOtpVerified(Boolean(row.verified));
+          }
         }
 
         if (!treatmentRes.error && treatmentRes.data) {
           const row = Array.isArray(treatmentRes.data) ? treatmentRes.data[0] : treatmentRes.data;
-          if (row?.otp_value) foundTreatment = row.otp_value;
+          if (row?.otp_value) {
+            foundTreatment = row.otp_value;
+            setTreatmentOtpVerified(Boolean(row.verified));
+          }
         }
 
         setArrivalOtp(foundArrival);
         setTreatmentOtp(foundTreatment);
         setOtpLoading(false);
       } catch (err) {
-        console.error("OTP value fetch error:", err);
+        console.error("PIN value fetch error:", err);
         if (!cancelled) setOtpLoading(false);
       }
     })();
@@ -864,7 +872,9 @@ const findHospitalIdByName = async (name: string) => {
     declineResult,
     setDeclineResult,
     arrivalOtp,
+    arrivalOtpVerified,
     treatmentOtp,
+    treatmentOtpVerified,
     otpLoading,
     deleteConfirmOpen,
     setDeleteConfirmOpen,
@@ -882,3 +892,5 @@ const findHospitalIdByName = async (name: string) => {
     copyDeclineMessage,
   };
 }
+
+

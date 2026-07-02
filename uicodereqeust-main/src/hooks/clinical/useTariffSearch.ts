@@ -12,7 +12,7 @@ export function useTariffSearch(
   open: boolean,
   editTreatment: string,
   request: any,
-  isHospitalDirected: boolean
+  shouldAutoDetectFromSource: boolean
 ) {
   const { toast } = useToast();
   const [tariffSearch, setTariffSearch] = useState("");
@@ -130,7 +130,7 @@ export function useTariffSearch(
 
   // Auto-detect prescription parsing
   useEffect(() => {
-    if (!open || !editTreatment.trim() || isHospitalDirected) return;
+    if (!open || !editTreatment.trim() || !shouldAutoDetectFromSource) return;
     if (request?.deletion_status === "awaiting_admin_approval") return;
     const text = editTreatment.trim();
     if (text === lastParsedTextRef.current) return;
@@ -139,7 +139,7 @@ export function useTariffSearch(
       void parseTreatmentText({ replaceAuto: false, quiet: true });
     }, 1500);
     return () => clearTimeout(timer);
-  }, [open, editTreatment, request, isHospitalDirected, parseTreatmentText]);
+  }, [open, editTreatment, request, shouldAutoDetectFromSource, parseTreatmentText]);
 
   // Catalog search
   useEffect(() => {

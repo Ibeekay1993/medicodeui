@@ -126,7 +126,12 @@ export default function MfaSetup() {
     }
   };
 
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+  };
+
   if (!session) return <Navigate to="/login" replace />;
+  if (role === "hospital") return <Navigate to="/dashboard" replace />;
   
   if (checking) {
     return (
@@ -189,6 +194,14 @@ export default function MfaSetup() {
                   {isVerifying ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
                   Verify & Continue
                 </Button>
+                
+                <Button
+                  variant="ghost"
+                  onClick={handleSignOut}
+                  className="w-full text-sm font-medium text-slate-500 hover:text-slate-700"
+                >
+                  Sign Out
+                </Button>
               </div>
             </div>
           )}
@@ -197,3 +210,4 @@ export default function MfaSetup() {
     </div>
   );
 }
+

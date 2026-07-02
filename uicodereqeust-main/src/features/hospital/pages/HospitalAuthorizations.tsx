@@ -23,8 +23,8 @@ import SupportChatDialog from "@/components/authorizations/SupportChatDialog";
 import ClaimReviewDialog from "@/components/authorizations/ClaimReviewDialog";
 import ReferralProcessDialog from "@/components/authorizations/ReferralProcessDialog";
 import ReferralTreatmentFormDialog from "@/components/authorizations/ReferralTreatmentFormDialog";
-import { PageLoader } from "@/components/PageLoader";
 import ExportCSVDialog from "@/components/authorizations/ExportCSVDialog";
+import { PageLoader } from "@/components/PageLoader";
 
 export default function HospitalAuthorizations() {
   const { user, hospitalId, fullName } = useAuth();
@@ -377,6 +377,7 @@ export default function HospitalAuthorizations() {
         setPage={setPage}
         otpVerifiedStatus={otpVerifiedStatus}
         setOtpVerifiedStatus={setOtpVerifiedStatus}
+        isLoading={loading}
       />
 
       <SupportChatDialog
@@ -404,7 +405,7 @@ export default function HospitalAuthorizations() {
         onClose={() => setIsProcessingReferral(false)}
         request={selectedRequest}
         hospital={hospital}
-        onUpdated={refresh}
+        onUpdated={refetch}
       />
 
       <ReferralTreatmentFormDialog
@@ -412,7 +413,7 @@ export default function HospitalAuthorizations() {
         onClose={() => setIsAddingReferralTreatment(false)}
         request={selectedRequest}
         hospital={hospital}
-        onUpdated={refresh}
+        onUpdated={refetch}
       />
 
       <ExportCSVDialog
@@ -424,3 +425,4 @@ export default function HospitalAuthorizations() {
     </div>
   );
 }
+

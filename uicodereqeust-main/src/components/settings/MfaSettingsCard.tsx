@@ -11,9 +11,12 @@ import { cn } from "@/lib/utils";
 interface MfaSettingsCardProps {
   user: any;
   fullName: string | null;
+  role?: string | null;
 }
 
-export default function MfaSettingsCard({ user, fullName }: MfaSettingsCardProps) {
+export default function MfaSettingsCard({ user, fullName, role }: MfaSettingsCardProps) {
+  if (role === "hospital") return null;
+
   const { toast } = useToast();
   const [mfaEnabled, setMfaEnabled] = useState(false);
   const [isEnrolling, setIsEnrolling] = useState(false);

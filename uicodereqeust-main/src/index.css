@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
+﻿@import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -7,9 +7,9 @@
 @layer base {
   :root {
     /* Ronsberger HMO Brand Palette */
-    /* Primary: Indigo #3f3f95 â†’ hsl(240 41% 41%) */
-    /* Accent:  Sky Blue #01aef2 â†’ hsl(197 99% 48%) */
-    /* Highlight: Lime Green #93c34b â†’ hsl(86 51% 52%) */
+    /* Primary: Indigo #3f3f95 -> hsl(240 41% 41%) */
+    /* Accent: Sky Blue #01aef2 -> hsl(197 99% 48%) */
+    /* Highlight: Lime Green #93c34b -> hsl(86 51% 52%) */
 
     --background: 210 17% 98.5%;
     --foreground: 230 25% 20%;
@@ -29,7 +29,7 @@
     --muted: 220 20% 94%;
     --muted-foreground: 230 15% 40%;
 
-    /* Accent: Sky Blue */
+    /* Accent: Sky Blue #01aef2 -> hsl(197 99% 48%) */
     --accent: 197 99% 93%;
     --accent-foreground: 197 90% 30%;
 
@@ -60,6 +60,13 @@
   h1, h2, h3, h4, h5, h6 {
     font-family: 'Inter', sans-serif;
     @apply font-semibold tracking-normal;
+  }
+}
+/* Prevent iOS zoom on input focus - inputs must be >= 16px on iOS */
+@layer base {
+  input, textarea, select {
+    @apply text-[16px] md:text-sm;
+    -webkit-text-size-adjust: 100%;
   }
 }
 

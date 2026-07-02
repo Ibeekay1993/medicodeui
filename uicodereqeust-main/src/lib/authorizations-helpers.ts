@@ -28,6 +28,19 @@ export const claimOwnerNameFor = (request: any) => request?.referred_hospital_na
 
 export const isReferralFor = (request: any) => Boolean(request?.referred_hospital_name || request?.referred_hospital_id);
 
+export const getOtpTypeCandidatesForRequest = (request: any) => {
+  const status = String(request?.status || "").toLowerCase();
+  if (status === "pending_authorization") return ["TREATMENT", "ARRIVAL"];
+  if (status === "referral_approved" || status === "referral_accepted") return ["ARRIVAL", "TREATMENT"];
+  return ["ARRIVAL", "TREATMENT"];
+};
+
+export const formatOtpDisplayValue = (arrivalOtp?: string | null, treatmentOtp?: string | null) => {
+  const arrival = String(arrivalOtp || "").trim();
+  const treatment = String(treatmentOtp || "").trim();
+  return arrival || treatment || "";
+};
+
 export const isReferringHospitalFor = (request: any, hospital: any) => {
   if (!isReferralFor(request) || !hospital?.id) return false;
   const referringId = request?.referring_hospital_id || request?.requesting_hospital_id || request?.hospital_id;

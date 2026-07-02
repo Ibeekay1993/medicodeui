@@ -182,7 +182,7 @@ export default function ReferralProcessDialog({
                   maxLength={6}
                   placeholder="Enter 6-digit OTP"
                   value={otp}
-                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
+                  onChange={(e) => setOtp(e.target.value.toUpperCase())}
                   className="h-11 rounded-xl text-center font-mono font-black text-lg focus:ring-primary/20"
                 />
                 <p className="text-xs font-medium text-slate-400 leading-snug">

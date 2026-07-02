@@ -54,6 +54,7 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
 
   // 1. Determine request metadata
   const isHospitalDirected = ["hospital_portal", "hospital", "portal"].includes(request?.source);
+  const isParsedRequest = request?.source === "whatsapp_parser";
   const requestPatientName = cleanPatientName(request?.patient_name || "");
   const requestPolicyNumber = String(request?.policy_number || "").trim();
 
@@ -67,7 +68,7 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
   }, [open, request]);
 
   // 3. Initialize manual/auto tariff search hook
-  const tariffSearch = useTariffSearch(open, editTreatment, request, isHospitalDirected);
+  const tariffSearch = useTariffSearch(open, editTreatment, request, isParsedRequest && role !== "hospital");
 
   // 3. Initialize decision & saving actions hook
   const actions = useClinicalActions({
@@ -135,13 +136,25 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
                       <span className="animate-pulse">Fetching OTPs…</span>
                     ) : (actions.arrivalOtp || actions.treatmentOtp || otpValue) ? (
                       <>
-                        {actions.arrivalOtp && <span className="tracking-wider">ARRIVAL OTP: {actions.arrivalOtp}</span>}
+                        {actions.arrivalOtp && (
+                          <span className="tracking-wider flex items-center gap-1">
+                            ARRIVAL PIN: {actions.arrivalOtp}
+                            {actions.arrivalOtpVerified && <span className="text-green-600 bg-green-100/80 rounded-full w-4 h-4 flex items-center justify-center text-[10px] shadow-sm border border-green-200" title="Verified">✓</span>}
+                          </span>
+                        )}
                         {actions.arrivalOtp && actions.treatmentOtp && <span className="opacity-50">|</span>}
-                        {actions.treatmentOtp && <span className="tracking-wider">TREATMENT OTP: {actions.treatmentOtp}</span>}
-                        {!actions.arrivalOtp && !actions.treatmentOtp && otpValue && <span className="tracking-wider">OTP: {otpValue}</span>}
+                        {actions.treatmentOtp && (
+                          <span className="tracking-wider flex items-center gap-1">
+                            TREATMENT PIN: {actions.treatmentOtp}
+                            {actions.treatmentOtpVerified && <span className="text-green-600 bg-green-100/80 rounded-full w-4 h-4 flex items-center justify-center text-[10px] shadow-sm border border-green-200" title="Verified">✓</span>}
+                          </span>
+                        )}
+                        {!actions.arrivalOtp && !actions.treatmentOtp && otpValue && <span className="tracking-wider">PIN: {otpValue}</span>}
                       </>
-                    ) : (
+                    ) : ["pending", "pending_authorization", "pending_referral", "info_provided"].includes(request?.status || "") ? (
                       <span>OTP: ••••••</span>
+                    ) : (
+                      <span>OTP: N/A</span>
                     )}
                   </span>
                 ) : (
@@ -305,7 +318,7 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
                       value={actions.editTreatment}
                       onChange={(e) => actions.setEditTreatment(e.target.value)}
                       onBlur={() => {
-                        if (role === "hospital") return;
+                        if (role === "hospital" || !isParsedRequest) return;
                         void tariffSearch.parseTreatmentText({ replaceAuto: true, quiet: true });
                       }}
                       readOnly={request?.deletion_status === "awaiting_admin_approval" || role === "hospital"}

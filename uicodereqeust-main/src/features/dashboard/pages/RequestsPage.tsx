@@ -77,7 +77,7 @@ export default function RequestsPage() {
     queryFn: async () => {
       const from = (currentPage - 1) * rowsPerPage;
       const to = from + rowsPerPage - 1;
-      let q = supabase.from("authorization_requests").select("*", { count: "estimated" }).order("created_at", { ascending: false });
+      let q = supabase.from("authorization_requests").select("*", { count: "estimated" }).order("updated_at", { ascending: false });
       if (search) q = q.or(`patient_name.ilike.%${search}%,policy_number.ilike.%${search}%,request_id.ilike.%${search}%,authorization_code.ilike.%${search}%`);
       if (statusFilter === "action_required") {
         q = q.in("status", ["pending", "pending_referral", "pending_authorization", "info_provided"]);

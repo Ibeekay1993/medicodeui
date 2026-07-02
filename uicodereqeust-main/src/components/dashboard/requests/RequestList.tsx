@@ -170,8 +170,8 @@ export function RequestList({
                             <Input
                               autoFocus
                               value={unlockOtpInput}
-                              onChange={e => setUnlockOtpInput(e.target.value)}
-                              placeholder="Enter OTP"
+                              onChange={e => setUnlockOtpInput(e.target.value.toUpperCase())}
+                              placeholder="Enter PIN"
                               className="h-8 w-24 text-xs font-mono font-bold"
                             />
                             <Button size="sm" onClick={(e) => handleUnlockOtp(r, e)} className="h-8 px-2 text-xs">Unlock</Button>
@@ -204,16 +204,15 @@ export function RequestList({
                       <td className="px-4 py-4 font-mono text-sm font-bold">
                         {r.is_historical ? (
                           <span className="text-slate-400 font-black tracking-wider text-xs">N/A</span>
-                        ) : r.source === "whatsapp" || r.source === "whatsapp_parser" ? (
-                          <span className="text-emerald-600 font-black" title="Verified via WhatsApp">✓</span>
-                        ) : (
-                          r.status === "pending" && r.source === "whatsapp" || r.source === "whatsapp_parser" ? (
-                            <span className="text-emerald-600 font-black" title="Verified via WhatsApp">✓</span>
-                          ) : otpLoading[r.id] ? (
-                            <Loader2 className="h-3.5 w-3.5 animate-spin text-slate-400" />
-                          ) : otpVerifiedStatus[r.id] ? (
-                            <span className="text-emerald-600 font-black flex items-center justify-center" title="OTP successfully consumed"><CheckCircle2 className="w-4 h-4" /></span>
-                          ) : otpValues[r.id] ? (
+                        ) : r.status === "pending" ? (
+                          <span className="text-slate-400 font-black tracking-wider text-xs">N/A</span>
+                        ) : (r.source === "whatsapp" || r.source === "whatsapp_parser") ? (
+                          <span className="text-emerald-600 font-black flex items-center justify-center" title="Verified via WhatsApp"><CheckCircle2 className="w-4 h-4" /></span>
+                        ) : otpLoading[r.id] ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin text-slate-400" />
+                        ) : otpVerifiedStatus[r.id] ? (
+                          <span className="text-emerald-600 font-black flex items-center justify-center" title="OTP successfully consumed"><CheckCircle2 className="w-4 h-4" /></span>
+                        ) : otpValues[r.id] ? (
                           <div className="flex items-center gap-1.5">
                             <span className="text-amber-700 font-black tracking-wider">{otpValues[r.id]}</span>
                             <Button 
@@ -225,12 +224,13 @@ export function RequestList({
                               <Copy className="h-3 w-3" />
                             </Button>
                           </div>
-                        ) : (
+                        ) : ["pending", "pending_authorization", "pending_referral", "info_provided"].includes(r.status) ? (
                           <span className="text-amber-700">••••••</span>
-                        )
-                      )}
-                    </td>
-                  )}
+                        ) : (
+                          <span className="text-slate-400 font-black tracking-wider text-xs">N/A</span>
+                        )}
+                      </td>
+                    )}
                   <td className="px-4 py-4">
                     <div className="flex flex-col items-start gap-1">
                       {statusBadge(displayStatus(r))}
@@ -358,7 +358,7 @@ export function RequestList({
                   <div className="mt-3 pt-3 border-t border-slate-100 flex justify-end" onClick={e => e.stopPropagation()}>
                     {unlockingReqId === r.id ? (
                       <div className="flex items-center gap-2">
-                        <Input autoFocus value={unlockOtpInput} onChange={e => setUnlockOtpInput(e.target.value)} placeholder="OTP" className="h-8 w-20 text-xs font-mono font-bold px-2" />
+                        <Input autoFocus value={unlockOtpInput} onChange={e => setUnlockOtpInput(e.target.value.toUpperCase())} placeholder="PIN" className="h-8 w-20 text-xs font-mono font-bold px-2" />
                         <Button size="sm" onClick={(e) => handleUnlockOtp(r, e)} className="h-8 px-3 text-xs bg-amber-500 hover:bg-amber-600 text-white">Unlock</Button>
                       </div>
                     ) : (

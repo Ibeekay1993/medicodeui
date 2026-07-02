@@ -34,7 +34,7 @@ serve(async (req) => {
     const { data: request, error: fetchError } = await supabase
       .from("authorization_requests")
       .select(
-        "patient_name, patient_email, diagnosis, treatment, hospital_name, policy_number, urgency, referred_hospital_name, authorization_code, approved_items"
+        "patient_name, patient_email, patient_phone, diagnosis, treatment, hospital_name, policy_number, urgency, referred_hospital_name, authorization_code, approved_items"
       )
       .eq("id", authorization_id)
       .maybeSingle();
@@ -43,26 +43,45 @@ serve(async (req) => {
     if (!request) throw new Error("Request not found");
 
     const patientEmail = request.patient_email;
-    if (!patientEmail) {
-      return new Response(
-        JSON.stringify({ success: false, message: "No patient email on file" }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
-    }
-
-    if (patientEmail === "no-email@medicode.com") {
-      return new Response(
-        JSON.stringify({ success: true, message: "Skipped referral notification for placeholder address" }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
-    }
-
     const patientName = request.patient_name || "Patient";
     const diagnosis = request.diagnosis || "Not specified";
     const hospitalName = request.hospital_name || "N/A";
     const policyNumber = request.policy_number || "N/A";
     const urgency = request.urgency || "routine";
     const referredHospital = request.referred_hospital_name || "To be confirmed";
+
+    // Fetch existing PIN
+    const { data: existingOtp } = await supabase
+      .from("otp_verifications")
+      .select("otp_value")
+      .eq("authorization_id", authorization_id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const otp = existingOtp?.otp_value || "PENDING";
+
+    // Trigger WhatsApp Notification if phone number exists
+    if (request.patient_phone && otp !== "PENDING") {
+      console.log(`Triggering WhatsApp PIN for ${request.patient_phone}`);
+      // We don't await this so it doesn't block the email
+      supabase.functions.invoke("send-whatsapp-otp", {
+        body: {
+          phone_number: request.patient_phone,
+          otp_code: otp,
+          hospital_name: referredHospital,
+          authorization_request_id: authorization_id
+        }
+      }).catch(err => console.error("WhatsApp trigger failed:", err));
+    }
+
+    // Skip email if no valid email is provided
+    if (!patientEmail || patientEmail === "no-email@medicode.com") {
+      return new Response(
+        JSON.stringify({ success: true, message: "WhatsApp triggered. Skipped email for placeholder/missing address." }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
 
     // Build patient-safe approved services list
     let serviceItems: string[] = [];
@@ -138,10 +157,15 @@ serve(async (req) => {
 
       <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:16px;">
         <tr>
-          <td style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:12px 16px;">
-            <p style="color:#92400e;font-size:12px;font-weight:600;margin:0;">
-              An OTP verification code will be required when you arrive at <strong>${referredHospital}</strong>.
-              This code will be provided to you separately and is valid for 10 minutes.
+          <td style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:12px 16px;text-align:center;">
+            <p style="color:#92400e;font-size:12px;font-weight:600;margin:0 0 8px;">
+              Your Patient Arrival PIN for <strong>${referredHospital}</strong> is:
+            </p>
+            <div style="background:#ffffff;border:2px dashed #f59e0b;border-radius:6px;padding:12px;font-family:monospace;font-size:24px;font-weight:900;color:#d97706;letter-spacing:4px;">
+              ${otp}
+            </div>
+            <p style="color:#92400e;font-size:11px;margin:8px 0 0;">
+              Please provide this code to the receptionist when you arrive.
             </p>
           </td>
         </tr>
@@ -162,12 +186,12 @@ serve(async (req) => {
     let emailError: string | null = null;
 
     if (!brevoApiKey) {
-      console.warn("⚠️ BREVO_API_KEY not configured - referral notification email will not be sent");
+      console.warn("BREVO_API_KEY not configured - referral notification email will not be sent");
       emailStatus = "skipped";
       emailError = "BREVO_API_KEY not configured";
     } else {
       try {
-        console.log(`📧 Sending referral notification to ${patientEmail} for authorization ${authorization_id}`);
+        console.log(`Sending referral notification to ${patientEmail} for authorization ${authorization_id}`);
         const brevoSender = parseBrevoSender(brevoFromRaw);
 
         const brevoResponse = await fetch("https://api.brevo.com/v3/smtp/email", {
@@ -179,7 +203,7 @@ serve(async (req) => {
           body: JSON.stringify({
             sender: brevoSender,
             to: [{ email: patientEmail }],
-            subject: `Referral Approved — ${patientName}`,
+            subject: `Referral Approved - ${patientName}`,
             htmlContent: buildEmailHtml(
               "Referral Approved",
               "You have been referred to a specialist hospital",
@@ -195,23 +219,23 @@ serve(async (req) => {
         if (brevoResponse.ok && (brevoData as any).messageId) {
           emailStatus = "sent";
           emailResponseId = (brevoData as any).messageId;
-          console.log(`✅ Referral notification sent successfully. Message ID: ${emailResponseId}`);
+          console.log(`Referral notification sent successfully. Message ID: ${emailResponseId}`);
         } else {
           emailStatus = "failed";
           emailError = (brevoData as any).message || (brevoData as any).error || `HTTP ${brevoResponse.status}`;
-          console.error(`❌ Brevo API error: ${emailError}`, brevoData);
+          console.error(`Brevo API error: ${emailError}`, brevoData);
         }
       } catch (emailErr) {
         emailStatus = "failed";
         emailError = emailErr instanceof Error ? emailErr.message : "Unknown email error";
-        console.error(`❌ Exception during referral notification send: ${emailError}`, emailErr);
+        console.error(`Exception during referral notification send: ${emailError}`, emailErr);
       }
     }
 
     await supabase.from("email_logs").insert({
       provider: "brevo",
       recipient: patientEmail,
-      subject: `Referral Approved — ${patientName}`,
+      subject: `Referral Approved - ${patientName}`,
       status: emailStatus,
       response_id: emailResponseId,
       error_message: emailError,
@@ -249,3 +273,4 @@ serve(async (req) => {
     );
   }
 });
+

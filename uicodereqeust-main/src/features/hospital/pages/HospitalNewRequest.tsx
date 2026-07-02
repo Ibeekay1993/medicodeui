@@ -1,9 +1,11 @@
 import { useState, useEffect, useRef } from "react";
+import { useQuery } from "@tanstack/react-query";
+
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, ArrowRight, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, CheckCircle2, FileText } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { readSessionJSON, removeSessionItem, writeSessionJSON } from "@/lib/sessionState";
 import { useForm } from "react-hook-form";
@@ -30,6 +32,7 @@ import DiagnosisSection from "@/components/new-request/DiagnosisSection";
 import PrioritySection from "@/components/new-request/PrioritySection";
 import ReferralSection from "@/components/new-request/ReferralSection";
 import TreatmentSection from "@/components/new-request/TreatmentSection";
+import DocumentUploadSection from "@/components/new-request/DocumentUploadSection";
 
 // This function is kept for components that may still need raw lookup, though we moved it to the service
 async function findHospitalIdByName(name: string): Promise<string | null> {
@@ -64,12 +67,14 @@ export default function HospitalNewRequest() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [step, setStep] = useState(1);
   const [canSubmit, setCanSubmit] = useState(false);
+  const [doctorReportPath, setDoctorReportPath] = useState<string | null>(null);
+  const [doctorReportName, setDoctorReportName] = useState<string | null>(null);
   
   const { data: hospital } = useHospitalProfile(hospitalId, user?.id, user?.email);
   const submitRequestMutation = useSubmitHospitalRequest();
 
   useEffect(() => {
-    if (step === 4) {
+    if (step === 5) {
       const t = setTimeout(() => setCanSubmit(true), 800);
       return () => clearTimeout(t);
     } else {
@@ -151,6 +156,8 @@ export default function HospitalNewRequest() {
       if (draft.urgency) setValue("urgency", draft.urgency as any);
       if (draft.referralHospitalId) setValue("referralHospitalId", draft.referralHospitalId);
       if (draft.referralHospitalName) setValue("referralHospitalName", draft.referralHospitalName);
+      if (draft.doctorReportPath) setDoctorReportPath(draft.doctorReportPath);
+      if (draft.doctorReportName) setDoctorReportName(draft.doctorReportName);
     }
     setDraftReady(true);
   }, [draftKey]);
@@ -169,6 +176,8 @@ export default function HospitalNewRequest() {
       urgency,
       referralHospitalId,
       referralHospitalName,
+      doctorReportPath,
+      doctorReportName,
     };
 
     const hasContent =
@@ -182,7 +191,9 @@ export default function HospitalNewRequest() {
       patientEmail.trim().length > 0 ||
       urgency !== "routine" ||
       Boolean(referralHospitalId) ||
-      referralHospitalName.trim().length > 0;
+      referralHospitalName.trim().length > 0 ||
+      Boolean(doctorReportPath) ||
+      Boolean(doctorReportName);
 
     if (hasContent) {
       writeSessionJSON(draftKey, draft);
@@ -193,6 +204,7 @@ export default function HospitalNewRequest() {
     draftKey, draftReady, diagnoses, diagnosisSearch, patientSearch,
     phone, patientEmail, referralHospitalId, referralHospitalName,
     selectedPatient, treatSearch, treatments, urgency,
+    doctorReportPath, doctorReportName,
   ]);
 
   // Patient search
@@ -297,6 +309,17 @@ export default function HospitalNewRequest() {
       }
     } else if (step === 3) {
       isValid = await trigger(["treatments"]);
+    } else if (step === 4) {
+      if (!doctorReportPath) {
+        toast({
+          variant: "destructive",
+          title: "Doctor report required",
+          description: "Please upload the doctor report or diagnosis form before continuing.",
+        });
+        isValid = false;
+      } else {
+        isValid = true;
+      }
     }
     
     if (isValid) {
@@ -325,8 +348,8 @@ export default function HospitalNewRequest() {
   };
 
   const onSubmit = async (data: HospitalRequestFormValues) => {
-    // If somehow the form submits before step 4 (e.g., pressing Enter), just advance step
-    if (step !== 4) {
+    // If somehow the form submits before step 5 (e.g., pressing Enter), just advance step
+    if (step !== 5) {
       handleNextStep();
       return;
     }
@@ -351,7 +374,7 @@ export default function HospitalNewRequest() {
 
     // Double check email validation logic
     if (!data.noEmail && (!data.patientEmail || !isValidEmail(data.patientEmail))) {
-      toast({ variant: "destructive", title: "Invalid email", description: "Enter a valid patient email address for OTP verification." });
+      toast({ variant: "destructive", title: "Invalid email", description: "Enter a valid patient email address for PIN verification." });
       return;
     }
     
@@ -407,7 +430,7 @@ export default function HospitalNewRequest() {
         }
       }
 
-      // ── Resolve referral hospital ID if name is provided but ID is missing ──
+      // Resolve referral hospital ID if name is provided but ID is missing.
       let resolvedReferralHospitalId = referralHospitalId;
       let resolvedReferralHospitalName = referralHospitalName.trim() || null;
       if (!resolvedReferralHospitalId && resolvedReferralHospitalName) {
@@ -417,13 +440,13 @@ export default function HospitalNewRequest() {
         }
       }
 
-      // ── Determine request status based on whether a referral hospital is set ──
-      // If a referral hospital is assigned → status is "pending_referral" (awaiting insurer approval)
-      // If no referral → status is "pending" (standard authorization request)
+      // Determine request status based on whether a referral hospital is set.
+      // If a referral hospital is assigned, status is "pending_referral" (awaiting insurer approval).
+      // If no referral is assigned, status is "pending" (standard authorization request).
       const isReferral = Boolean(resolvedReferralHospitalId || resolvedReferralHospitalName);
       const initialStatus = isReferral ? "pending_referral" : "pending";
 
-      // ── Insert the authorization request ──────────────────────────────────
+      // Insert the authorization request.
       const { data: insertedRequest, error } = await supabase
         .from("authorization_requests")
         .insert({
@@ -432,12 +455,12 @@ export default function HospitalNewRequest() {
           policy_number: selectedPatient.policy_number,
           patient_email: patientEmail.trim(),
           diagnosis: diagnosisText,
-          treatment: treatments.map(t => `${t.name} [Code: ${t.code}] (Qty: ${t.quantity} x ₦${t.amount} = ₦${t.quantity * Number(t.amount)})`).join("; "),
+          treatment: treatments.map(t => `${t.name} [Code: ${t.code}] (Qty: ${t.quantity} x NGN ${t.amount} = NGN ${t.quantity * Number(t.amount)})`).join("; "),
           patient_phone: phone,
           urgency,
           hospital_id: hospital?.id,
           hospital_name: hospital?.name,
-          // Referral chain — all four ID+name pairs must be set for RLS and queue queries
+          // Referral chain: all four ID/name pairs must be set for RLS and queue queries.
           requesting_hospital_id: hospital?.id,
           requesting_hospital_name: hospital?.name,
           referring_hospital_id: hospital?.id,
@@ -450,6 +473,7 @@ export default function HospitalNewRequest() {
           submitted_by: user?.id,
           approved_items: approvedPayload,
           source: "hospital_portal",
+          doctor_report_url: doctorReportPath,
           total_amount: total,
           status: initialStatus,
         })
@@ -459,7 +483,7 @@ export default function HospitalNewRequest() {
       if (error) throw error;
       if (!insertedRequest?.id) throw new Error("Request created but no ID returned");
 
-      // ── Audit log: referral assignment ────────────────────────────────────
+      // Audit log: referral assignment.
       if (isReferral) {
         try {
           await supabase.from("audit_logs" as any).insert({
@@ -480,7 +504,7 @@ export default function HospitalNewRequest() {
         } catch {}
       }
 
-      // ── Send OTP to patient email (ONLY FOR REFERRALS) ──────────────────────
+      // Send the request PIN to the patient email for referrals.
       try {
         let fnResult: any = {};
         let otpError: any = null;
@@ -501,31 +525,27 @@ export default function HospitalNewRequest() {
           otpError = error;
 
           if (otpError && !fnResult.message) {
-            toast({ variant: "destructive", title: "OTP send failed", description: otpError?.message || "Could not deliver OTP email." });
+            toast({ variant: "destructive", title: "PIN generation failed", description: otpError?.message || "Could not generate PIN." });
           } else if (fnResult.error) {
-            toast({ variant: "destructive", title: "OTP send failed", description: fnResult.message || "Could not deliver OTP email." });
-          } else if (fnResult.email_status === "failed" && !isNoEmail) {
-            toast({ variant: "destructive", title: "OTP email failed", description: fnResult.error_message || fnResult.message || "Unable to send OTP email. Check email settings." });
-          } else if (fnResult.email_status === "skipped" && !isNoEmail) {
-            toast({ title: "OTP generated", description: fnResult.message || "OTP created but email sending was skipped." });
+            toast({ variant: "destructive", title: "PIN generation failed", description: fnResult.message || "Could not generate PIN." });
           } else {
             toast({
               title: "Referral request submitted",
               description: isNoEmail 
                 ? `Referral to ${resolvedReferralHospitalName || 'hospital'} submitted.` 
-                : `Referral to ${resolvedReferralHospitalName || 'hospital'} submitted. An Arrival OTP has been sent to the patient.`,
+                : `Referral submitted. The Arrival PIN will be emailed to the patient upon approval.`,
             });
           }
         } else {
-          // Standard request - no OTP generated at submission stage anymore
+          // Standard request - no PIN generated at submission stage anymore
           toast({
             title: "Request submitted successfully",
             description: "Request submitted to HMO. The Treatment PIN will be emailed to the patient upon approval.",
           });
         }
       } catch (err: any) {
-        console.error("OTP send failed:", err);
-        toast({ variant: "destructive", title: "OTP send failed", description: err?.message || "Could not deliver OTP email." });
+        console.error("PIN generation failed:", err);
+        toast({ variant: "destructive", title: "PIN generation failed", description: err?.message || "Could not generate PIN." });
       }
 
       if (draftKey) removeSessionItem(draftKey);
@@ -544,18 +564,18 @@ export default function HospitalNewRequest() {
         </Button>
         <div className="flex flex-col">
           <h1 className="text-base sm:text-xl font-black text-slate-800">New Authorization Request</h1>
-          <p className="text-xs font-semibold text-slate-400">Step {step} of 4</p>
+          <p className="text-xs font-semibold text-slate-400">Step {step} of 5</p>
         </div>
       </div>
       
       {/* Stepper Header */}
       <div className="flex items-center justify-between px-2 mb-6">
-        {[1, 2, 3, 4].map(num => (
+        {[1, 2, 3, 4, 5].map(num => (
           <div key={num} className="flex items-center">
             <div className={`flex items-center justify-center w-8 h-8 rounded-full text-xs font-black transition-colors ${step === num ? "bg-emerald-500 text-white shadow-md shadow-emerald-500/20" : step > num ? "bg-emerald-100 text-emerald-600" : "bg-slate-100 text-slate-400"}`}>
               {step > num ? <CheckCircle2 className="w-4 h-4" /> : num}
             </div>
-            {num < 4 && (
+            {num < 5 && (
               <div className={`w-12 sm:w-24 h-1 rounded-full mx-2 transition-colors ${step > num ? "bg-emerald-100" : "bg-slate-100"}`} />
             )}
           </div>
@@ -629,6 +649,15 @@ export default function HospitalNewRequest() {
             )}
 
             {step === 4 && (
+              <DocumentUploadSection
+                doctorReportPath={doctorReportPath}
+                setDoctorReportPath={setDoctorReportPath}
+                doctorReportName={doctorReportName}
+                setDoctorReportName={setDoctorReportName}
+              />
+            )}
+
+            {step === 5 && (
               <div className="p-6 space-y-6">
                 <div>
                   <h3 className="text-lg font-black text-slate-800">Review Request</h3>
@@ -656,6 +685,13 @@ export default function HospitalNewRequest() {
                     <span className="text-xs font-semibold text-slate-500">Total Items:</span>
                     <span className="text-xs font-bold text-slate-900">{treatments.length}</span>
                   </div>
+                  <div className="flex justify-between">
+                    <span className="text-xs font-semibold text-slate-500">Doctor Report:</span>
+                    <span className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                      <FileText className="h-3.5 w-3.5 text-emerald-600" />
+                      {doctorReportName || "Uploaded"}
+                    </span>
+                  </div>
                   {treatments.length > 0 && (
                     <div className="pt-2">
                       <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2">Requested Items</p>
@@ -667,8 +703,8 @@ export default function HospitalNewRequest() {
                               <p className="text-[10px] text-slate-500">Code: {t.code} &middot; {t.category || "Service"}</p>
                             </div>
                             <div className="text-right whitespace-nowrap">
-                              <p className="font-bold text-slate-900">{t.quantity} x ₦{t.amount.toLocaleString()}</p>
-                              <p className="text-[10px] text-emerald-600 font-bold">₦{(t.quantity * t.amount).toLocaleString()}</p>
+                              <p className="font-bold text-slate-900">{t.quantity} x NGN {t.amount.toLocaleString()}</p>
+                              <p className="text-[10px] text-emerald-600 font-bold">NGN {(t.quantity * t.amount).toLocaleString()}</p>
                             </div>
                           </div>
                         ))}
@@ -677,7 +713,7 @@ export default function HospitalNewRequest() {
                   )}
                   <div className="flex justify-between border-t border-slate-200 pt-3 mt-3">
                     <span className="text-sm font-black text-slate-900">Total Amount:</span>
-                    <span className="text-sm font-black text-emerald-600">₦{total.toLocaleString()}</span>
+                    <span className="text-sm font-black text-emerald-600">NGN {total.toLocaleString()}</span>
                   </div>
                 </div>
 
@@ -699,7 +735,7 @@ export default function HospitalNewRequest() {
               {step === 1 ? "Cancel" : "Back"}
             </Button>
             
-            {step < 4 ? (
+            {step < 5 ? (
               <Button
                 type="button"
                 onClick={handleNextStep}
@@ -722,3 +758,5 @@ export default function HospitalNewRequest() {
     </div>
   );
 }
+
+

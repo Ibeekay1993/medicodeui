@@ -9,10 +9,34 @@ import {
   stripCodesAndPricing,
 } from "../_shared/email-template.ts";
 
-function generateSecureOTP(): string {
-  const array = new Uint8Array(6);
-  crypto.getRandomValues(array);
-  return Array.from(array, (b) => b % 10).join("");
+async function generateUniquePIN(supabase: any): Promise<string> {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // Removed O, 0, 1, I
+  let attempts = 0;
+  while (attempts < 10) {
+    let pin = "";
+    const array = new Uint8Array(6);
+    crypto.getRandomValues(array);
+    for (let i = 0; i < 6; i++) {
+      pin += chars[array[i] % chars.length];
+    }
+    
+    const { data, error } = await supabase
+      .from("otp_verifications")
+      .select("id")
+      .eq("otp_value", pin)
+      .eq("verified", false)
+      .maybeSingle();
+      
+    if (!data && !error) return pin;
+    attempts++;
+  }
+  throw new Error("Failed to generate a unique PIN after 10 attempts");
+}
+
+async function sha256Hex(value: string): Promise<string> {
+  const bytes = new TextEncoder().encode(value);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", bytes);
+  return Array.from(new Uint8Array(hashBuffer)).map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
 serve(async (req) => {
@@ -39,7 +63,7 @@ serve(async (req) => {
     const { data: request, error: fetchError } = await supabase
       .from("authorization_requests")
       .select(
-        "patient_name, patient_email, diagnosis, treatment, hospital_name, hospital_id, authorization_code, policy_number, urgency, approved_items, referred_hospital_name, referred_hospital_id"
+        "patient_name, patient_email, patient_phone, diagnosis, treatment, hospital_name, hospital_id, authorization_code, policy_number, urgency, approved_items, referred_hospital_name, referred_hospital_id"
       )
       .eq("id", authorization_id)
       .maybeSingle();
@@ -48,49 +72,65 @@ serve(async (req) => {
     if (!request) throw new Error("Request not found");
 
     const patientEmail = request.patient_email;
-    if (!patientEmail) {
-      return new Response(
-        JSON.stringify({ success: false, message: "No patient email on file" }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
+    const safeEmail = patientEmail || "no-email@medicode.com";
+
+    const { data: existingOtp } = await supabase
+      .from("otp_verifications")
+      .select("id, expires_at, otp_value, otp_type, verified, consumed_at")
+      .eq("authorization_id", authorization_id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    let otp = existingOtp?.otp_value || null;
+    let pinCreated = false;
+
+    if (!otp) {
+      otp = await generateUniquePIN(supabase);
+      pinCreated = true;
+      const otpHash = await sha256Hex(otp);
+      const expiresAt = new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000).toISOString();
+      const claimingHospitalId = request.referred_hospital_id || request.hospital_id;
+
+      await supabase
+        .from("otp_verifications")
+        .delete()
+        .eq("authorization_id", authorization_id)
+        .eq("verified", false);
+
+      const { error: insertError } = await supabase
+        .from("otp_verifications")
+        .insert({
+          authorization_id,
+          otp_hash: otpHash,
+          otp_value: otp,
+          email: safeEmail,
+          expires_at: expiresAt,
+          created_by: user.id,
+          otp_type: "TREATMENT",
+          hospital_id: claimingHospitalId,
+        });
+
+      if (insertError) throw insertError;
     }
 
-    // ── Generate and Store TREATMENT OTP ─────────────────────────────────────────
-    const otp = generateSecureOTP();
-    const encoder = new TextEncoder();
-    const bytes = encoder.encode(otp);
-    const hashBuffer = await crypto.subtle.digest("SHA-256", bytes);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    const otpHash = hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+    // Trigger WhatsApp Notification if phone number exists
+    if (request.patient_phone && otp) {
+      console.log(`Triggering WhatsApp PIN for ${request.patient_phone}`);
+      // We don't await this so it doesn't block the email
+      supabase.functions.invoke("send-whatsapp-otp", {
+        body: {
+          phone_number: request.patient_phone,
+          otp_code: otp,
+          hospital_name: request.hospital_name || "the hospital",
+          authorization_request_id: authorization_id
+        }
+      }).catch(err => console.error("WhatsApp trigger failed:", err));
+    }
 
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
-    const claimingHospitalId = request.referred_hospital_id || request.hospital_id;
-
-    // Clean up old unverified TREATMENT OTPs for this authorization
-    await supabase
-      .from("otp_verifications")
-      .delete()
-      .eq("authorization_id", authorization_id)
-      .eq("otp_type", "TREATMENT")
-      .eq("verified", false);
-
-    // Insert new TREATMENT OTP
-    await supabase
-      .from("otp_verifications")
-      .insert({
-        authorization_id,
-        otp_hash: otpHash,
-        otp_value: otp,
-        email: patientEmail,
-        expires_at: expiresAt,
-        created_by: user.id,
-        otp_type: "TREATMENT",
-        hospital_id: claimingHospitalId,
-      });
-
-    if (patientEmail === "no-email@medicode.com") {
+    if (safeEmail === "no-email@medicode.com") {
       return new Response(
-        JSON.stringify({ success: true, message: "Skipped approval email for placeholder address. OTP generated." }),
+        JSON.stringify({ success: true, message: pinCreated ? "WhatsApp triggered; PIN generated; approval email skipped for placeholder address." : "WhatsApp triggered; Existing PIN reused; approval email skipped for placeholder address." }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
@@ -102,7 +142,6 @@ serve(async (req) => {
     const urgency = request.urgency || "routine";
     const referredHospital = request.referred_hospital_name || null;
 
-    // ── Build approved services list (patient-safe: no codes, no pricing) ──────
     let serviceItems: string[] = [];
 
     if (Array.isArray(request.approved_items) && request.approved_items.length > 0) {
@@ -129,11 +168,10 @@ serve(async (req) => {
           .join("")
       : `<tr><td style="padding:6px 0;font-size:12px;color:#64748B;font-style:italic;">No services listed</td></tr>`;
 
-    // ── Build the email body using the centralized template ───────────────────
     const bodyHtml = `
       <p style="color:#475569;font-size:14px;line-height:1.6;margin:0 0 8px;">Hello, <strong>${patientName}</strong></p>
       <p style="color:#475569;font-size:14px;line-height:1.6;margin:0 0 20px;">
-        Your treatment request has been <strong>approved</strong> by Ronsberger HMO. 
+        Your treatment request has been <strong>approved</strong> by Ronsberger HMO.
       </p>
 
       <div style="background-color:#f0fdf4; border:1px solid #bbf7d0; border-radius:12px; padding:20px; text-align:center; margin-bottom:24px;">
@@ -142,8 +180,7 @@ serve(async (req) => {
           ${otp}
         </div>
         <p style="color:#15803d; font-size:13px; margin:12px 0 0 0; line-height:1.5;">
-          Please provide this secure PIN to the reception at your approved hospital to authorize and finalize your treatment. 
-          This PIN will expire in 10 minutes.
+          Please provide this secure PIN to the reception at your approved hospital to authorize and finalize your treatment.
         </p>
       </div>
 
@@ -199,12 +236,12 @@ serve(async (req) => {
     let emailError: string | null = null;
 
     if (!brevoApiKey) {
-      console.warn("⚠️ BREVO_API_KEY not configured - approval email will not be sent");
+      console.warn("BREVO_API_KEY not configured - approval email will not be sent");
       emailStatus = "skipped";
       emailError = "BREVO_API_KEY not configured";
     } else {
       try {
-        console.log(`📧 Sending approval email to ${patientEmail} for authorization ${authorization_id}`);
+        console.log(`Sending approval email to ${safeEmail} for authorization ${authorization_id}`);
         const brevoSender = parseBrevoSender(brevoFromRaw);
 
         const brevoResponse = await fetch("https://api.brevo.com/v3/smtp/email", {
@@ -215,8 +252,8 @@ serve(async (req) => {
           },
           body: JSON.stringify({
             sender: brevoSender,
-            to: [{ email: patientEmail }],
-            subject: `Authorization Approved — ${patientName}`,
+            to: [{ email: safeEmail }],
+            subject: `Authorization Approved - ${patientName}`,
             htmlContent: buildEmailHtml(
               "Authorization Approved",
               "Your request has been approved",
@@ -231,23 +268,23 @@ serve(async (req) => {
         if (brevoResponse.ok && (brevoData as any).messageId) {
           emailStatus = "sent";
           emailResponseId = (brevoData as any).messageId;
-          console.log(`✅ Approval email sent successfully. Message ID: ${emailResponseId}`);
+          console.log(`Approval email sent successfully. Message ID: ${emailResponseId}`);
         } else {
           emailStatus = "failed";
           emailError = (brevoData as any).message || (brevoData as any).error || `HTTP ${brevoResponse.status}`;
-          console.error(`❌ Brevo API error: ${emailError}`, brevoData);
+          console.error(`Brevo API error: ${emailError}`, brevoData);
         }
       } catch (emailErr) {
         emailStatus = "failed";
         emailError = emailErr instanceof Error ? emailErr.message : "Unknown email error";
-        console.error(`❌ Exception during approval email send: ${emailError}`, emailErr);
+        console.error(`Exception during approval email send: ${emailError}`, emailErr);
       }
     }
 
     await supabase.from("email_logs").insert({
       provider: "brevo",
-      recipient: patientEmail,
-      subject: `Authorization Approved — ${patientName}`,
+      recipient: safeEmail,
+      subject: `Authorization Approved - ${patientName}`,
       status: emailStatus,
       response_id: emailResponseId,
       error_message: emailError,
@@ -259,8 +296,9 @@ serve(async (req) => {
       user_id: user.id,
       details: {
         authorization_id,
-        patient_email: patientEmail,
+        patient_email: safeEmail,
         email_status: emailStatus,
+        pin_created: pinCreated,
       },
       severity: emailStatus === "failed" ? "warning" : "info",
     }).catch(() => {});
@@ -278,9 +316,7 @@ serve(async (req) => {
     console.error("send-approval-email error:", err);
     return new Response(
       JSON.stringify({ error: true, message: err instanceof Error ? err.message : "Failed to send approval email" }),
-      {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      },
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   }
 });

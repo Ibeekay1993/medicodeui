@@ -127,7 +127,7 @@ serve(async (req) => {
       throw new Error(`Authorization already processed (current status: ${requestRow.status})`);
     }
 
-    // A pending_referral was submitted with a receiving hospital already set —
+    // A pending_referral was submitted with a receiving hospital already set.
     // insurer approval must produce referral_approved (not approved), so Hospital B can see it.
     const isIncomingReferral = requestRow.status === "pending_referral";
 
@@ -251,10 +251,16 @@ serve(async (req) => {
         });
       }
 
-      // 2. Pre-generate OTP so it appears immediately in utilization_manager queue
-      // NOTE: Removed OTP generation here per user request. The OTP generated
-      // during request creation will be used instead.
-      
+      // 2. Pre-generate PIN so it appears immediately in utilization_manager queue
+      // This is safe because send-otp skips generation if a PIN already exists.
+      void invokeFunction("send-otp", {
+        authorization_id: requestRow.id,
+        patient_email: requestRow.patient_email,
+        policy_number: requestRow.policy_number,
+        hospital_id: finalReferredHospitalId || requestRow.hospital_id || requestRow.requesting_hospital_id,
+        otp_type: "ARRIVAL"
+      });
+
       return new Response(
         JSON.stringify({
           success: true,
@@ -300,3 +306,4 @@ serve(async (req) => {
     );
   }
 });
+

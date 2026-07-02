@@ -20,13 +20,13 @@ const resetSubmitStorageKey = "ronsberger-reset-submitting";
 const lastActivityStorageKey = "ronsberger-last-activity-at";
 const sessionStartStorageKey = "ronsberger-session-started-at";
 const sessionInactivityTimeoutByRole: Partial<Record<AppRole, number>> = {
-  admin: 5 * 60 * 1000,
-  utilization_manager: 10 * 60 * 1000,
-  hospital: 10 * 60 * 1000,
-  claims: 10 * 60 * 1000,
-  finance: 10 * 60 * 1000,
+  admin: 60 * 60 * 1000,
+  utilization_manager: 60 * 60 * 1000,
+  hospital: 60 * 60 * 1000,
+  claims: 60 * 60 * 1000,
+  finance: 60 * 60 * 1000,
 };
-const defaultSessionInactivityTimeout = 10 * 60 * 1000;
+const defaultSessionInactivityTimeout = 60 * 60 * 1000;
 const maxSessionLifetime = 4 * 60 * 60 * 1000;
 
 function getJwtSubject(token: string) {

@@ -57,6 +57,8 @@ export type HospitalRequestDraft = {
   urgency: string;
   referralHospitalId: string | null;
   referralHospitalName: string;
+  doctorReportPath?: string | null;
+  doctorReportName?: string | null;
 };
 
 export const normalizePhone = (value: string) => value.replace(/[^\d+]/g, "");

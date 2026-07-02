@@ -1,4 +1,4 @@
-export const normalizeRouteText = (value: unknown) => String(value || "").trim().toLowerCase();
+﻿export const normalizeRouteText = (value: unknown) => String(value || "").trim().toLowerCase();
 
 export const normalizeRouteCode = (value: unknown) => String(value || "").trim().toLowerCase();
 
@@ -141,7 +141,7 @@ export const conversationRoute = (
 
 export const formatMoney = (value: unknown) => {
   const numeric = Number(value || 0);
-  return Number.isFinite(numeric) ? `â‚¦${numeric.toLocaleString()}` : "Not recorded";
+  return Number.isFinite(numeric) ? `NGN ${numeric.toLocaleString()}` : "Not recorded";
 };
 
 export const readText = (value: unknown) => (typeof value === "string" ? value : "");
@@ -327,7 +327,7 @@ export function buildTicketPreview(item: any, isInternal: boolean): string {
   if (!isInternal && /^\[internal note\]/i.test(body)) {
     return "Staff are reviewing internally";
   }
-  return body.length > 220 ? `${body.slice(0, 220)}…` : body;
+  return body.length > 220 ? `${body.slice(0, 220)}...` : body;
 }
 
 export function matchesSearch(haystack: string, needle: string): boolean {

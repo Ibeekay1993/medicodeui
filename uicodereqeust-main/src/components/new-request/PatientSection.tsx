@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Loader2, Search, Plus, CheckCircle2, X } from "lucide-react";
@@ -153,7 +153,7 @@ export default function PatientSection({
                     }
                   }}
                 />
-                <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition duration-300 ease-in-out shadow-sm ${patientEmail === "no-email@medicode.com" ? 'translate-x-4.5' : 'translate-x-1'}`} />
+                <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition duration-300 ease-in-out shadow-sm ${patientEmail === "no-email@medicode.com" ? 'translate-x-4' : 'translate-x-1'}`} />
               </div>
               <span className="text-xs font-semibold text-slate-700 tracking-wider select-none">Patient does not have an email</span>
             </label>
@@ -172,15 +172,16 @@ export default function PatientSection({
               className="h-12 rounded-xl bg-slate-50 border border-slate-200 text-sm placeholder:text-slate-300 placeholder:text-xs"
             />
             <p id="email-input-description" className="text-xs font-semibold text-slate-400">
-              An OTP will be sent to this email for patient verification.
+              A request PIN will be sent to this email for patient verification.
             </p>
           </>
         ) : (
           <div className="h-12 flex items-center px-4 rounded-xl bg-slate-50 border border-dashed border-slate-200">
-            <p className="text-xs text-slate-500 italic">No email provided. Patient will need to call the HMO for their OTP.</p>
+            <p className="text-xs text-slate-500 italic">No email provided. Patient will need to call the HMO for their request PIN.</p>
           </div>
         )}
       </div>
     </div>
   );
 }
+

@@ -71,6 +71,9 @@ const STANDARD_FIELDS: Record<string, string[]> = {
   frequency: ["frequency", "freq", "how often", "frequency:", "freq:"],
   duration: ["duration", "dur", "how long", "for", "duration:", "dur:"],
   quantity: ["quantity", "qty", "amount", "quantity:", "qty:"],
+  email: ["email", "e-mail", "email address", "mail", "email:"],
+  email: ["email", "e-mail", "email address", "mail", "email:"],
+  phone: ["phone", "phone number", "tel", "telephone", "mobile", "phone:"],
 };
 
 const SPECIALIST_REVIEW_TERMS = [

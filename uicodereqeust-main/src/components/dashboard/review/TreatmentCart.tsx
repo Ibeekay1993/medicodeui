@@ -3,6 +3,13 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
 import { cn } from "@/lib/utils";
 import {
@@ -73,6 +80,17 @@ export const TreatmentCart = React.memo(function TreatmentCart({
   setCartCollapsed,
 }: TreatmentCartProps) {
   const [showItemDetails, setShowItemDetails] = useState<Record<string, boolean>>({});
+  const [declineDialogItem, setDeclineDialogItem] = useState<TariffOption | null>(null);
+  const [declineReasonText, setDeclineReasonText] = useState("");
+
+  const handleConfirmDecline = () => {
+    if (declineDialogItem) {
+      updateDeclineReason?.(declineDialogItem.code, declineReasonText);
+      toggleDeclineApprovedItem?.(declineDialogItem.code);
+      setDeclineDialogItem(null);
+      setDeclineReasonText("");
+    }
+  };
 
   const handleReDetect = () => {
     void parseTreatmentText({ force: true, replaceAuto: true });
@@ -272,17 +290,24 @@ export const TreatmentCart = React.memo(function TreatmentCart({
                             {item.declined ? "Declined" : formatNaira(itemTotal(item))}
                           </p>
                           {request?.deletion_status !== "awaiting_admin_approval" && !isHospitalDirected && (
-                            <div className="flex items-center justify-end gap-2 mt-1">
-                              <button
-                                type="button"
-                                onClick={() => toggleDeclineApprovedItem?.(item.code)}
-                                className={cn(
-                                  "text-xs font-black uppercase transition-colors",
-                                  item.declined
-                                    ? "text-slate-600 hover:text-slate-700"
-                                    : "text-rose-500 hover:text-rose-700"
-                                )}
-                              >
+                              <div className="flex items-center justify-end gap-2 mt-1">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (item.declined) {
+                                      toggleDeclineApprovedItem?.(item.code);
+                                    } else {
+                                      setDeclineDialogItem(item);
+                                      setDeclineReasonText(item.decline_reason || "");
+                                    }
+                                  }}
+                                  className={cn(
+                                    "text-xs font-black uppercase transition-colors",
+                                    item.declined
+                                      ? "text-slate-600 hover:text-slate-700"
+                                      : "text-rose-500 hover:text-rose-700"
+                                  )}
+                                >
                                 {item.declined ? "Approve" : "Decline"}
                               </button>
                               <span className="text-slate-300 text-xs select-none">•</span>
@@ -415,6 +440,40 @@ export const TreatmentCart = React.memo(function TreatmentCart({
           </div>
         </div>
       )}
+
+      <Dialog open={!!declineDialogItem} onOpenChange={(open) => !open && setDeclineDialogItem(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Decline Item</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <p className="text-sm text-slate-500 font-medium">
+              Please provide a reason for declining: <strong className="text-slate-900">{declineDialogItem?.name}</strong>
+            </p>
+            <div className="space-y-2">
+              <Label>Reason (Required)</Label>
+              <Input
+                placeholder="e.g. Service not covered by policy..."
+                value={declineReasonText}
+                onChange={(e) => setDeclineReasonText(e.target.value)}
+                autoFocus
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeclineDialogItem(null)}>
+              Cancel
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={handleConfirmDecline}
+              disabled={!declineReasonText.trim()}
+            >
+              Confirm Decline
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 });

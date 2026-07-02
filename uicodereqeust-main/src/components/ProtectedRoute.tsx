@@ -41,13 +41,13 @@ export function ProtectedRoute({ children, allowedRoles, fallbackPath, loginPath
               setMfaStatus("pass"); // verified or bypassed
             }
           } else {
-            setMfaStatus("pass");
+            setMfaStatus("enroll");
           }
         } else {
           setMfaStatus("pass");
         }
       } catch (e) {
-        setMfaStatus("pass");
+        setMfaStatus("enroll");
       }
       setMfaChecking(false);
     }
@@ -95,3 +95,4 @@ export function ProtectedRoute({ children, allowedRoles, fallbackPath, loginPath
 
   return <>{children}</>;
 }
+

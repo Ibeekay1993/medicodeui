@@ -165,7 +165,7 @@ export default function Login() {
 
 
 
-  // FIX 3: Categorise errors correctly â€” don't expose internals but distinguish network issues
+  // FIX 3: Categorise errors correctly — don't expose internals but distinguish network issues
   const parseAuthError = (err: any): string => {
     const msg: string = (err?.message || "").toLowerCase();
     if (
@@ -176,7 +176,7 @@ export default function Login() {
     ) {
       return "Connection error. Please check your network and try again.";
     }
-    // Generic message for any auth failure â€” prevents user enumeration
+    // Generic message for any auth failure — prevents user enumeration
     return "Invalid credentials. Please check your email and password.";
   };
 
@@ -230,6 +230,11 @@ export default function Login() {
       }
       setFailedAttempts(0);
       setLockedUntil(null);
+
+      if (resolvedRole === "hospital") {
+        redirectForRole(resolvedRole);
+        return;
+      }
 
       const { data: factors } = await supabase.auth.mfa.listFactors();
       const verifiedFactor = factors?.all.find((f) => f.status === "verified");
@@ -520,7 +525,7 @@ export default function Login() {
                   <div className="flex items-center gap-2 p-3 rounded-xl bg-amber-50 border border-amber-200 animate-in fade-in">
                     <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
                     <p className="text-xs font-semibold text-amber-800">
-                      Too many attempts â€” please wait {lockCountdown}s
+                      Too many attempts — please wait {lockCountdown}s
                     </p>
                   </div>
                 )}
@@ -533,7 +538,7 @@ export default function Login() {
                   {isLoading ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : isLocked ? (
-                    `Locked â€” ${lockCountdown}s`
+                    `Locked — ${lockCountdown}s`
                   ) : (
                     "Login"
                   )}
