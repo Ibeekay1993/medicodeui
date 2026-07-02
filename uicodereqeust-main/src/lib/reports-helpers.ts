@@ -181,12 +181,23 @@ export function groupByDate(
     const point = groups.get(key)!;
     if (record.status === "approved") {
       point.approved++;
-      point.approvedAmount += record.approved_amount || 0;
+      point.approvedAmount += Number(record.approved_amount) || 0;
     } else if (record.status === "rejected") {
       point.rejected++;
-      point.rejectedAmount += record.rejected_amount || 0;
     } else if (record.status === "pending") {
       point.pending++;
+    }
+
+    // Calculate rejected amount mathematically if not pending
+    if (record.status !== "pending" && record.status !== "pending_referral" && record.status !== "pending_authorization") {
+      const req = Number(record.requested_amount) || 0;
+      const app = Number(record.approved_amount) || 0;
+      const rejEx = Number(record.rejected_amount) || 0;
+      if (rejEx > 0) {
+        point.rejectedAmount += rejEx;
+      } else {
+        point.rejectedAmount += Math.max(0, req - app);
+      }
     }
   }
 
@@ -217,16 +228,26 @@ export function calculateHospitalPerformance(
 
     const perf = groups.get(hospital)!;
     perf.totalCodes++;
-    perf.requestedAmount += record.requested_amount || 0;
+    perf.requestedAmount += Number(record.requested_amount) || 0;
 
     if (record.status === "approved") {
       perf.approvedCodes++;
-      perf.approvedAmount += record.approved_amount || 0;
+      perf.approvedAmount += Number(record.approved_amount) || 0;
     } else if (record.status === "rejected") {
       perf.rejectedCodes++;
-      perf.rejectedAmount += record.rejected_amount || 0;
     } else if (record.status === "pending") {
       perf.pendingCodes++;
+    }
+
+    if (record.status !== "pending" && record.status !== "pending_referral" && record.status !== "pending_authorization") {
+      const req = Number(record.requested_amount) || 0;
+      const app = Number(record.approved_amount) || 0;
+      const rejEx = Number(record.rejected_amount) || 0;
+      if (rejEx > 0) {
+        perf.rejectedAmount += rejEx;
+      } else {
+        perf.rejectedAmount += Math.max(0, req - app);
+      }
     }
   }
 

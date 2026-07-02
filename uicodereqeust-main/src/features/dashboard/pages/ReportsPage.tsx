@@ -6,8 +6,8 @@ import { useTabVisibilityRefresh } from "@/hooks/use-tab-visibility-refresh";
 import { BarChart3, ShieldAlert, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/lib/errors";
-import * as XLSX from "xlsx";
-
+import * as ExcelJS from "exceljs";
+import { saveAs } from "file-saver";
 import {
   RequestStatus,
   ReportStats,
@@ -58,10 +58,23 @@ export default function ReportsPage() {
     const pending = data.filter((r) => ["pending", "pending_referral", "pending_authorization"].includes(r.status));
     const rejected = data.filter((r) => ["rejected", "referral_declined", "referral_expired"].includes(r.status));
 
-    const totalRequested = data.reduce((sum, r) => sum + (r.requested_amount || 0), 0);
-    const totalApproved = approved.reduce((sum, r) => sum + (r.approved_amount || 0), 0);
-    const totalPending = pending.reduce((sum, r) => sum + (r.requested_amount || 0), 0);
-    const totalRejected = rejected.reduce((sum, r) => sum + (r.rejected_amount || r.requested_amount || 0), 0);
+    const totalRequested = data.reduce((sum, r) => sum + (Number(r.requested_amount) || 0), 0);
+    const totalApproved = approved.reduce((sum, r) => sum + (Number(r.approved_amount) || 0), 0);
+    const totalPending = pending.reduce((sum, r) => sum + (Number(r.requested_amount) || 0), 0);
+    
+    // For rejected amount, we should consider records where requested > approved, or explicit rejected_amount
+    const totalRejected = data.reduce((sum, r) => {
+      if (["pending", "pending_referral", "pending_authorization"].includes(r.status?.toLowerCase() || "")) {
+        return sum;
+      }
+      const req = Number(r.requested_amount) || 0;
+      const app = Number(r.approved_amount) || 0;
+      const rejExplicit = Number(r.rejected_amount) || 0;
+      if (rejExplicit > 0) return sum + rejExplicit;
+      
+      const calcRej = Math.max(0, req - app);
+      return sum + calcRej;
+    }, 0);
 
     const processedRecords = data.filter((r) => r.decided_at && r.created_at);
     const avgTime =
@@ -209,7 +222,10 @@ export default function ReportsPage() {
       setStats(calculateStats(validRecords));
       setHospitalPerformance(calculateHospitalPerformance(validRecords));
       setDailyTrend(groupByDate(validRecords, "day"));
-      setMonthlyTrend(groupByDate(validRecords, "month"));
+
+      const currentYear = new Date().getFullYear();
+      const currentYearRecords = validRecords.filter(r => new Date(r.created_at).getFullYear() === currentYear);
+      setMonthlyTrend(groupByDate(currentYearRecords, "month"));
     } catch (error) {
       console.error("Analytics fetch error:", error);
       toast.error(getErrorMessage(error, "Failed to load analytics data"));
@@ -261,360 +277,306 @@ export default function ReportsPage() {
 
   useTabVisibilityRefresh(fetchAnalytics);
 
-  const exportExcel = async () => {
+  const exportExcel = async (mode: "detailed" | "full" = "full") => {
     setIsExporting(true);
-    toast.info("Preparing Excel report…");
+    toast.info(`Preparing ${mode === "full" ? "Premium Excel Dashboard" : "Detailed Data Export"}…`);
 
     try {
-      const workbook = XLSX.utils.book_new();
+      const workbook = new ExcelJS.Workbook();
+      workbook.creator = "Medicode System";
+      workbook.created = new Date();
 
-      // ── SHEET 5: Pivot / Facts Data (Hidden) ────────────────────────────
-      const pivotFacts: any[] = [];
-      for (const r of records) {
-        const created = r.created_at ? new Date(r.created_at) : null;
-        const dayKey = created ? created.toISOString().slice(0, 10) : "";
-        const monthKey = created
-          ? `${created.getFullYear()}-${String(created.getMonth() + 1).padStart(2, "0")}`
-          : "";
+      const theme = {
+        primary: "FF1E3A8A", // Blue
+        success: "FF10B981", // Green
+        danger: "FFEF4444",  // Red
+        warning: "FFF59E0B", // Amber
+        bg: "FFF8FAFC",      // Light Gray
+        text: "FF374151",    // Dark Gray
+      };
 
-        pivotFacts.push({
-          Date: created ? created.toLocaleDateString("en-GB") : "",
-          DateISO: dayKey,
-          MonthISO: monthKey,
-          Year: created ? created.getFullYear() : "",
-          Status: r.status,
-          Hospital: r.requesting_hospital,
-          Diagnosis: r.diagnosis,
-          Treatment: r.treatment,
-          Source: r.source,
-          PayerOrPolicy: r.policy_number,
-          AuthorizationCode: r.authorization_code,
-          PatientName: r.patient_name,
-          RequestedAmount: r.requested_amount || 0,
-          ApprovedAmount: r.approved_amount || 0,
-          RejectedAmount: (r as any).rejected_amount || 0,
-          RejectionReason: r.rejection_reason || r.decision_reason || "",
-          ProcessingHours: (() => {
-            if (!r.decided_at || !r.created_at) return "";
-            const createdMs = new Date(r.created_at).getTime();
-            const decidedMs = new Date(r.decided_at).getTime();
-            if (!Number.isFinite(createdMs) || !Number.isFinite(decidedMs)) return "";
-            return (decidedMs - createdMs) / (1000 * 60 * 60);
-          })(),
-          ApprovedCount: r.status === "approved" ? 1 : 0,
-          RejectedCount: r.status === "rejected" ? 1 : 0,
-          PendingCount: r.status === "pending" ? 1 : 0,
-          RequestedCount: 1,
+      const headerFill: ExcelJS.FillPattern = {
+        type: "pattern",
+        pattern: "solid",
+        fgColor: { argb: theme.primary },
+      };
+
+      const headerFont: ExcelJS.Font = {
+        color: { argb: "FFFFFFFF" },
+        bold: true,
+        size: 12,
+      };
+
+      const currencyFormat = '"₦"#,##0';
+      const percentFormat = '0.0"%"';
+
+      // ── SHEETS 1-4 (Only in Full Mode) ───────────────────────────────────
+      if (mode === "full") {
+        // ── SHEET 1: Executive Summary ───────────────────────────────────────
+        const ws1 = workbook.addWorksheet("Executive Summary", {
+        views: [{ showGridLines: false }],
+        properties: { tabColor: { argb: theme.primary } },
+      });
+
+      ws1.columns = [
+        { width: 35 }, { width: 25 }, { width: 45 }
+      ];
+
+      ws1.addRow(["EXECUTIVE ANALYTICS DASHBOARD"]).font = { size: 16, bold: true, color: { argb: theme.primary } };
+      ws1.addRow([]);
+      
+      const kpiHeader = ws1.addRow(["EXECUTIVE KPI SUMMARY", "", ""]);
+      kpiHeader.font = headerFont;
+      kpiHeader.fill = headerFill;
+      ws1.mergeCells(`A${kpiHeader.number}:C${kpiHeader.number}`);
+
+      const kpiSubHeader = ws1.addRow(["KPI", "Value", "Trend / Note"]);
+      kpiSubHeader.font = { bold: true };
+      kpiSubHeader.border = { bottom: { style: 'thin', color: { argb: 'FFCCCCCC' } } };
+
+      const pushKPI = (kpi: string, value: any, note: string, isCurrency = false, isPercent = false, colorArgb?: string) => {
+        const row = ws1.addRow([kpi, value, note]);
+        row.getCell(1).font = { bold: true };
+        const valCell = row.getCell(2);
+        valCell.font = { bold: true, size: 14, color: colorArgb ? { argb: colorArgb } : undefined };
+        valCell.alignment = { horizontal: 'right' };
+        if (isCurrency) valCell.numFmt = currencyFormat;
+        if (isPercent) valCell.numFmt = percentFormat;
+      };
+
+      pushKPI("Total Authorization Requests", stats.totalCodes, "Current filtered scope");
+      pushKPI("Total Approved Requests", stats.approvedCodes, "Current filtered scope", false, false, theme.success);
+      pushKPI("Total Rejected Requests", stats.rejectedCodes, "Current filtered scope", false, false, theme.danger);
+      pushKPI("Total Pending Requests", stats.pendingCodes, "Current filtered scope", false, false, theme.warning);
+      ws1.addRow([]);
+
+      const finHeader = ws1.addRow(["FINANCIAL INSIGHTS", "", ""]);
+      finHeader.font = headerFont;
+      finHeader.fill = headerFill;
+      ws1.mergeCells(`A${finHeader.number}:C${finHeader.number}`);
+      
+      const finSubHeader = ws1.addRow(["Metric", "Value", "Interpretation"]);
+      finSubHeader.font = { bold: true };
+      finSubHeader.border = { bottom: { style: 'thin', color: { argb: 'FFCCCCCC' } } };
+
+      pushKPI("Total Requested Amount", stats.requestedAmount, "NGN amounts", true);
+      pushKPI("Total Approved Amount", stats.approvedAmount, "NGN amounts", true, false, theme.success);
+      pushKPI("Total Rejected Amount", stats.rejectedAmount, "NGN amounts", true, false, theme.danger);
+      pushKPI("Approval Rate", stats.approvalRate, "Approved / Total Volume", false, true);
+      pushKPI("Rejection Rate", stats.rejectionRate, "Rejected / Total Volume", false, true, theme.danger);
+
+      // ── SHEET 2: Trend Analysis ──────────────────────────────────────────
+      const ws2 = workbook.addWorksheet("Trend Analysis", {
+        views: [{ state: 'frozen', xSplit: 0, ySplit: 1 }],
+        properties: { tabColor: { argb: theme.success } },
+      });
+
+      ws2.columns = [
+        { header: "Date", key: "date", width: 15 },
+        { header: "Total Volume", key: "total", width: 15 },
+        { header: "Approved", key: "approved", width: 15 },
+        { header: "Rejected", key: "rejected", width: 15 },
+        { header: "Pending", key: "pending", width: 15 },
+        { header: "Approval Rate", key: "rate", width: 18 },
+      ];
+
+      ws2.getRow(1).font = headerFont;
+      ws2.getRow(1).fill = headerFill;
+
+      for (const p of dailyTrend) {
+        const total = (p.approved || 0) + (p.rejected || 0) + (p.pending || 0);
+        const rate = total > 0 ? ((p.approved || 0) / total) * 100 : 0;
+        ws2.addRow({
+          date: p.date,
+          total: total,
+          approved: p.approved,
+          rejected: p.rejected,
+          pending: p.pending,
+          rate: rate
         });
       }
 
-      const pivotSheet = XLSX.utils.json_to_sheet(pivotFacts);
-      pivotSheet["!cols"] = [
-        { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 6 }, { wch: 10 },
-        { wch: 22 }, { wch: 22 }, { wch: 16 }, { wch: 14 }, { wch: 16 },
-        { wch: 18 }, { wch: 26 }, { wch: 18 }, { wch: 16 }, { wch: 16 },
-        { wch: 16 }, { wch: 18 }, { wch: 18 }, { wch: 22 }, { wch: 18 },
-        { wch: 16 }, { wch: 14 }, { wch: 16 }, { wch: 16 }, { wch: 14 },
-        { wch: 14 }, { wch: 14 }
-      ];
-
-      pivotSheet["!state"] = "hidden";
-      XLSX.utils.book_append_sheet(workbook, pivotSheet, "Pivot Data (Hidden)");
-
-      // ── SHEET 1: Detailed Data ───────────────────────────────────────────
-      const detailsData = records.map((r, index) => ({
-        "S/N": index + 1,
-        "Date": r.created_at ? new Date(r.created_at).toLocaleDateString("en-GB") : "",
-        "Request ID": r.request_id,
-        "Patient Name": r.patient_name,
-        "Patient Phone": r.patient_phone,
-        "Patient Email": r.patient_email === "no-email@medicode.com" ? "No email provided" : r.patient_email,
-        "Policy Number": r.policy_number,
-        "Diagnosis": r.diagnosis,
-        "Treatment": r.treatment,
-        "Hospital": r.requesting_hospital,
-        "Auth Code": r.authorization_code,
-        "Status": (r.status || "").toUpperCase(),
-        "Amount of Care per Request": r.requested_amount || 0,
-        "Requested Amount": r.requested_amount || 0,
-        "Approved Amount": r.approved_amount || 0,
-        "Rejected Amount": r.rejected_amount || 0,
-        "Decision Note": r.rejection_reason || r.decision_reason || "",
-        "Clinician": r.clinician || "",
-        "Created At": r.created_at || "",
-        "Decided At": r.decided_at || "",
-      }));
-
-      const detailsSheet = XLSX.utils.json_to_sheet(detailsData);
-      detailsSheet["!cols"] = [
-        { wch: 6 },  // S/N
-        { wch: 12 }, // Date
-        { wch: 18 }, // Request ID
-        { wch: 22 }, // Patient Name
-        { wch: 16 }, // Patient Phone
-        { wch: 24 }, // Patient Email
-        { wch: 18 }, // Policy Number
-        { wch: 20 }, // Diagnosis
-        { wch: 20 }, // Treatment
-        { wch: 28 }, // Hospital
-        { wch: 16 }, // Auth Code
-        { wch: 16 }, // Status
-        { wch: 26 }, // Amount of Care per Request
-        { wch: 18 }, // Requested Amount
-        { wch: 18 }, // Approved Amount
-        { wch: 18 }, // Rejected Amount
-        { wch: 24 }, // Decision Note
-        { wch: 18 }, // Clinician
-        { wch: 16 }, // Created At
-        { wch: 16 }  // Decided At
-      ];
-      XLSX.utils.book_append_sheet(workbook, detailsSheet, "Detailed Data");
-
-      // ── Derived executive insights ───────────────────────────────────────
-      const totalApproved = stats.approvedAmount || 0;
-      const topHospitalByApproved =
-        hospitalPerformance.length
-          ? [...hospitalPerformance].sort((a, b) => b.approvedAmount - a.approvedAmount)[0]
-          : null;
-      const topHospitalShare =
-        topHospitalByApproved && totalApproved > 0
-          ? (topHospitalByApproved.approvedAmount / totalApproved) * 100
-          : 0;
-
-      const worstHospitalByRejectionRate =
-        hospitalPerformance.length
-          ? [...hospitalPerformance].sort((a, b) => b.rejectedAmount - a.rejectedAmount)[0]
-          : null;
-
-      const approvedVsRequestedDeltaPct =
-        stats.requestedAmount > 0
-          ? ((stats.approvedAmount - stats.requestedAmount) / stats.requestedAmount) * 100
-          : 0;
-
-      const commonInsight =
-        hospitalPerformance.length >= 3
-          ? (() => {
-              const sorted = [...hospitalPerformance].sort((a, b) => b.totalCodes - a.totalCodes);
-              const top3 = sorted.slice(0, 3);
-              const top3Share =
-                stats.totalCodes > 0 ? (top3.reduce((s, h) => s + h.totalCodes, 0) / stats.totalCodes) * 100 : 0;
-              return top3Share;
-            })()
-          : 0;
-
-      // ── SHEET 2: Executive Analytics Dashboard ───────────────────────────
-      const executiveRows: any[] = [];
-      executiveRows.push(["EXECUTIVE ANALYTICS DASHBOARD"]);
-      executiveRows.push([]);
-
-      executiveRows.push(["EXECUTIVE KPI SUMMARY"]);
-      executiveRows.push(["KPI", "Value", "Trend / Note"]);
-
-      const pushKPI = (kpi: string, value: any, note: string) => executiveRows.push([kpi, value, note]);
-
-      pushKPI("Total Authorization Requests", stats.totalCodes.toLocaleString(), "Current filtered scope");
-      pushKPI("Total Approved Requests", stats.approvedCodes.toLocaleString(), "Current filtered scope");
-      pushKPI("Total Rejected Requests", stats.rejectedCodes.toLocaleString(), "Current filtered scope");
-      pushKPI("Total Pending Requests", stats.pendingCodes.toLocaleString(), "Current filtered scope");
-
-      pushKPI("Total Requested Amount", formatNaira(stats.requestedAmount), "NGN amounts" );
-      pushKPI("Total Approved Amount", formatNaira(stats.approvedAmount), "NGN amounts" );
-      pushKPI("Total Rejected Amount", formatNaira(stats.rejectedAmount), "NGN amounts" );
-
-      pushKPI("Approval Rate", formatPercent(stats.approvalRate), "Approved / Total" );
-      pushKPI("Rejection Rate", formatPercent(stats.rejectionRate), "Rejected / Total" );
-
-      pushKPI("Average Approval Value", stats.approvedCodes > 0 ? formatNaira(stats.approvedAmount / stats.approvedCodes) : formatNaira(0), "Avg approved code value" );
-      pushKPI("Average Claim Value", stats.totalCodes > 0 ? formatNaira(stats.requestedAmount / stats.totalCodes) : formatNaira(0), "Avg requested per code" );
-      pushKPI("Average Daily Volume", `${stats.dailyVolume.toFixed(0)}/day`, "Based on unique request dates in range" );
-
-      executiveRows.push([]);
-      executiveRows.push(["FINANCIAL INSIGHTS"]);
-      executiveRows.push(["Metric", "Value", "Interpretation"]);
-      executiveRows.push(["Requested vs Approved", `${formatNaira(stats.approvedAmount)} / ${formatNaira(stats.requestedAmount)}`, approvedVsRequestedDeltaPct >= 0 ? "Approved amount is at or above requested" : "Approved amount is below requested (savings generated)" ]);
-      executiveRows.push(["Approval Yield", stats.requestedAmount > 0 ? formatPercent((stats.approvedAmount / stats.requestedAmount) * 100) : "0.0%", "Approved / Requested" ]);
-      executiveRows.push(["Financial Approval Rate", formatPercent(stats.approvalRate), "Proxy for approvals" ]);
-
-      executiveRows.push([]);
-      executiveRows.push(["HOSPITAL PERFORMANCE (TOP VIEW)"]);
-      executiveRows.push(["Hospital", "Total Codes", "Approved Codes", "Rejected Codes", "Pending Codes", "Approved Amount", "Approval Rate"]);
-
-      const top10 = [...hospitalPerformance]
-        .sort((a, b) => b.approvedAmount - a.approvedAmount)
-        .slice(0, 10);
-      for (const h of top10) {
-        executiveRows.push([
-          h.hospital,
-          h.totalCodes,
-          h.approvedCodes,
-          h.rejectedCodes,
-          h.pendingCodes,
-          formatNaira(h.approvedAmount),
-          `${h.approvalRate.toFixed(1)}%`,
-        ]);
-      }
-
-      executiveRows.push([]);
-      executiveRows.push(["OPERATIONAL BOTTLENECKS"]);
-      executiveRows.push(["Risk Type", "Hospital", "Value", "Why it matters"]);
-
-      const highestPending = [...hospitalPerformance].sort((a, b) => b.pendingCodes - a.pendingCodes)[0];
-      if (highestPending) {
-        executiveRows.push([
-          "Highest Pending Volume",
-          highestPending.hospital,
-          highestPending.pendingCodes,
-          "Backlog indicator—pending requests remain unprocessed.",
-        ]);
-      }
-
-      if (worstHospitalByRejectionRate) {
-        executiveRows.push([
-          "Largest Rejected Amount",
-          worstHospitalByRejectionRate.hospital,
-          formatNaira(worstHospitalByRejectionRate.rejectedAmount),
-          "Higher rejection exposure—review reasons & decision workflow.",
-        ]);
-      }
-
-      executiveRows.push([]);
-      executiveRows.push(["EXECUTIVE INSIGHTS & COMMENTARY"]);
-      executiveRows.push(["Insight"]);
-
-      if (topHospitalByApproved) {
-        executiveRows.push([
-          `${topHospitalByApproved.hospital} contributed ${topHospitalShare.toFixed(1)}% of all approved amounts in this export scope.`
-        ]);
-      } else {
-        executiveRows.push([`No hospital performance data available in this export scope.`]);
-      }
-
-      if (commonInsight) {
-        executiveRows.push([`Three leading hospitals account for ~${commonInsight.toFixed(1)}% of total authorization volume.`]);
-      }
-
-      if (worstHospitalByRejectionRate) {
-        executiveRows.push([`${worstHospitalByRejectionRate.hospital} has the largest rejected exposure in this snapshot. Focus on rejection reasons and pre-checks.`]);
-      }
-
-      const executiveSheet = XLSX.utils.aoa_to_sheet(executiveRows);
-      executiveSheet["!cols"] = [
-        { wch: 42 }, { wch: 22 }, { wch: 34 }
-      ];
-      XLSX.utils.book_append_sheet(workbook, executiveSheet, "Executive Analytics Dashboard");
-
-      // ── SHEET 3: Hospital Performance Analysis ───────────────────────────
-      const hospRows: any[] = [];
-      hospRows.push(["HOSPITAL PERFORMANCE ANALYSIS"]);
-      hospRows.push([]);
-      hospRows.push(["Scorecard"]);
-      hospRows.push([
-        "Hospital",
-        "Total Codes",
-        "Approved Codes",
-        "Rejected Codes",
-        "Pending Codes",
-        "Requested Amount",
-        "Approved Amount",
-        "Rejected Amount",
-        "Approval Rate",
-        "Average Authorization Value",
-      ]);
-
-      for (const h of [...hospitalPerformance].sort((a, b) => b.totalCodes - a.totalCodes)) {
-        const avgAuthVal = h.totalCodes > 0 ? h.requestedAmount / h.totalCodes : 0;
-        hospRows.push([
-          h.hospital,
-          h.totalCodes,
-          h.approvedCodes,
-          h.rejectedCodes,
-          h.pendingCodes,
-          formatNaira(h.requestedAmount),
-          formatNaira(h.approvedAmount),
-          formatNaira(h.rejectedAmount),
-          `${h.approvalRate.toFixed(1)}%`,
-          formatNaira(avgAuthVal),
-        ]);
-      }
-
-      hospRows.push([]);
-      hospRows.push(["Top 10 by Approval Rate"]);
-      hospRows.push(["Rank", "Hospital", "Total Codes", "Approved Amount", "Approval Rate"]);
-      const topByRate = [...hospitalPerformance].sort((a, b) => b.approvalRate - a.approvalRate).slice(0, 10);
-      topByRate.forEach((h, i) => {
-        hospRows.push([i + 1, h.hospital, h.totalCodes, formatNaira(h.approvedAmount), `${h.approvalRate.toFixed(1)}%`]);
+      ws2.getColumn('rate').numFmt = percentFormat;
+      
+      // In-cell pseudo-chart for Trend Approval Rate
+      ws2.addConditionalFormatting({
+        ref: `F2:F${Math.max(2, dailyTrend.length + 1)}`,
+        rules: [
+          {
+            type: 'dataBar',
+            cfvo: [{ type: 'min' }, { type: 'max' }],
+            color: { argb: theme.success },
+            gradient: true,
+          }
+        ]
       });
 
-      hospRows.push([]);
-      hospRows.push(["Bottom 10 by Approval Rate"]);
-      hospRows.push(["Rank", "Hospital", "Total Codes", "Approved Amount", "Approval Rate"]);
-      const bottomByRate = [...hospitalPerformance].sort((a, b) => a.approvalRate - b.approvalRate).slice(0, 10);
-      bottomByRate.forEach((h, i) => {
-        hospRows.push([i + 1, h.hospital, h.totalCodes, formatNaira(h.approvedAmount), `${h.approvalRate.toFixed(1)}%`]);
+      // ── SHEET 3: Hospital Performance ────────────────────────────────────
+      const ws3 = workbook.addWorksheet("Hospital Performance", {
+        views: [{ state: 'frozen', xSplit: 0, ySplit: 1 }],
+        properties: { tabColor: { argb: theme.warning } },
       });
 
-      const hospSheet = XLSX.utils.aoa_to_sheet(hospRows);
-      hospSheet["!cols"] = [
-        { wch: 28 }, { wch: 14 }, { wch: 16 }, { wch: 16 }, { wch: 16 },
-        { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 14 }, { wch: 22 }
+      ws3.columns = [
+        { header: "Hospital", key: "hospital", width: 35 },
+        { header: "Total Codes", key: "total", width: 15 },
+        { header: "Approved Codes", key: "approved", width: 18 },
+        { header: "Rejected Codes", key: "rejected", width: 18 },
+        { header: "Requested Amount", key: "reqAmt", width: 22 },
+        { header: "Approved Amount", key: "appAmt", width: 22 },
+        { header: "Approval Rate", key: "rate", width: 18 },
       ];
-      XLSX.utils.book_append_sheet(workbook, hospSheet, "Hospital Performance Analysis");
 
-      // ── SHEET 4: Trend Analysis ──────────────────────────────────────────
-      const trendRows: any[] = [];
-      trendRows.push(["TREND ANALYSIS"]);
-      trendRows.push([]);
+      ws3.getRow(1).font = headerFont;
+      ws3.getRow(1).fill = headerFill;
 
-      trendRows.push(["Daily Trend (Approved / Rejected / Pending)"]);
-      trendRows.push(["Date", "Approved", "Rejected", "Pending"]);
-      for (const p of dailyTrend) {
-        trendRows.push([p.date, p.approved, p.rejected, p.pending]);
+      const sortedHospitals = [...hospitalPerformance].sort((a, b) => b.totalCodes - a.totalCodes);
+      
+      for (const h of sortedHospitals) {
+        ws3.addRow({
+          hospital: h.hospital,
+          total: h.totalCodes,
+          approved: h.approvedCodes,
+          rejected: h.rejectedCodes,
+          reqAmt: h.requestedAmount,
+          appAmt: h.approvedAmount,
+          rate: h.approvalRate
+        });
       }
 
-      trendRows.push([]);
-      trendRows.push(["Monthly Financial Trend"]);
-      trendRows.push(["Month", "Approved Amount", "Rejected Amount"]);
-      for (const p of monthlyTrend) {
-        trendRows.push([p.date, p.approvedAmount, p.rejectedAmount]);
+      ws3.getColumn('reqAmt').numFmt = currencyFormat;
+      ws3.getColumn('appAmt').numFmt = currencyFormat;
+      ws3.getColumn('rate').numFmt = percentFormat;
+
+      // In-cell pseudo-chart for Hospital Approval Rate
+      ws3.addConditionalFormatting({
+        ref: `G2:G${Math.max(2, sortedHospitals.length + 1)}`,
+        rules: [
+          {
+            type: 'colorScale',
+            cfvo: [{ type: 'num', value: 0 }, { type: 'num', value: 50 }, { type: 'num', value: 100 }],
+            color: [{ argb: theme.danger }, { argb: theme.warning }, { argb: theme.success }]
+          }
+        ]
+      });
+
+      // ── SHEET 4: Clinical Insights ───────────────────────────────────────
+      const ws4 = workbook.addWorksheet("Clinical Insights", {
+        views: [{ state: 'frozen', xSplit: 0, ySplit: 1 }],
+        properties: { tabColor: { argb: theme.danger } },
+      });
+
+      ws4.columns = [
+        { header: "Diagnosis", key: "diagnosis", width: 40 },
+        { header: "Count", key: "count", width: 15 },
+        { header: "% of Total", key: "pct", width: 15 },
+      ];
+
+      ws4.getRow(1).font = headerFont;
+      ws4.getRow(1).fill = headerFill;
+
+      const diagMap: Record<string, number> = {};
+      for (const r of records) {
+        const d = r.diagnosis || "Unknown";
+        diagMap[d] = (diagMap[d] || 0) + 1;
+      }
+      const sortedDiags = Object.entries(diagMap).sort((a, b) => b[1] - a[1]);
+
+      for (const [diag, count] of sortedDiags) {
+        ws4.addRow({
+          diagnosis: diag,
+          count: count,
+          pct: stats.totalCodes > 0 ? (count / stats.totalCodes) * 100 : 0
+        });
       }
 
-      trendRows.push([]);
-      trendRows.push(["Simple Forecast (End-of-Month Projection)"]);
-      trendRows.push(["Metric", "Forecast Value", "Method"]);
+      ws4.getColumn('pct').numFmt = percentFormat;
 
-      const dailyValues = dailyTrend.slice(-7);
-      const lastDaysCount = dailyValues.length;
-      const lastApprovedSum = dailyValues.reduce((s, d) => s + (d.approved || 0), 0);
-      const avgApprovedPerDay = lastDaysCount > 0 ? lastApprovedSum / lastDaysCount : 0;
+        ws4.addConditionalFormatting({
+          ref: `B2:B${Math.max(2, sortedDiags.length + 1)}`,
+          rules: [
+            {
+              type: 'dataBar',
+              cfvo: [{ type: 'min' }, { type: 'max' }],
+              color: { argb: theme.primary },
+              gradient: true,
+            }
+          ]
+        });
+      }
 
-      const lastApprovedAmountSum = dailyValues.reduce((s, d) => s + (d.approvedAmount || 0), 0);
-      const avgApprovedAmountPerDay = lastDaysCount > 0 ? lastApprovedAmountSum / lastDaysCount : 0;
+      // ── SHEET 5: Detailed Data (Always Included) ─────────────────────────
+      const ws5 = workbook.addWorksheet("Detailed Data", {
+        views: [{ state: 'frozen', xSplit: 0, ySplit: 1 }],
+        properties: { tabColor: { argb: theme.bg } },
+      });
 
-      const forecastVolume = avgApprovedPerDay * 30;
-      const forecastApprovedAmount = avgApprovedAmountPerDay * 30;
+      ws5.columns = [
+        { header: "Date", key: "date", width: 15 },
+        { header: "Request ID", key: "reqId", width: 20 },
+        { header: "Status", key: "status", width: 15 },
+        { header: "Hospital", key: "hospital", width: 35 },
+        { header: "Patient Name", key: "patient", width: 25 },
+        { header: "Policy Number", key: "policy", width: 20 },
+        { header: "Diagnosis", key: "diagnosis", width: 30 },
+        { header: "Treatment", key: "treatment", width: 30 },
+        { header: "Requested Amount", key: "reqAmt", width: 20 },
+        { header: "Approved Amount", key: "appAmt", width: 20 },
+        { header: "Rejected Amount", key: "rejAmt", width: 20 },
+        { header: "Auth Code", key: "authCode", width: 20 },
+        { header: "Decision Note", key: "note", width: 40 },
+        { header: "Clinician", key: "clinician", width: 20 },
+      ];
 
-      trendRows.push(["End-of-Month Volume (Projected)", Math.round(forecastVolume), "Avg of last 7 daily points x 30" ]);
-      trendRows.push(["End-of-Month Approved Amount (Projected)", formatNaira(forecastApprovedAmount), "Avg of last 7 daily approved amounts x 30" ]);
+      ws5.getRow(1).font = headerFont;
+      ws5.getRow(1).fill = headerFill;
 
-      const trendSheet = XLSX.utils.aoa_to_sheet(trendRows);
-      trendSheet["!cols"] = [{ wch: 20 }, { wch: 22 }, { wch: 16 }, { wch: 16 }];
-      XLSX.utils.book_append_sheet(workbook, trendSheet, "Trend Analysis");
+      for (const r of records) {
+        ws5.addRow({
+          date: r.created_at ? new Date(r.created_at).toLocaleDateString("en-GB") : "",
+          reqId: r.request_id,
+          status: (r.status || "").toUpperCase(),
+          hospital: r.requesting_hospital,
+          patient: r.patient_name,
+          policy: r.policy_number,
+          diagnosis: r.diagnosis,
+          treatment: r.treatment,
+          reqAmt: r.requested_amount || 0,
+          appAmt: r.approved_amount || 0,
+          rejAmt: r.rejected_amount || 0,
+          authCode: r.authorization_code,
+          note: r.rejection_reason || r.decision_reason || "",
+          clinician: r.clinician || "",
+        });
+      }
 
-      // ── DOWNLOAD ──────────────────────────────────────────────────────────
+      ws5.getColumn('reqAmt').numFmt = currencyFormat;
+      ws5.getColumn('appAmt').numFmt = currencyFormat;
+      ws5.getColumn('rejAmt').numFmt = currencyFormat;
+      
+      ws5.autoFilter = {
+        from: { row: 1, column: 1 },
+        to: { row: Math.max(1, records.length), column: 14 }
+      };
+
+      // ── DOWNLOAD ─────────────────────────────────────────────────────────
       const selectedHospital =
         filters.hospitalFilter === "all"
           ? "All_Hospitals"
           : hospitals.find((h) => h.id === filters.hospitalFilter)?.name?.replace(/[^a-z0-9]+/gi, "_") || "Selected";
 
-      XLSX.writeFile(
-        workbook,
-        `PreAuth_Executive_Analytics_${selectedHospital}_${new Date().toISOString().split("T")[0]}.xlsx`
-      );
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+      const filename = mode === "full" 
+        ? `PreAuth_Executive_Dashboard_${selectedHospital}_${new Date().toISOString().split("T")[0]}.xlsx`
+        : `PreAuth_Detailed_Data_${selectedHospital}_${new Date().toISOString().split("T")[0]}.xlsx`;
+      
+      saveAs(blob, filename);
 
-      toast.success(`Exported ${records.length} records with Executive Analytics Dashboard`);
+      toast.success(`Exported ${records.length} records (${mode === "full" ? "Premium Executive Dashboard" : "Detailed Data"})`);
     } catch (error) {
       console.error("Export error:", error);
-      toast.error(getErrorMessage(error, "Failed to export Excel report"));
+      toast.error(getErrorMessage(error, "Failed to export Excel dashboard"));
     } finally {
       setIsExporting(false);
     }

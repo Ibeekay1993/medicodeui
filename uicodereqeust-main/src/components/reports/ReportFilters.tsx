@@ -1,9 +1,10 @@
-import { Loader2, Download, Calendar, Activity, Filter, Building2, Check, ChevronsUpDown } from "lucide-react";
+import { Loader2, Download, Calendar, Activity, Filter, Building2, Check, ChevronsUpDown, FileSpreadsheet, FileBarChart2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Button } from "@/components/ui/button";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuLabel, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { FilterState } from "@/lib/reports-helpers";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
@@ -13,7 +14,7 @@ interface ReportFiltersProps {
   onChange: (patch: Partial<FilterState>) => void;
   hospitals: { id: string; name: string }[];
   loadingHospitals: boolean;
-  onExport: () => void;
+  onExport: (mode: "detailed" | "full") => void;
   isExporting: boolean;
 }
 
@@ -165,18 +166,46 @@ export default function ReportFilters({
           </SelectContent>
         </Select>
 
-        <Button
-          onClick={onExport}
-          disabled={isExporting}
-          className="h-10 px-5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white rounded-xl text-xs font-black tracking-wider shadow-md hover:shadow-lg transition-all duration-300 w-full md:w-auto"
-        >
-          {isExporting ? (
-            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-          ) : (
-            <Download className="h-4 w-4 mr-2" />
-          )}
-          {isExporting ? "EXPORTING..." : "EXPORT REPORT"}
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              disabled={isExporting}
+              className="h-10 px-5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white rounded-xl text-xs font-black tracking-wider shadow-md hover:shadow-lg transition-all duration-300 w-full md:w-auto"
+            >
+              {isExporting ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Download className="h-4 w-4 mr-2" />
+              )}
+              {isExporting ? "EXPORTING..." : "EXPORT REPORT"}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-64 rounded-xl shadow-2xl border-slate-100 p-2">
+            <DropdownMenuLabel className="text-xs font-bold text-slate-500 uppercase tracking-wider px-2">Export Options</DropdownMenuLabel>
+            <DropdownMenuSeparator className="bg-slate-100 my-2" />
+            <DropdownMenuItem 
+              onClick={() => onExport("full")}
+              className="flex flex-col items-start gap-1 p-3 cursor-pointer rounded-lg focus:bg-emerald-50 group transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                <FileBarChart2 className="h-4 w-4 text-emerald-600" />
+                <span className="text-sm font-bold text-slate-800 group-hover:text-emerald-700">Premium Dashboard</span>
+              </div>
+              <p className="text-[11px] text-slate-500 font-medium">Full 5-sheet interactive executive analysis</p>
+            </DropdownMenuItem>
+            
+            <DropdownMenuItem 
+              onClick={() => onExport("detailed")}
+              className="flex flex-col items-start gap-1 p-3 cursor-pointer rounded-lg focus:bg-slate-100 group transition-colors mt-1"
+            >
+              <div className="flex items-center gap-2">
+                <FileSpreadsheet className="h-4 w-4 text-slate-500 group-hover:text-slate-700" />
+                <span className="text-sm font-bold text-slate-700 group-hover:text-slate-800">Detailed Data Only</span>
+              </div>
+              <p className="text-[11px] text-slate-500 font-medium">Raw data table with frozen headers and filters</p>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </div>
   );
