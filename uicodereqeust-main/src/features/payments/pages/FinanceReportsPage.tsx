@@ -278,34 +278,37 @@ export default function FinanceReportsPage() {
   }
 
   return (
-    <div className="space-y-6 pb-10 max-w-7xl mx-auto">
-      <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 rounded-2xl p-6 md:p-8 shadow-lg text-white flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+    <div className="space-y-4 pb-10 max-w-7xl mx-auto">
+      <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 rounded-xl p-4 shadow-sm text-white flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black tracking-tight mb-2">Finance Overview</h1>
-          <p className="text-slate-300 text-sm max-w-xl">
+          <h1 className="text-xl font-black tracking-tight mb-1">Finance Overview</h1>
+          <p className="text-slate-300 text-xs max-w-xl">
             Real-time payment and settlement activity. Monitor awaiting payments, batch statuses, and easily export your financial records.
           </p>
         </div>
         
-        <div className="flex items-center gap-3 w-full md:w-auto">
+        <div className="flex items-center gap-2 w-full md:w-auto">
           <Button
             variant="outline"
-            className="bg-white/10 border-white/20 text-white hover:bg-white/20 hover:text-white"
+            size="sm"
+            className="bg-white/10 border-white/20 text-white hover:bg-white/20 hover:text-white h-8 text-xs px-3"
             onClick={exportCSV}
           >
-            <FileText className="mr-2 h-4 w-4" />
+            <FileText className="mr-1.5 h-3.5 w-3.5" />
             CSV Export
           </Button>
           <Button
-            className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/20 border-0"
+            size="sm"
+            className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm shadow-primary/20 border-0 h-8 text-xs px-3"
             onClick={exportExcel}
           >
-            <FileSpreadsheet className="mr-2 h-4 w-4" />
+            <FileSpreadsheet className="mr-1.5 h-3.5 w-3.5" />
             Excel Report
           </Button>
           <Button
             variant="ghost"
-            className="text-slate-300 hover:text-white hover:bg-white/10 px-3"
+            size="sm"
+            className="text-slate-300 hover:text-white hover:bg-white/10 h-8 w-8 p-0"
             onClick={() => refetch()}
             title="Refresh Data"
           >
@@ -314,19 +317,19 @@ export default function FinanceReportsPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
         {cards.map((c) => {
           const isBatchCount = c.label.includes("Batches") && !c.label.includes("Value");
           return (
-            <Card key={c.label} className={`rounded-xl border ${c.border} bg-gradient-to-br ${c.bg} shadow-sm overflow-hidden relative transition-all duration-200 hover:shadow-md hover:-translate-y-1`}>
-              <div className="p-4 relative z-10">
-                <div className="flex items-center justify-between mb-3">
+            <Card key={c.label} className={`rounded-xl border ${c.border} bg-gradient-to-br ${c.bg} shadow-sm overflow-hidden relative transition-all duration-200 hover:shadow-sm hover:-translate-y-0.5`}>
+              <div className="p-3 relative z-10">
+                <div className="flex items-center justify-between mb-2">
                   <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">{c.label}</p>
-                  <div className="p-1.5 bg-white rounded-lg shadow-sm">
+                  <div className="p-1 bg-white rounded-md shadow-sm">
                     {c.icon}
                   </div>
                 </div>
-                <p className="text-2xl font-black text-slate-900 tracking-tight">
+                <p className="text-xl font-black text-slate-900 tracking-tight">
                   {isBatchCount ? c.count.toLocaleString() : formatMoney(c.value)}
                 </p>
                 <div className="mt-2 flex items-center text-[10px] font-medium text-slate-600 bg-white/50 w-fit px-2 py-0.5 rounded-full">
@@ -334,7 +337,7 @@ export default function FinanceReportsPage() {
                   <span className="ml-1 font-bold text-slate-900">{c.count.toLocaleString()}</span>
                 </div>
               </div>
-              <div className="absolute -right-4 -bottom-4 w-24 h-24 bg-white/40 rounded-full blur-xl z-0 pointer-events-none" />
+              <div className="absolute -right-4 -bottom-4 w-20 h-20 bg-white/40 rounded-full blur-xl z-0 pointer-events-none" />
             </Card>
           );
         })}
