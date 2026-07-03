@@ -303,7 +303,27 @@ export async function extractNhisPdf(
       if (!looksLikeDataRow.test(line)) {
         const hospitalMatch = line.match(hospitalNamePattern);
         if (hospitalMatch) {
-          currentHcpName = hospitalMatch[1].trim();
+          let namePart = hospitalMatch[1].trim();
+          
+          // Handle cases where the hospital name wrapped onto the previous line
+          if (index > 0) {
+            const prevLine = lines[index - 1].trim();
+            if (
+              prevLine &&
+              !looksLikeDataRow.test(prevLine) &&
+              !prevLine.match(providerPattern) &&
+              !prevLine.match(grandTotalPattern) &&
+              !prevLine.includes("S/N") &&
+              !prevLine.toUpperCase().includes("LIST OF ENROLLEES") &&
+              !prevLine.toUpperCase().includes("CAPITATION") &&
+              !prevLine.toUpperCase().includes("NATIONAL HEALTH INSURANCE") &&
+              !prevLine.toUpperCase().includes("PAGE ")
+            ) {
+              namePart = prevLine + " " + namePart;
+            }
+          }
+          
+          currentHcpName = namePart.trim();
           // Capture the code too — covers cases where the heading line
           // appears before (or instead of) the "Provider Number:" line.
           currentHcp = hospitalMatch[2].toUpperCase();
