@@ -314,53 +314,53 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
 
           {/* Process Tracker */}
           {request?.referred_hospital_name ? (
-            <div className="mt-2 pt-2 border-t border-slate-100 flex flex-row items-start justify-between w-full text-center text-[7px] sm:text-[9px] md:text-xs font-black uppercase tracking-wider text-slate-400">
-              <div className={cn("flex flex-col items-center gap-1 sm:gap-1.5 w-[18%]", ["pending_referral"].includes(request.status) ? "text-blue-600 font-bold" : "text-emerald-600")}>
-                <span className={cn("h-4 w-4 md:h-5 md:w-5 shrink-0 rounded-full flex items-center justify-center border font-bold text-[8px] md:text-xs", ["pending_referral"].includes(request.status) ? "bg-blue-50 border-blue-200" : "bg-emerald-50 border-emerald-200")}>1</span>
-                <span className="leading-tight">Referral Requested</span>
+            <div className="mt-2 pt-2 border-t border-slate-100 flex flex-row items-start justify-between w-full text-center text-[6px] sm:text-[7px] md:text-[8px] font-black uppercase tracking-widest text-slate-400">
+              <div className={cn("flex flex-col items-center gap-0.5 w-[18%]", ["pending_referral"].includes(request.status) ? "text-blue-600 font-bold" : "text-emerald-600")}>
+                <span className={cn("h-3.5 w-3.5 shrink-0 rounded-full flex items-center justify-center border font-bold text-[7px]", ["pending_referral"].includes(request.status) ? "bg-blue-50 border-blue-200" : "bg-emerald-50 border-emerald-200")}>1</span>
+                <span className="leading-none mt-0.5">Referral Requested</span>
               </div>
-              <div className="flex justify-center items-center mt-1.5 sm:mt-2 text-slate-300"><ChevronRight className="w-3 h-3 md:w-4 md:h-4" /></div>
+              <div className="flex justify-center items-center mt-1 text-slate-300"><ChevronRight className="w-2.5 h-2.5 md:w-3 md:h-3" /></div>
 
-              <div className={cn("flex flex-col items-center gap-1 sm:gap-1.5 w-[18%]", ["referral_approved"].includes(request.status) ? "text-blue-600 font-bold" : ["pending_referral"].includes(request.status) ? "text-slate-300" : "text-emerald-600")}>
-                <span className={cn("h-4 w-4 md:h-5 md:w-5 shrink-0 rounded-full flex items-center justify-center border font-bold text-[8px] md:text-xs", ["referral_approved"].includes(request.status) ? "bg-blue-50 border-blue-200" : ["pending_referral"].includes(request.status) ? "bg-slate-50 border-slate-200" : "bg-emerald-50 border-emerald-200")}>2</span>
-                <span className="leading-tight">Insurer Approved</span>
+              <div className={cn("flex flex-col items-center gap-0.5 w-[18%]", ["referral_approved"].includes(request.status) ? "text-blue-600 font-bold" : ["pending_referral"].includes(request.status) ? "text-slate-300" : "text-emerald-600")}>
+                <span className={cn("h-3.5 w-3.5 shrink-0 rounded-full flex items-center justify-center border font-bold text-[7px]", ["referral_approved"].includes(request.status) ? "bg-blue-50 border-blue-200" : ["pending_referral"].includes(request.status) ? "bg-slate-50 border-slate-200" : "bg-emerald-50 border-emerald-200")}>2</span>
+                <span className="leading-none mt-0.5">Insurer Approved</span>
               </div>
-              <div className="flex justify-center items-center mt-1.5 sm:mt-2 text-slate-300"><ChevronRight className="w-3 h-3 md:w-4 md:h-4" /></div>
+              <div className="flex justify-center items-center mt-1 text-slate-300"><ChevronRight className="w-2.5 h-2.5 md:w-3 md:h-3" /></div>
 
-              <div className={cn("flex flex-col items-center gap-1 sm:gap-1.5 w-[18%]", ["referral_accepted"].includes(request.status) ? "text-blue-600 font-bold" : ["pending_referral", "referral_approved", "referral_declined", "referral_expired"].includes(request.status) ? "text-slate-300" : "text-emerald-600")}>
-                <span className={cn("h-4 w-4 md:h-5 md:w-5 shrink-0 rounded-full flex items-center justify-center border font-bold text-[8px] md:text-xs", ["referral_accepted"].includes(request.status) ? "bg-blue-50 border-blue-200" : ["pending_referral", "referral_approved", "referral_declined", "referral_expired"].includes(request.status) ? "bg-slate-50 border-slate-200" : "bg-emerald-50 border-emerald-200")}>3</span>
-                <span className="leading-tight">Hospital Accepted</span>
+              <div className={cn("flex flex-col items-center gap-0.5 w-[18%]", ["referral_accepted"].includes(request.status) ? "text-blue-600 font-bold" : ["pending_referral", "referral_approved", "referral_declined", "referral_expired"].includes(request.status) ? "text-slate-300" : "text-emerald-600")}>
+                <span className={cn("h-3.5 w-3.5 shrink-0 rounded-full flex items-center justify-center border font-bold text-[7px]", ["referral_accepted"].includes(request.status) ? "bg-blue-50 border-blue-200" : ["pending_referral", "referral_approved", "referral_declined", "referral_expired"].includes(request.status) ? "bg-slate-50 border-slate-200" : "bg-emerald-50 border-emerald-200")}>3</span>
+                <span className="leading-none mt-0.5">Hospital Accepted</span>
               </div>
-              <div className="flex justify-center items-center mt-1.5 sm:mt-2 text-slate-300"><ChevronRight className="w-3 h-3 md:w-4 md:h-4" /></div>
+              <div className="flex justify-center items-center mt-1 text-slate-300"><ChevronRight className="w-2.5 h-2.5 md:w-3 md:h-3" /></div>
 
-              <div className={cn("flex flex-col items-center gap-1 sm:gap-1.5 w-[18%]", ["pending_authorization"].includes(request.status) ? "text-blue-600 font-bold" : ["pending_referral", "referral_approved", "referral_declined", "referral_expired", "referral_accepted", "accepted_referral_expired"].includes(request.status) ? "text-slate-300" : "text-emerald-600")}>
-                <span className={cn("h-4 w-4 md:h-5 md:w-5 shrink-0 rounded-full flex items-center justify-center border font-bold text-[8px] md:text-xs", ["pending_authorization"].includes(request.status) ? "bg-blue-50 border-blue-200" : ["pending_referral", "referral_approved", "referral_declined", "referral_expired", "referral_accepted", "accepted_referral_expired"].includes(request.status) ? "bg-slate-50 border-slate-200" : "bg-emerald-50 border-emerald-200")}>4</span>
-                <span className="leading-tight">Treatment Review</span>
+              <div className={cn("flex flex-col items-center gap-0.5 w-[18%]", ["pending_authorization"].includes(request.status) ? "text-blue-600 font-bold" : ["pending_referral", "referral_approved", "referral_declined", "referral_expired", "referral_accepted", "accepted_referral_expired"].includes(request.status) ? "text-slate-300" : "text-emerald-600")}>
+                <span className={cn("h-3.5 w-3.5 shrink-0 rounded-full flex items-center justify-center border font-bold text-[7px]", ["pending_authorization"].includes(request.status) ? "bg-blue-50 border-blue-200" : ["pending_referral", "referral_approved", "referral_declined", "referral_expired", "referral_accepted", "accepted_referral_expired"].includes(request.status) ? "bg-slate-50 border-slate-200" : "bg-emerald-50 border-emerald-200")}>4</span>
+                <span className="leading-none mt-0.5">Treatment Review</span>
               </div>
-              <div className="flex justify-center items-center mt-1.5 sm:mt-2 text-slate-300"><ChevronRight className="w-3 h-3 md:w-4 md:h-4" /></div>
+              <div className="flex justify-center items-center mt-1 text-slate-300"><ChevronRight className="w-2.5 h-2.5 md:w-3 md:h-3" /></div>
 
-              <div className={cn("flex flex-col items-center gap-1 sm:gap-1.5 w-[18%]", ["approved", "authorization_approved"].includes(request.status) ? "text-emerald-600 font-bold" : "text-slate-300")}>
-                <span className={cn("h-4 w-4 md:h-5 md:w-5 shrink-0 rounded-full flex items-center justify-center border font-bold text-[8px] md:text-xs", ["approved", "authorization_approved"].includes(request.status) ? "bg-emerald-50 border-emerald-200" : "bg-slate-50 border-slate-200")}>5</span>
-                <span className="leading-tight">Authorized</span>
+              <div className={cn("flex flex-col items-center gap-0.5 w-[18%]", ["approved", "authorization_approved"].includes(request.status) ? "text-emerald-600 font-bold" : "text-slate-300")}>
+                <span className={cn("h-3.5 w-3.5 shrink-0 rounded-full flex items-center justify-center border font-bold text-[7px]", ["approved", "authorization_approved"].includes(request.status) ? "bg-emerald-50 border-emerald-200" : "bg-slate-50 border-slate-200")}>5</span>
+                <span className="leading-none mt-0.5">Authorized</span>
               </div>
             </div>
           ) : (
-            <div className="mt-2 pt-2 border-t border-slate-100 flex items-start justify-between w-full text-center text-[8px] sm:text-[10px] md:text-xs font-black uppercase tracking-widest text-slate-400">
-              <div className="flex flex-col items-center gap-1 w-1/3 text-slate-800">
-                <span className="h-4 w-4 md:h-5 md:w-5 rounded-full bg-slate-100 text-slate-800 flex items-center justify-center text-[8px] md:text-xs font-black border border-slate-200">1</span>
-                <span className="leading-tight">Verify Patient</span>
+            <div className="mt-2 pt-2 border-t border-slate-100 flex items-start justify-between w-full text-center text-[7px] sm:text-[8px] md:text-[9px] font-black uppercase tracking-widest text-slate-400">
+              <div className="flex flex-col items-center gap-0.5 w-1/3 text-slate-800">
+                <span className="h-3.5 w-3.5 rounded-full bg-slate-100 text-slate-800 flex items-center justify-center text-[7px] font-black border border-slate-200">1</span>
+                <span className="leading-none mt-0.5">Verify Patient</span>
               </div>
-              <div className="flex justify-center items-center mt-1.5 sm:mt-2 text-slate-200"><ChevronRight className="w-3 h-3 md:w-4 md:h-4" /></div>
+              <div className="flex justify-center items-center mt-1 text-slate-200"><ChevronRight className="w-2.5 h-2.5 md:w-3 md:h-3" /></div>
               
-              <div className="flex flex-col items-center gap-1 w-1/3 text-slate-500">
-                <span className="h-4 w-4 md:h-5 md:w-5 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center text-[8px] md:text-xs font-black border border-slate-200/60">2</span>
-                <span className="leading-tight">Review Treatment</span>
+              <div className="flex flex-col items-center gap-0.5 w-1/3 text-slate-500">
+                <span className="h-3.5 w-3.5 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center text-[7px] font-black border border-slate-200/60">2</span>
+                <span className="leading-none mt-0.5">Review Treatment</span>
               </div>
-              <div className="flex justify-center items-center mt-1.5 sm:mt-2 text-slate-200"><ChevronRight className="w-3 h-3 md:w-4 md:h-4" /></div>
+              <div className="flex justify-center items-center mt-1 text-slate-200"><ChevronRight className="w-2.5 h-2.5 md:w-3 md:h-3" /></div>
               
-              <div className="flex flex-col items-center gap-1 w-1/3 text-slate-500">
-                <span className="h-4 w-4 md:h-5 md:w-5 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center text-[8px] md:text-xs font-black border border-slate-200/60">3</span>
-                <span className="leading-tight">Make Decision</span>
+              <div className="flex flex-col items-center gap-0.5 w-1/3 text-slate-500">
+                <span className="h-3.5 w-3.5 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center text-[7px] font-black border border-slate-200/60">3</span>
+                <span className="leading-none mt-0.5">Make Decision</span>
               </div>
             </div>
           )}
