@@ -445,7 +445,8 @@ export default function NhisBeneficiaryUpdatePage() {
                   <TableHead>Name</TableHead>
                   <TableHead>Gender</TableHead>
                   <TableHead>DOB</TableHead>
-                  <TableHead>HCP</TableHead>
+                  <TableHead>HCP Code</TableHead>
+                  <TableHead>Primary Hospital</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -456,7 +457,8 @@ export default function NhisBeneficiaryUpdatePage() {
                     <TableCell className="font-bold">{record.full_name}</TableCell>
                     <TableCell>{record.gender}</TableCell>
                     <TableCell>{record.dob}</TableCell>
-                    <TableCell>{record.hcp_code}</TableCell>
+                    <TableCell className="font-mono">{record.hcp_code}</TableCell>
+                    <TableCell className="max-w-[220px] truncate" title={record.hcp_name}>{record.hcp_name || <span className="text-slate-300 italic">—</span>}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>

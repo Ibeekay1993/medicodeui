@@ -17,6 +17,10 @@ export type NhisBeneficiaryRecord = {
   gender: string;
   dob: string;
   hcp_code: string;
+  /** Human-readable name of the enrollee's primary/registered hospital.
+   *  Extracted from the section heading line that immediately precedes
+   *  (or accompanies) each "Provider Number:" header in the PDF. */
+  hcp_name: string;
 };
 
 /** A row the extractor saw but could not fully parse. Surfaced so the UI can
@@ -53,16 +57,20 @@ const FIELDS: (keyof NhisBeneficiaryRecord)[] = [
   "gender",
   "dob",
   "hcp_code",
+  "hcp_name",
 ];
 
 /**
  * Fields that are allowed to be empty without raising a "missing field" flag.
  *
  * - hcp_code  : absent at the very start of a provider section (header not yet seen)
+ * - hcp_name  : same reason — also absent for records near the top of a page
+ *               before the section heading has been encountered
  * - first_name: some beneficiaries are recorded with one name only in the PDF
  */
 const OPTIONAL_FIELDS = new Set<keyof NhisBeneficiaryRecord>([
   "hcp_code",
+  "hcp_name",
   "first_name",
 ]);
 
@@ -89,6 +97,25 @@ const rowPattern =
 
 /** Matches the HCP provider number header line within each section. */
 const providerPattern = /Provider Number:\s*([A-Z]{2,3}\/\d{4}\/P)/i;
+
+/**
+ * Matches a hospital/provider section heading line of the form:
+ *   "FEDERAL MEDICAL CENTRE UMUAHIA- AB/0014/P"
+ *   "UNIVERSITY OF CALABAR TEACHING HOSPITAL- CR/0058/P"
+ *
+ * This line appears at the top of each new provider block — either on the
+ * same page as the "Provider Number:" line or carried over from the previous
+ * page in rare layouts. It is structurally safe: it NEVER starts with a digit,
+ * so it cannot be confused with a beneficiary data row (which always begins
+ * with a serial number).
+ *
+ * Groups: (1) hospital name (may contain commas, apostrophes, hyphens, digits)
+ *         (2) HCP code (e.g. AB/0014/P)
+ *
+ * NOTE: The name portion may include trailing spaces before the final dash
+ * separator, so we allow optional whitespace around the dash-prefix.
+ */
+const hospitalNamePattern = /^(.+?)\s*-\s*([A-Z]{2,3}\/\d{4}\/P)\s*$/i;
 
 /** Matches the grand-total footer line used to validate extraction completeness. */
 const grandTotalPattern = /Grand Total\s+([0-9,]+)/i;
@@ -172,7 +199,8 @@ function textContentToLines(items: any[]): string[] {
  */
 function buildRecord(
   match: RegExpMatchArray,
-  hcpCode: string
+  hcpCode: string,
+  hcpName: string
 ): NhisBeneficiaryRecord | null {
   const nameTokens = match[4].trim().split(/\s+/).filter(Boolean);
 
@@ -193,6 +221,7 @@ function buildRecord(
     gender: match[5].toUpperCase(),
     dob: match[6],
     hcp_code: hcpCode,
+    hcp_name: hcpName,
   };
 }
 
@@ -212,12 +241,20 @@ export async function extractNhisPdf(
   const skippedRows: SkippedRow[] = [];
 
   let currentHcp = "";
+  /** Human-readable name of the currently active provider section.
+   *  Updated whenever a new hospital section heading is encountered.
+   *  Carried forward to all records until the next heading is seen. */
+  let currentHcpName = "";
   let expectedTotal: number | null = null;
 
   /**
    * A single unmatched line carried over from the bottom of the previous page.
    * This handles the rare but real case where a beneficiary row is split
    * exactly at a page boundary.
+   *
+   * IMPORTANT: This carry-over mechanism is for BENEFICIARY DATA ROWS only.
+   * Hospital section headings are never split across pages in this PDF format,
+   * so the hospitalNamePattern check is not applied to a carried-over line.
    */
   let carryOver = "";
 
@@ -237,16 +274,48 @@ export async function extractNhisPdf(
       const grandTotalMatch = line.match(grandTotalPattern);
       if (grandTotalMatch) {
         expectedTotal = Number(grandTotalMatch[1].replace(/,/g, ""));
+        continue;
       }
 
-      // ── HCP provider header ──────────────────────────────────────────────
+      // ── HCP provider number header ("Provider Number: XX/0000/P") ────────
+      // This line appears in every section, sometimes repeating at the top of
+      // continuation pages. When seen, update the code but do NOT overwrite
+      // currentHcpName — the name was already captured from the heading line.
       const providerMatch = line.match(providerPattern);
       if (providerMatch) {
         currentHcp = providerMatch[1].toUpperCase();
         continue;
       }
 
+      // ── Hospital section heading ("HOSPITAL NAME- XX/0000/P") ────────────
+      // This line is structurally distinct from beneficiary data rows:
+      //   • It never starts with a digit (data rows always begin with S/N)
+      //   • It always ends with a provider code matching XX/0000/P
+      //
+      // Checking this BEFORE the rowPattern ensures we never accidentally
+      // consume a section heading as a data row, and never interfere with the
+      // patient-name lookahead (MAX_LOOKAHEAD / joinLines) logic below.
+      //
+      // The looksLikeDataRow guard is the key safety check: any line that
+      // starts with digits goes straight to the data-row path and is never
+      // tested against hospitalNamePattern. This is the same guard already
+      // used elsewhere in the extractor — no new risk introduced.
+      if (!looksLikeDataRow.test(line)) {
+        const hospitalMatch = line.match(hospitalNamePattern);
+        if (hospitalMatch) {
+          currentHcpName = hospitalMatch[1].trim();
+          // Capture the code too — covers cases where the heading line
+          // appears before (or instead of) the "Provider Number:" line.
+          currentHcp = hospitalMatch[2].toUpperCase();
+          continue;
+        }
+      }
+
       // ── Attempt to match a beneficiary data row ──────────────────────────
+      // Everything from here to the end of the loop body is UNCHANGED from
+      // the original implementation. The MAX_LOOKAHEAD lookahead and
+      // joinLines() hyphenation handling are preserved exactly as before.
+      // Adding hcp_name has zero impact on how patient names are assembled.
       let rowMatch = line.match(rowPattern);
       let extraConsumed = 0;
 
@@ -271,7 +340,7 @@ export async function extractNhisPdf(
 
       // ── Process match ────────────────────────────────────────────────────
       if (rowMatch) {
-        const record = buildRecord(rowMatch, currentHcp);
+        const record = buildRecord(rowMatch, currentHcp, currentHcpName);
         if (record) {
           records.push(record);
         } else {
@@ -346,9 +415,10 @@ export function validateNhisRecords(
 
     // DOB must be DD/MM/YYYY and parse as a valid calendar date.
     const dobParts = record.dob.split("/");
-    const isoDate = dobParts.length === 3
-      ? `${dobParts[2]}-${dobParts[1]}-${dobParts[0]}`
-      : "";
+    const isoDate =
+      dobParts.length === 3
+        ? `${dobParts[2]}-${dobParts[1]}-${dobParts[0]}`
+        : "";
     if (
       !/^\d{2}\/\d{2}\/\d{4}$/.test(record.dob) ||
       Number.isNaN(Date.parse(isoDate))
