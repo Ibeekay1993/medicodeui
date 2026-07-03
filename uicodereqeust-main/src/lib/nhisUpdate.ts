@@ -323,7 +323,7 @@ export async function extractNhisPdf(
             }
           }
           
-          currentHcpName = namePart.trim();
+          currentHcpName = `${namePart.trim()}- ${hospitalMatch[2].toUpperCase()}`;
           // Capture the code too — covers cases where the heading line
           // appears before (or instead of) the "Provider Number:" line.
           currentHcp = hospitalMatch[2].toUpperCase();
