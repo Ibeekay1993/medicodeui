@@ -277,33 +277,33 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
 
           {/* Primary Hospital Banner */}
           {role !== "hospital" && requestPolicyNumber && (
-            <div className="mt-3 pt-3 border-t border-slate-100">
+            <div className="mt-2 pt-2 border-t border-slate-100">
               {primaryHospitalLoading ? (
-                <div className="flex items-center gap-2 text-xs text-slate-400 animate-pulse">
-                  <Building2 className="w-3.5 h-3.5 shrink-0" />
+                <div className="flex items-center gap-2 text-[10px] text-slate-400 animate-pulse">
+                  <Building2 className="w-3 h-3 shrink-0" />
                   <span>Looking up registered hospital…</span>
                 </div>
               ) : primaryHospital?.hcp_name ? (
                 <div className={cn(
-                  "flex items-start gap-2 rounded-xl px-3 py-2 text-xs font-semibold border",
+                  "flex gap-1.5 rounded-lg px-2 py-1 text-[10px] font-semibold border",
                   primaryHospitalMismatch
-                    ? "bg-amber-50 border-amber-200 text-amber-800"
-                    : "bg-emerald-50 border-emerald-200 text-emerald-800"
+                    ? "bg-amber-50 border-amber-200 text-amber-800 items-start"
+                    : "bg-emerald-50 border-emerald-200 text-emerald-800 items-center"
                 )}>
                   {primaryHospitalMismatch ? (
-                    <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0 text-amber-500" />
+                    <AlertTriangle className="w-3 h-3 mt-0.5 shrink-0 text-amber-500" />
                   ) : (
-                    <Building2 className="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-500" />
+                    <Building2 className="w-3 h-3 shrink-0 text-emerald-500" />
                   )}
-                  <div className="min-w-0">
-                    <span className="font-black uppercase tracking-wider text-[10px] mr-1.5">
-                      {primaryHospitalMismatch ? "⚠ Primary Hospital Mismatch" : "Registered Primary Hospital"}
+                  <div className="min-w-0 flex flex-wrap items-center gap-x-1 leading-tight w-full">
+                    <span className="font-black uppercase tracking-wider text-[9px] opacity-80">
+                      {primaryHospitalMismatch ? "⚠ Mismatch:" : "Registered:"}
                     </span>
-                    <span className="font-bold">{primaryHospital.hcp_name}</span>
-                    <span className="font-mono opacity-60 ml-1.5 text-[10px]">({primaryHospital.hcp_code})</span>
+                    <span className="font-bold truncate max-w-[150px] sm:max-w-xs">{primaryHospital.hcp_name}</span>
+                    <span className="font-mono opacity-60 text-[9px]">({primaryHospital.hcp_code})</span>
                     {primaryHospitalMismatch && (
-                      <div className="mt-0.5 text-[11px] font-medium text-amber-700">
-                        Requesting from <span className="font-bold">{requestingHospitalName}</span> {requestingHospitalCode && <span className="font-mono opacity-80 ml-1">({requestingHospitalCode})</span>} — verify why before approving.
+                      <div className="mt-0.5 text-[9px] font-medium text-amber-700 w-full">
+                        Requesting: <span className="font-bold">{requestingHospitalName}</span> {requestingHospitalCode && <span className="font-mono opacity-80 ml-0.5">({requestingHospitalCode})</span>}
                       </div>
                     )}
                   </div>
@@ -314,7 +314,7 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
 
           {/* Process Tracker */}
           {request?.referred_hospital_name ? (
-            <div className="mt-3.5 pt-3 border-t border-slate-100 flex flex-row items-start justify-between w-full text-center text-[7px] sm:text-[9px] md:text-xs font-black uppercase tracking-wider text-slate-400">
+            <div className="mt-2 pt-2 border-t border-slate-100 flex flex-row items-start justify-between w-full text-center text-[7px] sm:text-[9px] md:text-xs font-black uppercase tracking-wider text-slate-400">
               <div className={cn("flex flex-col items-center gap-1 sm:gap-1.5 w-[18%]", ["pending_referral"].includes(request.status) ? "text-blue-600 font-bold" : "text-emerald-600")}>
                 <span className={cn("h-4 w-4 md:h-5 md:w-5 shrink-0 rounded-full flex items-center justify-center border font-bold text-[8px] md:text-xs", ["pending_referral"].includes(request.status) ? "bg-blue-50 border-blue-200" : "bg-emerald-50 border-emerald-200")}>1</span>
                 <span className="leading-tight">Referral Requested</span>
@@ -345,7 +345,7 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
               </div>
             </div>
           ) : (
-            <div className="mt-3.5 pt-2.5 border-t border-slate-100 flex items-start justify-between w-full text-center text-[8px] sm:text-[10px] md:text-xs font-black uppercase tracking-widest text-slate-400">
+            <div className="mt-2 pt-2 border-t border-slate-100 flex items-start justify-between w-full text-center text-[8px] sm:text-[10px] md:text-xs font-black uppercase tracking-widest text-slate-400">
               <div className="flex flex-col items-center gap-1 w-1/3 text-slate-800">
                 <span className="h-4 w-4 md:h-5 md:w-5 rounded-full bg-slate-100 text-slate-800 flex items-center justify-center text-[8px] md:text-xs font-black border border-slate-200">1</span>
                 <span className="leading-tight">Verify Patient</span>
