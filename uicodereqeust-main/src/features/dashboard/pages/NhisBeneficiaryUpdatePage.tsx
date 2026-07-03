@@ -91,6 +91,7 @@ export default function NhisBeneficiaryUpdatePage() {
   const [activeCount, setActiveCount] = useState<number | null>(null);
   const [sourceFileName, setSourceFileName] = useState<string | null>(null);
   const [draftReady, setDraftReady] = useState(false);
+  const [replacementResult, setReplacementResult] = useState<{ newCount: number; previousCount: number; difference: number; } | null>(null);
   const { toast } = useToast();
   const { user, fullName } = useAuth();
   const draftKey = user?.id ? `ronsberger:nhis-update:${user.id}` : null;
@@ -253,9 +254,18 @@ export default function NhisBeneficiaryUpdatePage() {
       const { data: replacement, error: replaceError } = await supabase.rpc("replace_nhis_beneficiaries" as any, { _run_id: runId });
       if (replaceError) throw replaceError;
 
+      const newCount = (replacement as any)?.new_record_count || summary.totalRecords;
+      const prevCount = activeCount || 0;
+      
+      setReplacementResult({
+        newCount,
+        previousCount: prevCount,
+        difference: newCount - prevCount
+      });
+
       toast({
         title: "NHIS Dataset Replaced",
-        description: `${formatNumber((replacement as any)?.new_record_count || summary.totalRecords)} records are now active.`,
+        description: `${formatNumber(newCount)} records are now active.`,
       });
       if (draftKey) removeSessionItem(draftKey);
       setFile(null);
@@ -273,6 +283,44 @@ export default function NhisBeneficiaryUpdatePage() {
   };
 
   const validationOk = canReplace(summary);
+
+  if (replacementResult) {
+    return (
+      <div className="flex flex-col items-center justify-center p-8 lg:p-16 text-center animate-in zoom-in-95 duration-500">
+        <div className="rounded-full bg-emerald-100 p-6 mb-6 shadow-sm">
+          <CheckCircle2 className="h-20 w-20 text-emerald-600" />
+        </div>
+        <h2 className="text-3xl font-black text-slate-900 mb-3">Replacement Complete!</h2>
+        <p className="text-lg text-slate-500 mb-10 max-w-lg">
+          The NHIS monthly beneficiary dataset has been successfully replaced and the new list is now live across the platform.
+        </p>
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-10 w-full max-w-3xl">
+           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+             <p className="text-xs font-black uppercase tracking-widest text-slate-400 mb-2">Previous Records</p>
+             <p className="text-3xl font-black text-slate-900">{formatNumber(replacementResult.previousCount)}</p>
+           </div>
+           <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-6 shadow-sm">
+             <p className="text-xs font-black uppercase tracking-widest text-emerald-700 mb-2">New Records</p>
+             <p className="text-3xl font-black text-emerald-900">{formatNumber(replacementResult.newCount)}</p>
+           </div>
+           <div className="rounded-2xl border border-blue-200 bg-blue-50 p-6 shadow-sm">
+             <p className="text-xs font-black uppercase tracking-widest text-blue-700 mb-2">Difference</p>
+             <p className="text-3xl font-black text-blue-900">
+               {replacementResult.difference > 0 ? "+" : ""}{formatNumber(replacementResult.difference)}
+             </p>
+           </div>
+        </div>
+
+        <Button 
+          onClick={() => setReplacementResult(null)} 
+          className="h-12 px-12 rounded-xl bg-slate-900 hover:bg-slate-800 text-sm font-black uppercase tracking-widest"
+        >
+          Exit Summary
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4 max-w-full overflow-x-hidden pb-10 animate-in fade-in duration-500">

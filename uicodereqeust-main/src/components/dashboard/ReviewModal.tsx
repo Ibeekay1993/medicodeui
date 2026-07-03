@@ -89,12 +89,66 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
     return () => { cancelled = true; };
   }, [open, requestPolicyNumber]);
 
+  // 1c. Look up the requesting hospital's hcp_code from the hospitals table
+  const [requestingHospitalCode, setRequestingHospitalCode] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!open || !request) {
+      setRequestingHospitalCode(null);
+      return;
+    }
+    let cancelled = false;
+    
+    const fetchHcpCode = async () => {
+      // First try to look up by ID
+      const hospitalId = request.requesting_hospital_id || request.hospital_id;
+      if (hospitalId) {
+        const { data } = await supabase.from("hospitals").select("code").eq("id", hospitalId).maybeSingle();
+        if (!cancelled && data?.code) {
+          setRequestingHospitalCode(data.code);
+          return;
+        }
+      }
+      
+      // If no ID or code not found, try looking up by name
+      const hospitalName = request.hospital_name || request.requesting_hospital_name;
+      if (hospitalName) {
+        const { data } = await supabase.from("hospitals").select("code").ilike("name", `%${hospitalName.trim()}%`).limit(1).maybeSingle();
+        if (!cancelled && data?.code) {
+          setRequestingHospitalCode(data.code);
+        }
+      }
+    };
+    
+    fetchHcpCode();
+    return () => { cancelled = true; };
+  }, [open, request]);
+
   // Normalise both hospital names to detect a mismatch
   const requestingHospitalName = String(request?.hospital_name || request?.requesting_hospital_name || "").trim();
+  
+  const cleanString = (str: string) => str.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  
+  const reqNameLower = cleanString(requestingHospitalName);
+  const primNameLower = cleanString(primaryHospital?.hcp_name || "");
+  
+  const codeMatch = Boolean(
+    requestingHospitalCode && 
+    primaryHospital?.hcp_code && 
+    requestingHospitalCode === primaryHospital.hcp_code
+  );
+
+  const namesMatch = reqNameLower && primNameLower && (
+    reqNameLower === primNameLower ||
+    reqNameLower.includes(primNameLower) ||
+    primNameLower.includes(reqNameLower)
+  );
+
   const primaryHospitalMismatch = Boolean(
     primaryHospital?.hcp_name &&
     requestingHospitalName &&
-    primaryHospital.hcp_name.toLowerCase() !== requestingHospitalName.toLowerCase()
+    !namesMatch &&
+    !codeMatch
   );
 
   // 2. Add local state for editTreatment
@@ -249,7 +303,7 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
                     <span className="font-mono opacity-60 ml-1.5 text-[10px]">({primaryHospital.hcp_code})</span>
                     {primaryHospitalMismatch && (
                       <div className="mt-0.5 text-[11px] font-medium text-amber-700">
-                        Requesting from <span className="font-bold">{requestingHospitalName}</span> — verify why before approving.
+                        Requesting from <span className="font-bold">{requestingHospitalName}</span> {requestingHospitalCode && <span className="font-mono opacity-80 ml-1">({requestingHospitalCode})</span>} — verify why before approving.
                       </div>
                     )}
                   </div>
