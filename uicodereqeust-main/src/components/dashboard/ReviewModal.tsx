@@ -17,7 +17,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { HospitalReferralField } from "@/components/HospitalReferralField";
-import { AlertTriangle, ChevronDown, ChevronUp, ChevronRight } from "lucide-react";
+import { AlertTriangle, Building2, ChevronDown, ChevronUp, ChevronRight } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 // Custom Hooks
 import { useAuth } from "@/contexts/AuthContext";
@@ -57,6 +58,44 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
   const isParsedRequest = request?.source === "whatsapp_parser";
   const requestPatientName = cleanPatientName(request?.patient_name || "");
   const requestPolicyNumber = String(request?.policy_number || "").trim();
+
+  // 1b. Look up the patient's registered primary hospital from nhis_beneficiaries
+  const [primaryHospital, setPrimaryHospital] = useState<{ hcp_name: string; hcp_code: string } | null>(null);
+  const [primaryHospitalLoading, setPrimaryHospitalLoading] = useState(false);
+
+  useEffect(() => {
+    if (!open || !requestPolicyNumber) {
+      setPrimaryHospital(null);
+      return;
+    }
+    let cancelled = false;
+    setPrimaryHospitalLoading(true);
+    // The policy_number on a request is the family code (e.g. "3460764").
+    // nhis_beneficiaries stores it the same way. We match on the principal's
+    // record (member_type = PRINCIPAL) to get the registered hospital.
+    supabase
+      .from("nhis_beneficiaries")
+      .select("hcp_name, hcp_code")
+      .eq("policy_number", requestPolicyNumber)
+      .in("member_type", ["PRINCIPAL", "MEMBER"])
+      .limit(1)
+      .single()
+      .then(({ data }) => {
+        if (!cancelled) {
+          setPrimaryHospital(data ? { hcp_name: data.hcp_name || "", hcp_code: data.hcp_code || "" } : null);
+          setPrimaryHospitalLoading(false);
+        }
+      });
+    return () => { cancelled = true; };
+  }, [open, requestPolicyNumber]);
+
+  // Normalise both hospital names to detect a mismatch
+  const requestingHospitalName = String(request?.hospital_name || request?.requesting_hospital_name || "").trim();
+  const primaryHospitalMismatch = Boolean(
+    primaryHospital?.hcp_name &&
+    requestingHospitalName &&
+    primaryHospital.hcp_name.toLowerCase() !== requestingHospitalName.toLowerCase()
+  );
 
   // 2. Add local state for editTreatment
   const [editTreatment, setEditTreatment] = useState("");
@@ -181,6 +220,43 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
               )}
             </div>
           </div>
+
+          {/* Primary Hospital Banner */}
+          {role !== "hospital" && requestPolicyNumber && (
+            <div className="mt-3 pt-3 border-t border-slate-100">
+              {primaryHospitalLoading ? (
+                <div className="flex items-center gap-2 text-xs text-slate-400 animate-pulse">
+                  <Building2 className="w-3.5 h-3.5 shrink-0" />
+                  <span>Looking up registered hospital…</span>
+                </div>
+              ) : primaryHospital?.hcp_name ? (
+                <div className={cn(
+                  "flex items-start gap-2 rounded-xl px-3 py-2 text-xs font-semibold border",
+                  primaryHospitalMismatch
+                    ? "bg-amber-50 border-amber-200 text-amber-800"
+                    : "bg-emerald-50 border-emerald-200 text-emerald-800"
+                )}>
+                  {primaryHospitalMismatch ? (
+                    <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0 text-amber-500" />
+                  ) : (
+                    <Building2 className="w-3.5 h-3.5 mt-0.5 shrink-0 text-emerald-500" />
+                  )}
+                  <div className="min-w-0">
+                    <span className="font-black uppercase tracking-wider text-[10px] mr-1.5">
+                      {primaryHospitalMismatch ? "⚠ Primary Hospital Mismatch" : "Registered Primary Hospital"}
+                    </span>
+                    <span className="font-bold">{primaryHospital.hcp_name}</span>
+                    <span className="font-mono opacity-60 ml-1.5 text-[10px]">({primaryHospital.hcp_code})</span>
+                    {primaryHospitalMismatch && (
+                      <div className="mt-0.5 text-[11px] font-medium text-amber-700">
+                        Requesting from <span className="font-bold">{requestingHospitalName}</span> — verify why before approving.
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          )}
 
           {/* Process Tracker */}
           {request?.referred_hospital_name ? (
