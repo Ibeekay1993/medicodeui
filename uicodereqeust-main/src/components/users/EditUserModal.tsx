@@ -75,7 +75,7 @@ export function EditUserModal({
         hospital_id: user.hospital_id || "",
       });
       const matched = hospitals.find((h) => h.id === user.hospital_id);
-      setEditHospitalSearch(matched ? matched.name : "");
+      setEditHospitalSearch(matched ? (matched.code ? `${matched.name} - ${matched.code}` : matched.name) : "");
     } else {
       setEditForm({
         full_name: "",
@@ -237,7 +237,7 @@ export function EditUserModal({
                             type="button"
                             onClick={() => {
                               setEditForm({ ...editForm, hospital_id: h.id });
-                              setEditHospitalSearch(h.name);
+                              setEditHospitalSearch(h.code ? `${h.name} - ${h.code}` : h.name);
                               setEditDropdownOpen(false);
                             }}
                             className="flex w-full flex-col rounded-md px-3 py-2 text-left text-xs hover:bg-slate-50 transition-colors"

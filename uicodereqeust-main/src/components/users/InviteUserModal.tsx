@@ -217,7 +217,7 @@ export function InviteUserModal({
                             type="button"
                             onClick={() => {
                               setNewUser({ ...newUser, hospital_id: h.id });
-                              setInviteHospitalSearch(h.name);
+                              setInviteHospitalSearch(h.code ? `${h.name} - ${h.code}` : h.name);
                               setInviteDropdownOpen(false);
                             }}
                             className="flex w-full flex-col rounded-md px-3 py-2 text-left text-xs hover:bg-slate-50 transition-colors"
