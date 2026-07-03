@@ -80,9 +80,19 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
       .in("member_type", ["PRINCIPAL", "MEMBER"])
       .limit(1)
       .single()
-      .then(({ data }) => {
+      .then(async ({ data }) => {
         if (!cancelled) {
-          setPrimaryHospital(data ? { hcp_name: data.hcp_name || "", hcp_code: data.hcp_code || "" } : null);
+          let hcp_name = data?.hcp_name || "";
+          const hcp_code = data?.hcp_code || "";
+          
+          if (hcp_code) {
+            const { data: hospData } = await supabase.from("hospitals").select("name").eq("code", hcp_code).maybeSingle();
+            if (hospData?.name) {
+              hcp_name = hospData.name;
+            }
+          }
+          
+          setPrimaryHospital(data ? { hcp_name, hcp_code } : null);
           setPrimaryHospitalLoading(false);
         }
       });
