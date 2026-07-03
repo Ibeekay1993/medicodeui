@@ -437,12 +437,12 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
                       {request?.referred_hospital_name ? "Original Referral Diagnosis" : "Diagnosis"}
                       {request?.referred_hospital_name && <span className="bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded text-[9px] uppercase font-bold tracking-widest">Referral</span>}
                     </Label>
-                    <Input
+                    <Textarea
                       placeholder="Diagnosis..."
                       value={actions.editDiagnosis}
                       onChange={(e) => actions.setEditDiagnosis(e.target.value)}
                       readOnly={request?.deletion_status === "awaiting_admin_approval" || role === "hospital" || !!request?.referred_hospital_name}
-                      className={`rounded-xl border-slate-200 font-bold focus:ring-primary/20 ${
+                      className={`min-h-[80px] rounded-xl border-slate-200 font-bold focus:ring-primary/20 ${
                         request?.deletion_status === "awaiting_admin_approval" || role === "hospital" || !!request?.referred_hospital_name
                           ? "bg-slate-50/50 text-slate-900 border-0 shadow-inner focus-visible:ring-0 cursor-default"
                           : "bg-white"

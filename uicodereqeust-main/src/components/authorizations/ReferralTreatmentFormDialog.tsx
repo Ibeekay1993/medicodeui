@@ -25,6 +25,7 @@ export default function ReferralTreatmentFormDialog({
 }: ReferralTreatmentFormDialogProps) {
   const { toast } = useToast();
   const [treatments, setTreatments] = useState<TreatmentItem[]>([]);
+  const [currentDiagnosis, setCurrentDiagnosis] = useState("");
   const [treatSearch, setTreatSearch] = useState("");
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [_searchLoading, setSearchLoading] = useState(false);
@@ -121,10 +122,13 @@ export default function ReferralTreatmentFormDialog({
       }));
 
       // 1. Submit Treatment request - set status to pending_authorization
+      const newDiagnosis = currentDiagnosis.trim() ? `${request.diagnosis}\n\n[CURRENT DIAGNOSIS BY ${hospital.name}]:\n${currentDiagnosis.trim()}` : request.diagnosis;
+
       const { error: updateError } = await supabase
         .from("authorization_requests")
         .update({
           status: "pending_authorization",
+          diagnosis: newDiagnosis,
           treatment: treatmentText,
           total_amount: total,
           approved_items: approvedPayload,
@@ -198,7 +202,17 @@ export default function ReferralTreatmentFormDialog({
 
           {/* SECTION B: Treatment Request (Editable) */}
           <div className="space-y-4">
-            <p className="text-xs font-black text-slate-400 uppercase tracking-wider">SECTION B: Treatment Items (Editable)</p>
+            <p className="text-xs font-black text-slate-400 uppercase tracking-wider">SECTION B: Current Diagnosis & Treatment Items (Editable)</p>
+
+            <div className="space-y-2 relative">
+              <Label className="text-xs uppercase font-black text-slate-400 tracking-wider">Current Diagnosis (Optional)</Label>
+              <Textarea
+                placeholder="Enter current diagnosis here if different or updated from the original..."
+                value={currentDiagnosis}
+                onChange={(e) => setCurrentDiagnosis(e.target.value)}
+                className="min-h-[60px] rounded-xl border-slate-200 focus:ring-primary/20 bg-white"
+              />
+            </div>
 
             <div className="space-y-2 relative">
               <Label className="text-xs uppercase font-black text-slate-400 tracking-wider">Search NHIA Tariff Database</Label>
