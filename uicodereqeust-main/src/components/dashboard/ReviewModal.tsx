@@ -441,9 +441,9 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
                       placeholder="Diagnosis..."
                       value={actions.editDiagnosis}
                       onChange={(e) => actions.setEditDiagnosis(e.target.value)}
-                      readOnly={request?.deletion_status === "awaiting_admin_approval" || role === "hospital"}
+                      readOnly={request?.deletion_status === "awaiting_admin_approval" || role === "hospital" || !!request?.referred_hospital_name}
                       className={`rounded-xl border-slate-200 font-bold focus:ring-primary/20 ${
-                        request?.deletion_status === "awaiting_admin_approval" || role === "hospital"
+                        request?.deletion_status === "awaiting_admin_approval" || role === "hospital" || !!request?.referred_hospital_name
                           ? "bg-slate-50/50 text-slate-900 border-0 shadow-inner focus-visible:ring-0 cursor-default"
                           : "bg-white"
                       }`}
@@ -452,8 +452,9 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
 
                   {/* Treatment text area */}
                   <div className="space-y-1">
-                    <Label className="text-xs uppercase font-black text-slate-700 tracking-wider pl-1">
-                      Services / Treatment
+                    <Label className="text-xs uppercase font-black text-slate-700 tracking-wider pl-1 flex items-center gap-2">
+                      {request?.referred_hospital_name ? "Current Treatment Request" : "Services / Treatment"}
+                      {request?.referred_hospital_name && <span className="bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded text-[9px] uppercase font-bold tracking-widest">Referred Hospital</span>}
                     </Label>
                     <Textarea
                       placeholder="Treatment Plan..."
