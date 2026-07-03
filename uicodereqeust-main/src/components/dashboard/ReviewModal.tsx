@@ -309,7 +309,7 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
                     <span className="font-black uppercase tracking-wider text-[9px] opacity-80">
                       {primaryHospitalMismatch ? "⚠ Mismatch:" : "Registered:"}
                     </span>
-                    <span className="font-bold truncate max-w-[150px] sm:max-w-xs">{primaryHospital.hcp_name}</span>
+                    <span className="font-bold">{primaryHospital.hcp_name}</span>
                     <span className="font-mono opacity-60 text-[9px]">({primaryHospital.hcp_code})</span>
                     {primaryHospitalMismatch && (
                       <div className="mt-0.5 text-[9px] font-medium text-amber-700 w-full">
