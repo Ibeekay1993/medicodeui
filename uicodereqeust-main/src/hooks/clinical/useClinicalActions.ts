@@ -11,6 +11,7 @@ import {
   getInitials,
   formatNaira,
   cleanPatientName,
+  parseReferralTreatment,
 } from "@/lib/clinicalUtils";
 import { normalizeHospitalName } from "@/lib/authorizations-helpers";
 
@@ -46,6 +47,7 @@ export function useClinicalActions({
   >(null);
 
   const [editDiagnosis, setEditDiagnosis] = useState("");
+  const [editCurrentDiagnosis, setEditCurrentDiagnosis] = useState("");
   const [editReferralHospitalId, setEditReferralHospitalId] = useState<string | null>(null);
   const [editReferralHospitalName, setEditReferralHospitalName] = useState("");
   const [referralCollapsed, setReferralCollapsed] = useState(true);
@@ -59,6 +61,7 @@ export function useClinicalActions({
     policyNumber: string;
     hospitalName: string;
     diagnosis: string;
+    currentDiagnosis?: string;
     treatment: string;
     items: TariffOption[];
     totalAmount: number;
@@ -86,6 +89,7 @@ export function useClinicalActions({
   useEffect(() => {
     if (open && request) {
       setEditDiagnosis(request.diagnosis || "");
+      setEditCurrentDiagnosis(request.current_treatment_diagnosis || "");
       setEditReferralHospitalId(request.referred_hospital_id || null);
       setEditReferralHospitalName(request.referred_hospital_name || "");
       setReferralCollapsed(!request.referred_hospital_name);
@@ -162,37 +166,31 @@ export function useClinicalActions({
 
     (async () => {
       try {
-        const [arrivalRes, treatmentRes] = await Promise.all([
-          supabase.rpc("get_otp_value" as any, { p_request_id: request.id, p_otp_type: "ARRIVAL" }),
-          supabase.rpc("get_otp_value" as any, { p_request_id: request.id, p_otp_type: "TREATMENT" })
-        ]);
+        const { data: otpData, error: otpError } = await supabase.rpc("get_otp_value" as any, {
+          p_request_id: request.id,
+          p_otp_type: "ARRIVAL"
+        });
 
         if (cancelled) return;
 
-        let foundArrival = null;
-        let foundTreatment = null;
+        let foundOtp = null;
+        let foundOtpVerified = false;
 
-        if (!arrivalRes.error && arrivalRes.data) {
-          const row = Array.isArray(arrivalRes.data) ? arrivalRes.data[0] : arrivalRes.data;
+        if (!otpError && otpData) {
+          const row = Array.isArray(otpData) ? otpData[0] : otpData;
           if (row?.otp_value) {
-            foundArrival = row.otp_value;
-            setArrivalOtpVerified(Boolean(row.verified));
+            foundOtp = row.otp_value;
+            foundOtpVerified = Boolean(row.verified);
           }
         }
 
-        if (!treatmentRes.error && treatmentRes.data) {
-          const row = Array.isArray(treatmentRes.data) ? treatmentRes.data[0] : treatmentRes.data;
-          if (row?.otp_value) {
-            foundTreatment = row.otp_value;
-            setTreatmentOtpVerified(Boolean(row.verified));
-          }
-        }
-
-        setArrivalOtp(foundArrival);
-        setTreatmentOtp(foundTreatment);
+        setArrivalOtp(foundOtp);
+        setTreatmentOtp(foundOtp);
+        setArrivalOtpVerified(foundOtpVerified);
+        setTreatmentOtpVerified(foundOtpVerified);
         setOtpLoading(false);
       } catch (err) {
-        console.error("PIN value fetch error:", err);
+        console.error("OTP value fetch error:", err);
         if (!cancelled) setOtpLoading(false);
       }
     })();
@@ -350,8 +348,13 @@ export function useClinicalActions({
           .update({
             status: dbStatus,
             diagnosis: editDiagnosis,
+            current_treatment_diagnosis: editCurrentDiagnosis,
             treatment:
-              dbStatus === "approved" && approvedSummary ? approvedSummary : editTreatment,
+              dbStatus === "approved" && approvedSummary
+                ? approvedSummary
+                : (request.referred_hospital_name && !editTreatment.includes("[PROPOSED TREATMENT PLAN"))
+                ? `[ORIGINAL REFERRAL REASON (From ${request.requesting_hospital_name || request.hospital_name || "Referring Hospital"})]:\n${parseReferralTreatment(request.treatment || "").original || "Not specified"}\n\n[PROPOSED TREATMENT PLAN (From ${request.referred_hospital_name})]:\n${editTreatment}`
+                : editTreatment,
             requesting_hospital_id: request.requesting_hospital_id || request.hospital_id || null,
             requesting_hospital_name: request.requesting_hospital_name || request.hospital_name || null,
             referring_hospital_id: request.referring_hospital_id || request.hospital_id || null,
@@ -853,6 +856,8 @@ const findHospitalIdByName = async (name: string) => {
     processingAction,
     editDiagnosis,
     setEditDiagnosis,
+    editCurrentDiagnosis,
+    setEditCurrentDiagnosis,
     editTreatment,
     setEditTreatment,
     editReferralHospitalId,

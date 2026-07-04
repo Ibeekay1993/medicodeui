@@ -72,8 +72,7 @@ export default function AuthorizationsTable({
   const handleUnlockOtp = async (r: any, e: React.MouseEvent) => {
     e.stopPropagation();
     if (!unlockOtpInput) return;
-    
-    const otpType = isReferralFor(r) ? 'TREATMENT' : 'ARRIVAL';
+    const otpType = 'ARRIVAL';
     
     const { data, error } = await supabase.rpc("verify_otp" as any, {
       p_request_id: r.id,
@@ -146,8 +145,8 @@ export default function AuthorizationsTable({
                                   autoFocus
                                   value={unlockOtpInput}
                                   onChange={e => setUnlockOtpInput(e.target.value.toUpperCase())}
-                                  placeholder="Enter PIN"
-                                  className="h-8 w-24 text-xs font-mono font-bold"
+                                  placeholder="Enter OTP"
+                                  className="h-8 w-24 text-xs font-mono font-bold px-2 uppercase"
                                 />
                                 <Button size="sm" onClick={(e) => handleUnlockOtp(r, e)} className="h-8 px-2 text-xs">Unlock</Button>
                                 <Button variant="ghost" size="sm" onClick={() => setUnlockingReqId(null)} className="h-8 px-2 text-xs text-slate-400">Cancel</Button>
@@ -369,8 +368,8 @@ export default function AuthorizationsTable({
                           autoFocus
                           value={unlockOtpInput}
                           onChange={e => setUnlockOtpInput(e.target.value.toUpperCase())}
-                          placeholder="PIN"
-                          className="h-9 w-24 text-sm font-mono font-bold"
+                          placeholder="OTP"
+                          className="h-8 w-20 text-xs font-mono font-bold px-2"
                         />
                             <Button size="sm" onClick={(e) => handleUnlockOtp(r, e)} className="h-9 px-3">Unlock</Button>
                             <Button variant="ghost" size="sm" onClick={() => setUnlockingReqId(null)} className="h-9 px-3 text-slate-400">Cancel</Button>

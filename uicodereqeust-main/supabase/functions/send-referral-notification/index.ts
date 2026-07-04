@@ -159,7 +159,7 @@ serve(async (req) => {
         <tr>
           <td style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:12px 16px;text-align:center;">
             <p style="color:#92400e;font-size:12px;font-weight:600;margin:0 0 8px;">
-              Your Patient Arrival PIN for <strong>${referredHospital}</strong> is:
+              Your Authorization OTP for <strong>${referredHospital}</strong> is:
             </p>
             <div style="background:#ffffff;border:2px dashed #f59e0b;border-radius:6px;padding:12px;font-family:monospace;font-size:24px;font-weight:900;color:#d97706;letter-spacing:4px;">
               ${otp}

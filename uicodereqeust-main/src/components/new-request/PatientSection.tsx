@@ -1,4 +1,4 @@
-﻿import React from "react";
+import React from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Loader2, Search, Plus, CheckCircle2, X } from "lucide-react";
@@ -172,7 +172,7 @@ export default function PatientSection({
               className="h-12 rounded-xl bg-slate-50 border border-slate-200 text-sm placeholder:text-slate-300 placeholder:text-xs"
             />
             <p id="email-input-description" className="text-xs font-semibold text-slate-400">
-              A request PIN will be sent to this email for patient verification.
+              A request OTP will be sent to this email for patient verification.
             </p>
           </>
         ) : (

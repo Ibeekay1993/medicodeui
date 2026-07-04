@@ -6,7 +6,8 @@ export class AdminOpsService {
     if (wipeError) throw wipeError;
 
     const { data: result, error } = await supabase.rpc("import_historical_codes" as any, {
-      _codes: data,
+      _file_name: "Portal Import",
+      _rows: data,
     });
     if (error) throw error;
     return result;

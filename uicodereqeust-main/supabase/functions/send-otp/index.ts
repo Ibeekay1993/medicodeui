@@ -1,9 +1,9 @@
 // @ts-nocheck
-// SECURITY: PIN values are never returned in API responses.
+// SECURITY: OTP values are never returned in API responses.
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders, getServiceClient, validateUser } from "../_shared/auth.ts";
 
-async function generateUniquePIN(supabase: any): Promise<string> {
+async function generateUniqueOTP(supabase: any): Promise<string> {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // Removed O, 0, 1, I
   let attempts = 0;
   while (attempts < 10) {
@@ -14,7 +14,7 @@ async function generateUniquePIN(supabase: any): Promise<string> {
       pin += chars[array[i] % chars.length];
     }
     
-    // Check if PIN exists for any UNVERIFIED or ACTIVE request
+    // Check if OTP exists for any UNVERIFIED or ACTIVE request
     const { data, error } = await supabase
       .from("otp_verifications")
       .select("id")
@@ -25,7 +25,7 @@ async function generateUniquePIN(supabase: any): Promise<string> {
     if (!data && !error) return pin; // Unique!
     attempts++;
   }
-  throw new Error("Failed to generate a unique PIN after 10 attempts");
+  throw new Error("Failed to generate a unique OTP after 10 attempts");
 }
 
 async function sha256Hex(value: string): Promise<string> {
@@ -63,14 +63,14 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({
           success: true,
-          message: "PIN already exists for this request",
+          message: "OTP already exists for this request",
           email_status: "skipped",
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 
-    const otp = await generateUniquePIN(supabase);
+    const otp = await generateUniqueOTP(supabase);
     const otpHash = await sha256Hex(otp);
     // 10 years expiration
     const expiresAt = new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000).toISOString();
@@ -100,7 +100,7 @@ serve(async (req) => {
     let emailStatus = "skipped";
 
     await supabase.from("audit_logs").insert({
-      action: "pin_generated",
+      action: "otp_generated",
       user_id: user.id,
       details: {
         authorization_id,
@@ -115,7 +115,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: true,
-        message: "PIN generated. Email skipped (will be sent on approval).",
+        message: "OTP generated. Email skipped (will be sent on approval).",
         email_status: emailStatus,
         error_message: null,
       }),
@@ -124,7 +124,7 @@ serve(async (req) => {
   } catch (err) {
     console.error("send-otp error:", err);
     return new Response(
-      JSON.stringify({ error: true, message: err instanceof Error ? err.message : "Failed to generate PIN" }),
+      JSON.stringify({ error: true, message: err instanceof Error ? err.message : "Failed to generate OTP" }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   }

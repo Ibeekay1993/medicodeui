@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -17,8 +18,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { HospitalReferralField } from "@/components/HospitalReferralField";
-import { AlertTriangle, Building2, ChevronDown, ChevronUp, ChevronRight } from "lucide-react";
+import { AlertTriangle, Building2, ChevronDown, ChevronUp, ChevronRight, Trash2, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+
 
 // Custom Hooks
 import { useAuth } from "@/contexts/AuthContext";
@@ -52,6 +54,7 @@ interface ReviewModalProps {
 export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: ReviewModalProps) {
   const { role } = useAuth();
   const [historyPage, setHistoryPage] = useState(1);
+  const [activeTab, setActiveTab] = useState("verification");
 
   // 1. Determine request metadata
   const isHospitalDirected = ["hospital_portal", "hospital", "portal"].includes(request?.source);
@@ -218,63 +221,61 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="w-[94vw] max-w-[94vw] sm:max-w-3xl md:max-w-5xl lg:max-w-6xl max-h-[92dvh] overflow-y-auto overflow-x-hidden rounded-[1.5rem] sm:rounded-[2rem] border-0 bg-white/95 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-white to-slate-50/50 backdrop-blur-2xl selection:bg-slate-200 p-0 shadow-[0_8px_40px_rgb(0,0,0,0.08)] ring-1 ring-slate-200">
-        {/* Sticky Header */}
-        <div className="sticky top-0 z-30 px-5 py-4 bg-gradient-to-b from-white/95 to-white/90 backdrop-blur-xl border-b border-slate-100 rounded-t-[1.5rem] sm:rounded-t-[2rem] shadow-sm">
-          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+      <DialogContent className="w-[94vw] max-w-[94vw] sm:max-w-3xl md:max-w-5xl lg:max-w-6xl max-h-[92dvh] rounded-[1.5rem] sm:rounded-[2rem] border-0 bg-white/95 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-white to-slate-50/50 backdrop-blur-2xl selection:bg-slate-200 p-0 shadow-[0_8px_40px_rgb(0,0,0,0.08)] ring-1 ring-slate-200 overflow-y-auto">
+        <Tabs value={activeTab} onValueChange={setActiveTab as any} className="w-full">
+        {/* Fixed Header */}
+        <div className="shrink-0 z-30 px-5 pt-4 pb-2 bg-white border-b border-slate-200 rounded-t-[1.5rem] sm:rounded-t-[2rem] shadow-sm relative flex flex-col gap-4">
+          <button 
+            onClick={onClose}
+            className="absolute top-4 right-4 p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-full transition-colors z-40"
+          >
+            <X className="h-5 w-5 stroke-[2.5]" />
+          </button>
+          
+          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 pr-5 sm:pr-8">
             <div className="min-w-0 flex-1 w-full">
-              <div className="text-xs font-bold text-indigo-500 uppercase tracking-widest">
+              <div className="text-[11px] font-black text-slate-800 uppercase tracking-widest mb-1">
                 Clinical Review
               </div>
-              <h2 className="text-lg sm:text-2xl font-extrabold text-slate-900 leading-tight truncate mt-0.5">
+              <h2 className="text-lg sm:text-xl font-extrabold text-slate-900 leading-tight truncate uppercase">
                 {requestPatientName || "Unknown Patient"}
               </h2>
-              <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                <span className="inline-flex items-center rounded-md bg-slate-100 px-2.5 py-0.5 text-xs font-mono font-bold text-slate-800 border border-slate-200 shadow-2xs">
-                  Policy: {requestPolicyNumber || "N/A"}
-                </span>
+              <div className="flex items-center gap-2 mt-1 flex-wrap text-slate-500 text-[11px]">
+                <span>Policy: {requestPolicyNumber || "N/A"}</span>
+                <span className="text-slate-300">&bull;</span>
                 {role !== "hospital" ? (
-                  <span className="inline-flex items-center rounded-md bg-amber-50 px-2 py-0.5 text-xs font-bold text-amber-700 border border-amber-250 shadow-2xs gap-2">
+                  <span>
                     {actions.otpLoading ? (
-                      <span className="animate-pulse">Fetching OTPs…</span>
+                      <span className="animate-pulse">Fetching OTPs...</span>
                     ) : (actions.arrivalOtp || actions.treatmentOtp || otpValue) ? (
                       <>
                         {actions.arrivalOtp && (
-                          <span className="tracking-wider flex items-center gap-1">
-                            ARRIVAL PIN: {actions.arrivalOtp}
-                            {actions.arrivalOtpVerified && <span className="text-green-600 bg-green-100/80 rounded-full w-4 h-4 flex items-center justify-center text-[10px] shadow-sm border border-green-200" title="Verified">✓</span>}
+                          <span className="tracking-wider">
+                            OTP: {actions.arrivalOtp}
+                            {actions.arrivalOtpVerified && <span className="text-emerald-500 ml-1">✓</span>}
                           </span>
                         )}
-                        {actions.arrivalOtp && actions.treatmentOtp && <span className="opacity-50">|</span>}
-                        {actions.treatmentOtp && (
-                          <span className="tracking-wider flex items-center gap-1">
-                            TREATMENT PIN: {actions.treatmentOtp}
-                            {actions.treatmentOtpVerified && <span className="text-green-600 bg-green-100/80 rounded-full w-4 h-4 flex items-center justify-center text-[10px] shadow-sm border border-green-200" title="Verified">✓</span>}
-                          </span>
-                        )}
-                        {!actions.arrivalOtp && !actions.treatmentOtp && otpValue && <span className="tracking-wider">PIN: {otpValue}</span>}
+                        {!actions.arrivalOtp && !actions.treatmentOtp && otpValue && <span className="tracking-wider">OTP: {otpValue}</span>}
                       </>
                     ) : ["pending", "pending_authorization", "pending_referral", "info_provided"].includes(request?.status || "") ? (
-                      <span>OTP: ••••••</span>
+                      <span>OTP: &bull;&bull;&bull;&bull;&bull;&bull;</span>
                     ) : (
                       <span>OTP: N/A</span>
                     )}
                   </span>
                 ) : (
-                  <span className="inline-flex items-center rounded-md bg-slate-50 px-2 py-0.5 text-xs font-semibold text-slate-500 border border-slate-200/30">
-                    OTP: —
-                  </span>
+                  <span>OTP: —</span>
                 )}
               </div>
             </div>
 
-            <div className="text-left sm:text-right w-full sm:max-w-[200px] bg-slate-50/50 border border-slate-100 p-2 rounded-xl text-slate-600 shadow-sm shrink-0 sm:self-center overflow-hidden flex flex-col items-start sm:items-end mt-1 sm:mt-0">
-              <div className="text-[10px] sm:text-xs font-black text-indigo-400 uppercase tracking-widest mb-0.5">Contact Details</div>
-              <div className="text-xs sm:text-sm font-bold text-slate-700 truncate w-full">
-                {request?.patient_phone ? `☎ ${request.patient_phone}` : "—"}
+            <div className="text-left sm:text-right w-full sm:max-w-[200px] shrink-0 sm:self-center flex flex-col items-start sm:items-end mt-2 sm:mt-0">
+              <div className="text-[10px] font-bold text-cyan-600 uppercase tracking-widest mb-0.5">Contact Details</div>
+              <div className="text-xs font-bold text-slate-700 truncate w-full">
+                {request?.patient_phone ? `${request.patient_phone}` : "—"}
               </div>
               {request?.patient_email && (
-                <div className="text-xs font-medium text-slate-550 truncate mt-1 leading-none w-full">
+                <div className="text-[11px] font-medium text-slate-500 truncate mt-0.5 leading-none w-full">
                   {request.patient_email === "no-email@medicode.com" ? (
                     <span className="italic opacity-70">No email provided</span>
                   ) : (
@@ -285,99 +286,72 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
             </div>
           </div>
 
-          {/* Primary Hospital Banner */}
-          {role !== "hospital" && requestPolicyNumber && (
-            <div className="mt-2 pt-2 border-t border-slate-100">
-              {primaryHospitalLoading ? (
-                <div className="flex items-center gap-2 text-[10px] text-slate-400 animate-pulse">
-                  <Building2 className="w-3 h-3 shrink-0" />
-                  <span>Looking up registered hospital…</span>
-                </div>
-              ) : primaryHospital?.hcp_name ? (
-                <div className={cn(
-                  "flex gap-1.5 rounded-lg px-2 py-1 text-[10px] font-semibold border",
-                  primaryHospitalMismatch
-                    ? "bg-amber-50 border-amber-200 text-amber-800 items-start"
-                    : "bg-emerald-50 border-emerald-200 text-emerald-800 items-center"
-                )}>
-                  {primaryHospitalMismatch ? (
-                    <AlertTriangle className="w-3 h-3 mt-0.5 shrink-0 text-amber-500" />
-                  ) : (
-                    <Building2 className="w-3 h-3 shrink-0 text-emerald-500" />
-                  )}
-                  <div className="min-w-0 flex flex-wrap items-center gap-x-1 leading-tight w-full">
-                    <span className="font-black uppercase tracking-wider text-[9px] opacity-80">
-                      {primaryHospitalMismatch ? "⚠ Mismatch:" : "Registered:"}
-                    </span>
-                    <span className="font-bold">{primaryHospital.hcp_name}</span>
-                    <span className="font-mono opacity-60 text-[9px]">({primaryHospital.hcp_code})</span>
-                    {primaryHospitalMismatch && (
-                      <div className="mt-0.5 text-[9px] font-medium text-amber-700 w-full">
-                        Requesting: <span className="font-bold">{requestingHospitalName}</span> {requestingHospitalCode && <span className="font-mono opacity-80 ml-0.5">({requestingHospitalCode})</span>}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ) : null}
-            </div>
-          )}
-
-        </div>
-
-        {/* Modal body container */}
-        <div className="p-3 sm:p-5 space-y-4">
-          {/* Process Tracker (Moved out of sticky header) */}
+          {/* Process Tracker */}
           {request?.referred_hospital_name ? (
-            <div className="flex flex-row items-start justify-between w-full text-center text-[7px] sm:text-[8px] md:text-[9px] font-black uppercase tracking-widest text-slate-400 pb-2 border-b border-slate-100 mb-2">
-              <div className={cn("flex flex-col items-center gap-1 w-[18%]", ["pending_referral"].includes(request.status) ? "text-blue-600 font-bold" : "text-emerald-600")}>
-                <span className={cn("h-4 w-4 shrink-0 rounded-full flex items-center justify-center border font-bold text-[8px]", ["pending_referral"].includes(request.status) ? "bg-blue-50 border-blue-200" : "bg-emerald-50 border-emerald-200")}>1</span>
-                <span className="leading-none mt-1">Referral Requested</span>
+            <div className="flex justify-center items-center gap-1 sm:gap-2 px-2 sm:px-6 py-2">
+              <div className="flex flex-col items-center gap-1">
+                <div className={cn("w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full", ["pending_referral"].includes(request.status) ? "w-3.5 h-3.5 sm:w-4 sm:h-4 bg-white border-[3px] border-slate-800" : "bg-slate-800")} />
+                <span className={cn("text-[8px] sm:text-[10px] font-bold uppercase tracking-wider", ["pending_referral"].includes(request.status) ? "text-slate-800" : "text-slate-800")}>Referral</span>
               </div>
-              <div className="flex justify-center items-center mt-1 text-slate-300"><ChevronRight className="w-3 h-3 md:w-3.5 md:h-3.5" /></div>
-
-              <div className={cn("flex flex-col items-center gap-1 w-[18%]", ["referral_approved"].includes(request.status) ? "text-blue-600 font-bold" : ["pending_referral"].includes(request.status) ? "text-slate-300" : "text-emerald-600")}>
-                <span className={cn("h-4 w-4 shrink-0 rounded-full flex items-center justify-center border font-bold text-[8px]", ["referral_approved"].includes(request.status) ? "bg-blue-50 border-blue-200" : ["pending_referral"].includes(request.status) ? "bg-slate-50 border-slate-200" : "bg-emerald-50 border-emerald-200")}>2</span>
-                <span className="leading-none mt-1">Insurer Approved</span>
+              <div className="w-6 sm:w-10 h-[2px] bg-slate-200 mb-4" />
+              <div className="flex flex-col items-center gap-1">
+                <div className={cn("w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full", ["referral_approved"].includes(request.status) ? "w-3.5 h-3.5 sm:w-4 sm:h-4 bg-white border-[3px] border-slate-800" : ["pending_referral"].includes(request.status) ? "bg-slate-300" : "bg-slate-800")} />
+                <span className={cn("text-[8px] sm:text-[10px] font-bold uppercase tracking-wider", ["referral_approved"].includes(request.status) ? "text-slate-800" : ["pending_referral"].includes(request.status) ? "text-slate-400" : "text-slate-800")}>Insurer</span>
               </div>
-              <div className="flex justify-center items-center mt-1 text-slate-300"><ChevronRight className="w-3 h-3 md:w-3.5 md:h-3.5" /></div>
-
-              <div className={cn("flex flex-col items-center gap-1 w-[18%]", ["referral_accepted"].includes(request.status) ? "text-blue-600 font-bold" : ["pending_referral", "referral_approved", "referral_declined", "referral_expired"].includes(request.status) ? "text-slate-300" : "text-emerald-600")}>
-                <span className={cn("h-4 w-4 shrink-0 rounded-full flex items-center justify-center border font-bold text-[8px]", ["referral_accepted"].includes(request.status) ? "bg-blue-50 border-blue-200" : ["pending_referral", "referral_approved", "referral_declined", "referral_expired"].includes(request.status) ? "bg-slate-50 border-slate-200" : "bg-emerald-50 border-emerald-200")}>3</span>
-                <span className="leading-none mt-1">Hospital Accepted</span>
+              <div className="w-6 sm:w-10 h-[2px] bg-slate-200 mb-4" />
+              <div className="flex flex-col items-center gap-1">
+                <div className={cn("w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full", ["referral_accepted"].includes(request.status) ? "w-3.5 h-3.5 sm:w-4 sm:h-4 bg-white border-[3px] border-slate-800" : ["pending_referral", "referral_approved", "referral_declined", "referral_expired"].includes(request.status) ? "bg-slate-300" : "bg-slate-800")} />
+                <span className={cn("text-[8px] sm:text-[10px] font-bold uppercase tracking-wider", ["referral_accepted"].includes(request.status) ? "text-slate-800" : ["pending_referral", "referral_approved", "referral_declined", "referral_expired"].includes(request.status) ? "text-slate-400" : "text-slate-800")}>Hospital</span>
               </div>
-              <div className="flex justify-center items-center mt-1 text-slate-300"><ChevronRight className="w-3 h-3 md:w-3.5 md:h-3.5" /></div>
-
-              <div className={cn("flex flex-col items-center gap-1 w-[18%]", ["pending_authorization"].includes(request.status) ? "text-blue-600 font-bold" : ["pending_referral", "referral_approved", "referral_declined", "referral_expired", "referral_accepted", "accepted_referral_expired"].includes(request.status) ? "text-slate-300" : "text-emerald-600")}>
-                <span className={cn("h-4 w-4 shrink-0 rounded-full flex items-center justify-center border font-bold text-[8px]", ["pending_authorization"].includes(request.status) ? "bg-blue-50 border-blue-200" : ["pending_referral", "referral_approved", "referral_declined", "referral_expired", "referral_accepted", "accepted_referral_expired"].includes(request.status) ? "bg-slate-50 border-slate-200" : "bg-emerald-50 border-emerald-200")}>4</span>
-                <span className="leading-none mt-1">Treatment Review</span>
+              <div className="w-6 sm:w-10 h-[2px] bg-slate-200 mb-4" />
+              <div className="flex flex-col items-center gap-1">
+                <div className={cn("w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full", ["pending_authorization"].includes(request.status) ? "w-3.5 h-3.5 sm:w-4 sm:h-4 bg-white border-[3px] border-slate-800" : ["pending_referral", "referral_approved", "referral_declined", "referral_expired", "referral_accepted", "accepted_referral_expired"].includes(request.status) ? "bg-slate-300" : "bg-slate-800")} />
+                <span className={cn("text-[8px] sm:text-[10px] font-bold uppercase tracking-wider", ["pending_authorization"].includes(request.status) ? "text-slate-800" : ["pending_referral", "referral_approved", "referral_declined", "referral_expired", "referral_accepted", "accepted_referral_expired"].includes(request.status) ? "text-slate-400" : "text-slate-800")}>Review</span>
               </div>
-              <div className="flex justify-center items-center mt-1 text-slate-300"><ChevronRight className="w-3 h-3 md:w-3.5 md:h-3.5" /></div>
-
-              <div className={cn("flex flex-col items-center gap-1 w-[18%]", ["approved", "authorization_approved"].includes(request.status) ? "text-emerald-600 font-bold" : "text-slate-300")}>
-                <span className={cn("h-4 w-4 shrink-0 rounded-full flex items-center justify-center border font-bold text-[8px]", ["approved", "authorization_approved"].includes(request.status) ? "bg-emerald-50 border-emerald-200" : "bg-slate-50 border-slate-200")}>5</span>
-                <span className="leading-none mt-1">Authorized</span>
+              <div className="w-6 sm:w-10 h-[2px] bg-slate-200 mb-4" />
+              <div className="flex flex-col items-center gap-1">
+                <div className={cn("w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full", ["approved", "authorization_approved"].includes(request.status) ? "w-3.5 h-3.5 sm:w-4 sm:h-4 bg-white border-[3px] border-slate-800" : "bg-slate-300")} />
+                <span className={cn("text-[8px] sm:text-[10px] font-bold uppercase tracking-wider", ["approved", "authorization_approved"].includes(request.status) ? "text-slate-800" : "text-slate-400")}>Authorized</span>
               </div>
             </div>
           ) : (
-            <div className="flex flex-row items-start justify-between w-full text-center text-[8px] sm:text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-400 pb-2 border-b border-slate-100 mb-2">
-              <div className="flex flex-col items-center gap-1 w-1/3 text-slate-800">
-                <span className="h-4 w-4 rounded-full bg-slate-100 text-slate-800 flex items-center justify-center text-[8px] font-black border border-slate-200">1</span>
-                <span className="leading-none mt-1">Verify Patient</span>
+            <div className="flex justify-center items-center gap-1 sm:gap-2 px-2 sm:px-6 py-2">
+              <div className="flex flex-col items-center gap-1">
+                <div className="w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full bg-white border-[3px] border-slate-800" />
+                <span className="text-[8px] sm:text-[10px] font-bold uppercase tracking-wider text-slate-800">Verify</span>
               </div>
-              <div className="flex justify-center items-center mt-1 text-slate-200"><ChevronRight className="w-3 h-3 md:w-3.5 md:h-3.5" /></div>
-              
-              <div className="flex flex-col items-center gap-1 w-1/3 text-slate-500">
-                <span className="h-4 w-4 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center text-[8px] font-black border border-slate-200/60">2</span>
-                <span className="leading-none mt-1">Review Treatment</span>
+              <div className="w-8 sm:w-10 h-[2px] bg-slate-200 mb-4" />
+              <div className="flex flex-col items-center gap-1">
+                <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-slate-300" />
+                <span className="text-[8px] sm:text-[10px] font-bold uppercase tracking-wider text-slate-400">Review</span>
               </div>
-              <div className="flex justify-center items-center mt-1 text-slate-200"><ChevronRight className="w-3 h-3 md:w-3.5 md:h-3.5" /></div>
-              
-              <div className="flex flex-col items-center gap-1 w-1/3 text-slate-500">
-                <span className="h-4 w-4 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center text-[8px] font-black border border-slate-200/60">3</span>
-                <span className="leading-none mt-1">Make Decision</span>
+              <div className="w-8 sm:w-10 h-[2px] bg-slate-200 mb-4" />
+              <div className="flex flex-col items-center gap-1">
+                <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-slate-300" />
+                <span className="text-[8px] sm:text-[10px] font-bold uppercase tracking-wider text-slate-400">Decision</span>
               </div>
             </div>
           )}
+
+          {/* TabsList */}
+          <TabsList className="grid w-full grid-cols-2 h-11 sm:h-12 bg-transparent p-0 gap-2 mt-4">
+            <TabsTrigger
+              value="verification"
+              className="rounded-[0.5rem] sm:rounded-lg text-[10px] sm:text-[11px] font-black uppercase tracking-wider sm:tracking-widest data-[state=active]:bg-slate-900 data-[state=active]:text-white data-[state=inactive]:bg-slate-100 data-[state=inactive]:text-slate-400 data-[state=active]:shadow-none transition-all h-full border-0"
+            >
+              Patient Verify & History
+            </TabsTrigger>
+            <TabsTrigger
+              value="clinical"
+              className="rounded-[0.5rem] sm:rounded-lg text-[10px] sm:text-[11px] font-black uppercase tracking-wider sm:tracking-widest data-[state=active]:bg-slate-900 data-[state=active]:text-white data-[state=inactive]:bg-slate-100 data-[state=inactive]:text-slate-400 data-[state=active]:shadow-none transition-all h-full border-0"
+            >
+              Clinical Review
+            </TabsTrigger>
+          </TabsList>
+        </div>
+
+                        {/* Modal body container (Scrollable) */}
+        <div className="p-3 sm:p-5 space-y-4">
           {/* Locked status warning */}
           {request?.deletion_status === "awaiting_admin_approval" && (
             <div className="p-4 rounded-2xl text-xs border bg-rose-50 border-rose-250 flex items-center gap-3 text-rose-900 shadow-xs animate-in fade-in duration-350">
@@ -426,71 +400,118 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
               nurseInitials={actions.nurseInitials}
             />
           ) : (
-            /* Main Clinical Review Layout Form */
-            <div className="space-y-4">
-              <div className="p-4 sm:p-5 rounded-2xl bg-slate-50 border border-slate-200 grid grid-cols-1 md:grid-cols-2 gap-y-3.5 gap-x-4 md:gap-x-6">
-                <div className="col-span-1 md:col-span-2 space-y-3.5">
-                  {/* Referral Treatment Banner */}
-                  {request?.referred_hospital_name && ["pending_authorization"].includes(request?.status || "") && (
-                    <div className="p-3 rounded-xl bg-blue-50 border border-blue-100 flex items-start gap-3 shadow-sm mb-2">
-                      <div className="h-8 w-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center shrink-0 font-bold">ℹ</div>
-                      <div>
-                        <p className="text-sm font-black text-blue-900 leading-tight">Referral Treatment Review</p>
-                        <p className="text-xs text-blue-700 mt-0.5 font-medium">This is a treatment request submitted by the referred hospital. Please review the original diagnosis below.</p>
-                      </div>
+            <>
+              {/* ─── Tab 1: Patient Verify & History ─── */}
+              <TabsContent value="verification" className="space-y-4 mt-0">
+                {/* Patient registry NHIS verify card */}
+                <PatientVerifyCard
+                  request={request}
+                  checking={verification.checking}
+                  patientMatchStatus={verification.patientMatchStatus}
+                  matchedMemberId={verification.matchedMemberId}
+                  policyVerified={verification.policyVerified}
+                  nhisVerified={verification.nhisVerified}
+                  familyMembers={verification.familyMembers}
+                  earlyRefill={verification.earlyRefill}
+                  requestPatientName={requestPatientName}
+                  requestPolicyNumber={requestPolicyNumber}
+                  primaryHospitalLoading={primaryHospitalLoading}
+                  primaryHospital={primaryHospital}
+                  primaryHospitalMismatch={primaryHospitalMismatch}
+                  requestingHospitalName={requestingHospitalName}
+                  requestingHospitalCode={requestingHospitalCode}
+                />
+
+                {/* Local and spreadsheet claims history */}
+                <ClinicalHistory
+                  request={request}
+                  visibleHistory={visibleHistory}
+                  historyPage={historyPage}
+                  setHistoryPage={setHistoryPage}
+                  requestPatientName={requestPatientName}
+                  requestPolicyNumber={requestPolicyNumber}
+                />
+
+                {/* Tab 1 footer: Close + Next */}
+                <div className="flex items-center justify-between pt-3 sm:pt-4 border-t border-slate-100">
+                  <Button
+                    variant="outline"
+                    className="h-11 sm:h-12 px-6 rounded-xl font-black text-[11px] sm:text-xs uppercase tracking-widest border-2 border-slate-200 text-slate-600 hover:bg-slate-50 transition-all"
+                    onClick={onClose}
+                  >
+                    Close
+                  </Button>
+                  <Button
+                    className="h-11 sm:h-12 px-6 sm:px-8 rounded-xl bg-slate-900 text-white text-[11px] sm:text-xs font-black uppercase tracking-widest shadow-md hover:bg-slate-950 active:scale-95 transition-all"
+                    onClick={() => setActiveTab("clinical")}
+                  >
+                    Next
+                  </Button>
+                </div>
+              </TabsContent>
+
+              {/* â”€â”€â”€ Tab 2: Clinical Review â”€â”€â”€ */}
+              <TabsContent value="clinical" className="space-y-4 mt-0">
+                {/* Referral Banner */}
+                {request?.requesting_hospital_name && (
+                  <div className="bg-blue-50 rounded-2xl p-4 sm:p-5 mb-4 border border-blue-100">
+                    <div className="inline-block bg-blue-500 text-white px-3 py-1 rounded-full text-[10px] font-bold tracking-widest uppercase">
+                      Referral Request
                     </div>
-                  )}
+                    <div className="text-[16px] sm:text-[18px] font-extrabold text-slate-800 mt-2 leading-tight">
+                      {requestingHospitalName || "Unknown Hospital"}
+                    </div>
+                    <div className="text-[13px] font-medium text-slate-500 mt-1.5 leading-relaxed">
+                      {request?.clinical_notes || "Patient referred for further clinical evaluation and management."}
+                    </div>
+                  </div>
+                )}
 
-                  {/* Diagnosis field */}
-                  <div className="space-y-1">
-                    <Label className="text-xs uppercase font-black text-slate-700 tracking-wider pl-1 flex items-center gap-2">
-                      {request?.referred_hospital_name ? "Original Referral Diagnosis" : "Diagnosis"}
+                                {/* Diagnosis Card */}
+                <div className="bg-white rounded-2xl p-4 border border-slate-100 mb-3 shadow-sm space-y-4">
+                  <div className="flex justify-between items-center">
+                    <div className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wide flex items-center gap-2">
+                      {request?.referred_hospital_name ? "Original Referral Diagnosis" : "Proposed Diagnosis"}
                       {request?.referred_hospital_name && <span className="bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded text-[9px] uppercase font-bold tracking-widest">Referral</span>}
-                    </Label>
-                    <Textarea
-                      placeholder="Diagnosis..."
-                      value={actions.editDiagnosis}
-                      onChange={(e) => actions.setEditDiagnosis(e.target.value)}
-                      readOnly={request?.deletion_status === "awaiting_admin_approval" || role === "hospital" || !!request?.referred_hospital_name}
-                      className={`min-h-[80px] rounded-xl border-slate-200 font-bold focus:ring-primary/20 ${
-                        request?.deletion_status === "awaiting_admin_approval" || role === "hospital" || !!request?.referred_hospital_name
-                          ? "bg-slate-50/50 text-slate-900 border-0 shadow-inner focus-visible:ring-0 cursor-default"
-                          : "bg-white"
-                      }`}
-                    />
+                    </div>
+                    <div className="bg-slate-50 px-2.5 py-1 rounded-full text-[9px] font-bold text-slate-500 tracking-wide">
+                      {request?.diagnosis_code || "ICD-10"}
+                    </div>
                   </div>
+                  
+                  <textarea 
+                    className="w-full p-3 border border-slate-100 rounded-xl text-[13px] sm:text-[14px] font-bold text-slate-800 bg-slate-50 min-h-[70px] focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                    placeholder="Diagnosis..."
+                    value={actions.editDiagnosis}
+                    onChange={(e) => actions.setEditDiagnosis(e.target.value)}
+                    readOnly={request?.deletion_status === "awaiting_admin_approval" || role === "hospital" || !!request?.referred_hospital_name}
+                  />
 
-                  {/* Treatment text area */}
-                  <div className="space-y-1">
-                    <Label className="text-xs uppercase font-black text-slate-700 tracking-wider pl-1 flex items-center gap-2">
-                      {request?.referred_hospital_name ? "Current Treatment Request" : "Services / Treatment"}
-                      {request?.referred_hospital_name && <span className="bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded text-[9px] uppercase font-bold tracking-widest">Referred Hospital</span>}
-                    </Label>
-                    <Textarea
-                      placeholder="Treatment Plan..."
-                      value={actions.editTreatment}
-                      onChange={(e) => actions.setEditTreatment(e.target.value)}
-                      onBlur={() => {
-                        if (role === "hospital" || !isParsedRequest) return;
-                        void tariffSearch.parseTreatmentText({ replaceAuto: true, quiet: true });
-                      }}
-                      readOnly={request?.deletion_status === "awaiting_admin_approval" || role === "hospital"}
-                      className={`rounded-xl border-slate-200 font-semibold min-h-[80px] focus:ring-primary/20 ${
-                        request?.deletion_status === "awaiting_admin_approval" || role === "hospital"
-                          ? "bg-slate-50/50 text-slate-900 border-0 shadow-inner focus-visible:ring-0 cursor-default resize-none"
-                          : "bg-white"
-                      }`}
-                    />
+                  <div className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wide flex items-center gap-2 pt-2 border-t border-slate-100">
+                    {request?.referred_hospital_name ? "Current Treatment Request" : "Proposed Treatment"}
+                    {request?.referred_hospital_name && <span className="bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded text-[9px] uppercase font-bold tracking-widest">Referred Hospital</span>}
                   </div>
-
+                  
+                  <textarea 
+                    className="w-full p-3 border border-slate-100 rounded-xl text-[13px] sm:text-[14px] font-bold text-slate-800 bg-slate-50 min-h-[90px] focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                    placeholder="Treatment Plan..."
+                    value={actions.editTreatment}
+                    onChange={(e) => actions.setEditTreatment(e.target.value)}
+                    onBlur={() => {
+                      if (role === "hospital" || !(["hospital", "hospital_portal"].includes(role))) return;
+                      void tariffSearch.parseTreatmentText({ replaceAuto: true, quiet: true });
+                    }}
+                    readOnly={request?.deletion_status === "awaiting_admin_approval" || role === "hospital"}
+                  />
+                  
                   {/* Referral details container */}
-                  <div className="space-y-3.5 overflow-hidden rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+                  <div className="space-y-3.5 overflow-hidden rounded-xl border border-slate-100 bg-slate-50 p-3 mt-3">
                     <div className="flex items-center justify-between gap-3">
                       <div className="min-w-0">
-                        <div className="text-xs font-black uppercase tracking-widest text-slate-700">
+                        <div className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wide">
                           Referral Hospital / Claim Owner
                         </div>
-                        <p className="mt-0.5 text-xs font-semibold text-slate-500">
+                        <p className="mt-1 text-[11px] sm:text-[12px] text-slate-400">
                           {actions.referralCollapsed
                             ? "Tap arrow to view referral details"
                             : "Specify treating hospital details if this authorization requires a referral."}
@@ -539,120 +560,108 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
                         )}
                       </div>
                     )}
-                  </div>
 
-                  {/* Treatment matched cart details */}
+                  <div className="flex gap-4 items-center justify-between mt-3 pt-3 border-t border-slate-100">
+                    <div className="space-y-1 min-w-0">
+                      <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wide">
+                        Requesting Hospital
+                      </span>
+                      <p className="text-[13px] sm:text-[14px] font-bold text-slate-800 mt-1 truncate">
+                        {request.hospital_name || "N/A"}
+                      </p>
+                    </div>
+                    <div className="space-y-1 text-right shrink-0">
+                      <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wide">
+                        Priority
+                      </span>
+                      <div>
+                        <Badge
+                          variant={request.urgency === "urgent" ? "destructive" : "outline"}
+                          className="px-2 py-0.5 rounded-md uppercase text-[10px] font-black border-slate-200"
+                        >
+                          {request.urgency || "ROUTINE"}
+                        </Badge>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                </div>
+
+                <div className="bg-white rounded-[1.2rem] sm:rounded-[1.5rem] border border-slate-100 shadow-sm p-4 sm:p-5 relative overflow-hidden group mb-3">
+                  {/* Treatment Cart Component */}
                   <TreatmentCart
                     request={request}
+                    approvedItems={tariffSearch.approvedItems}
+                    removeApprovedItem={tariffSearch.removeApprovedItem}
+                    updateApprovedItem={tariffSearch.updateApprovedItem}
+                    totalApprovedAmount={tariffSearch.approvedTotal}
+                    role={role}
+                    isHmo={role !== "hospital"}
                     editTreatment={actions.editTreatment}
                     setEditTreatment={actions.setEditTreatment}
-                    isHospitalDirected={role === "hospital"}
-                    parseLoading={tariffSearch.parseLoading}
-                    parseStatus={tariffSearch.parseStatus}
-                    parseTreatmentText={tariffSearch.parseTreatmentText}
-                    approvedItems={tariffSearch.approvedItems}
-                    approvedTotal={tariffSearch.approvedTotal}
-                    editingQuantities={tariffSearch.editingQuantities}
-                    updateApprovedItemQuantity={tariffSearch.updateApprovedItemQuantity}
-                    commitQuantity={tariffSearch.commitQuantity}
-                    removeApprovedItem={tariffSearch.removeApprovedItem}
-                    toggleDeclineApprovedItem={tariffSearch.toggleDeclineApprovedItem}
                     updateDeclineReason={tariffSearch.updateDeclineReason}
                     tariffSearch={tariffSearch.tariffSearch}
                     setTariffSearch={tariffSearch.setTariffSearch}
                     tariffOptions={tariffSearch.tariffOptions}
                     setTariffOptions={tariffSearch.setTariffOptions}
                     tariffSearchLoading={tariffSearch.tariffSearchLoading}
+                    parseLoading={tariffSearch.parseLoading}
+                    parseStatus={tariffSearch.parseStatus}
+                    parseTreatmentText={tariffSearch.parseTreatmentText}
+                    editingQuantities={tariffSearch.editingQuantities}
+                    updateApprovedItemQuantity={tariffSearch.updateApprovedItemQuantity}
+                    commitQuantity={tariffSearch.commitQuantity}
+                    toggleDeclineApprovedItem={tariffSearch.toggleDeclineApprovedItem}
                     addApprovedItem={tariffSearch.addApprovedItem}
                     cartCollapsed={tariffSearch.cartCollapsed}
                     setCartCollapsed={tariffSearch.setCartCollapsed}
                   />
                 </div>
 
-                {/* Original Hospital and Priority labels */}
-                <div className="space-y-1 min-w-0">
-                  <span className="text-xs uppercase font-black text-slate-400 tracking-wider pl-1">
-                    Hospital
-                  </span>
-                  <p className="px-3.5 py-2.5 bg-white rounded-xl border border-slate-200 text-xs font-bold text-slate-800 truncate shadow-xs">
-                    {request.hospital_name || "N/A"}
-                  </p>
-                </div>
-                <div className="space-y-1 text-center">
-                  <span className="text-xs uppercase font-black text-slate-400 tracking-wider">
-                    Priority
-                  </span>
-                  <div className="flex justify-center mt-0.5">
-                    <Badge
-                      variant={request.urgency === "urgent" ? "destructive" : "outline"}
-                      className="px-4 py-1.5 rounded-full uppercase text-xs font-black border-slate-200 shadow-xs"
-                    >
-                      {request.urgency || "ROUTINE"}
-                    </Badge>
+                {/* Decision Section */}
+                <div className="mt-4 mb-2">
+                  <div className="text-[13px] sm:text-[14px] font-extrabold text-slate-800 uppercase tracking-wide mb-3">
+                    Review Decision <span className="text-red-500">*</span>
+                    <span className="text-[11px] text-slate-400 font-normal float-right lowercase normal-case">required</span>
                   </div>
+                  <textarea 
+                    className="w-full p-3 border border-slate-100 rounded-xl text-[13px] sm:text-[14px] font-bold text-slate-800 bg-slate-50 min-h-[80px] focus:outline-none focus:ring-2 focus:ring-blue-500 mt-2" 
+                    placeholder="Enter reason for approval or decline..."
+                    value={actions.editDecisionNote}
+                    onChange={(e) => actions.setEditDecisionNote(e.target.value)}
+                  />
                 </div>
-              </div>
 
-              {/* Patient registry NHIS verify card */}
-              <PatientVerifyCard
-                request={request}
-                checking={verification.checking}
-                patientMatchStatus={verification.patientMatchStatus}
-                matchedMemberId={verification.matchedMemberId}
-                policyVerified={verification.policyVerified}
-                nhisVerified={verification.nhisVerified}
-                familyMembers={verification.familyMembers}
-                earlyRefill={verification.earlyRefill}
-                requestPatientName={requestPatientName}
-                requestPolicyNumber={requestPolicyNumber}
-              />
-
-
-
-              {/* Local and spreadsheet claims history */}
-              <ClinicalHistory
-                request={request}
-                visibleHistory={visibleHistory}
-                historyPage={historyPage}
-                setHistoryPage={setHistoryPage}
-                requestPatientName={requestPatientName}
-                requestPolicyNumber={requestPolicyNumber}
-              />
-
-              {/* Review decisions control footer */}
-              {role !== "hospital" ? (
-                <ClinicalActionControls
-                  request={request}
-                  editDecisionNote={actions.editDecisionNote}
-                  setEditDecisionNote={actions.setEditDecisionNote}
-                  processing={actions.processing}
-                  processingAction={actions.processingAction}
-                  allowDelete={allowDelete}
-                  setDeleteConfirmOpen={actions.setDeleteConfirmOpen}
-                  handleApprove={actions.handleApprove}
-                  handleDecline={actions.handleDecline}
-                  handleReassign={actions.handleReassign}
-                  saveRecordEdits={actions.saveRecordEdits}
-                  onClose={onClose}
-                  approvalResult={actions.approvalResult}
-                  declineResult={actions.declineResult}
-                />
-              ) : (
-                <div className="flex justify-end pt-4 border-t border-slate-100">
+                {/* Tab 2 footer: Close + Decline + Approve */}
+                <div className="flex items-center gap-2 pt-3 sm:pt-4 border-t border-slate-100">
                   <Button
                     variant="outline"
-                    className="h-12 px-6 rounded-xl font-black text-xs uppercase tracking-widest border-2 border-slate-200 text-slate-600 hover:bg-slate-50 transition-all"
+                    className="h-11 sm:h-12 px-4 rounded-xl font-black text-[11px] sm:text-xs uppercase tracking-widest border-2 border-slate-200 text-slate-600 hover:bg-slate-50 transition-all flex-shrink-0 min-w-[100px]"
                     onClick={onClose}
                   >
                     Close
                   </Button>
+                  <Button
+                    className="h-11 sm:h-12 flex-1 rounded-xl bg-red-600 hover:bg-red-700 text-white text-[11px] sm:text-xs font-black uppercase tracking-widest shadow-md transition-all flex items-center justify-center gap-1.5"
+                    onClick={() => actions.handleDecline(actions.editDecisionNote)}
+                    disabled={actions.processing || !actions.editDecisionNote}
+                  >
+                    {actions.processing ? <Loader2 className="w-4 h-4 animate-spin" /> : "Decline"}
+                  </Button>
+                  <Button
+                    className="h-11 sm:h-12 flex-1 rounded-xl bg-green-600 hover:bg-green-700 text-white text-[11px] sm:text-xs font-black uppercase tracking-widest shadow-md transition-all flex items-center justify-center gap-1.5"
+                    onClick={actions.handleApprove}
+                    disabled={actions.processing}
+                  >
+                    {actions.processing ? <Loader2 className="w-4 h-4 animate-spin" /> : "Approve"}
+                  </Button>
                 </div>
-              )}
-            </div>
+              </TabsContent>
+            </>
           )}
         </div>
+        </Tabs>
       </DialogContent>
-
       {/* Delete confirmation modal */}
       <AlertDialog
         open={actions.deleteConfirmOpen}

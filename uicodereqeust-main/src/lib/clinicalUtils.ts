@@ -105,3 +105,33 @@ export function getInitials(nameOrEmail?: string | null) {
   if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
   return "AG";
 }
+
+export function parseReferralTreatment(treatmentText: string) {
+  const originalMarker = "[ORIGINAL REFERRAL REASON";
+  const proposedMarker = "[PROPOSED TREATMENT PLAN";
+  
+  const text = treatmentText || "";
+  
+  if (text.includes(originalMarker) && text.includes(proposedMarker)) {
+    const origIndex = text.indexOf(originalMarker);
+    const propIndex = text.indexOf(proposedMarker);
+    
+    // Extract original request
+    let original = text.substring(origIndex, propIndex).trim();
+    const firstNewline = original.indexOf("\n");
+    if (firstNewline !== -1) {
+      original = original.substring(firstNewline).trim();
+    }
+    
+    // Extract proposed request
+    let proposed = text.substring(propIndex).trim();
+    const propNewline = proposed.indexOf("\n");
+    if (propNewline !== -1) {
+      proposed = proposed.substring(propNewline).trim();
+    }
+    
+    return { original, proposed };
+  }
+  
+  return { original: text, proposed: "" };
+}

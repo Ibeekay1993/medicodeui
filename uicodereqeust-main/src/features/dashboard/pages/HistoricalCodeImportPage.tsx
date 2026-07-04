@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 
-type ImportMode = "add" | "merge" | "replace" | "wipe";
+type ImportMode = "add" | "replace" | "wipe";
 
 const supportedFields = [
   "record_type",
@@ -40,19 +40,20 @@ const supportedFields = [
   "date_of_birth",
   "diagnosis",
   "treatment",
+  "decision_note",
   "legacy_creation_date",
 ];
 
 const importModeOptions: Array<{ value: ImportMode; label: string; description: string }> = [
   {
-    value: "merge",
-    label: "Merge missing fields",
-    description: "Creates new codes and fills only blank fields on existing codes.",
-  },
-  {
     value: "add",
     label: "Add only",
     description: "Simply adds new records to the database. Will not delete or modify existing information.",
+  },
+  {
+    value: "replace",
+    label: "Replace existing",
+    description: "Overwrites existing codes with new values from the file. Adds new codes.",
   },
   {
     value: "wipe",
@@ -73,6 +74,7 @@ const guessField = (header: string) => {
   if (normalized.includes("diagnosis") || normalized.includes("condition") || normalized.includes("ailment")) return "diagnosis";
   if (normalized.includes("name") && !normalized.includes("hospital")) return "patient_name";
   if (normalized === "code" || normalized.includes("legacy_code") || normalized.includes("id")) return "original_code";
+  if (normalized.includes("decision") || normalized.includes("note") || normalized.includes("remark")) return "decision_note";
   if (normalized.includes("date") && !normalized.includes("birth") && !normalized.includes("dob")) return "legacy_creation_date";
   if (normalized.includes("dob") || (normalized.includes("date") && normalized.includes("birth"))) return "date_of_birth";
   return "";
@@ -235,6 +237,7 @@ export default function HistoricalCodeImportPage() {
       };
       
       setSummary(finalSummary);
+      toast({ title: "Import Successful", description: "The historical codes have been successfully imported." });
       setReplaceConfirmation("");
       setReplaceDialogOpen(false);
     } catch (error: any) {
@@ -250,127 +253,97 @@ export default function HistoricalCodeImportPage() {
     setReplaceDialogOpen(true);
   };
 
-  if (role !== "admin") {
-    return (
-      <div className="flex h-[400px] flex-col items-center justify-center space-y-4">
-        <ShieldAlert className="h-12 w-12 text-rose-500" />
-        <h2 className="text-xl font-bold text-slate-800">Access Denied</h2>
-        <p className="text-sm text-slate-500">You do not have permission to view or manage historical code imports.</p>
-      </div>
-    );
-  }
+  if (role !== "admin") return null;
 
   return (
-    <div className="mx-auto max-w-5xl space-y-4 pb-12 animate-in fade-in duration-500">
-      <div className="mb-6 grid gap-2 lg:grid-cols-4">
-        {importModeOptions.map((option) => (
-          <button
-            key={option.value}
-            type="button"
-            onClick={() => setImportMode(option.value)}
-            className={`rounded-xl border p-3 text-left transition ${
-              importMode === option.value
-                ? option.value === "replace" || option.value === "wipe"
-                  ? "border-rose-300 bg-rose-50"
-                  : "border-emerald-300 bg-emerald-50"
-                : "border-slate-100 bg-white hover:border-slate-200"
-            }`}
-          >
-            <p className={`text-xs font-black uppercase tracking-widest ${importMode === option.value && (option.value === "replace" || option.value === "wipe") ? "text-rose-700" : "text-slate-700"}`}>{option.label}</p>
-            <p className="mt-1 text-xs font-medium leading-5 text-slate-500">{option.description}</p>
-          </button>
-        ))}
-      </div>
-
-      {importMode && !file && (
-        <>
-          <div className="mb-6 rounded-lg bg-blue-50 p-4 border border-blue-100 flex items-start gap-3">
-            <Info className="h-5 w-5 text-blue-500 shrink-0 mt-0.5" />
-            <div className="text-sm text-blue-900">
-              <p className="font-bold mb-1">Important: Date Formatting</p>
-              <p>To avoid dates like <span className="font-mono bg-blue-100 px-1 rounded">03/09/2026</span> being imported incorrectly, please ensure dates in your Excel file are formatted unambiguously before uploading. We strongly recommend formatting your date columns in Excel as <strong>YYYY-MM-DD</strong> (e.g. <span className="font-mono bg-blue-100 px-1 rounded">2026-04-09</span>) or using the exact British format <strong>DD/MM/YYYY</strong>.</p>
+    <div className="mx-auto max-w-5xl space-y-6 pb-12 animate-in fade-in duration-500">
+      {!file && rows.length === 0 && (
+        <Card className="border-slate-200 shadow-sm rounded-2xl overflow-hidden">
+          <div className="bg-slate-50 border-b border-slate-100 p-4">
+            <h2 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-100 text-xs text-emerald-700">1</span>
+              Upload Historical File
+            </h2>
+          </div>
+          <CardContent className="p-6">
+            <div className="mb-6 rounded-lg bg-blue-50 p-4 border border-blue-100 flex items-start gap-3">
+              <Info className="h-5 w-5 text-blue-500 shrink-0 mt-0.5" />
+              <div className="text-sm text-blue-900">
+                <p className="font-bold mb-1">Important: Date Formatting & Import Modes</p>
+                <p className="mb-2">To avoid dates like <span className="font-mono bg-blue-100 px-1 rounded">03/09/2026</span> being imported incorrectly, please ensure dates in your Excel file are formatted unambiguously before uploading. We strongly recommend formatting your date columns in Excel as <strong>YYYY-MM-DD</strong>.</p>
+                <p><em>Note: You will be able to select your desired import mode (e.g., <strong>Add, Replace, or Wipe</strong>) in Step 3 after uploading and reviewing your file.</em></p>
+              </div>
             </div>
-          </div>
-          <div 
-            className={`relative flex flex-col items-center justify-center rounded-2xl border-2 border-dashed p-12 transition-colors duration-200 ${isDragging ? "border-emerald-500 bg-emerald-50" : "border-slate-200 bg-slate-50 hover:border-slate-300 hover:bg-slate-100"}`}
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          onDrop={handleDrop}
-        >
-          <div className="absolute top-4 right-4 flex items-center gap-2">
-            <label className="flex items-center gap-2 text-sm font-medium text-slate-700 cursor-pointer select-none bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm hover:bg-slate-50 transition-colors">
-              <input 
-                type="checkbox" 
-                checked={hasHeaders} 
-                onChange={(e) => setHasHeaders(e.target.checked)}
-                className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer"
-              />
-              File has headers
-            </label>
-          </div>
-          <Upload className={`mb-4 h-10 w-10 ${isDragging ? "text-emerald-500" : "text-slate-400"}`} />
-          <h3 className="mb-1 text-lg font-semibold text-slate-900">Drag & Drop your file here</h3>
-          <p className="mb-4 text-sm text-slate-500">Supports .CSV, .XLS, .XLSX (max 50MB)</p>
-          <label className="inline-flex h-10 cursor-pointer items-center justify-center rounded-lg bg-slate-900 px-6 text-sm font-bold text-white shrink-0 hover:bg-slate-800 transition-colors">
-            Browse Files
-            <Input type="file" accept=".csv,.xlsx,.xls" className="hidden" onChange={(event) => handleFile(event.target.files?.[0])} />
-          </label>
-        </div>
-        </>
+            <div 
+              className={`relative flex flex-col items-center justify-center rounded-2xl border-2 border-dashed p-12 transition-colors duration-200 ${isDragging ? "border-emerald-500 bg-emerald-50" : "border-slate-200 bg-slate-50 hover:border-slate-300 hover:bg-slate-100"}`}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+            >
+              <div className="absolute top-4 right-4 flex items-center gap-2">
+                <label className="flex items-center gap-2 text-sm font-medium text-slate-700 cursor-pointer select-none bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm hover:bg-slate-50 transition-colors">
+                  <input 
+                    type="checkbox" 
+                    checked={hasHeaders} 
+                    onChange={(e) => setHasHeaders(e.target.checked)}
+                    className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer"
+                  />
+                  File has headers
+                </label>
+              </div>
+              <Upload className={`mb-4 h-10 w-10 ${isDragging ? "text-emerald-500" : "text-slate-400"}`} />
+              <h3 className="mb-1 text-lg font-semibold text-slate-900">Drag & Drop your file here</h3>
+              <p className="mb-4 text-sm text-slate-500">Supports .CSV, .XLS, .XLSX (max 50MB)</p>
+              <label className="inline-flex h-10 cursor-pointer items-center justify-center rounded-lg bg-slate-900 px-6 text-sm font-bold text-white shrink-0 hover:bg-slate-800 transition-colors">
+                Browse Files
+                <Input type="file" accept=".csv,.xlsx,.xls" className="hidden" onChange={(event) => handleFile(event.target.files?.[0])} />
+              </label>
+            </div>
+          </CardContent>
+        </Card>
       )}
 
-      {importMode && file && rows.length > 0 && (
+      {file && rows.length > 0 && !summary && (
         <>
-          <div className="grid gap-3 md:grid-cols-4">
-            {[
-              ["Total rows", analysis.total],
-              ["Unique rows", analysis.unique],
-              ["Duplicate rows ignored", analysis.duplicates],
-              ["Missing code errors", analysis.missing],
-            ].map(([label, value]) => (
-              <Card key={label} className="rounded-xl border-slate-100 shadow-sm">
-                <CardContent className="p-4">
-                  <p className="text-xs font-black uppercase tracking-widest text-slate-400">{label}</p>
-                  <p className="mt-1 text-lg font-black text-slate-900">{Number(value).toLocaleString()}</p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-
-          <Card className="rounded-2xl border-slate-100 bg-white shadow-sm">
-            <CardContent className="p-4">
-              <div className="mb-3 flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
-                <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-                  <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg">
-                    <FileSpreadsheet className="h-4 w-4 text-emerald-600" />
-                    <p className="text-xs font-black uppercase tracking-widest text-slate-600 truncate max-w-[200px]">{fileName}</p>
+          <Card className="border-slate-200 shadow-sm rounded-2xl overflow-hidden mb-6">
+            <div className="bg-slate-50 border-b border-slate-100 p-4 flex items-center justify-between">
+              <h2 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-100 text-xs text-emerald-700">2</span>
+                Review & Map Columns
+              </h2>
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2 bg-white border border-slate-200 px-3 py-1.5 rounded-lg shadow-sm">
+                  <FileSpreadsheet className="h-4 w-4 text-emerald-600" />
+                  <p className="text-xs font-black uppercase tracking-widest text-slate-600 truncate max-w-[200px]">{fileName}</p>
+                </div>
+                <label className="flex items-center gap-2 text-sm font-medium text-slate-700 cursor-pointer select-none">
+                  <input 
+                    type="checkbox" 
+                    checked={hasHeaders} 
+                    onChange={(e) => setHasHeaders(e.target.checked)}
+                    className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer"
+                  />
+                  File has headers
+                </label>
+                <Button variant="ghost" size="sm" onClick={clearFile} disabled={importing} className="h-8 text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-50">
+                  <Trash2 className="w-3.5 h-3.5 mr-1.5" />
+                  Clear File
+                </Button>
+              </div>
+            </div>
+            <CardContent className="p-6">
+              <div className="grid gap-3 md:grid-cols-4 mb-6">
+                {[
+                  ["Total rows", analysis.total],
+                  ["Unique rows", analysis.unique],
+                  ["Duplicate rows ignored", analysis.duplicates],
+                  ["Missing code errors", analysis.missing],
+                ].map(([label, value]) => (
+                  <div key={label} className="rounded-xl border border-slate-100 bg-slate-50 p-4 text-center">
+                    <p className="text-xs font-black uppercase tracking-widest text-slate-400">{label}</p>
+                    <p className="mt-1 text-2xl font-black text-slate-900">{Number(value).toLocaleString()}</p>
                   </div>
-                  <label className="flex items-center gap-2 text-sm font-medium text-slate-700 cursor-pointer select-none">
-                    <input 
-                      type="checkbox" 
-                      checked={hasHeaders} 
-                      onChange={(e) => setHasHeaders(e.target.checked)}
-                      className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer"
-                    />
-                    File has headers
-                  </label>
-                  <Button variant="ghost" size="sm" onClick={clearFile} disabled={importing} className="h-8 text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-50">
-                    <Trash2 className="w-3.5 h-3.5 mr-1.5" />
-                    Clear File
-                  </Button>
-                </div>
-                <div className="flex items-center gap-3">
-                  {importing && (
-                    <div className="flex items-center gap-3 mr-2 w-[150px]">
-                      <Progress value={importProgress} className="h-2 w-full bg-slate-100 [&>div]:bg-[#1A5F4A]" />
-                      <span className="text-xs font-bold text-slate-500 w-8">{importProgress}%</span>
-                    </div>
-                  )}
-                  <Button onClick={startImport} disabled={importing || analysis.unique === 0} className="h-9 rounded-lg bg-[#1A5F4A] text-sm font-medium normal-case text-white hover:bg-[#0F3D30]">
-                    {importing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
-                    {importing ? "Processing..." : `Execute: ${importModeOptions.find((option) => option.value === importMode)?.label}`}
-                  </Button>
-                </div>
+                ))}
               </div>
 
               <div className="mb-4 grid gap-2 md:grid-cols-3">
@@ -400,6 +373,7 @@ export default function HistoricalCodeImportPage() {
                       <th className="p-3">Patient</th>
                       <th className="p-3">Diagnosis</th>
                       <th className="p-3">Treatment</th>
+                      <th className="p-3">Decision</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50 text-xs font-bold">
@@ -420,6 +394,7 @@ export default function HistoricalCodeImportPage() {
                           <td className="p-3">{row.patient_name || "-"}</td>
                           <td className="p-3 max-w-[200px] truncate" title={row.diagnosis}>{row.diagnosis || "-"}</td>
                           <td className="p-3 max-w-[200px] truncate" title={row.treatment}>{row.treatment || "-"}</td>
+                          <td className="p-3 max-w-[200px] truncate" title={row.decision_note}>{row.decision_note || "-"}</td>
                         </tr>
                       );
                     })}
@@ -444,17 +419,69 @@ export default function HistoricalCodeImportPage() {
               )}
             </CardContent>
           </Card>
+
+          <Card className="border-slate-200 shadow-sm rounded-2xl overflow-hidden">
+            <div className="bg-slate-50 border-b border-slate-100 p-4">
+              <h2 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-100 text-xs text-emerald-700">3</span>
+                Select Action & Execute
+              </h2>
+            </div>
+            <CardContent className="p-6">
+              <div className="mb-6 grid gap-3 lg:grid-cols-3">
+                {importModeOptions.map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => setImportMode(option.value)}
+                    className={`rounded-xl border p-4 text-left transition ${
+                      importMode === option.value
+                        ? option.value === "replace" || option.value === "wipe"
+                          ? "border-rose-400 bg-rose-50 shadow-sm"
+                          : "border-emerald-400 bg-emerald-50 shadow-sm"
+                        : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <p className={`text-sm font-black uppercase tracking-widest ${importMode === option.value && (option.value === "replace" || option.value === "wipe") ? "text-rose-700" : "text-slate-700"}`}>{option.label}</p>
+                      {importMode === option.value && <CheckCircle2 className={`h-5 w-5 ${option.value === "wipe" || option.value === "replace" ? "text-rose-600" : "text-emerald-600"}`} />}
+                    </div>
+                    <p className="text-xs font-medium leading-5 text-slate-500">{option.description}</p>
+                  </button>
+                ))}
+              </div>
+              <div className="flex items-center justify-between border-t border-slate-100 pt-6">
+                <div className="flex-1">
+                  {importing && (
+                    <div className="flex items-center gap-3 w-full max-w-md">
+                      <Progress value={importProgress} className="h-2 w-full bg-slate-100 [&>div]:bg-[#1A5F4A]" />
+                      <span className="text-xs font-bold text-slate-500 w-10">{importProgress}%</span>
+                    </div>
+                  )}
+                </div>
+                <Button onClick={startImport} disabled={!importMode || importing || analysis.unique === 0} className={`h-11 px-8 rounded-xl text-sm font-bold uppercase tracking-wider text-white transition-colors ${importMode === "wipe" ? "bg-rose-600 hover:bg-rose-700" : "bg-[#1A5F4A] hover:bg-[#0F3D30]"}`}>
+                  {importing ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : null}
+                  {importing ? "Processing..." : importMode ? `Execute ${importModeOptions.find((o) => o.value === importMode)?.label}` : "Select Action"}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         </>
       )}
 
       {summary && (
         <Card className="rounded-2xl border-emerald-100 bg-emerald-50 shadow-sm">
-          <CardContent className="p-5">
-            <div className="mb-3 flex items-center gap-2">
-              <CheckCircle2 className="h-5 w-5 text-emerald-700" />
-              <p className="text-xs font-black uppercase tracking-widest text-emerald-800">Import Summary</p>
+          <CardContent className="p-6">
+            <div className="mb-4 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="h-6 w-6 text-emerald-700" />
+                <h2 className="text-lg font-bold text-emerald-900">Import Completed Successfully</h2>
+              </div>
+              <Button variant="outline" onClick={clearFile} className="bg-white hover:bg-emerald-100 text-emerald-800 border-emerald-200">
+                Import Another File
+              </Button>
             </div>
-            <div className="grid gap-2 md:grid-cols-4">
+            <div className="grid gap-3 md:grid-cols-4">
               {[
                 ["Created", summary.created_count],
                 ["Updated", summary.updated_count],
@@ -465,21 +492,12 @@ export default function HistoricalCodeImportPage() {
                 ["Unique", summary.unique_rows],
                 ["Batch", String(summary.batch_id).slice(0, 8)],
               ].map(([label, value]) => (
-                <div key={label} className="rounded-xl bg-white p-3">
+                <div key={label} className="rounded-xl border border-emerald-100 bg-white p-4 text-center">
                   <p className="text-xs font-black uppercase tracking-widest text-slate-400">{label}</p>
-                  <p className="mt-1 text-sm font-black text-slate-900">{value}</p>
+                  <p className="mt-1 text-2xl font-black text-slate-900">{value}</p>
                 </div>
               ))}
             </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {!file && rows.length === 0 && (
-        <Card className="rounded-2xl border-dashed border-slate-200 bg-white shadow-sm">
-          <CardContent className="flex min-h-[260px] flex-col items-center justify-center p-8 text-center">
-            <AlertTriangle className="mb-3 h-8 w-8 text-slate-300" />
-            <p className="text-xs font-black uppercase tracking-widest text-slate-500">Select an action to upload a legacy code file</p>
           </CardContent>
         </Card>
       )}

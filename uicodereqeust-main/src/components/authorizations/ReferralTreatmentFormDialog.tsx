@@ -152,7 +152,7 @@ export default function ReferralTreatmentFormDialog({
         }
       });
 
-      toast({ title: "Treatment Submitted", description: "Treatment request submitted. Treatment PIN will be sent to the patient upon HMO approval." });
+      toast({ title: "Treatment Submitted", description: "Treatment request submitted. Treatment OTP will be sent to the patient upon HMO approval." });
       onUpdated();
       onClose();
     } catch (err: any) {

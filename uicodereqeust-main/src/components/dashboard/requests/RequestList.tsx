@@ -90,8 +90,7 @@ export function RequestList({
   const handleUnlockOtp = async (r: any, e: React.MouseEvent) => {
     e.stopPropagation();
     if (!unlockOtpInput) return;
-    
-    const otpType = Boolean(r.is_referral || r.request_type === 'referral' || r.referring_hospital_id) ? 'ARRIVAL' : 'TREATMENT';
+    const otpType = 'ARRIVAL';
 
     const { data, error } = await supabase.rpc("verify_otp" as any, {
       p_request_id: unlockingReqId,
@@ -171,7 +170,7 @@ export function RequestList({
                               autoFocus
                               value={unlockOtpInput}
                               onChange={e => setUnlockOtpInput(e.target.value.toUpperCase())}
-                              placeholder="Enter PIN"
+                              placeholder="Enter OTP"
                               className="h-8 w-24 text-xs font-mono font-bold"
                             />
                             <Button size="sm" onClick={(e) => handleUnlockOtp(r, e)} className="h-8 px-2 text-xs">Unlock</Button>
@@ -358,7 +357,7 @@ export function RequestList({
                   <div className="mt-3 pt-3 border-t border-slate-100 flex justify-end" onClick={e => e.stopPropagation()}>
                     {unlockingReqId === r.id ? (
                       <div className="flex items-center gap-2">
-                        <Input autoFocus value={unlockOtpInput} onChange={e => setUnlockOtpInput(e.target.value.toUpperCase())} placeholder="PIN" className="h-8 w-20 text-xs font-mono font-bold px-2" />
+                        <Input autoFocus value={unlockOtpInput} onChange={e => setUnlockOtpInput(e.target.value.toUpperCase())} placeholder="OTP" className="h-8 w-20 text-xs font-mono font-bold px-2" />
                         <Button size="sm" onClick={(e) => handleUnlockOtp(r, e)} className="h-8 px-3 text-xs bg-amber-500 hover:bg-amber-600 text-white">Unlock</Button>
                       </div>
                     ) : (

@@ -1,23 +1,28 @@
 import React, { useState } from "react";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, ShieldCheck, XCircle, AlertTriangle, ChevronDown, ChevronUp } from "lucide-react";
+import { Loader2, ChevronDown, ChevronUp, Check, AlertTriangle } from "lucide-react";
 import { cleanPatientName } from "@/lib/clinicalUtils";
 
 interface PatientVerifyCardProps {
   request: any;
   checking: boolean;
-  patientMatchStatus: "exact" | "partial" | "none" | null;
-  matchedMemberId?: string | null;
-  policyVerified: boolean | null;
-  nhisVerified: boolean | null;
+  patientMatchStatus: 'checking' | 'matched' | 'mismatch' | 'not_found' | 'error';
+  matchedMemberId: string | null;
+  policyVerified: boolean;
+  nhisVerified: boolean;
   familyMembers: any[];
-  earlyRefill: { isEarly: boolean; daysSince: number; lastDate: string } | null;
-  requestPolicyNumber: string;
+  earlyRefill: { isEarly: boolean; daysSinceLast: number | null; lastApprovalDate: string | null };
   requestPatientName: string;
+  requestPolicyNumber: string;
+  primaryHospitalLoading?: boolean;
+  primaryHospital?: any;
+  primaryHospitalMismatch?: boolean;
+  requestingHospitalName?: string;
+  requestingHospitalCode?: string;
 }
 
-export const PatientVerifyCard = React.memo(function PatientVerifyCard({
-  request: _request,
+export function PatientVerifyCard({
+  request,
   checking,
   patientMatchStatus,
   matchedMemberId,
@@ -25,142 +30,161 @@ export const PatientVerifyCard = React.memo(function PatientVerifyCard({
   nhisVerified,
   familyMembers,
   earlyRefill,
-  requestPolicyNumber: _requestPolicyNumber,
-  requestPatientName: _requestPatientName,
+  requestPatientName,
+  requestPolicyNumber,
+  primaryHospitalLoading = false,
+  primaryHospital = null,
+  primaryHospitalMismatch = false,
+  requestingHospitalName = "",
+  requestingHospitalCode = "",
 }: PatientVerifyCardProps) {
-  const [nhisCollapsed, setNhisCollapsed] = useState(true);
-
-  if (checking) {
-    return (
-      <div className="flex items-center gap-3 text-slate-500 text-sm p-4 bg-slate-50/50 border border-slate-100 rounded-2xl animate-pulse">
-        <Loader2 className="w-4 h-4 animate-spin text-primary" />
-        <span className="font-semibold tracking-tight">Syncing Hospital Registry Data…</span>
-      </div>
-    );
-  }
+  const [showFamily, setShowFamily] = useState(false);
 
   return (
-    <div className="space-y-3.5">
-      {/* Identity Mismatch Warnings */}
-      {patientMatchStatus === "partial" && (
-        <div className="p-4 rounded-2xl text-xs border border-amber-200 bg-amber-50/70 flex items-start gap-3 text-amber-900 shadow-sm animate-in slide-in-from-top-2 duration-300">
-          <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
-          <div>
-            <p className="font-black uppercase tracking-wider text-xs text-amber-800">Identity Mismatch Found</p>
-            <p className="font-medium mt-1 text-amber-900/80">Patient name partially matched (surname). Please verify the member card carefully.</p>
+    <div className="w-full">
+      {/* Primary Hospital */}
+      <div className="bg-white rounded-2xl p-4 mb-3 border border-slate-100 shadow-sm">
+        <div className="text-[13px] sm:text-[14px] font-extrabold text-slate-800 uppercase tracking-wide mb-3">
+          Primary Hospital
+        </div>
+        
+        <div className="bg-emerald-50 rounded-2xl p-4 sm:p-5 mb-3 border border-emerald-100">
+          <div className="inline-block bg-emerald-500 text-white px-3 py-1 rounded-full text-[10px] font-bold tracking-widest uppercase">
+            Primary
+          </div>
+          <div className="text-[16px] sm:text-[18px] font-extrabold text-slate-800 mt-2 leading-tight">
+            {primaryHospital?.hospital_name || requestingHospitalName || "University of Ibadan Health Services (Jaja Health Clinic)"}
+          </div>
+          <div className="text-[12px] text-slate-500 mt-1">
+            {primaryHospital?.state || "Oyo State"}
           </div>
         </div>
-      )}
 
-      {patientMatchStatus === "none" && (
-        <div className="p-4 rounded-2xl text-xs border border-rose-200 bg-rose-50/70 flex items-start gap-3 text-rose-900 shadow-sm animate-in slide-in-from-top-2 duration-300">
-          <XCircle className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />
-          <div>
-            <p className="font-black uppercase tracking-wider text-xs text-rose-800">Patient Not Found</p>
-            <p className="font-medium mt-1 text-rose-900/80">The requested name does not match any principal or dependent records for this policy.</p>
-          </div>
-        </div>
-      )}
-
-      {/* NHIS Confirmation Details dropdown */}
-      <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden transition-all duration-300">
-        <button
-          type="button"
-          onClick={() => setNhisCollapsed(!nhisCollapsed)}
-          className="w-full text-left px-4 py-3 border-b border-slate-100 flex items-center justify-between hover:bg-slate-50 active:bg-slate-100 transition-colors"
-        >
-          <div className="flex items-center gap-2.5">
-            <ShieldCheck className="w-5 h-5 text-emerald-500" />
-            <div>
-              <p className="text-xs font-black uppercase tracking-widest text-slate-800">NHIS Confirmation</p>
-              <p className="text-xs font-medium text-slate-500 mt-0.5">Verified master records registry</p>
+        <div className="grid grid-cols-3 gap-2">
+          <div className="bg-slate-50 rounded-xl p-3 border border-slate-100">
+            <div className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wide">
+              Hospital ID
+            </div>
+            <div className="text-[13px] sm:text-[14px] font-bold text-slate-800 mt-1">
+              {primaryHospital?.code || requestingHospitalCode || "HOS-IB-252"}
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Badge variant="outline" className="text-xs font-black uppercase bg-slate-50 border-slate-200 text-slate-700 shadow-sm">
-              {familyMembers.length} family member{familyMembers.length !== 1 ? "s" : ""}
-            </Badge>
-            {nhisCollapsed ? (
-              <ChevronDown className="w-4 h-4 text-slate-400" />
-            ) : (
-              <ChevronUp className="w-4 h-4 text-slate-400" />
-            )}
+          <div className="bg-slate-50 rounded-xl p-3 border border-slate-100">
+            <div className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wide">
+              Registration No
+            </div>
+            <div className="text-[13px] sm:text-[14px] font-bold text-slate-800 mt-1">
+              {primaryHospital?.registration_no || "OY/0252/P"}
+            </div>
           </div>
-        </button>
+          <div className="bg-slate-50 rounded-xl p-3 border border-slate-100">
+            <div className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wide">
+              Tier Level
+            </div>
+            <div className="text-[13px] sm:text-[14px] font-bold text-slate-800 mt-1">
+              {primaryHospital?.tier_level || "Primary"}
+            </div>
+          </div>
+        </div>
+      </div>
 
-        {!nhisCollapsed && (
-          <div className="p-4 space-y-3 animate-in fade-in duration-200 bg-slate-50/30">
-            {nhisVerified === true ? (
-              <div className="p-3 rounded-xl text-xs border border-slate-200 bg-white flex items-center gap-2.5 text-slate-700 shadow-sm">
-                <ShieldCheck className="w-4.5 h-4.5 text-emerald-500 shrink-0" />
-                {policyVerified ? (
-                  <span><strong>Policy number matched:</strong> Exact policy found in monthly NHIS Accredited List.</span>
-                ) : (
-                  <span><strong>Patient matched by name:</strong> Record found in monthly NHIS Accredited List.</span>
-                )}
+            {/* NHIS Confirmation */}
+      <div className="bg-white rounded-2xl p-4 mb-3 border border-slate-100 shadow-sm transition-all">
+        <div className="flex justify-between items-center mb-3">
+          <div className="flex items-center gap-2">
+            <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center text-[12px] font-bold ${
+              checking ? "border-slate-300 text-slate-400" :
+              policyVerified && patientMatchStatus === "exact" ? "border-green-500 text-green-500" :
+              policyVerified ? "border-yellow-500 text-yellow-500" :
+              "border-red-500 text-red-500"
+            }`}>
+              {checking ? "â—Œ" : policyVerified && patientMatchStatus === "exact" ? "âœ“" : "!"}
+            </div>
+            <div>
+              <div className="text-[13px] font-extrabold text-slate-800">NHIS Confirmation</div>
+              <div className={`text-[11px] ${!policyVerified && !checking ? 'text-red-500 font-bold' : 'text-slate-400'}`}>
+                {checking ? "Checking registry..." :
+                 policyVerified && patientMatchStatus === "exact" ? "Verified master records registry" :
+                 policyVerified ? "Partial match in registry" :
+                 "Not found in registry"}
               </div>
-            ) : nhisVerified === false ? (
-              <div className="p-3 rounded-xl text-xs border border-rose-200 bg-rose-50 flex items-center gap-2.5 text-rose-800 shadow-sm">
-                <XCircle className="w-4.5 h-4.5 text-rose-500 shrink-0" />
-                <span><strong>Not on NHIS List:</strong> Policy number was not found in monthly NHIS Accredited List.</span>
-              </div>
-            ) : null}
+            </div>
+          </div>
+          <div 
+            className="bg-slate-100 px-3 py-1.5 rounded-full text-[11px] font-bold text-slate-500 flex items-center gap-1 cursor-pointer hover:bg-slate-200 transition-colors"
+            onClick={() => setShowFamily(!showFamily)}
+          >
+            {familyMembers.length || 0} FAMILY MEMBERS {showFamily ? 'â–´' : 'â–¾'}
+          </div>
+        </div>
 
-            {patientMatchStatus === "exact" && (
-              <div className="p-3 rounded-xl text-xs border border-slate-200 bg-white flex items-center gap-2.5 text-slate-700 shadow-sm">
-                <ShieldCheck className="w-4.5 h-4.5 text-emerald-500 shrink-0" />
-                <span><strong>Patient name matched exactly:</strong> Name matches principal/dependent records.</span>
+        {showFamily && (
+          <div className="mt-3 border-t border-slate-100 pt-3 animate-in fade-in duration-200">
+            <div className={`flex items-start gap-2 p-3 rounded-xl mb-2 border ${policyVerified ? 'bg-slate-50 border-slate-100' : 'bg-red-50 border-red-100'}`}>
+              <div className={`text-[16px] mt-0.5 ${policyVerified ? 'text-green-500' : 'text-red-500'}`}>
+                {policyVerified ? "âœ“" : "âœ—"}
               </div>
-            )}
+              <div>
+                <strong className={`text-[12px] sm:text-[13px] block ${policyVerified ? 'text-slate-800' : 'text-red-800'}`}>
+                  {policyVerified ? "Policy number matched:" : "Policy number NOT found:"}
+                </strong>
+                <p className={`text-[11px] sm:text-[12px] mt-0.5 ${policyVerified ? 'text-slate-500' : 'text-red-600'}`}>
+                  {policyVerified ? "Exact policy found in monthly NHIS Accredited List." : "This policy number is not in the active NHIS registry."}
+                </p>
+              </div>
+            </div>
 
-            {familyMembers.length > 0 && (
-              <div className="mt-4 space-y-2">
-                <p className="text-xs font-black uppercase tracking-widest text-slate-500 mb-2 pl-1">Policy Family Tree</p>
-                <div className="grid grid-cols-1 gap-2.5">
-                  {familyMembers.map((member: any) => {
-                    const isMatched = member.id === matchedMemberId;
-                    return (
-                      <div key={member.id} className={`flex flex-col gap-1.5 rounded-xl p-3 shadow-sm transition-colors ${
-                        isMatched ? "bg-emerald-50/20 border border-emerald-500 ring-1 ring-emerald-500/20" : "bg-white border border-slate-200 hover:border-slate-300"
-                      }`}>
-                        <div className="flex items-start justify-between gap-2 flex-wrap">
-                          <div className="flex items-center gap-2 flex-wrap mt-0.5">
-                            <Badge variant="outline" className="text-xs font-black uppercase bg-slate-50 border-slate-200 text-slate-600">
-                              {member.role || "MEMBER"}
-                            </Badge>
-                            <span className="text-xs font-bold text-slate-800">{cleanPatientName(member.full_name || `${member.surname || ""} ${member.first_name || ""}`)}</span>
-                          </div>
-                          {isMatched && (
-                            <Badge className="text-[10px] font-black uppercase bg-emerald-600 text-white border-none shadow-sm flex items-center gap-1 px-2 py-0.5 mt-0.5">
-                              <ShieldCheck className="w-3.5 h-3.5" /> Matched Patient
-                            </Badge>
-                          )}
+            <div className={`flex items-start gap-2 p-3 rounded-xl mb-2 border ${patientMatchStatus === 'exact' ? 'bg-slate-50 border-slate-100' : patientMatchStatus === 'partial' ? 'bg-yellow-50 border-yellow-100' : 'bg-red-50 border-red-100'}`}>
+              <div className={`text-[16px] mt-0.5 ${patientMatchStatus === 'exact' ? 'text-green-500' : patientMatchStatus === 'partial' ? 'text-yellow-500' : 'text-red-500'}`}>
+                {patientMatchStatus === 'exact' ? "âœ“" : "!"}
+              </div>
+              <div>
+                <strong className={`text-[12px] sm:text-[13px] block ${patientMatchStatus === 'exact' ? 'text-slate-800' : patientMatchStatus === 'partial' ? 'text-yellow-800' : 'text-red-800'}`}>
+                  {patientMatchStatus === 'exact' ? "Patient name matched exactly:" : patientMatchStatus === 'partial' ? "Patient name partial match:" : "Patient name mismatch:"}
+                </strong>
+                <p className={`text-[11px] sm:text-[12px] mt-0.5 ${patientMatchStatus === 'exact' ? 'text-slate-500' : patientMatchStatus === 'partial' ? 'text-yellow-700' : 'text-red-600'}`}>
+                  {patientMatchStatus === 'exact' ? "Name matches principal/dependent records." : patientMatchStatus === 'partial' ? "Name is similar but not an exact match." : "Name does not match any records for this policy."}
+                </p>
+              </div>
+            </div>
+
+            <div className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wide my-3 px-1">
+              Policy Family Tree
+            </div>
+            
+            {familyMembers.length > 0 ? (
+              familyMembers.map((member, idx) => {
+                const isMatch = member.id === matchedMemberId || member.full_name === requestPatientName;
+                return (
+                  <div key={idx} className={`flex items-center justify-between p-3 rounded-xl mb-2 border transition-all ${isMatch ? 'bg-green-50 border-green-500 border-2 shadow-sm' : 'bg-slate-50 border-slate-100 hover:border-slate-200'}`}>
+                    <div className="flex items-center gap-2">
+                      <div>
+                        <div className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase inline-block mb-1 ${isMatch ? 'bg-green-200 text-green-800' : 'bg-slate-200 text-slate-500'}`}>
+                          {member.relationship || "Member"}
                         </div>
-                        <p className={`text-[10px] font-bold uppercase tracking-widest ${isMatched ? "text-emerald-700/80" : "text-slate-400"}`}>
-                          {member.phone ? `☎ ${member.phone}` : "No phone"} {member.date_of_birth ? `• DOB: ${new Date(member.date_of_birth).toLocaleDateString("en-GB")}` : ""}
-                        </p>
+                        <div className="text-[13px] sm:text-[14px] font-bold text-slate-800">
+                          {member.full_name}
+                        </div>
+                        <div className="text-[10px] text-slate-500 mt-0.5 font-medium">
+                          {member.phone || "NO PHONE"}
+                        </div>
                       </div>
-                    );
-                  })}
-                </div>
+                    </div>
+                    {isMatch && (
+                      <div className="bg-green-500 text-white text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wider flex items-center gap-1 shadow-sm">
+                        <span className="text-[12px]">âœ“</span> Matched
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            ) : (
+              <div className="text-[12px] font-semibold text-slate-400 p-4 bg-slate-50 rounded-xl text-center border border-slate-100 border-dashed">
+                No family members found for this policy.
               </div>
             )}
           </div>
         )}
-      </div>
-
-      {/* 30-day early refill check */}
-      {earlyRefill?.isEarly && (
-        <div className="p-4 rounded-2xl text-xs border border-rose-200 bg-rose-50/70 flex items-start gap-3 text-rose-800 shadow-sm animate-in zoom-in-95 duration-200">
-          <AlertTriangle className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />
-          <div>
-            <p className="font-black uppercase tracking-wider text-xs text-rose-800">30-Day Refill Warning</p>
-            <p className="font-semibold mt-1">
-              Last request approved only {earlyRefill.daysSince} days ago (on {new Date(earlyRefill.lastDate).toLocaleDateString("en-GB")}).
-            </p>
-          </div>
-        </div>
-      )}
-    </div>
+      </div></div>
   );
-});
+}

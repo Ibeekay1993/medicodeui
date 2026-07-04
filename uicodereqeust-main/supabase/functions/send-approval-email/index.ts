@@ -107,7 +107,7 @@ serve(async (req) => {
           email: safeEmail,
           expires_at: expiresAt,
           created_by: user.id,
-          otp_type: "TREATMENT",
+          otp_type: "ARRIVAL",
           hospital_id: claimingHospitalId,
         });
 
@@ -175,12 +175,12 @@ serve(async (req) => {
       </p>
 
       <div style="background-color:#f0fdf4; border:1px solid #bbf7d0; border-radius:12px; padding:20px; text-align:center; margin-bottom:24px;">
-        <p style="color:#166534; font-size:14px; font-weight:600; margin:0 0 8px;">Your Treatment Authorization PIN:</p>
+        <p style="color:#166534; font-size:14px; font-weight:600; margin:0 0 8px;">Your Authorization OTP:</p>
         <div style="font-size:32px; font-weight:900; letter-spacing:4px; color:#14532d; font-family:monospace;">
           ${otp}
         </div>
         <p style="color:#15803d; font-size:13px; margin:12px 0 0 0; line-height:1.5;">
-          Please provide this secure PIN to the reception at your approved hospital to authorize and finalize your treatment.
+          Please provide this secure OTP to the reception at your approved hospital to authorize and finalize your treatment.
         </p>
       </div>
 
