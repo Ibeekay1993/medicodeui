@@ -98,7 +98,7 @@ export function PatientVerifyCard({
               policyVerified ? "border-yellow-500 text-yellow-500" :
               "border-red-500 text-red-500"
             }`}>
-              {checking ? "â—Œ" : policyVerified && patientMatchStatus === "exact" ? "âœ“" : "!"}
+              {checking ? "◓" : policyVerified && patientMatchStatus === "exact" ? "✓" : "!"}
             </div>
             <div>
               <div className="text-[13px] font-extrabold text-slate-800">NHIS Confirmation</div>
@@ -114,7 +114,7 @@ export function PatientVerifyCard({
             className="bg-slate-100 px-3 py-1.5 rounded-full text-[11px] font-bold text-slate-500 flex items-center gap-1 cursor-pointer hover:bg-slate-200 transition-colors"
             onClick={() => setShowFamily(!showFamily)}
           >
-            {familyMembers.length || 0} FAMILY MEMBERS {showFamily ? 'â–´' : 'â–¾'}
+            {familyMembers.length || 0} FAMILY MEMBERS {showFamily ? '▴' : '▾'}
           </div>
         </div>
 
@@ -122,7 +122,7 @@ export function PatientVerifyCard({
           <div className="mt-3 border-t border-slate-100 pt-3 animate-in fade-in duration-200">
             <div className={`flex items-start gap-2 p-3 rounded-xl mb-2 border ${policyVerified ? 'bg-slate-50 border-slate-100' : 'bg-red-50 border-red-100'}`}>
               <div className={`text-[16px] mt-0.5 ${policyVerified ? 'text-green-500' : 'text-red-500'}`}>
-                {policyVerified ? "âœ“" : "âœ—"}
+                {policyVerified ? "✓" : "✗"}
               </div>
               <div>
                 <strong className={`text-[12px] sm:text-[13px] block ${policyVerified ? 'text-slate-800' : 'text-red-800'}`}>
@@ -136,7 +136,7 @@ export function PatientVerifyCard({
 
             <div className={`flex items-start gap-2 p-3 rounded-xl mb-2 border ${patientMatchStatus === 'exact' ? 'bg-slate-50 border-slate-100' : patientMatchStatus === 'partial' ? 'bg-yellow-50 border-yellow-100' : 'bg-red-50 border-red-100'}`}>
               <div className={`text-[16px] mt-0.5 ${patientMatchStatus === 'exact' ? 'text-green-500' : patientMatchStatus === 'partial' ? 'text-yellow-500' : 'text-red-500'}`}>
-                {patientMatchStatus === 'exact' ? "âœ“" : "!"}
+                {patientMatchStatus === 'exact' ? "✓" : "!"}
               </div>
               <div>
                 <strong className={`text-[12px] sm:text-[13px] block ${patientMatchStatus === 'exact' ? 'text-slate-800' : patientMatchStatus === 'partial' ? 'text-yellow-800' : 'text-red-800'}`}>
@@ -172,7 +172,7 @@ export function PatientVerifyCard({
                     </div>
                     {isMatch && (
                       <div className="bg-green-500 text-white text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wider flex items-center gap-1 shadow-sm">
-                        <span className="text-[12px]">âœ“</span> Matched
+                        <span className="text-[12px]">✓</span> Matched
                       </div>
                     )}
                   </div>

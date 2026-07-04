@@ -472,7 +472,7 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
                   <div className="flex justify-between items-center">
                     <div className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wide flex items-center gap-2">
                       {request?.referred_hospital_name ? "Original Referral Diagnosis" : "Proposed Diagnosis"}
-                      {request?.referred_hospital_name && <span className="bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded text-[9px] uppercase font-bold tracking-widest">Referral</span>}
+                      {request?.referred_hospital_name && <span className="bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded text-[9px] uppercase font-bold tracking-widest">Referral</span>}
                     </div>
                     <div className="bg-slate-50 px-2.5 py-1 rounded-full text-[9px] font-bold text-slate-500 tracking-wide">
                       {request?.diagnosis_code || "ICD-10"}
@@ -489,7 +489,7 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
 
                   <div className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wide flex items-center gap-2 pt-2 border-t border-slate-100">
                     {request?.referred_hospital_name ? "Current Treatment Request" : "Proposed Treatment"}
-                    {request?.referred_hospital_name && <span className="bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded text-[9px] uppercase font-bold tracking-widest">Referred Hospital</span>}
+                    {request?.referred_hospital_name && <span className="bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded text-[9px] uppercase font-bold tracking-widest">Referred Hospital</span>}
                   </div>
                   
                   <textarea 
@@ -548,13 +548,13 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
                           disabled={request?.deletion_status === "awaiting_admin_approval" || role === "hospital"}
                         />
                         {actions.editReferralHospitalName.trim() ? (
-                          <div className="rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-xs font-bold leading-relaxed text-slate-700 shadow-sm">
+                          <div className="rounded-xl border border-slate-100 bg-slate-50 px-3.5 py-2.5 text-[11px] sm:text-[12px] font-bold leading-relaxed text-slate-500 shadow-sm">
                             Request raised by: {request.requesting_hospital_name || request.hospital_name || "Original hospital"}
                             <br />
                             Treatment and claims assigned to: {actions.editReferralHospitalName.trim()}
                           </div>
                         ) : (
-                          <div className="rounded-xl border border-slate-100 bg-slate-50/50 px-3 py-2 text-xs font-semibold text-slate-500">
+                          <div className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-[11px] sm:text-[12px] font-semibold text-slate-400">
                             No referral selected. Claims stay with {request.hospital_name || "the requesting hospital"}.
                           </div>
                         )}
