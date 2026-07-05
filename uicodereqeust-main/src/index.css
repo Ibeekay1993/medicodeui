@@ -71,35 +71,36 @@
 }
 
 .glass-panel {
-  @apply bg-white/70 backdrop-blur-xl border border-white/40 shadow-xl;
+  @apply bg-white/70 backdrop-blur-xl border border-white/40 shadow-elevation-3;
 }
 
 .premium-card {
-  @apply bg-white/70 backdrop-blur-md border border-primary/5 shadow-sm 
-         hover:border-primary/20 hover:shadow-xl hover:shadow-primary/5 
+  @apply bg-white/70 backdrop-blur-md border border-primary/5 shadow-elevation-1
+         hover:border-primary/20 hover:shadow-elevation-3
          transition-all duration-300;
 }
 
 .sidebar-glass {
-  @apply bg-[#0f172a] text-white border-r border-white/5 shadow-2xl;
+  @apply bg-slate-900 text-white border-r border-white/5 shadow-elevation-4;
 }
 
 .nav-item-active {
-  @apply bg-primary text-white shadow-xl shadow-primary/20;
+  @apply bg-primary text-white shadow-brand-glow;
 }
 
+/* Brand swatches -- prefer bg-brand-700 / bg-sky-500 / bg-lime-500 directly
+   going forward. These three aliases exist only so any legacy markup
+   still referencing them keeps working during the migration. */
 .vibrant-accent {
-  /* Sky Blue accent from Ronsberger logo curve */
-  background: #01aef2;
+  @apply bg-sky-500;
 }
 
 .ronsberger-indigo {
-  background: #3f3f95;
+  @apply bg-brand-700;
 }
 
 .ronsberger-green {
-  /* Lime Green from Ronsberger leaf element */
-  background: #93c34b;
+  @apply bg-lime-500;
 }
 
 /* Typography Polish */
@@ -159,16 +160,15 @@
     @apply text-[13px] font-normal text-[#888780];
   }
 
-  .med-card {
-    @apply rounded-xl border border-slate-200 bg-white shadow-sm transition-shadow duration-200 hover:shadow-md;
-  }
+  /* .med-card is defined once, below, with the hover-lift effect —
+     see "Card hover lift effect" further down this file. */
 
   .med-button-primary {
-    @apply rounded-lg bg-[#3f3f95] px-5 py-2.5 text-sm font-medium text-white transition-all duration-200 hover:bg-[#32327a] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50;
+    @apply rounded-lg bg-brand-700 px-5 py-2.5 text-sm font-medium text-white transition-all duration-200 hover:bg-brand-800 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50;
   }
 
   .med-button-secondary {
-    @apply rounded-lg border border-slate-200 bg-white px-5 py-2.5 text-sm font-medium text-slate-700 transition-all duration-200 hover:border-[#01aef2] hover:text-[#3f3f95] hover:bg-blue-50;
+    @apply rounded-lg border border-slate-200 bg-white px-5 py-2.5 text-sm font-medium text-slate-700 transition-all duration-200 hover:border-sky-500 hover:text-brand-700 hover:bg-sky-50;
   }
 
   .med-status-pill {
@@ -266,12 +266,12 @@ html {
   }
 }
 
-/* Card hover lift effect */
+/* Card hover lift effect — the one and only .med-card definition */
 .med-card {
-  @apply rounded-xl border border-slate-200 bg-white shadow-sm transition-all duration-200;
+  @apply rounded-xl border border-slate-200 bg-white shadow-elevation-1 transition-all duration-200;
 }
 .med-card:hover {
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+  @apply shadow-elevation-2;
   transform: translateY(-1px);
 }
 

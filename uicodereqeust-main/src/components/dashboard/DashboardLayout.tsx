@@ -28,6 +28,7 @@ import {
   Megaphone
 } from "lucide-react";
 import { LiveChat } from "@/components/ui/LiveChat";
+import { NavItem } from "@/components/dashboard/NavItem";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -446,17 +447,17 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   }, [location.pathname]);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#F8FAFC] font-sans">
-      <aside className={cn("group/sidebar hidden md:flex flex-col bg-slate-900 transition-all duration-300 ease-in-out relative z-30 shadow-2xl", isSidebarExpanded ? "w-60" : "w-16")}>
+    <div className="flex h-screen overflow-hidden bg-slate-50 font-sans">
+      <aside className={cn("group/sidebar hidden md:flex flex-col bg-slate-900 transition-all duration-300 ease-in-out relative z-30 shadow-elevation-4", isSidebarExpanded ? "w-60" : "w-16")}>
         <div className="py-4 px-4 mb-4">
           <button onClick={() => navigate(basePath)} className="flex items-center gap-3 hover:opacity-80 transition-opacity text-left w-full overflow-hidden">
-            <div className="h-10 w-10 rounded-xl bg-white flex items-center justify-center shrink-0 shadow-md p-1.5 overflow-hidden">
+            <div className="h-10 w-10 rounded-xl bg-white flex items-center justify-center shrink-0 shadow-elevation-2 p-1.5 overflow-hidden">
               <img src="/ronsberger-logo.webp" alt="Ronsberger HMO Logo" className="h-full w-full object-contain" />
             </div>
             {isSidebarExpanded && (
               <div className="animate-in fade-in slide-in-from-left-2 overflow-hidden flex flex-col justify-center">
                 <p className="text-sm font-bold tracking-tight text-white whitespace-nowrap leading-tight">
-                  RONSBERGER <span className="text-[#4d7a22]">HMO</span>
+                  RONSBERGER <span className="text-lime-600">HMO</span>
                 </p>
                 <p className="badge-label text-slate-400 mt-0.5">
                   Clinical Workspace
@@ -467,25 +468,16 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         </div>
 
         <nav className="flex-1 px-3 space-y-1.5 overflow-y-auto" role="navigation" aria-label="Main navigation">
-          {navigation.map((item) => {
-            const isActive = isActiveRoute(item.href);
-            return (
-              <button key={item.name} onClick={() => navigate(item.href)} aria-label={item.name} aria-current={isActive ? "page" : undefined}
-                className={cn("w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 group relative text-left",
-                  isActive ? "bg-white text-slate-900 shadow-xl border-l-[3px] border-[#3f3f95]" : "text-slate-400 hover:bg-white/10 hover:text-white"
-                )}>
-                <item.icon className={cn("h-4 w-4 shrink-0", isActive ? "text-[#3f3f95]" : "text-[#B4B2A9] group-hover:text-white")} />
-                {isSidebarExpanded && (
-                  <span className={cn("whitespace-nowrap text-sm", isActive ? "font-semibold text-slate-950" : "font-medium text-[#B4B2A9] group-hover:text-white")}>{item.name}</span>
-                )}
-                {(item.badge ?? 0) > 0 && (
-                  <span className={cn("ml-auto min-w-5 rounded-full px-1.5 py-0.5 text-center text-xs font-semibold", isActive ? "bg-[#3f3f95] text-white" : "bg-[#01aef2] text-slate-950")}>
-                    {(item.badge ?? 0) > 99 ? "99+" : item.badge}
-                  </span>
-                )}
-              </button>
-            );
-          })}
+          {navigation.map((item) => (
+            <NavItem
+              key={item.name}
+              item={item}
+              isActive={isActiveRoute(item.href)}
+              onClick={() => navigate(item.href)}
+              variant="rail"
+              expanded={isSidebarExpanded}
+            />
+          ))}
         </nav>
 
         <div className="p-4 mt-auto border-t border-white/5">
@@ -529,14 +521,14 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           <div className="flex items-center gap-2 shrink-0">
             <div className="hidden md:flex flex-col text-right mr-3">
               <p className="text-xs font-semibold text-slate-900 truncate max-w-[140px]">{fullName || "Complete Profile"}</p>
-              <p className="text-xs font-medium capitalize text-[#3f3f95]">{role}</p>
+              <p className="text-xs font-medium capitalize text-brand-700">{role}</p>
             </div>
             <Button variant="ghost" size="icon"
-              className={cn("h-8 w-8 rounded-lg relative", actionableMessages > 0 ? "text-[#3f3f95]" : "text-slate-400")}
+              className={cn("h-8 w-8 rounded-lg relative", actionableMessages > 0 ? "text-brand-700" : "text-slate-400")}
               aria-label={`Notifications${actionableMessages > 0 ? `, ${actionableMessages} unread` : ""}`}>
               <Bell className="h-4 w-4" />
               {actionableMessages > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-[#01aef2] text-xs font-bold text-white ring-2 ring-white">
+                <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-sky-500 text-xs font-bold text-white ring-2 ring-white">
                   {actionableMessages > 9 ? "9+" : actionableMessages}
                 </span>
               )}
@@ -558,41 +550,27 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         </main>
 
         <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 flex justify-around pb-[env(safe-area-inset-bottom)] z-50">
-          {navigation.filter(item => item.name !== "Settings").slice(0, 5).map((item) => {
-            const isActive = isActiveRoute(item.href);
-            return (
-              <button
-                key={item.name}
-                onClick={() => navigate(item.href)}
-                className={cn(
-                  "flex flex-col items-center justify-center w-full py-2 gap-1 transition-colors",
-                  isActive ? "text-[#3f3f95]" : "text-slate-400 hover:text-slate-600"
-                )}
-              >
-                <div className="relative">
-                  <item.icon className="h-5 w-5" strokeWidth={isActive ? 2.5 : 2} />
-                  {(item.badge ?? 0) > 0 && (
-                    <span className="absolute -top-1 -right-1 flex h-3 w-3 items-center justify-center rounded-full bg-[#01aef2] text-[8px] font-bold text-white ring-1 ring-white">
-                      {(item.badge ?? 0) > 9 ? "9+" : item.badge}
-                    </span>
-                  )}
-                </div>
-                <span className="text-[10px] font-medium leading-none">{item.name === 'Dashboard' ? 'Home' : item.name}</span>
-              </button>
-            );
-          })}
+          {navigation.filter(item => item.name !== "Settings").slice(0, 5).map((item) => (
+            <NavItem
+              key={item.name}
+              item={item}
+              isActive={isActiveRoute(item.href)}
+              onClick={() => navigate(item.href)}
+              variant="bottom"
+            />
+          ))}
         </nav>
       </div>
 
       <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
         <SheetContent side="left" className="w-[240px] p-0 border-none bg-slate-900 text-white flex flex-col" style={{ height: "100dvh" }}>
           <div className="p-4 border-b border-white/5 flex items-center gap-2 mb-2">
-            <div className="h-8 w-8 rounded-lg bg-white flex items-center justify-center shrink-0 shadow-md p-1 overflow-hidden">
+            <div className="h-8 w-8 rounded-lg bg-white flex items-center justify-center shrink-0 shadow-elevation-2 p-1 overflow-hidden">
               <img src="/ronsberger-logo.webp" alt="Ronsberger HMO Logo" className="h-full w-full object-contain" />
             </div>
             <div className="flex flex-col justify-center">
               <p className="text-sm font-bold tracking-tight text-white whitespace-nowrap leading-tight">
-                RONSBERGER <span className="text-[#4d7a22]">HMO</span>
+                RONSBERGER <span className="text-lime-600">HMO</span>
               </p>
               <p className="badge-label text-slate-400 mt-0.5">
                 Clinical Workspace
@@ -601,25 +579,16 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           </div>
 
           <div className="flex-1 overflow-y-auto p-4 space-y-1">
-            {navigation.map((item) => {
-              const isActive = isActiveRoute(item.href);
-              return (
-                <SheetClose asChild key={item.name}>
-                  <button onClick={() => navigate(item.href)}
-                    className={cn("w-full flex items-center gap-4 px-4 py-3.5 rounded-xl text-sm font-medium transition-all text-left",
-                      isActive ? "bg-white text-slate-900 shadow-xl" : "text-slate-400 hover:bg-white/5"
-                    )}>
-                    <item.icon className={cn("h-4 w-4", isActive ? "text-[#3f3f95]" : "text-slate-500")} />
-                    {item.name}
-                    {(item.badge ?? 0) > 0 && (
-                      <span className="ml-auto min-w-5 rounded-full bg-[#01aef2] px-1.5 py-0.5 text-center text-xs font-semibold text-slate-950">
-                        {(item.badge ?? 0) > 99 ? "99+" : item.badge}
-                      </span>
-                    )}
-                  </button>
-                </SheetClose>
-              );
-            })}
+            {navigation.map((item) => (
+              <SheetClose asChild key={item.name}>
+                <NavItem
+                  item={item}
+                  isActive={isActiveRoute(item.href)}
+                  onClick={() => navigate(item.href)}
+                  variant="sheet"
+                />
+              </SheetClose>
+            ))}
           </div>
 
           <div className="p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] border-t border-white/5 mt-auto">

@@ -20,18 +20,49 @@ export default {
         mono: ["JetBrains Mono", "ui-monospace", "SFMono-Regular", "monospace"],
       },
       colors: {
+        // Ronsberger HMO brand scale — anchored on the real brand hex (#3f3f95)
+        // at step 700, so `brand-700` == the exact color previously hardcoded
+        // as text-[#3f3f95] / bg-[#3f3f95] throughout the app.
         brand: {
-          50: '#eef2ff',
-          100: '#e0e7ff',
-          200: '#c7d2fe',
-          300: '#a5b4fc',
-          400: '#818cf8',
-          500: '#6366f1',
-          600: '#4f46e5',
-          700: '#4338ca',
-          800: '#3730a3',
-          900: '#312e81',
-          950: '#1e1b4b',
+          50: '#f4f4fa',
+          100: '#e9e9f6',
+          200: '#d0d0eb',
+          300: '#b0b0de',
+          400: '#8c8ccf',
+          500: '#6464be',
+          600: '#4a4ab0',
+          700: '#3f3f95', // = Ronsberger Indigo (primary)
+          800: '#35357e',
+          900: '#2a2a65',
+          950: '#1b1b41',
+        },
+        // Sky Blue accent — anchored on #01aef2 at step 500
+        sky: {
+          50: '#f0fbff',
+          100: '#dbf5ff',
+          200: '#b3e9ff',
+          300: '#7bd9fe',
+          400: '#34c5fe',
+          500: '#01aef2', // = Ronsberger Sky Blue (accent)
+          600: '#0192cb',
+          700: '#0178a7',
+          800: '#016289',
+          900: '#015070',
+          950: '#003347',
+        },
+        // Lime Green highlight — anchored on #93c34b at step 500
+        lime: {
+          50: '#f6faf0',
+          100: '#edf5e0',
+          200: '#daebc1',
+          300: '#c3df9b',
+          400: '#aad171',
+          500: '#93c34b', // = Ronsberger Lime Green (highlight)
+          600: '#7ca937',
+          700: '#658b2d',
+          800: '#517024',
+          900: '#41591d',
+          950: '#273611',
         },
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
@@ -89,6 +120,16 @@ export default {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
+      },
+      // Consistent elevation scale. Use these instead of ad hoc shadow-xl /
+      // shadow-2xl / shadow-[...] combos so every card, dropdown, and modal
+      // in the app sits at one of exactly 4 depths.
+      boxShadow: {
+        "elevation-1": "0 1px 2px 0 rgb(15 23 42 / 0.04), 0 1px 1px 0 rgb(15 23 42 / 0.03)",
+        "elevation-2": "0 2px 8px -2px rgb(15 23 42 / 0.08), 0 1px 3px -1px rgb(15 23 42 / 0.05)",
+        "elevation-3": "0 8px 24px -4px rgb(15 23 42 / 0.10), 0 4px 8px -4px rgb(15 23 42 / 0.06)",
+        "elevation-4": "0 20px 48px -8px rgb(15 23 42 / 0.16), 0 8px 16px -8px rgb(15 23 42 / 0.08)",
+        "brand-glow": "0 8px 24px -4px rgb(63 63 149 / 0.25)",
       },
       height: {
         screen: "100dvh",
