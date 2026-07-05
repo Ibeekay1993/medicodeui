@@ -256,7 +256,7 @@ export function LiveChat() {
       </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="w-[94vw] sm:max-w-[400px] h-[80vh] sm:h-[550px] p-0 overflow-hidden border-none shadow-2xl rounded-3xl bg-slate-50 flex flex-col">
+        <DialogContent className="w-[100vw] max-w-none sm:w-[94vw] sm:max-w-[400px] h-[100dvh] sm:h-[550px] p-0 overflow-hidden border-none shadow-2xl rounded-none sm:rounded-3xl bg-slate-50 flex flex-col">
 
           <DialogHeader className="p-6 bg-[#3f3f95] text-white shrink-0">
             <DialogTitle className="text-sm font-black uppercase tracking-tight italic">Live <span className="text-emerald-400">Support</span></DialogTitle>
@@ -291,7 +291,7 @@ export function LiveChat() {
                 const mine = msg.sender_id === user?.id;
                 return (
                   <div key={msg.id} className={cn("flex flex-col gap-1", mine ? "items-end" : "items-start")}>
-                    <div className={cn("max-w-[85%] px-4 py-3 rounded-2xl text-xs font-medium shadow-sm leading-relaxed", mine ? "bg-slate-900 text-white rounded-tr-none" : "bg-white text-slate-600 border border-slate-100 rounded-tl-none")}>
+                    <div className={cn("max-w-[85%] px-4 py-3 rounded-2xl text-xs font-medium shadow-sm leading-relaxed break-words whitespace-pre-wrap [overflow-wrap:anywhere]", mine ? "bg-slate-900 text-white rounded-tr-none" : "bg-white text-slate-600 border border-slate-100 rounded-tl-none")}>
                       {msg.body}
                       {msg.attachment_url && (
                         <button
@@ -315,7 +315,7 @@ export function LiveChat() {
             </div>
           </ScrollArea>
 
-          <div className="p-4 bg-white border-t border-slate-100 shrink-0">
+          <div className="p-4 pb-6 sm:pb-4 bg-white border-t border-slate-100 shrink-0">
             {isClosed ? (
               <Button onClick={startNewConversation} className="h-11 w-full rounded-2xl bg-slate-900 text-xs font-black uppercase tracking-widest text-white hover:bg-slate-800">
                 <Plus className="mr-2 h-4 w-4" /> New Message

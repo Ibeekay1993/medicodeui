@@ -596,7 +596,7 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
                 </div>
                 </div>
 
-                <div className="bg-white rounded-[1.2rem] sm:rounded-[1.5rem] border border-slate-100 shadow-sm p-4 sm:p-5 relative overflow-hidden group mb-3">
+                <div className="bg-white rounded-[1.2rem] sm:rounded-[1.5rem] border border-slate-100 shadow-sm p-4 sm:p-5 relative group mb-3 z-20">
                   {/* Treatment Cart Component */}
                   <TreatmentCart
                     request={request}
