@@ -392,7 +392,7 @@ export default function BatchesPage() {
           const hospName = batch.hospitals?.name || "Unknown Provider";
           const statusColors = {
             draft: "bg-slate-100 text-slate-500 border-slate-200",
-            ready: "bg-blue-50 text-blue-600 border-blue-100",
+            ready: "bg-slate-100 text-slate-600 border-slate-200",
             paid: "bg-emerald-50 text-emerald-600 border-emerald-100"
           };
 

@@ -130,9 +130,9 @@ export default function HospitalPortalPage() {
             <Button
               variant="outline"
               onClick={() => navigate("/dashboard/claims")}
-              className="h-auto p-2 sm:p-3 flex flex-col gap-1 items-center justify-center border-slate-200 hover:border-blue-500 hover:bg-blue-50/50 hover:text-blue-700 transition-all rounded-xl group"
+              className="h-auto p-2 sm:p-3 flex flex-col gap-1 items-center justify-center border-slate-200 hover:border-primary/40 hover:bg-slate-50 hover:text-primary transition-all rounded-xl group"
             >
-              <Send className="h-5 w-5 text-blue-600 mb-1 group-hover:scale-110 transition-transform" />
+              <Send className="h-5 w-5 text-slate-500 mb-1 group-hover:scale-110 transition-transform" />
               <span className="text-xs leading-tight min-h-[2.6em] flex items-center justify-center text-center">Submit<br/>Claim</span>
             </Button>
 
@@ -168,7 +168,7 @@ export default function HospitalPortalPage() {
                   <Badge variant="outline" className={cn("text-[10px] font-bold uppercase", 
                     announcements[currentAnnouncementIndex].priority === 'high' || announcements[currentAnnouncementIndex].priority === 'critical' ? 'text-rose-600 border-rose-200 bg-rose-50' : 
                     announcements[currentAnnouncementIndex].priority === 'medium' ? 'text-amber-600 border-amber-200 bg-amber-50' : 
-                    'text-blue-600 border-blue-200 bg-blue-50'
+                    'text-slate-600 border-slate-200 bg-slate-50'
                   )}>
                     {announcements[currentAnnouncementIndex].priority}
                   </Badge>

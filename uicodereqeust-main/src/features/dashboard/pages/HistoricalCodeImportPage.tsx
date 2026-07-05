@@ -266,11 +266,11 @@ export default function HistoricalCodeImportPage() {
             </h2>
           </div>
           <CardContent className="p-6">
-            <div className="mb-6 rounded-lg bg-blue-50 p-4 border border-blue-100 flex items-start gap-3">
-              <Info className="h-5 w-5 text-blue-500 shrink-0 mt-0.5" />
-              <div className="text-sm text-blue-900">
+            <div className="mb-6 rounded-lg bg-slate-50 p-4 border border-slate-100 flex items-start gap-3">
+              <Info className="h-5 w-5 text-slate-400 shrink-0 mt-0.5" />
+              <div className="text-sm text-slate-700">
                 <p className="font-bold mb-1">Important: Date Formatting & Import Modes</p>
-                <p className="mb-2">To avoid dates like <span className="font-mono bg-blue-100 px-1 rounded">03/09/2026</span> being imported incorrectly, please ensure dates in your Excel file are formatted unambiguously before uploading. We strongly recommend formatting your date columns in Excel as <strong>YYYY-MM-DD</strong>.</p>
+                <p className="mb-2">To avoid dates like <span className="font-mono bg-slate-100 px-1 rounded">03/09/2026</span> being imported incorrectly, please ensure dates in your Excel file are formatted unambiguously before uploading. We strongly recommend formatting your date columns in Excel as <strong>YYYY-MM-DD</strong>.</p>
                 <p><em>Note: You will be able to select your desired import mode (e.g., <strong>Add, Replace, or Wipe</strong>) in Step 3 after uploading and reviewing your file.</em></p>
               </div>
             </div>

@@ -42,8 +42,8 @@ export function RequestList({
     const key = String(s || "").toLowerCase();
     const map: Record<string, string> = {
       approved: "border-emerald-200 text-emerald-700 bg-emerald-50",
-      referral_approved: "border-blue-200 text-blue-700 bg-blue-50",
-      referral_accepted: "border-indigo-200 text-indigo-700 bg-indigo-50",
+      referral_approved: "border-slate-200 text-slate-700 bg-slate-100",
+      referral_accepted: "border-slate-200 text-slate-700 bg-slate-100",
       referral_declined: "border-rose-200 text-rose-700 bg-rose-50",
       rejected: "border-rose-200 text-rose-700 bg-rose-50",
       pending: "border-amber-200 text-amber-800 bg-amber-50",
@@ -300,11 +300,11 @@ export function RequestList({
                   <span className="text-[14px] font-bold text-slate-900 flex-1 min-w-0 uppercase leading-tight">{r.patient_name}</span>
                   <div className={cn(
                     "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider shrink-0",
-                    isApproved ? "bg-emerald-50 text-emerald-600" : isRej ? "bg-rose-50 text-rose-600" : "bg-blue-50 text-blue-600"
+                    isApproved(r) ? "bg-emerald-50 text-emerald-600" : isRej ? "bg-rose-50 text-rose-600" : "bg-slate-100 text-slate-600"
                   )}>
                     <div className={cn(
                       "w-1.5 h-1.5 rounded-full shrink-0",
-                      isApproved ? "bg-emerald-500" : isRej ? "bg-rose-500" : "bg-blue-500"
+                      isApproved(r) ? "bg-emerald-500" : isRej ? "bg-rose-500" : "bg-slate-400"
                     )} />
                     {displayStatus(r).replace(/_/g, " ")}
                   </div>

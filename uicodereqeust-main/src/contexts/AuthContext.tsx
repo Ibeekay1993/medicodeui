@@ -232,7 +232,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (maxLifetimeTimerRef.current) window.clearTimeout(maxLifetimeTimerRef.current);
       inactivityTimerRef.current = null;
       maxLifetimeTimerRef.current = null;
-      if (typeof window !== "undefined") {
+      if (typeof window !== "undefined" && !loading) {
         window.localStorage.removeItem(lastActivityStorageKey);
         window.sessionStorage.removeItem(sessionStartStorageKey);
       }

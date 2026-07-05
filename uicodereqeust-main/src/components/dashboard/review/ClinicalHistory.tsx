@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { format } from "date-fns";
+import { cleanPatientName } from "@/lib/clinicalUtils";
 
 interface ClinicalHistoryProps {
   request: any;
@@ -20,6 +21,18 @@ export function ClinicalHistory({
 }: ClinicalHistoryProps) {
   const [expanded, setExpanded] = useState(true);
   const [includeDependents, setIncludeDependents] = useState(false);
+
+  // Filter history based on includeDependents toggle
+  const currentPatientClean = cleanPatientName(requestPatientName || "");
+  const filteredHistory = visibleHistory.filter((record) => {
+    if (includeDependents) return true;
+    const recordPatientClean = cleanPatientName(record.patient_name || record.name || "");
+    return (
+      recordPatientClean === currentPatientClean ||
+      recordPatientClean.includes(currentPatientClean) ||
+      currentPatientClean.includes(recordPatientClean)
+    );
+  });
 
   return (
     <div className="w-full">
@@ -80,16 +93,26 @@ export function ClinicalHistory({
             </div>
 
             <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
-              {visibleHistory.length > 0 ? visibleHistory.map((record, i) => (
-                <div key={i} className="bg-slate-50 rounded-xl p-3.5">
-                  <div className="flex justify-between items-center mb-2">
-                    <div className="flex items-center gap-2">
-                      <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Date</div>
-                      <div className="text-[11px] sm:text-[12px] font-semibold text-slate-800">
-                        {record.date ? format(new Date(record.date), "dd/MM/yyyy") : "02/07/2026"}
+              {filteredHistory.length > 0 ? filteredHistory.map((record, i) => (
+                <div key={i} className="bg-slate-50 rounded-xl p-3.5 border border-slate-100/80 shadow-xs">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2 pb-2 border-b border-slate-200">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <div className="flex items-center gap-1.5">
+                        <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Date</div>
+                        <div className="text-[11px] sm:text-[12px] font-semibold text-slate-800">
+                          {record.date ? format(new Date(record.date), "dd/MM/yyyy") : "02/07/2026"}
+                        </div>
                       </div>
+                      {(record.patient_name || record.name) && (
+                        <div className="flex items-center gap-1.5">
+                          <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Patient</div>
+                          <div className="bg-slate-200 text-slate-700 px-2 py-0.5 rounded-md text-[9px] font-extrabold uppercase tracking-wide">
+                            {record.patient_name || record.name}
+                          </div>
+                        </div>
+                      )}
                     </div>
-                    <div className="bg-green-100 text-green-600 px-2.5 py-1 rounded-full text-[9px] font-bold tracking-wider">
+                    <div className="bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full text-[9px] font-bold tracking-wider w-fit">
                       {record.status || "APPROVED"}
                     </div>
                   </div>
@@ -111,7 +134,7 @@ export function ClinicalHistory({
                       <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Date</div>
                       <div className="text-[11px] sm:text-[12px] font-semibold text-slate-800">02/07/2026</div>
                     </div>
-                    <div className="bg-green-100 text-green-600 px-2.5 py-1 rounded-full text-[9px] font-bold tracking-wider">
+                    <div className="bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full text-[9px] font-bold tracking-wider">
                       APPROVED
                     </div>
                   </div>

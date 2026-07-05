@@ -97,7 +97,7 @@ export default function ClaimsTable({
                           "border-none text-xs font-semibold px-2.5 py-0.5 rounded-full capitalize",
                           c.status === "approved" ? "bg-emerald-500/10 text-emerald-600" :
                           c.status === "partially_approved" ? "bg-emerald-500/10 text-emerald-700" :
-                          c.status === "paid" ? "bg-blue-500/10 text-blue-600" :
+                          c.status === "paid" ? "bg-slate-100 text-slate-600" :
                           c.status === "rejected" ? "bg-rose-500/10 text-rose-600" :
                           "bg-amber-500/10 text-amber-600"
                         )}
@@ -117,7 +117,7 @@ export default function ClaimsTable({
               const statusColor = 
                 c.status === "approved" ? "border-l-emerald-500 bg-emerald-500/[0.02]" :
                 c.status === "partially_approved" ? "border-l-emerald-500 bg-emerald-500/[0.02]" :
-                c.status === "paid" ? "border-l-blue-500 bg-blue-500/[0.02]" :
+                c.status === "paid" ? "border-l-slate-300 bg-slate-50/50" :
                 c.status === "rejected" ? "border-l-rose-500 bg-rose-50/[0.02]" :
                 "border-l-amber-500 bg-amber-500/[0.02]";
               
@@ -144,7 +144,7 @@ export default function ClaimsTable({
                         "border-none text-xs font-semibold px-2 py-0.5 rounded-full shrink-0 capitalize",
                         c.status === "approved" ? "bg-emerald-500/10 text-emerald-600" :
                         c.status === "partially_approved" ? "bg-emerald-500/10 text-emerald-700" :
-                        c.status === "paid" ? "bg-blue-500/10 text-blue-600" :
+                        c.status === "paid" ? "bg-slate-100 text-slate-600" :
                         c.status === "rejected" ? "bg-rose-500/10 text-rose-600" :
                         "bg-amber-500/10 text-amber-600"
                       )}

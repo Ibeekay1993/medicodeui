@@ -374,7 +374,7 @@ export default function DashboardHome() {
   useTabVisibilityRefresh(fetchStats, Boolean(role));
 
   const actionBase = location.pathname.replace(/\/$/, "");
-  const actionStyle = { color: "text-[#93c34b]", bg: "bg-[#E1F5EE]" };
+  const actionStyle = { color: "text-slate-600", bg: "bg-slate-100" };
   const adminActions = [
     { name: "Hospitals", desc: "Manage facilities", href: `${actionBase}/hospitals`, icon: Building2, ...actionStyle },
     { name: "Users", desc: "Access control", href: `${actionBase}/users`, icon: Users, ...actionStyle },
@@ -407,9 +407,9 @@ export default function DashboardHome() {
         : nurseActions;
 
   const mainStats = [
-    { label: role === "admin" ? "Active Users" : role === "claims" ? "Total Claims" : "Total Load", value: role === "admin" ? stats.users : stats.total, icon: Users, color: "text-blue-600" },
+    { label: role === "admin" ? "Active Users" : role === "claims" ? "Total Claims" : "Total Load", value: role === "admin" ? stats.users : stats.total, icon: Users, color: "text-slate-600" },
     { label: "Facilities", value: stats.hospitals, icon: Building2, color: "text-slate-700" },
-    { label: "Approved", value: stats.approved, icon: CheckCircle2, color: "text-emerald-600" },
+    { label: "Approved", value: stats.approved, icon: CheckCircle2, color: "text-slate-700" },
     { label: role === "claims" ? "Pending Review" : "Rejected", value: role === "claims" ? stats.pending : stats.rejected, icon: role === "claims" ? Clock : XCircle, color: role === "claims" ? "text-amber-600" : "text-rose-600" },
   ];
 
@@ -427,9 +427,9 @@ export default function DashboardHome() {
             <h3 className="text-sm font-semibold text-slate-900 tracking-tight">Clinical Authorizations</h3>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 md:gap-4">
               {[
-                { label: "Active Users",    value: stats.users,     icon: Users,         color: "text-blue-600" },
+                { label: "Active Users",    value: stats.users,     icon: Users,         color: "text-slate-600" },
                 { label: "Total Requests",  value: stats.total,     icon: FileText,      color: "text-slate-700" },
-                { label: "Approved",        value: stats.approved,  icon: CheckCircle2,  color: "text-emerald-600" },
+                { label: "Approved",        value: stats.approved,  icon: CheckCircle2,  color: "text-slate-700" },
                 { label: "Rejected",        value: stats.rejected,  icon: XCircle,       color: "text-rose-600" },
               ].map((item) => (
                 <div key={item.label} className="border-slate-100 shadow-sm bg-white rounded-xl sm:rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-md hover:-translate-y-1 group flex flex-col p-0 cursor-pointer" title={item.label}>
@@ -457,9 +457,9 @@ export default function DashboardHome() {
             <h3 className="text-sm font-semibold text-slate-900 tracking-tight">Claims Processing</h3>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 md:gap-4">
               {[
-                { label: "Submitted",     value: claimStats.submitted,                  color: "text-blue-600", format: "number", icon: FileText },
-                { label: "Paid",          value: claimStats.paid,                       color: "text-emerald-600", format: "number", icon: CheckCircle2 },
-                { label: "Appr. Value",   value: money(claimStats.approvedValue),       color: "text-emerald-600", format: "money", icon: Banknote },
+                { label: "Submitted",     value: claimStats.submitted,                  color: "text-slate-600", format: "number", icon: FileText },
+                { label: "Paid",          value: claimStats.paid,                       color: "text-slate-700", format: "number", icon: CheckCircle2 },
+                { label: "Appr. Value",   value: money(claimStats.approvedValue),       color: "text-slate-700", format: "money", icon: Banknote },
                 { label: "Contested",     value: claimStats.contested,                  color: "text-amber-600", format: "number", icon: AlertTriangle },
               ].map((item) => (
                 <div key={item.label} className="border-slate-100 shadow-sm bg-white rounded-xl sm:rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-md hover:-translate-y-1 group flex flex-col p-0 cursor-pointer" title={item.label}>
@@ -488,9 +488,9 @@ export default function DashboardHome() {
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 md:gap-4">
               {[
                 { label: "Awaiting Value",  value: money(financeStats.awaitingValue),      color: "text-amber-600", icon: Clock },
-                { label: "Paid Value",      value: money(financeStats.paidValue),          color: "text-emerald-600", icon: Banknote },
-                { label: "Settled Batches", value: financeStats.paidBatches,               color: "text-indigo-600", icon: Layers },
-                { label: "Batches Value",   value: money(financeStats.totalBatchesValue),  color: "text-violet-600", icon: Wallet },
+                { label: "Paid Value",      value: money(financeStats.paidValue),          color: "text-slate-700", icon: Banknote },
+                { label: "Settled Batches", value: financeStats.paidBatches,               color: "text-slate-600", icon: Layers },
+                { label: "Batches Value",   value: money(financeStats.totalBatchesValue),  color: "text-slate-700", icon: Wallet },
               ].map((item) => (
                 <div key={item.label} className="border-slate-100 shadow-sm bg-white rounded-xl sm:rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-md hover:-translate-y-1 group flex flex-col p-0 cursor-pointer" title={item.label}>
                   <div className="p-2.5 sm:p-4 md:p-5 flex flex-col sm:flex-row items-start sm:items-center gap-1.5 sm:gap-3">
@@ -518,9 +518,9 @@ export default function DashboardHome() {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 md:gap-4">
           {[
             { label: "Awaiting Value",  value: money(financeStats.awaitingValue),      color: "text-amber-600", icon: Clock },
-            { label: "Paid Value",      value: money(financeStats.paidValue),          color: "text-emerald-600", icon: Banknote },
-            { label: "Settled Batches", value: financeStats.paidBatches,               color: "text-indigo-600", icon: Layers },
-            { label: "Batches Value",   value: money(financeStats.totalBatchesValue),  color: "text-violet-600", icon: Wallet },
+            { label: "Paid Value",      value: money(financeStats.paidValue),          color: "text-slate-700", icon: Banknote },
+            { label: "Settled Batches", value: financeStats.paidBatches,               color: "text-slate-600", icon: Layers },
+            { label: "Batches Value",   value: money(financeStats.totalBatchesValue),  color: "text-slate-700", icon: Wallet },
           ].map((item) => (
             <div key={item.label} className="border-slate-100 shadow-sm bg-white rounded-xl sm:rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-md hover:-translate-y-1 group flex flex-col p-0 cursor-pointer" title={item.label}>
               <div className="p-2.5 sm:p-4 md:p-5 flex flex-col sm:flex-row items-start sm:items-center gap-1.5 sm:gap-3">
@@ -568,13 +568,13 @@ export default function DashboardHome() {
       {isClaims && (
         <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2 sm:gap-3 md:gap-4">
           {[
-            { label: "Submitted", value: claimStats.submitted, color: "text-blue-600", icon: FileText },
-            { label: "Approved", value: claimStats.approved, color: "text-emerald-600", icon: CheckCircle2 },
+            { label: "Submitted", value: claimStats.submitted, color: "text-slate-600", icon: FileText },
+            { label: "Approved", value: claimStats.approved, color: "text-slate-700", icon: CheckCircle2 },
             { label: "Partial", value: claimStats.partiallyApproved, color: "text-amber-600", icon: Activity },
             { label: "Rejected", value: claimStats.rejected, color: "text-rose-600", icon: XCircle },
             { label: "Contested", value: claimStats.contested, color: "text-violet-600", icon: AlertTriangle },
-            { label: "Appr. Value", value: money(claimStats.approvedValue), color: "text-emerald-600", icon: Banknote },
-            { label: "Savings", value: money(claimStats.declinedValue), color: "text-teal-600", icon: Wallet },
+            { label: "Appr. Value", value: money(claimStats.approvedValue), color: "text-slate-700", icon: Banknote },
+            { label: "Savings", value: money(claimStats.declinedValue), color: "text-slate-600", icon: Wallet },
           ].map((item) => (
             <div key={item.label} className="border-slate-100 shadow-sm bg-white rounded-xl sm:rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-md hover:-translate-y-1 group flex flex-col p-0 cursor-pointer" title={item.label}>
               <div className="p-2.5 sm:p-4 md:p-5 flex flex-col sm:flex-row items-start sm:items-center gap-1.5 sm:gap-3">

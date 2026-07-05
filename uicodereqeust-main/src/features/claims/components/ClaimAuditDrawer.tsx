@@ -90,7 +90,7 @@ export default function ClaimAuditDrawer({
                 <Badge className={cn("border-none text-xs font-black px-2.5 py-0.5 rounded-md uppercase tracking-wide",
                 selectedClaim.status === "approved" ? "bg-emerald-500/10 text-emerald-600" :
                 selectedClaim.status === "partially_approved" ? "bg-emerald-500/10 text-emerald-700" :
-                selectedClaim.status === "paid" ? "bg-blue-500/10 text-blue-600" :
+                selectedClaim.status === "paid" ? "bg-slate-100 text-slate-600" :
                 selectedClaim.status === "rejected" ? "bg-rose-500/10 text-rose-600" :
                 "bg-amber-500/10 text-amber-600"
               )}>

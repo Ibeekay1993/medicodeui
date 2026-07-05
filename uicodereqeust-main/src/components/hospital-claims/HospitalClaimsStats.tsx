@@ -16,7 +16,7 @@ export default function HospitalClaimsStats({
   const statsList = [
     { label: "Pending Audit", value: String(pendingCount), tone: "text-amber-700 bg-amber-50" },
     { label: "Approved", value: String(approvedCount), tone: "text-emerald-700 bg-emerald-50" },
-    { label: "Paid", value: String(paidCount), tone: "text-blue-700 bg-blue-50" },
+    { label: "Paid", value: String(paidCount), tone: "text-slate-700 bg-slate-100" },
     { label: "Claim Value", value: `₦${totalValue.toLocaleString()}`, tone: "text-slate-700 bg-slate-50" }
   ];
 

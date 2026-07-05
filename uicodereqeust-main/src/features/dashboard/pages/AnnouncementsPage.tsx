@@ -95,7 +95,7 @@ export default function AnnouncementsPage() {
       {/* Premium Header */}
       <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-4 shadow-lg shadow-slate-900/10">
         <div className="absolute top-0 right-0 -mt-8 -mr-8 h-24 w-24 rounded-full bg-emerald-500/20 blur-xl"></div>
-        <div className="absolute bottom-0 left-0 -mb-8 -ml-8 h-24 w-24 rounded-full bg-blue-500/20 blur-xl"></div>
+        <div className="absolute bottom-0 left-0 -mb-8 -ml-8 h-24 w-24 rounded-full bg-primary/10 blur-xl"></div>
         
         <div className="relative z-10 flex items-center gap-4">
           <div className="flex items-center justify-center h-10 w-10 rounded-lg bg-white/10 border border-white/20 backdrop-blur-md shrink-0">
@@ -223,7 +223,7 @@ export default function AnnouncementsPage() {
                       <Badge variant="outline" className={cn("text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full border-0",
                         ann.priority === "critical" ? "bg-purple-100 text-purple-700 shadow-sm shadow-purple-100" :
                         ann.priority === "high" ? "bg-rose-100 text-rose-700 shadow-sm shadow-rose-100" :
-                        ann.priority === "medium" ? "bg-amber-100 text-amber-700 shadow-sm shadow-amber-100" : "bg-blue-100 text-blue-700 shadow-sm shadow-blue-100"
+                        ann.priority === "medium" ? "bg-amber-100 text-amber-700 shadow-sm shadow-amber-100" : "bg-slate-200 text-slate-700 shadow-sm shadow-slate-200"
                       )}>{ann.priority}</Badge>
                       
                       {ann.is_active ? (
@@ -259,7 +259,7 @@ export default function AnnouncementsPage() {
                       {ann.is_active ? "Take Offline" : "Set Live"}
                     </Button>
                     <div className="flex gap-3 w-full">
-                      <Button variant="outline" onClick={() => handleEdit(ann)} className="flex-1 h-10 rounded-xl font-bold text-blue-600 hover:text-blue-700 hover:bg-blue-50 hover:border-blue-200 transition-all">
+                      <Button variant="outline" onClick={() => handleEdit(ann)} className="flex-1 h-10 rounded-xl font-bold text-slate-700 hover:text-slate-900 hover:bg-slate-50 hover:border-slate-300 transition-all">
                         <Edit2 className="h-4 w-4" />
                       </Button>
                       <Button variant="outline" onClick={() => setDeleteTarget(ann.id)} className="flex-1 h-10 rounded-xl font-bold text-rose-600 hover:text-rose-700 hover:bg-rose-50 hover:border-rose-200 transition-all">

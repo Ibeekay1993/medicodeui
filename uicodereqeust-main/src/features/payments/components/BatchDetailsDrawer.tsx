@@ -42,7 +42,7 @@ export function BatchDetailsDrawer({
                   batch.status === "paid"
                     ? "bg-emerald-50 text-emerald-600 border border-emerald-100"
                     : batch.status === "ready"
-                    ? "bg-blue-50 text-blue-600 border border-blue-100"
+                    ? "bg-slate-100 text-slate-600 border border-slate-200"
                     : "bg-slate-100 text-slate-500 border border-slate-200"
                 }`}>
                   {batch.status}
@@ -161,7 +161,7 @@ export function BatchDetailsDrawer({
                       <Badge className={`border text-xs font-black uppercase px-2 py-0.5 rounded-full ${
                         claim.status === "paid"
                           ? "bg-emerald-500/10 text-emerald-600 border-none"
-                          : "bg-blue-500/10 text-blue-700 border-none"
+                          : "bg-slate-100 text-slate-600 border-none"
                       }`}>
                         {claim.status}
                       </Badge>

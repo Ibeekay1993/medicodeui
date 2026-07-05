@@ -83,10 +83,10 @@ export default function DiagnosisSection({
                   e.preventDefault();
                   addDiagnosis(d);
                 }}
-                className="w-full text-left px-4 py-3 hover:bg-blue-50 transition-colors group flex items-center justify-between"
+                className="w-full text-left px-4 py-3 hover:bg-slate-50 transition-colors group flex items-center justify-between"
               >
-                <p className="text-sm font-semibold text-slate-800 group-hover:text-blue-700">{d}</p>
-                <Plus className="h-4 w-4 text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                <p className="text-sm font-semibold text-slate-800 group-hover:text-slate-900">{d}</p>
+                <Plus className="h-4 w-4 text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity" />
               </button>
             ))}
             {diagnosisSearch.trim().length >= 2 &&

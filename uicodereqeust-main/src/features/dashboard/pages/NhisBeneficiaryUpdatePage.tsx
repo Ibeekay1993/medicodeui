@@ -304,11 +304,11 @@ export default function NhisBeneficiaryUpdatePage() {
              <p className="text-xs font-black uppercase tracking-widest text-emerald-700 mb-2">New Records</p>
              <p className="text-3xl font-black text-emerald-900">{formatNumber(replacementResult.newCount)}</p>
            </div>
-           <div className="rounded-2xl border border-blue-200 bg-blue-50 p-6 shadow-sm">
-             <p className="text-xs font-black uppercase tracking-widest text-blue-700 mb-2">Difference</p>
-             <p className="text-3xl font-black text-blue-900">
-               {replacementResult.difference > 0 ? "+" : ""}{formatNumber(replacementResult.difference)}
-             </p>
+           <div className="rounded-2xl border border-slate-200 bg-slate-50 p-6 shadow-sm">
+              <p className="text-xs font-black uppercase tracking-widest text-slate-600 mb-2">Difference</p>
+              <p className="text-3xl font-black text-slate-800">
+                {replacementResult.difference > 0 ? "+" : ""}{formatNumber(replacementResult.difference)}
+              </p>
            </div>
         </div>
 

@@ -50,7 +50,7 @@ export default function ExportCSVDialog({ open, onOpenChange, onExport, isExport
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md rounded-2xl border-none p-0 overflow-hidden shadow-2xl">
-        <div className="bg-[#3f3f95] p-6 text-white">
+        <div className="bg-slate-800 p-6 text-white">
           <DialogTitle className="text-sm font-black uppercase tracking-wider flex items-center gap-2">
             <Calendar className="h-4 w-4 text-emerald-400" /> Export Authorizations
           </DialogTitle>

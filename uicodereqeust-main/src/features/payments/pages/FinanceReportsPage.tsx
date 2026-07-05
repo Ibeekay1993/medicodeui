@@ -49,11 +49,11 @@ export default function FinanceReportsPage() {
   const cards = useMemo(
     () => [
       { label: "Awaiting Payments", value: stats.awaitingValue, count: stats.awaitingCount, icon: <Clock className="h-6 w-6 text-orange-500" />, bg: "from-orange-50 to-orange-100", border: "border-orange-200" },
-      { label: "Paid Claims", value: stats.paidValue, count: stats.paidCount, icon: <CheckCircle2 className="h-6 w-6 text-green-500" />, bg: "from-green-50 to-green-100", border: "border-green-200" },
+      { label: "Paid Claims", value: stats.paidValue, count: stats.paidCount, icon: <CheckCircle2 className="h-6 w-6 text-slate-500" />, bg: "from-slate-50 to-slate-100", border: "border-slate-200" },
       { label: "Draft Batches", value: stats.draftBatches, count: stats.draftBatches, icon: <FileBox className="h-6 w-6 text-slate-500" />, bg: "from-slate-50 to-slate-100", border: "border-slate-200" },
-      { label: "Ready for Payout", value: stats.readyBatches, count: stats.readyBatches, icon: <FileBox className="h-6 w-6 text-blue-500" />, bg: "from-blue-50 to-blue-100", border: "border-blue-200" },
+      { label: "Ready for Payout", value: stats.readyBatches, count: stats.readyBatches, icon: <FileBox className="h-6 w-6 text-slate-500" />, bg: "from-slate-50 to-slate-100", border: "border-slate-200" },
       { label: "Settled Batches", value: stats.paidBatches, count: stats.paidBatches, icon: <CheckCircle2 className="h-6 w-6 text-emerald-500" />, bg: "from-emerald-50 to-emerald-100", border: "border-emerald-200" },
-      { label: "Total Batches Value", value: stats.totalBatchesValue, count: stats.totalBatchesValue, icon: <Coins className="h-6 w-6 text-indigo-500" />, bg: "from-indigo-50 to-indigo-100", border: "border-indigo-200" },
+      { label: "Total Batches Value", value: stats.totalBatchesValue, count: stats.totalBatchesValue, icon: <Coins className="h-6 w-6 text-slate-600" />, bg: "from-slate-50 to-slate-100", border: "border-slate-200" },
     ],
     [stats]
   );

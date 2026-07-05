@@ -425,7 +425,7 @@ export default function AwaitingPaymentPage() {
                         className={`border-none text-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
                           c.status === "approved" 
                             ? "bg-emerald-500/10 text-emerald-600" 
-                            : "bg-blue-500/10 text-blue-700"
+                            : "bg-slate-100 text-slate-600"
                         }`}
                       >
                         {c.status.replace("_", " ")}

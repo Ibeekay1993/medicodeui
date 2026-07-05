@@ -109,12 +109,12 @@ export const PostReviewTemplates = React.memo(function PostReviewTemplates({
           </p>
 
           {editReferralHospitalName.trim() && (
-            <div className="rounded-xl border border-blue-100 bg-blue-50/70 p-3 text-xs font-semibold leading-relaxed text-blue-900 shadow-inner">
+            <div className="rounded-xl border border-slate-100 bg-slate-50/70 p-3 text-xs font-semibold leading-relaxed text-slate-800 shadow-inner">
               Referral To: {editReferralHospitalName.trim()}
               <br />
               Request Raised By: {request.requesting_hospital_name || request.hospital_name || "Original hospital"}
               <br />
-              <span className="text-xs text-blue-800/70 font-bold">Claim and payment rights belong to the referred hospital only.</span>
+              <span className="text-xs text-slate-500 font-bold">Claim and payment rights belong to the referred hospital only.</span>
             </div>
           )}
 

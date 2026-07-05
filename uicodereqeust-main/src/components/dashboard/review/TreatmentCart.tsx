@@ -98,7 +98,7 @@ export const TreatmentCart = React.memo(function TreatmentCart({
 
   return (
     <div className="space-y-3.5 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[inset_0_1px_4px_rgba(0,0,0,0.02)] transition-all">
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="min-w-0 flex-1">
           <div className="text-xs font-black uppercase tracking-widest text-slate-800">
             Approved Treatment Cart
@@ -109,7 +109,7 @@ export const TreatmentCart = React.memo(function TreatmentCart({
               : "Auto-detect and align clinical codes, quantities, and pricing."}
           </p>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-2 shrink-0 self-start sm:self-auto w-full sm:w-auto">
           {!cartCollapsed && (
             <Button
               type="button"
@@ -128,7 +128,8 @@ export const TreatmentCart = React.memo(function TreatmentCart({
               ) : (
                 <Sparkles className="mr-1.5 h-3.5 w-3.5" />
               )}
-              {isHospitalDirected ? "Re-Detect Disabled" : "Re-Detect Items"}
+              {isHospitalDirected ? "Re-Detect Disabled" : <span className="hidden sm:inline">Re-Detect Items</span>}
+              {!isHospitalDirected && <span className="sm:hidden">Re-Detect</span>}
             </Button>
           )}
           <Button
@@ -146,13 +147,13 @@ export const TreatmentCart = React.memo(function TreatmentCart({
       {!cartCollapsed && (
         <div className="space-y-3.5 animate-in fade-in duration-200">
           {parseStatus && (
-            <div className="flex items-center gap-2 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2.5 text-xs font-bold text-slate-600 shadow-sm">
+            <div className="flex items-center gap-2 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2.5 text-xs font-bold text-slate-600 shadow-sm break-words whitespace-normal flex-wrap">
               {parseLoading ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin text-slate-500" />
+                <Loader2 className="h-3.5 w-3.5 animate-spin text-slate-500 shrink-0" />
               ) : (
-                <Sparkles className="h-3.5 w-3.5 text-slate-500" />
+                <Sparkles className="h-3.5 w-3.5 text-slate-500 shrink-0" />
               )}
-              {parseStatus}
+              <span className="min-w-0">{parseStatus}</span>
             </div>
           )}
           {approvedItems.length > 0 ? (
@@ -171,7 +172,7 @@ export const TreatmentCart = React.memo(function TreatmentCart({
                     <div className="flex items-start justify-between gap-4">
                       <div className="min-w-0 flex-1">
                         <p className={cn(
-                          "text-xs font-bold leading-snug uppercase",
+                          "text-xs font-bold leading-snug uppercase break-words break-all sm:break-normal",
                           item.declined ? "line-through text-slate-400" : "text-slate-800"
                         )}>
                           {item.name}
@@ -358,11 +359,11 @@ export const TreatmentCart = React.memo(function TreatmentCart({
                   </div>
                 ))}
               </div>
-              <div className="flex items-center justify-between border-t border-emerald-100 bg-emerald-50/50 px-4 py-3">
-                <span className="text-xs font-black uppercase tracking-widest text-emerald-800">
+              <div className="flex items-center justify-between border-t border-slate-100 bg-slate-50 px-4 py-3">
+                <span className="text-xs font-black uppercase tracking-widest text-slate-700">
                   Total Approved Amount
                 </span>
-                <span className="text-base font-black text-emerald-700">
+                <span className="text-base font-black text-slate-800">
                   {formatNaira(approvedTotal)}
                 </span>
               </div>
@@ -430,7 +431,7 @@ export const TreatmentCart = React.memo(function TreatmentCart({
                         )}
                       </span>
                     </span>
-                    <span className="shrink-0 text-xs font-black text-emerald-700 bg-emerald-50/80 px-2 py-1 rounded-lg">
+                    <span className="shrink-0 text-xs font-black text-slate-700 bg-slate-100 px-2 py-1 rounded-lg">
                       {formatNaira(option.price)}
                     </span>
                   </button>

@@ -49,9 +49,9 @@ export default function ClaimReviewDialog({
   return (
     <Dialog open={isReviewing} onOpenChange={setIsReviewing}>
       <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto overflow-x-hidden rounded-2xl border-none shadow-2xl p-0">
-        <div className="bg-[#3f3f95] p-6 text-white relative">
+        <div className="bg-slate-800 p-6 text-white relative">
           <h2 className="text-sm font-black uppercase tracking-tight italic">
-            Claim <span className="text-emerald-400">Review</span>
+            Claim <span className="text-slate-300">Review</span>
           </h2>
           <p className="text-xs font-bold text-slate-200/80 uppercase tracking-widest mt-1">
             Final Verification Stage
@@ -231,7 +231,7 @@ export default function ClaimReviewDialog({
             <Button 
               disabled={isSubmitting} 
               onClick={handleClaimSubmit}
-              className="w-full h-12 rounded-xl bg-[#3f3f95] hover:bg-[#32327a] text-xs font-black uppercase tracking-widest shadow-xl shadow-[#3f3f95]/15 active:scale-95 transition-all text-white"
+              className="w-full h-12 rounded-xl bg-slate-800 hover:bg-slate-900 text-xs font-black uppercase tracking-widest shadow-xl shadow-slate-900/10 active:scale-95 transition-all text-white"
             >
               {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin text-white" /> : "Confirm & Submit Claim"}
             </Button>
