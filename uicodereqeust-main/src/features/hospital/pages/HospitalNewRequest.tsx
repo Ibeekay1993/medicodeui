@@ -432,7 +432,7 @@ export default function HospitalNewRequest() {
 
       // Resolve referral hospital ID if name is provided but ID is missing.
       let resolvedReferralHospitalId = referralHospitalId;
-      let resolvedReferralHospitalName = referralHospitalName.trim() || null;
+      const resolvedReferralHospitalName = referralHospitalName.trim() || null;
       if (!resolvedReferralHospitalId && resolvedReferralHospitalName) {
         const foundId = await findHospitalIdByName(referralHospitalName.trim());
         if (foundId) {

@@ -190,7 +190,7 @@ serve(async (req) => {
 
       // Preserve existing referral assignment if new one not explicitly provided
       let finalReferredHospitalId = referredHospitalId || requestRow.referred_hospital_id || null;
-      let finalReferredHospitalName = referredHospitalName || requestRow.referred_hospital_name || null;
+      const finalReferredHospitalName = referredHospitalName || requestRow.referred_hospital_name || null;
 
       // If we have a name but no ID, try to look up the ID by name
       if (!finalReferredHospitalId && finalReferredHospitalName) {

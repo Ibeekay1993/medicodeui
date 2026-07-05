@@ -97,7 +97,7 @@ serve(async (req) => {
     if (insertError) throw insertError;
 
     // Based on Option A, we DO NOT send an email here. The email is only sent on approval.
-    let emailStatus = "skipped";
+    const emailStatus = "skipped";
 
     await supabase.from("audit_logs").insert({
       action: "otp_generated",

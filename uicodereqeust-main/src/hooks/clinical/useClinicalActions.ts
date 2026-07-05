@@ -330,7 +330,7 @@ export function useClinicalActions({
         let finalReferredHospitalId = editReferralHospitalName.trim()
           ? editReferralHospitalId
           : request.referred_hospital_id || null;
-        let finalReferredHospitalName = editReferralHospitalName.trim()
+        const finalReferredHospitalName = editReferralHospitalName.trim()
           ? editReferralHospitalName.trim()
           : request.referred_hospital_name || null;
 

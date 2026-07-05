@@ -178,7 +178,7 @@ export class HospitalService {
 
     if (error) throw error;
 
-    let claimStatusMap = new Map<string, string>();
+    const claimStatusMap = new Map<string, string>();
     if (data && data.length > 0) {
       const pageRequestIds = data.map((r: any) => r.id);
       const { data: claimsData } = await supabase

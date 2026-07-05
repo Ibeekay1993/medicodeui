@@ -35,7 +35,7 @@ export default function ReferralProcessDialog({
 
   const handleAccept = async () => {
     if (!otp.trim()) {
-      toast({ variant: "destructive", title: "OTP Required", description: "Please enter the 6-digit patient arrival OTP." });
+      toast({ variant: "destructive", title: "OTP Required", description: "Please enter the 6-digit patient OTP/PIN." });
       return;
     }
 
@@ -142,7 +142,7 @@ export default function ReferralProcessDialog({
             Accept <span className="text-white/80">Referral</span>
           </h2>
           <p className="text-xs font-bold text-slate-200/80 uppercase tracking-widest mt-1">
-            Stage 3: Acceptance & Physical Arrival
+            Stage 3: Acceptance
           </p>
         </div>
 
@@ -176,7 +176,7 @@ export default function ReferralProcessDialog({
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label className="text-xs uppercase font-black text-slate-400 tracking-wider">
-                  Patient Arrival OTP (Verification)
+                  Patient OTP/PIN (Verification)
                 </Label>
                 <Input
                   maxLength={6}
