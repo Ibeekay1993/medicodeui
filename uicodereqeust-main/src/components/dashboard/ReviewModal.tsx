@@ -480,6 +480,23 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
 
               {/* ─── Tab 2: Clinical Review ─── */}
               <TabsContent value="clinical" className="space-y-4 mt-0">
+                {/* Standard Request Facility Banner (Non-Referral) */}
+                {!request?.referred_hospital_name && (request?.requesting_hospital_name || requestingHospitalName) && (
+                  <div className="bg-slate-50 rounded-2xl p-4 sm:p-5 mb-4 border border-slate-200 min-w-0 shadow-sm">
+                    <div className="inline-block bg-slate-200 text-slate-600 px-3 py-1 rounded-full text-[10px] font-bold tracking-widest uppercase">
+                      Requesting Facility
+                    </div>
+                    <div className="text-[16px] sm:text-[18px] font-extrabold text-slate-800 mt-2 leading-tight break-words [overflow-wrap:anywhere]">
+                      {requestingHospitalName || "Unknown Hospital"}
+                    </div>
+                    {request?.clinical_notes && (
+                      <div className="text-[13px] font-medium text-slate-500 mt-1.5 leading-relaxed break-words [overflow-wrap:anywhere]">
+                        <span className="font-bold text-slate-700">Clinical Notes:</span> {request.clinical_notes}
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {/* Referral Banner */}
                 {request?.referred_hospital_name && (
                   <div className="bg-blue-50 rounded-2xl p-4 sm:p-5 mb-4 border border-blue-100 min-w-0">
