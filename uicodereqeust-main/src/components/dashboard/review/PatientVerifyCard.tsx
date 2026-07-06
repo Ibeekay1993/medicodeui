@@ -53,10 +53,10 @@ export function PatientVerifyCard({
             Primary
           </div>
           <div className="text-[16px] sm:text-[18px] font-extrabold text-slate-800 mt-2 leading-tight">
-            {primaryHospital?.hospital_name || requestingHospitalName || "University of Ibadan Health Services (Jaja Health Clinic)"}
+            {primaryHospital?.hcp_name || primaryHospital?.hospital_name || requestingHospitalName || "Unknown Hospital"}
           </div>
           <div className="text-[12px] text-slate-500 mt-1">
-            {primaryHospital?.state || "Oyo State"}
+            {primaryHospital?.state || "Unknown State"}
           </div>
         </div>
 
@@ -66,7 +66,7 @@ export function PatientVerifyCard({
               Hospital ID
             </div>
             <div className="text-[13px] sm:text-[14px] font-bold text-slate-800 mt-1">
-              {primaryHospital?.code || requestingHospitalCode || "HOS-IB-252"}
+              {primaryHospital?.hcp_code || primaryHospital?.code || requestingHospitalCode || "N/A"}
             </div>
           </div>
           <div className="bg-slate-50 rounded-xl p-3 border border-slate-100">
@@ -74,7 +74,7 @@ export function PatientVerifyCard({
               Registration No
             </div>
             <div className="text-[13px] sm:text-[14px] font-bold text-slate-800 mt-1">
-              {primaryHospital?.registration_no || "OY/0252/P"}
+              {primaryHospital?.registration_no || "N/A"}
             </div>
           </div>
           <div className="bg-slate-50 rounded-xl p-3 border border-slate-100">
@@ -82,7 +82,7 @@ export function PatientVerifyCard({
               Tier Level
             </div>
             <div className="text-[13px] sm:text-[14px] font-bold text-slate-800 mt-1">
-              {primaryHospital?.tier_level || "Primary"}
+              {primaryHospital?.tier_level || "N/A"}
             </div>
           </div>
         </div>
