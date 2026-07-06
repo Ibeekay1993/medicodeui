@@ -156,6 +156,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setRole(null);
       setFullName(null);
       setHospitalId(null);
+      if (typeof window !== "undefined") {
+        window.localStorage.removeItem(lastActivityStorageKey);
+        window.sessionStorage.removeItem(sessionStartStorageKey);
+      }
       if (!silent) setLoading(false);
       return;
     }
@@ -182,6 +186,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setRole(null);
       setFullName(null);
       setHospitalId(null);
+      if (typeof window !== "undefined") {
+        window.localStorage.removeItem(lastActivityStorageKey);
+        window.sessionStorage.removeItem(sessionStartStorageKey);
+      }
       try {
         await supabase.auth.signOut({ scope: "local" });
       } catch (err) {
@@ -232,7 +240,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (maxLifetimeTimerRef.current) window.clearTimeout(maxLifetimeTimerRef.current);
       inactivityTimerRef.current = null;
       maxLifetimeTimerRef.current = null;
-      if (typeof window !== "undefined" && !loading) {
+      if (typeof window !== "undefined") {
         window.localStorage.removeItem(lastActivityStorageKey);
         window.sessionStorage.removeItem(sessionStartStorageKey);
       }
