@@ -481,16 +481,16 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
               {/* ─── Tab 2: Clinical Review ─── */}
               <TabsContent value="clinical" className="space-y-4 mt-0">
                 {/* Referral Banner */}
-                {request?.requesting_hospital_name && (
+                {request?.referred_hospital_name && (
                   <div className="bg-blue-50 rounded-2xl p-4 sm:p-5 mb-4 border border-blue-100 min-w-0">
                     <div className="inline-block bg-blue-500 text-white px-3 py-1 rounded-full text-[10px] font-bold tracking-widest uppercase">
                       Referral Request
                     </div>
                     <div className="text-[16px] sm:text-[18px] font-extrabold text-slate-800 mt-2 leading-tight break-words [overflow-wrap:anywhere]">
-                      {requestingHospitalName || "Unknown Hospital"}
+                      Referred to: {request.referred_hospital_name}
                     </div>
                     <div className="text-[13px] font-medium text-slate-500 mt-1.5 leading-relaxed break-words [overflow-wrap:anywhere]">
-                      {request?.clinical_notes || "Patient referred for further clinical evaluation and management."}
+                      {request?.clinical_notes ? `Notes from ${requestingHospitalName}: ${request.clinical_notes}` : `Patient referred by ${requestingHospitalName} for further clinical evaluation and management.`}
                     </div>
                   </div>
                 )}

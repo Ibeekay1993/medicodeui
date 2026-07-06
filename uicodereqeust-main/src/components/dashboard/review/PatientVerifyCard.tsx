@@ -86,6 +86,16 @@ export function PatientVerifyCard({
             </div>
           </div>
         </div>
+
+        {primaryHospitalMismatch && (
+          <div className="mt-3 p-3 bg-rose-50 border border-rose-100 rounded-xl flex items-start gap-2 animate-in fade-in">
+            <AlertTriangle className="w-4 h-4 text-rose-500 shrink-0 mt-0.5" />
+            <div>
+              <p className="text-[11px] font-bold text-rose-800 uppercase tracking-wider">Primary Hospital Mismatch</p>
+              <p className="text-[11px] text-rose-600 mt-0.5 font-medium leading-relaxed">This request is from <span className="font-bold">{requestingHospitalName}</span>, which is not the patient's registered primary hospital.</p>
+            </div>
+          </div>
+        )}
       </div>
 
             {/* NHIS Confirmation */}
