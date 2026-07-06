@@ -237,9 +237,11 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
               <div className="text-[11px] font-black text-slate-800 uppercase tracking-widest mb-1">
                 Clinical Review
               </div>
-              <h2 className="text-lg sm:text-xl font-extrabold text-slate-900 leading-tight truncate uppercase">
-                {requestPatientName || "Unknown Patient"}
-              </h2>
+              <div className="sticky top-0 z-50 bg-white/95 backdrop-blur py-2 -my-2 shadow-[0_4px_15px_rgba(255,255,255,0.9)] w-full">
+                <h2 className="text-lg sm:text-xl font-extrabold text-slate-900 leading-tight truncate uppercase">
+                  {requestPatientName || "Unknown Patient"}
+                </h2>
+              </div>
               <div className="flex items-center gap-2 mt-1 flex-wrap text-slate-500 text-[11px]">
                 <span>Policy: {requestPolicyNumber || "N/A"}</span>
                 <span className="text-slate-300">&bull;</span>
