@@ -224,20 +224,22 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent
-        className="w-[94vw] max-w-[94vw] sm:max-w-3xl md:max-w-5xl lg:max-w-6xl max-h-[92dvh] rounded-[1.5rem] sm:rounded-[2rem] border-0 bg-white/95 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-white to-slate-50/50 backdrop-blur-2xl selection:bg-slate-200 p-0 shadow-[0_8px_40px_rgb(0,0,0,0.08)] ring-1 ring-slate-200 overflow-y-auto overflow-x-hidden min-w-0 [&_*]:min-w-0"
+        className="w-[94vw] max-w-[94vw] sm:max-w-3xl md:max-w-5xl lg:max-w-6xl max-h-[92dvh] rounded-[1.5rem] sm:rounded-[2rem] border-0 bg-white/95 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-white to-slate-50/50 backdrop-blur-2xl selection:bg-slate-200 p-0 shadow-[0_8px_40px_rgb(0,0,0,0.08)] ring-1 ring-slate-200 overflow-y-auto overflow-x-hidden min-w-0 [&_*]:min-w-0 [&>button.absolute.right-4]:hidden"
         ref={scrollContainerRef}
         onScroll={(e) => setShowStickyName((e.target as HTMLElement).scrollTop > 60)}
       >
         {/* Sticky floating patient name bar - appears on scroll */}
-        <div 
-          className={cn(
-            "sticky top-0 z-[100] bg-white/95 backdrop-blur-md border-b border-slate-200 px-5 py-2 shadow-sm transition-opacity duration-200 ease-in-out w-full",
-            showStickyName ? "opacity-100" : "opacity-0 pointer-events-none"
-          )}
-        >
-          <p className="text-[12px] sm:text-[13px] font-extrabold text-slate-900 uppercase tracking-wider truncate text-center">
-            {requestPatientName || "Unknown Patient"}
-          </p>
+        <div className="sticky top-0 z-[100] w-full h-0 overflow-visible">
+          <div 
+            className={cn(
+              "absolute top-0 left-0 right-0 bg-white/95 backdrop-blur-md border-b border-slate-200 px-5 py-2 shadow-sm transition-opacity duration-200 ease-in-out",
+              showStickyName ? "opacity-100" : "opacity-0 pointer-events-none"
+            )}
+          >
+            <p className="text-[12px] sm:text-[13px] font-extrabold text-slate-900 uppercase tracking-wider truncate text-center">
+              {requestPatientName || "Unknown Patient"}
+            </p>
+          </div>
         </div>
         <Tabs value={activeTab} onValueChange={setActiveTab as any} className="w-full min-w-0">
         {/* Fixed Header */}
