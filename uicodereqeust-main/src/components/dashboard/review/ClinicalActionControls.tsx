@@ -169,7 +169,7 @@ export const ClinicalActionControls = React.memo(function ClinicalActionControls
                   </Button>
                   <Button
                     onClick={handleApprove}
-                    className="h-12 rounded-xl bg-emerald-600 px-8 text-xs font-black uppercase tracking-widest text-white shadow-lg shadow-emerald-250 transition-all hover:bg-emerald-700 hover:shadow-emerald-300 active:scale-95"
+                    className="h-12 rounded-xl bg-emerald-600 px-8 text-xs font-black uppercase tracking-widest text-white shadow-lg shadow-emerald-200 transition-all hover:bg-emerald-700 hover:shadow-emerald-300 active:scale-95"
                     disabled={processing || isAwaitingDeletion}
                   >
                     {processingAction === "approve" ? (

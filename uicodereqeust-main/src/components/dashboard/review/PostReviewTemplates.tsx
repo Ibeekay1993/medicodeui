@@ -125,7 +125,7 @@ export const PostReviewTemplates = React.memo(function PostReviewTemplates({
 
           <div className="space-y-2 border-b border-slate-100 pb-3">
             <strong className="text-slate-500 uppercase tracking-wider text-xs">Approved Items:</strong>
-            <div className="rounded-xl border border-slate-150 bg-slate-50/50 overflow-hidden divide-y divide-slate-100">
+            <div className="rounded-xl border border-slate-100 bg-slate-50/50 overflow-hidden divide-y divide-slate-100">
               {approvalResult.items.length ? (
                 approvalResult.items.map((item) => {
                   const isDeclined = !!item.declined;
@@ -139,7 +139,7 @@ export const PostReviewTemplates = React.memo(function PostReviewTemplates({
                           <span className={`block text-xs font-bold break-words ${isDeclined ? "line-through text-rose-900/60" : "text-slate-800"}`}>
                             {item.code || "NHIA"} - {item.name}
                             {isDeclined && (
-                              <Badge variant="outline" className="ml-1.5 border-rose-250 bg-rose-100/50 text-xs font-black uppercase tracking-wider text-rose-700 px-1 py-0 h-4">
+                              <Badge variant="outline" className="ml-1.5 border-rose-200 bg-rose-100/50 text-xs font-black uppercase tracking-wider text-rose-700 px-1 py-0 h-4">
                                 Declined
                               </Badge>
                             )}
@@ -153,7 +153,7 @@ export const PostReviewTemplates = React.memo(function PostReviewTemplates({
                         </span>
                       </div>
                       {isDeclined && item.decline_reason && (
-                        <div className="text-xs text-rose-750 font-medium bg-rose-100/30 rounded-md px-2 py-1 border border-rose-200/40 mt-1">
+                        <div className="text-xs text-rose-700 font-medium bg-rose-100/30 rounded-md px-2 py-1 border border-rose-200/40 mt-1">
                           <span className="font-bold text-rose-800">Reason:</span> {item.decline_reason}
                         </div>
                       )}
@@ -198,7 +198,7 @@ export const PostReviewTemplates = React.memo(function PostReviewTemplates({
           <Button
             variant="outline"
             onClick={() => setApprovalResult(null)}
-            className="flex-1 h-12 rounded-xl border-slate-250 hover:bg-slate-50 font-black gap-1.5 text-xs uppercase tracking-wider"
+            className="flex-1 h-12 rounded-xl border-slate-200 hover:bg-slate-50 font-black gap-1.5 text-xs uppercase tracking-wider"
           >
             <Sparkles className="w-4 h-4 text-primary" /> Modify Record
           </Button>
@@ -254,7 +254,7 @@ export const PostReviewTemplates = React.memo(function PostReviewTemplates({
           </p>
           <p className="flex justify-between border-b border-slate-100 pb-2.5">
             <strong className="text-slate-500 uppercase tracking-wider text-xs">Requested For:</strong>
-            <span className="font-semibold text-slate-750 text-right leading-snug">
+            <span className="font-semibold text-slate-700 text-right leading-snug">
               {declineResult.diagnosis} - {declineResult.treatment}
             </span>
           </p>
@@ -275,7 +275,7 @@ export const PostReviewTemplates = React.memo(function PostReviewTemplates({
           <Button
             variant="outline"
             onClick={() => setDeclineResult(null)}
-            className="flex-1 h-12 rounded-xl border-slate-250 hover:bg-slate-50 font-black gap-1.5 text-xs uppercase tracking-wider"
+            className="flex-1 h-12 rounded-xl border-slate-200 hover:bg-slate-50 font-black gap-1.5 text-xs uppercase tracking-wider"
           >
             <Sparkles className="w-4 h-4 text-primary" /> Modify Record
           </Button>

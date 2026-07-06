@@ -78,7 +78,7 @@ export default function PaidClaimsPage() {
             <button
               type="button"
               onClick={() => setIsHospitalDropdownOpen(!isHospitalDropdownOpen)}
-              className="w-full flex items-center justify-between border border-slate-200 rounded-lg px-3 py-2 text-xs font-semibold text-slate-700 bg-slate-50 focus:outline-none focus:ring-1 focus:ring-[#3f3f95]"
+              className="w-full flex items-center justify-between border border-slate-200 rounded-lg px-3 py-2 text-xs font-semibold text-slate-700 bg-slate-50 focus:outline-none focus:ring-1 focus:ring-brand-700"
             >
               <span className="truncate">
                 {selectedHospitalId === "all" 
@@ -105,7 +105,7 @@ export default function PaidClaimsPage() {
                       placeholder="Search hospital..."
                       value={hospitalSearchQuery}
                       onChange={(e) => setHospitalSearchQuery(e.target.value)}
-                      className="w-full border border-slate-200 rounded-lg pl-8 pr-3 py-1.5 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-[#3f3f95]"
+                      className="w-full border border-slate-200 rounded-lg pl-8 pr-3 py-1.5 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-brand-700"
                     />
                   </div>
                   <div className="max-h-60 overflow-y-auto divide-y divide-slate-50">
@@ -119,7 +119,7 @@ export default function PaidClaimsPage() {
                       className="w-full flex items-center justify-between px-2.5 py-1.5 text-left text-xs font-semibold hover:bg-slate-50 rounded-md transition-colors"
                     >
                       <span>All Hospitals</span>
-                      {selectedHospitalId === "all" && <Check className="h-3.5 w-3.5 text-[#3f3f95]" />}
+                      {selectedHospitalId === "all" && <Check className="h-3.5 w-3.5 text-brand-700" />}
                     </button>
                     {hospitalsList
                       .filter(h => h.name.toLowerCase().includes(hospitalSearchQuery.toLowerCase()))
@@ -135,7 +135,7 @@ export default function PaidClaimsPage() {
                           className="w-full flex items-center justify-between px-2.5 py-1.5 text-left text-xs font-medium text-slate-700 hover:bg-slate-50 rounded-md transition-colors"
                         >
                           <span className="truncate">{h.name}</span>
-                          {selectedHospitalId === h.id && <Check className="h-3.5 w-3.5 text-[#3f3f95]" />}
+                          {selectedHospitalId === h.id && <Check className="h-3.5 w-3.5 text-brand-700" />}
                         </button>
                       ))}
                   </div>
@@ -149,7 +149,7 @@ export default function PaidClaimsPage() {
             placeholder="Search claim, patient or policy..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="border border-slate-200 rounded-lg px-3 py-2 text-xs font-medium w-full sm:w-64 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-[#3f3f95]"
+            className="border border-slate-200 rounded-lg px-3 py-2 text-xs font-medium w-full sm:w-64 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-brand-700"
             aria-label="Search paid claims"
           />
 
@@ -163,7 +163,7 @@ export default function PaidClaimsPage() {
                 setStartDate("");
                 setEndDate("");
               }}
-              className="border border-slate-200 rounded-lg px-2.5 py-2 text-xs font-semibold text-slate-700 bg-slate-50 focus:outline-none focus:ring-1 focus:ring-[#3f3f95]"
+              className="border border-slate-200 rounded-lg px-2.5 py-2 text-xs font-semibold text-slate-700 bg-slate-50 focus:outline-none focus:ring-1 focus:ring-brand-700"
               title="Filter by payment month"
             />
           </div>
@@ -177,7 +177,7 @@ export default function PaidClaimsPage() {
                 setStartDate(e.target.value);
                 setSelectedMonth("all");
               }}
-              className="border border-slate-200 rounded-lg px-2.5 py-2 text-xs font-semibold text-slate-700 bg-slate-50 focus:outline-none focus:ring-1 focus:ring-[#3f3f95]"
+              className="border border-slate-200 rounded-lg px-2.5 py-2 text-xs font-semibold text-slate-700 bg-slate-50 focus:outline-none focus:ring-1 focus:ring-brand-700"
               placeholder="Start"
               title="Start Date"
             />
@@ -189,7 +189,7 @@ export default function PaidClaimsPage() {
                 setEndDate(e.target.value);
                 setSelectedMonth("all");
               }}
-              className="border border-slate-200 rounded-lg px-2.5 py-2 text-xs font-semibold text-slate-700 bg-slate-50 focus:outline-none focus:ring-1 focus:ring-[#3f3f95]"
+              className="border border-slate-200 rounded-lg px-2.5 py-2 text-xs font-semibold text-slate-700 bg-slate-50 focus:outline-none focus:ring-1 focus:ring-brand-700"
               placeholder="End"
               title="End Date"
             />

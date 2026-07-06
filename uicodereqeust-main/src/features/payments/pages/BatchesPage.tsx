@@ -290,7 +290,7 @@ export default function BatchesPage() {
       <div className="flex h-64 flex-col gap-4 items-center justify-center bg-white border border-slate-100 rounded-xl p-6 shadow-sm">
         <p className="text-xs font-black text-rose-600 uppercase tracking-wider">Failed to load batches</p>
         <p className="text-xs font-bold text-slate-400">{(error as any).message || "An unexpected network error occurred."}</p>
-        <Button onClick={() => refetch()} className="bg-[#3f3f95] hover:bg-[#34347d] text-white font-black text-xs uppercase tracking-wider h-8 px-4 rounded-lg">
+        <Button onClick={() => refetch()} className="bg-brand-700 hover:bg-brand-800 text-white font-black text-xs uppercase tracking-wider h-8 px-4 rounded-lg">
           Retry
         </Button>
       </div>
@@ -323,7 +323,7 @@ export default function BatchesPage() {
             placeholder="Search batch ref or provider..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-medium w-full sm:w-48 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-[#3f3f95]"
+            className="border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-medium w-full sm:w-48 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-brand-700"
           />
 
           <MonthYearPicker
@@ -345,7 +345,7 @@ export default function BatchesPage() {
                 setStartDate(e.target.value);
                 setSelectedMonth("");
               }}
-              className="border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-slate-700 bg-slate-50 focus:outline-none focus:ring-1 focus:ring-[#3f3f95]"
+              className="border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-slate-700 bg-slate-50 focus:outline-none focus:ring-1 focus:ring-brand-700"
               placeholder="Start"
               title="Start Date"
             />
@@ -357,7 +357,7 @@ export default function BatchesPage() {
                 setEndDate(e.target.value);
                 setSelectedMonth("");
               }}
-              className="border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-slate-700 bg-slate-50 focus:outline-none focus:ring-1 focus:ring-[#3f3f95]"
+              className="border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-slate-700 bg-slate-50 focus:outline-none focus:ring-1 focus:ring-brand-700"
               placeholder="End"
               title="End Date"
             />
@@ -436,7 +436,7 @@ export default function BatchesPage() {
                 {/* Amount info */}
                 <div className="pt-2 border-t border-slate-50">
                   <p className="text-xs font-black uppercase tracking-wider text-slate-400">Total Approved Amount</p>
-                  <p className="font-mono font-black text-[#3f3f95] text-lg mt-0.5">
+                  <p className="font-mono font-black text-brand-700 text-lg mt-0.5">
                     {money(batch.total_amount)}
                   </p>
                 </div>
@@ -466,7 +466,7 @@ export default function BatchesPage() {
                         </Button>
                         <Button
                           onClick={() => handleMarkReady(batch)}
-                          className="bg-[#3f3f95] hover:bg-[#34347d] text-white font-black text-xs uppercase tracking-wider h-7 px-2.5 rounded-lg shadow-sm"
+                          className="bg-brand-700 hover:bg-brand-800 text-white font-black text-xs uppercase tracking-wider h-7 px-2.5 rounded-lg shadow-sm"
                         >
                           Mark Ready
                         </Button>
@@ -592,7 +592,7 @@ export default function BatchesPage() {
                   placeholder="Enter NIBSS, Remita, or banking reference..."
                   value={bankRef}
                   onChange={(e) => setBankRef(e.target.value)}
-                  className="border border-slate-200 rounded-lg px-3 py-2 text-xs font-medium w-full placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-[#3f3f95]"
+                  className="border border-slate-200 rounded-lg px-3 py-2 text-xs font-medium w-full placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-brand-700"
                 />
               </div>
 
@@ -607,7 +607,7 @@ export default function BatchesPage() {
                     const file = e.target.files?.[0] || null;
                     setReceiptFile(file);
                   }}
-                  className="border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-medium w-full focus:outline-none focus:ring-1 focus:ring-[#3f3f95] cursor-pointer"
+                  className="border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-medium w-full focus:outline-none focus:ring-1 focus:ring-brand-700 cursor-pointer"
                 />
               </div>
             </div>

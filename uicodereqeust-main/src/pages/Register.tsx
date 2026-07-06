@@ -309,7 +309,7 @@ export default function Register() {
   if (sessionResolving) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <Loader2 className="h-8 w-8 animate-spin text-[#93c34b]" />
+        <Loader2 className="h-8 w-8 animate-spin text-lime-500" />
       </div>
     );
   }
@@ -360,7 +360,7 @@ export default function Register() {
               <img src="/ronsberger-logo.webp" alt="Ronsberger HMO Logo" className="h-full w-full object-contain" fetchPriority="high" />
             </div>
             <CardTitle className="text-2xl font-black text-slate-900 uppercase italic">
-              Complete <span className="text-[#4d7a22]">Registration</span>
+              Complete <span className="text-lime-800">Registration</span>
             </CardTitle>
             <CardDescription className="text-xs font-bold text-slate-500 uppercase tracking-widest mt-2">
               Finalize your Ronsberger HMO access

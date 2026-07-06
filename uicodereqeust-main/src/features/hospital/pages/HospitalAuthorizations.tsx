@@ -344,7 +344,7 @@ export default function HospitalAuthorizations() {
               { id: "referral_declined", label: "Referral Declined" },
               { id: "referral_expired", label: "Referral Expired" }
             ].map(filter => (
-              <SelectItem key={filter.id} value={filter.id} className="font-semibold text-slate-700 focus:bg-emerald-50 focus:text-[#10B981] cursor-pointer">
+              <SelectItem key={filter.id} value={filter.id} className="font-semibold text-slate-700 focus:bg-emerald-50 focus:text-emerald-500 cursor-pointer">
                 {filter.label}
               </SelectItem>
             ))}

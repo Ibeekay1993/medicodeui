@@ -316,16 +316,16 @@ export default function UsersPage() {
       <div className="flex flex-wrap items-center gap-2 pb-3">
             <button
               onClick={() => setActiveTab("directory")}
-              className={cn("rounded-lg px-4 py-2 text-sm font-medium transition", activeTab === "directory" ? "bg-[#93c34b] text-white" : "bg-slate-50 text-slate-600 hover:bg-slate-100")}
+              className={cn("rounded-lg px-4 py-2 text-sm font-medium transition", activeTab === "directory" ? "bg-lime-500 text-white" : "bg-slate-50 text-slate-600 hover:bg-slate-100")}
             >
               User Directory
             </button>
             <button
               onClick={() => setActiveTab("approvals")}
-              className={cn("relative rounded-lg px-4 py-2 text-sm font-medium transition", activeTab === "approvals" ? "bg-[#93c34b] text-white" : "bg-slate-50 text-slate-600 hover:bg-slate-100")}
+              className={cn("relative rounded-lg px-4 py-2 text-sm font-medium transition", activeTab === "approvals" ? "bg-lime-500 text-white" : "bg-slate-50 text-slate-600 hover:bg-slate-100")}
             >
               Name Approvals
-              {nameRequests.length > 0 && <span className="ml-2 rounded-full bg-[#E24B4A] px-1.5 py-0.5 text-xs text-white">{nameRequests.length}</span>}
+              {nameRequests.length > 0 && <span className="ml-2 rounded-full bg-red-500 px-1.5 py-0.5 text-xs text-white">{nameRequests.length}</span>}
             </button>
           </div>
 
@@ -373,7 +373,7 @@ export default function UsersPage() {
                 </thead>
                 <tbody className="divide-y divide-slate-200 text-xs text-slate-600">
                   {loading ? (
-                    <tr><td colSpan={5} className="px-4 py-12 text-center text-slate-500"><Loader2 className="mx-auto mb-3 h-6 w-6 animate-spin text-[#93c34b]" /> Loading users...</td></tr>
+                    <tr><td colSpan={5} className="px-4 py-12 text-center text-slate-500"><Loader2 className="mx-auto mb-3 h-6 w-6 animate-spin text-lime-500" /> Loading users...</td></tr>
                   ) : paginatedUsers.length === 0 ? (
                     <tr><td colSpan={5} className="px-4 py-12 text-center text-slate-500">No users found</td></tr>
                   ) : paginatedUsers.map((item) => {
@@ -452,7 +452,7 @@ export default function UsersPage() {
             {/* Mobile Card Layout View */}
             <div className="block lg:hidden divide-y divide-slate-100">
               {loading ? (
-                <div className="p-8 text-center text-slate-500"><Loader2 className="mx-auto mb-2 h-5 w-5 animate-spin text-[#93c34b]" /> Loading users...</div>
+                <div className="p-8 text-center text-slate-500"><Loader2 className="mx-auto mb-2 h-5 w-5 animate-spin text-lime-500" /> Loading users...</div>
               ) : paginatedUsers.length === 0 ? (
                 <div className="p-8 text-center text-slate-400 uppercase tracking-widest text-xs font-bold">No users found</div>
               ) : paginatedUsers.map((item) => {
@@ -527,7 +527,7 @@ export default function UsersPage() {
       {activeTab === "approvals" && (
         <div className="space-y-3">
           {loadingRequests ? (
-            <div className="med-card flex flex-col items-center justify-center p-16 text-slate-500"><Loader2 className="mb-3 h-6 w-6 animate-spin text-[#93c34b]" /> Loading approval requests...</div>
+            <div className="med-card flex flex-col items-center justify-center p-16 text-slate-500"><Loader2 className="mb-3 h-6 w-6 animate-spin text-lime-500" /> Loading approval requests...</div>
           ) : nameRequests.length === 0 ? (
             <div className="med-card p-12 text-center">
               <UserCheck className="mx-auto mb-3 h-8 w-8 text-slate-300" />

@@ -51,8 +51,8 @@ const NIGERIAN_STATES = [
 
 const emptyHospital = { name: "", code: "", email: "", address: "", phone: "", state: "" };
 const statusPill = (active: boolean) => active
-  ? "border-[#5DCAA5] bg-[#E1F5EE] text-[#93c34b]"
-  : "border-[#F09595] bg-[#FCEBEB] text-[#A32D2D]";
+  ? "border-emerald-400 bg-emerald-50 text-lime-500"
+  : "border-red-300 bg-red-50 text-red-700";
 
 const HospitalForm = ({ value, onChange }: { value: any; onChange: (next: any) => void }) => (
   <div className="grid gap-4 py-3">

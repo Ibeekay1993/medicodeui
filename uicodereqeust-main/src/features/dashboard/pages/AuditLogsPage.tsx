@@ -29,9 +29,9 @@ const actionKind = (value?: string | null) => {
 };
 
 const statusClass = (status: string) => {
-  if (status === "Failed") return "border-[#F09595] bg-[#FCEBEB] text-[#A32D2D]";
-  if (status === "Warning") return "border-[#EF9F27] bg-[#FAEEDA] text-[#854F0B]";
-  return "border-[#5DCAA5] bg-[#E1F5EE] text-[#93c34b]";
+  if (status === "Failed") return "border-red-300 bg-red-50 text-red-700";
+  if (status === "Warning") return "border-amber-500 bg-amber-50 text-amber-800";
+  return "border-emerald-400 bg-emerald-50 text-lime-500";
 };
 
 const extractEmail = (log: any) => {
@@ -178,7 +178,7 @@ export default function AuditLogsPage() {
             </thead>
             <tbody className="divide-y divide-slate-200 text-xs text-slate-600">
               {loading ? (
-                <tr><td colSpan={5} className="px-4 py-12 text-center text-slate-500"><Loader2 className="mx-auto mb-3 h-6 w-6 animate-spin text-[#93c34b]" /> Loading audit trail...</td></tr>
+                <tr><td colSpan={5} className="px-4 py-12 text-center text-slate-500"><Loader2 className="mx-auto mb-3 h-6 w-6 animate-spin text-lime-500" /> Loading audit trail...</td></tr>
               ) : paginatedLogs.length === 0 ? (
                 <tr><td colSpan={5} className="px-4 py-12 text-center text-slate-500"><Activity className="mx-auto mb-3 h-7 w-7 text-slate-300" /> No matching audit records.</td></tr>
               ) : paginatedLogs.map((log) => {
@@ -236,7 +236,7 @@ export default function AuditLogsPage() {
         {/* Mobile Card Layout View */}
         <div className="block lg:hidden divide-y divide-slate-100">
           {loading ? (
-            <div className="p-8 text-center text-slate-500"><Loader2 className="mx-auto mb-2 h-5 w-5 animate-spin text-[#93c34b]" /> Loading audit trail...</div>
+            <div className="p-8 text-center text-slate-500"><Loader2 className="mx-auto mb-2 h-5 w-5 animate-spin text-lime-500" /> Loading audit trail...</div>
           ) : paginatedLogs.length === 0 ? (
             <div className="p-8 text-center text-slate-400 uppercase tracking-widest text-xs font-bold">No matching audit records</div>
           ) : paginatedLogs.map((log) => {

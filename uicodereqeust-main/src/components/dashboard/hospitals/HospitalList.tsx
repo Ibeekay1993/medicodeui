@@ -22,8 +22,8 @@ interface HospitalListProps {
 }
 
 const statusPill = (active: boolean) => active
-  ? "border-[#5DCAA5] bg-[#E1F5EE] text-[#93c34b]"
-  : "border-[#F09595] bg-[#FCEBEB] text-[#A32D2D]";
+  ? "border-emerald-400 bg-emerald-50 text-lime-500"
+  : "border-red-300 bg-red-50 text-red-700";
 
 export function HospitalList({
   hospitals,
@@ -42,7 +42,7 @@ export function HospitalList({
   if (loading) {
     return (
       <div className="p-12 text-center text-slate-500 w-full">
-        <Loader2 className="mx-auto mb-3 h-6 w-6 animate-spin text-[#93c34b]" /> Loading hospitals...
+        <Loader2 className="mx-auto mb-3 h-6 w-6 animate-spin text-lime-500" /> Loading hospitals...
       </div>
     );
   }

@@ -454,12 +454,12 @@ export default function HistoricalCodeImportPage() {
                 <div className="flex-1">
                   {importing && (
                     <div className="flex items-center gap-3 w-full max-w-md">
-                      <Progress value={importProgress} className="h-2 w-full bg-slate-100 [&>div]:bg-[#1A5F4A]" />
+                      <Progress value={importProgress} className="h-2 w-full bg-slate-100 [&>div]:bg-emerald-800" />
                       <span className="text-xs font-bold text-slate-500 w-10">{importProgress}%</span>
                     </div>
                   )}
                 </div>
-                <Button onClick={startImport} disabled={!importMode || importing || analysis.unique === 0} className={`h-11 px-8 rounded-xl text-sm font-bold uppercase tracking-wider text-white transition-colors ${importMode === "wipe" ? "bg-rose-600 hover:bg-rose-700" : "bg-[#1A5F4A] hover:bg-[#0F3D30]"}`}>
+                <Button onClick={startImport} disabled={!importMode || importing || analysis.unique === 0} className={`h-11 px-8 rounded-xl text-sm font-bold uppercase tracking-wider text-white transition-colors ${importMode === "wipe" ? "bg-rose-600 hover:bg-rose-700" : "bg-emerald-800 hover:bg-emerald-900"}`}>
                   {importing ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : null}
                   {importing ? "Processing..." : importMode ? `Execute ${importModeOptions.find((o) => o.value === importMode)?.label}` : "Select Action"}
                 </Button>
@@ -534,7 +534,7 @@ export default function HistoricalCodeImportPage() {
                 event.preventDefault();
                 void runImport(importMode as ImportMode);
               }}
-              className={importMode === "wipe" ? "bg-rose-600 text-white hover:bg-rose-700" : "bg-[#1A5F4A] text-white hover:bg-[#0F3D30]"}
+              className={importMode === "wipe" ? "bg-rose-600 text-white hover:bg-rose-700" : "bg-emerald-800 text-white hover:bg-emerald-900"}
             >
               {importing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
               {importMode === "wipe" ? "WIPE & Import" : "Confirm & Import"}

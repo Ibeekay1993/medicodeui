@@ -344,8 +344,8 @@ export default function Login() {
               <div className="mx-auto mb-4 flex h-[80px] w-[80px] items-center justify-center rounded-2xl bg-white border border-slate-100 shadow-xl p-2 overflow-hidden">
                 <img src="/ronsberger-logo.webp" alt="Ronsberger HMO Logo" className="h-full w-full object-contain" fetchPriority="high" />
               </div>
-              <h1 className="text-xl font-extrabold text-[#3f3f95] uppercase tracking-normal">
-                Ronsberger <span className="text-[#4d7a22]">HMO</span>
+              <h1 className="text-xl font-extrabold text-brand-700 uppercase tracking-normal">
+                Ronsberger <span className="text-lime-800">HMO</span>
               </h1>
               <p className="mt-2 text-xs font-semibold text-slate-700 uppercase tracking-wider">
                 Sign in to your account
@@ -357,8 +357,8 @@ export default function Login() {
               <form onSubmit={handleVerifyMfa} className="space-y-5">
                 <div className="space-y-4">
                   <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
-                    <p className="text-xs font-semibold text-[#3f3f95] leading-tight flex items-center gap-2">
-                      <Shield className="h-4 w-4 text-[#3f3f95]" />
+                    <p className="text-xs font-semibold text-brand-700 leading-tight flex items-center gap-2">
+                      <Shield className="h-4 w-4 text-brand-700" />
                       Multi-Factor Authentication
                     </p>
                     <p className="text-xs text-slate-600 mt-1.5 leading-normal">
@@ -370,7 +370,7 @@ export default function Login() {
                        <Label htmlFor="mfa-code" className="text-xs font-bold text-slate-800">
                          Authenticator Code
                        </Label>
-                      <Badge className="bg-slate-100 text-[#3f3f95] border border-slate-200 text-xs font-bold">
+                      <Badge className="bg-slate-100 text-brand-700 border border-slate-200 text-xs font-bold">
                         MFA Enabled
                       </Badge>
                     </div>
@@ -385,7 +385,7 @@ export default function Login() {
                       }}
                       required
                       placeholder="000000"
-                      className="h-14 rounded-xl text-center text-3xl font-mono tracking-[0.4em] bg-slate-50 border-slate-200 focus:border-[#3f3f95] transition-all"
+                      className="h-14 rounded-xl text-center text-3xl font-mono tracking-[0.4em] bg-slate-50 border-slate-200 focus:border-brand-700 transition-all"
                     />
                   </div>
                 </div>
@@ -393,7 +393,7 @@ export default function Login() {
                   <Button
                     type="submit"
                     disabled={isLoading}
-                    className="h-12 w-full rounded-xl font-semibold bg-[#3f3f95] hover:bg-[#32327a] text-white shadow-lg shadow-[#3f3f95]/10 active:scale-95 transition-all"
+                    className="h-12 w-full rounded-xl font-semibold bg-brand-700 hover:bg-brand-800 text-white shadow-lg shadow-brand-700/10 active:scale-95 transition-all"
                   >
                     {isLoading ? (
                       <Loader2 className="h-4 w-4 animate-spin mx-auto" />
@@ -530,7 +530,7 @@ export default function Login() {
                 <Button
                   type="submit"
                   disabled={isLoading || isLocked}
-                  className="h-12 w-full rounded-xl font-semibold bg-[#3f3f95] hover:bg-[#32327a] text-white shadow-lg shadow-[#3f3f95]/10 active:scale-95 transition-all disabled:opacity-60"
+                  className="h-12 w-full rounded-xl font-semibold bg-brand-700 hover:bg-brand-800 text-white shadow-lg shadow-brand-700/10 active:scale-95 transition-all disabled:opacity-60"
                 >
                   {isLoading ? (
                     <Loader2 className="h-4 w-4 animate-spin" />

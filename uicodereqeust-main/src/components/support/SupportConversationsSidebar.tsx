@@ -61,7 +61,7 @@ export function SupportConversationsSidebar({
       )}
     >
       {/* Inbox Header & Search */}
-      <div className="p-3 border-b border-slate-150 flex flex-col gap-2 bg-white shrink-0">
+      <div className="p-3 border-b border-slate-100 flex flex-col gap-2 bg-white shrink-0">
         <div className="flex items-center justify-between">
           <h2 className="text-base font-medium text-slate-800 mb-1 mt-1">Conversations</h2>
           <div className="flex items-center gap-1">

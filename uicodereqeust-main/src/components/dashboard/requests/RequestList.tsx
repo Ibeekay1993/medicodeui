@@ -137,7 +137,7 @@ export function RequestList({
             {isLoading ? (
               <tr>
                 <td colSpan={isClaimsRole ? 6 : 8} className="py-12 text-center text-xs font-black uppercase tracking-widest text-slate-400">
-                  <Loader2 className="mx-auto mb-3 h-6 w-6 animate-spin text-[#3f3f95]" />
+                  <Loader2 className="mx-auto mb-3 h-6 w-6 animate-spin text-brand-700" />
                   Loading requests...
                 </td>
               </tr>
@@ -281,7 +281,7 @@ export function RequestList({
       <div className="block md:hidden p-4 space-y-4 bg-slate-50 min-h-[50vh]">
         {isLoading ? (
           <div className="py-12 text-center text-xs font-black uppercase tracking-widest text-slate-400 bg-white rounded-xl shadow-sm p-6 border border-slate-100">
-            <Loader2 className="mx-auto mb-3 h-6 w-6 animate-spin text-[#3f3f95]" />
+            <Loader2 className="mx-auto mb-3 h-6 w-6 animate-spin text-brand-700" />
             Loading requests...
           </div>
         ) : requests.length === 0 ? (

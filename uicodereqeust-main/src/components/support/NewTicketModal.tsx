@@ -385,7 +385,7 @@ export function NewTicketModal({
                     value={newTicket.linkedId}
                     onValueChange={(val) => setNewTicket({ ...newTicket, linkedId: val })}
                   >
-                    <SelectTrigger className="h-9 rounded-xl text-xs font-bold bg-indigo-50/30 text-indigo-950 border border-indigo-150">
+                    <SelectTrigger className="h-9 rounded-xl text-xs font-bold bg-indigo-50/30 text-indigo-950 border border-indigo-100">
                       <SelectValue
                         placeholder={
                           newTicket.linkType === "request"

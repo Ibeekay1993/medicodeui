@@ -363,7 +363,7 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
         <div className="p-3 sm:p-5 space-y-4 min-w-0 w-full">
           {/* Locked status warning */}
           {request?.deletion_status === "awaiting_admin_approval" && (
-            <div className="p-4 rounded-2xl text-xs border bg-rose-50 border-rose-250 flex items-center gap-3 text-rose-900 shadow-xs animate-in fade-in duration-350">
+            <div className="p-4 rounded-2xl text-xs border bg-rose-50 border-rose-200 flex items-center gap-3 text-rose-900 shadow-xs animate-in fade-in duration-350">
               <AlertTriangle className="w-5 h-5 text-rose-500 shrink-0" />
               <div>
                 <p className="font-black uppercase tracking-wider text-xs text-rose-800">Awaiting Deletion Approval</p>
@@ -596,7 +596,7 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
                 </div>
                 </div>
 
-                <div className="bg-white rounded-[1.2rem] sm:rounded-[1.5rem] border border-slate-100 shadow-sm p-4 sm:p-5 relative group mb-3 z-20">
+                <div className="bg-white rounded-[1.2rem] sm:rounded-[1.5rem] border border-slate-100 shadow-sm p-4 sm:p-5 relative overflow-hidden group mb-3">
                   {/* Treatment Cart Component */}
                   <TreatmentCart
                     request={request}

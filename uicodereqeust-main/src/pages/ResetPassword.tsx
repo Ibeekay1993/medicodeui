@@ -203,7 +203,7 @@ export default function ResetPassword() {
   if (sessionResolving) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <Loader2 className="h-8 w-8 animate-spin text-[#3f3f95]" />
+        <Loader2 className="h-8 w-8 animate-spin text-brand-700" />
       </div>
     );
   }
@@ -251,10 +251,10 @@ export default function ResetPassword() {
         <Card className="rounded-2xl shadow-2xl border-slate-200 bg-white overflow-hidden">
           <div className="text-center p-6 pb-2">
             <div className="mx-auto mb-4 flex h-[60px] w-[60px] items-center justify-center rounded-2xl bg-slate-900 shadow-xl shadow-slate-900/20">
-              <ShieldCheck className="h-7 w-7 text-[#4d7a22]" />
+              <ShieldCheck className="h-7 w-7 text-lime-800" />
             </div>
             <h1 className="text-2xl font-black text-slate-900 uppercase italic">
-              Reset <span className="text-[#3f3f95]">Password</span>
+              Reset <span className="text-brand-700">Password</span>
             </h1>
             <p className="text-xs font-bold text-slate-600 uppercase tracking-widest mt-2">
               Secure Account Update

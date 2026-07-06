@@ -33,9 +33,9 @@ const money = (value: number) =>
 
 const statusPill = (status?: string | null) => {
   const normalized = String(status || "pending").toLowerCase();
-  if (["approved", "complete"].includes(normalized)) return "border-[#5DCAA5] bg-[#E1F5EE] text-[#93c34b]";
-  if (["rejected", "failed"].includes(normalized)) return "border-[#F09595] bg-[#FCEBEB] text-[#A32D2D]";
-  return "border-[#EF9F27] bg-[#FAEEDA] text-[#854F0B]";
+  if (["approved", "complete"].includes(normalized)) return "border-emerald-400 bg-emerald-50 text-lime-500";
+  if (["rejected", "failed"].includes(normalized)) return "border-red-300 bg-red-50 text-red-700";
+  return "border-amber-500 bg-amber-50 text-amber-800";
 };
 
 export default function DeleteRequestsPage() {
@@ -131,7 +131,7 @@ export default function DeleteRequestsPage() {
           <div className="med-card p-3">
             <div className="flex flex-wrap gap-2">
               {["all", "pending", "approved", "rejected"].map((filter) => (
-                <button key={filter} onClick={() => setStatusFilter(filter)} className={cn("rounded-lg px-3 py-1.5 text-sm font-medium capitalize transition", statusFilter === filter ? "bg-[#93c34b] text-white" : "bg-slate-50 text-slate-600 hover:bg-slate-100")}>{filter}</button>
+                <button key={filter} onClick={() => setStatusFilter(filter)} className={cn("rounded-lg px-3 py-1.5 text-sm font-medium capitalize transition", statusFilter === filter ? "bg-lime-500 text-white" : "bg-slate-50 text-slate-600 hover:bg-slate-100")}>{filter}</button>
               ))}
             </div>
           </div>
@@ -139,7 +139,7 @@ export default function DeleteRequestsPage() {
           <div className="med-card overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full min-w-[980px] text-left">
-                <thead className="bg-[#F8FAFC] text-xs font-semibold uppercase tracking-wide text-[#64748B]">
+                <thead className="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
                   <tr>
                     <th className="px-4 py-3">Request ID</th>
                     <th className="px-4 py-3">Patient</th>
@@ -152,13 +152,13 @@ export default function DeleteRequestsPage() {
                 </thead>
                 <tbody className="divide-y divide-slate-200 text-sm">
                   {loading ? (
-                    <tr><td colSpan={7} className="px-4 py-12 text-center text-slate-500"><Loader2 className="mx-auto mb-3 h-6 w-6 animate-spin text-[#E24B4A]" /> Loading delete requests...</td></tr>
+                    <tr><td colSpan={7} className="px-4 py-12 text-center text-slate-500"><Loader2 className="mx-auto mb-3 h-6 w-6 animate-spin text-red-500" /> Loading delete requests...</td></tr>
                   ) : visibleRows.length === 0 ? (
                     <tr><td colSpan={7} className="px-4 py-12 text-center text-slate-500"><FileCheck className="mx-auto mb-3 h-7 w-7 text-slate-300" /> No pending deletion requests.</td></tr>
                   ) : visibleRows.map((row) => (
-                    <tr key={row.id} className="h-12 transition hover:bg-[#F8FAFC]">
+                    <tr key={row.id} className="h-12 transition hover:bg-slate-50">
                       <td className="px-4 py-3 font-mono text-xs text-slate-700">{row.request_id || row.id}</td>
-                      <td className="px-4 py-3 font-medium text-[#1E293B]">{row.patient_name || "Unknown patient"}</td>
+                      <td className="px-4 py-3 font-medium text-slate-800">{row.patient_name || "Unknown patient"}</td>
                       <td className="px-4 py-3 text-slate-600">{row.deletion_requested_by_name || row.hospital_name || "Unknown"}</td>
                       <td className="px-4 py-3 text-slate-600">{row.deletion_requested_at ? new Date(row.deletion_requested_at).toLocaleDateString("en-GB") : row.created_at ? new Date(row.created_at).toLocaleDateString("en-GB") : "Recently"}</td>
                       <td className="max-w-[260px] truncate px-4 py-3 text-slate-600">{row.deletion_reason || "No reason specified"}</td>
@@ -166,7 +166,7 @@ export default function DeleteRequestsPage() {
                       <td className="px-4 py-3">
                         <div className="flex justify-end gap-2">
                           <Button onClick={() => rejectDelete(row)} disabled={actioningId === row.id} variant="outline" className="h-8 rounded-lg px-3 text-sm">{actioningId === row.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4" />} Reject</Button>
-                          <Button onClick={() => setConfirmDeleteTarget(row)} disabled={actioningId === row.id} className="h-8 rounded-lg bg-[#E24B4A] px-3 text-sm text-white hover:bg-[#A32D2D]"><Trash2 className="h-4 w-4" /> Approve</Button>
+                          <Button onClick={() => setConfirmDeleteTarget(row)} disabled={actioningId === row.id} className="h-8 rounded-lg bg-red-500 px-3 text-sm text-white hover:bg-red-700"><Trash2 className="h-4 w-4" /> Approve</Button>
                         </div>
                       </td>
                     </tr>
@@ -188,7 +188,7 @@ export default function DeleteRequestsPage() {
         <div className="med-card overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full min-w-[760px] text-left">
-              <thead className="bg-[#F8FAFC] text-xs font-semibold uppercase tracking-wide text-[#64748B]">
+              <thead className="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
                 <tr>
                   <th className="px-4 py-3">Original ID</th>
                   <th className="px-4 py-3">Patient</th>
@@ -222,19 +222,19 @@ export default function DeleteRequestsPage() {
       <Dialog open={confirmDeleteTarget !== null} onOpenChange={(open) => !open && setConfirmDeleteTarget(null)}>
         <DialogContent className="max-w-md rounded-xl bg-white p-6 shadow-2xl">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-lg font-semibold text-[#A32D2D]"><ShieldAlert className="h-5 w-5" /> Ledger Deletion Authorization</DialogTitle>
+            <DialogTitle className="flex items-center gap-2 text-lg font-semibold text-red-700"><ShieldAlert className="h-5 w-5" /> Ledger Deletion Authorization</DialogTitle>
             <DialogDescription>This permanently removes the active clinical record and related claims from operational ledgers.</DialogDescription>
           </DialogHeader>
           {confirmDeleteTarget && (
             <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm">
               <div className="flex justify-between gap-3"><span className="text-slate-500">Patient</span><span className="font-semibold">{confirmDeleteTarget.patient_name}</span></div>
               <div className="mt-2 flex justify-between gap-3"><span className="text-slate-500">Auth Code</span><span className="font-mono font-semibold">{confirmDeleteTarget.authorization_code || confirmDeleteTarget.request_id}</span></div>
-              <div className="mt-2 flex justify-between gap-3"><span className="text-slate-500">Approved Value</span><span className="font-semibold text-[#93c34b]">{money(confirmDeleteTarget.total_amount || 0)}</span></div>
+              <div className="mt-2 flex justify-between gap-3"><span className="text-slate-500">Approved Value</span><span className="font-semibold text-lime-500">{money(confirmDeleteTarget.total_amount || 0)}</span></div>
             </div>
           )}
           <DialogFooter className="gap-2">
             <Button onClick={() => setConfirmDeleteTarget(null)} variant="outline" className="rounded-lg">Cancel</Button>
-            <Button onClick={() => approveDelete(confirmDeleteTarget)} disabled={actioningId !== null} className="rounded-lg bg-[#E24B4A] text-white hover:bg-[#A32D2D]">
+            <Button onClick={() => approveDelete(confirmDeleteTarget)} disabled={actioningId !== null} className="rounded-lg bg-red-500 text-white hover:bg-red-700">
               {actioningId !== null ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
               Authorize Deletion
             </Button>

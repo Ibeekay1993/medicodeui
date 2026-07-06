@@ -440,14 +440,14 @@ export function SupportChatArea({
   return (
     <div
       className={cn(
-        "flex-1 flex flex-col h-full bg-[#F9FAFC] transition-all duration-300 relative",
+        "flex-1 flex flex-col h-full bg-slate-50 transition-all duration-300 relative",
         mobileSubView === "CHAT" ? "flex" : "hidden lg:flex"
       )}
     >
       {selected ? (
         <>
           {/* Compact Header bar */}
-          <div className="border-b border-slate-150 bg-white px-3 py-2 shrink-0 flex flex-col gap-2">
+          <div className="border-b border-slate-100 bg-white px-3 py-2 shrink-0 flex flex-col gap-2">
             <div className="flex items-center justify-between gap-2 flex-wrap">
               <div className="flex items-center gap-2 overflow-hidden flex-1">
                 {/* Mobile back navigation */}
@@ -512,7 +512,7 @@ export function SupportChatArea({
 
             {/* SLA Due & Assignee Bar - Compact Inline */}
             {isInternal && (
-              <div className="flex flex-wrap items-center gap-2 text-[10px] select-none text-slate-650 bg-slate-50 p-1.5 rounded-md border border-slate-100">
+              <div className="flex flex-wrap items-center gap-2 text-[10px] select-none text-slate-600 bg-slate-50 p-1.5 rounded-md border border-slate-100">
                 <div className="flex items-center gap-1">
                   <span className="font-bold uppercase text-slate-400">Owner:</span>
                   <Select
@@ -529,7 +529,7 @@ export function SupportChatArea({
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="unassigned" className="text-[10px] font-bold text-slate-450">UNASSIGNED</SelectItem>
+                      <SelectItem value="unassigned" className="text-[10px] font-bold text-slate-400">UNASSIGNED</SelectItem>
                       {agents.map((agent) => (
                         <SelectItem key={agent.user_id} value={agent.user_id} className="text-[10px] font-bold">
                           {agent.full_name || agent.role.toUpperCase()}
@@ -575,7 +575,7 @@ export function SupportChatArea({
 
                 <div className="flex items-center gap-1 ml-auto">
                   {!selected.assigned_to ? (
-                    <button type="button" onClick={claimTicket} className="text-indigo-600 hover:text-indigo-800 font-bold border border-indigo-150 bg-indigo-50/50 hover:bg-indigo-50 px-1.5 py-0.5 rounded transition-all">Claim</button>
+                    <button type="button" onClick={claimTicket} className="text-indigo-600 hover:text-indigo-800 font-bold border border-indigo-100 bg-indigo-50/50 hover:bg-indigo-50 px-1.5 py-0.5 rounded transition-all">Claim</button>
                   ) : selected.assigned_to !== user?.id ? (
                     <button type="button" onClick={claimTicket} className="text-slate-600 hover:text-slate-800 font-bold border border-slate-200 bg-white hover:bg-slate-50 px-1.5 py-0.5 rounded transition-all">Reassign</button>
                   ) : null}
@@ -601,7 +601,7 @@ export function SupportChatArea({
               />
             ))}
           </div>
-          <div className="border-t border-slate-200 bg-[#F9FAFC] p-3 md:p-4 shrink-0 shadow-[0_-4px_12px_rgba(0,0,0,0.02)]">
+          <div className="border-t border-slate-200 bg-slate-50 p-3 md:p-4 shrink-0 shadow-[0_-4px_12px_rgba(0,0,0,0.02)]">
             {pendingFiles.length > 0 && (
               <div className="flex flex-wrap gap-2 mb-2">
                 {pendingFiles.map((file, i) => (

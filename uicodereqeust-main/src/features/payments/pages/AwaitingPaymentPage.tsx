@@ -163,7 +163,7 @@ export default function AwaitingPaymentPage() {
             <button
               type="button"
               onClick={() => setIsHospitalDropdownOpen(!isHospitalDropdownOpen)}
-              className="w-full flex items-center justify-between border border-slate-200 rounded-lg px-3 py-2 text-xs font-semibold text-slate-700 bg-slate-50 focus:outline-none focus:ring-1 focus:ring-[#3f3f95]"
+              className="w-full flex items-center justify-between border border-slate-200 rounded-lg px-3 py-2 text-xs font-semibold text-slate-700 bg-slate-50 focus:outline-none focus:ring-1 focus:ring-brand-700"
             >
               <span className="truncate">
                 {selectedHospitalId === "all" 
@@ -190,7 +190,7 @@ export default function AwaitingPaymentPage() {
                       placeholder="Search hospital..."
                       value={hospitalSearchQuery}
                       onChange={(e) => setHospitalSearchQuery(e.target.value)}
-                      className="w-full border border-slate-200 rounded-lg pl-8 pr-3 py-1.5 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-[#3f3f95]"
+                      className="w-full border border-slate-200 rounded-lg pl-8 pr-3 py-1.5 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-brand-700"
                     />
                   </div>
                   <div className="max-h-60 overflow-y-auto divide-y divide-slate-50">
@@ -204,7 +204,7 @@ export default function AwaitingPaymentPage() {
                       className="w-full flex items-center justify-between px-2.5 py-1.5 text-left text-xs font-semibold hover:bg-slate-50 rounded-md transition-colors"
                     >
                       <span>All Hospitals</span>
-                      {selectedHospitalId === "all" && <Check className="h-3.5 w-3.5 text-[#3f3f95]" />}
+                      {selectedHospitalId === "all" && <Check className="h-3.5 w-3.5 text-brand-700" />}
                     </button>
                     {uniqueHospitals
                       .filter(h => h.name.toLowerCase().includes(hospitalSearchQuery.toLowerCase()))
@@ -220,7 +220,7 @@ export default function AwaitingPaymentPage() {
                           className="w-full flex items-center justify-between px-2.5 py-1.5 text-left text-xs font-medium text-slate-700 hover:bg-slate-50 rounded-md transition-colors"
                         >
                           <span className="truncate">{h.name}</span>
-                          {selectedHospitalId === h.id && <Check className="h-3.5 w-3.5 text-[#3f3f95]" />}
+                          {selectedHospitalId === h.id && <Check className="h-3.5 w-3.5 text-brand-700" />}
                         </button>
                       ))}
                   </div>
@@ -234,7 +234,7 @@ export default function AwaitingPaymentPage() {
             placeholder="Search claim, patient or policy..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="border border-slate-200 rounded-lg px-3 py-2 text-xs font-medium w-full sm:w-64 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-[#3f3f95]"
+            className="border border-slate-200 rounded-lg px-3 py-2 text-xs font-medium w-full sm:w-64 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-brand-700"
           />
 
           {/* Month Filter */}
@@ -262,7 +262,7 @@ export default function AwaitingPaymentPage() {
                   setSelectedMonth("");
                   setSelectedClaims(new Set());
                 }}
-                className="w-full border border-slate-200 rounded-lg pl-8 pr-2.5 py-2 text-xs font-semibold text-slate-700 bg-slate-50 focus:outline-none focus:ring-1 focus:ring-[#3f3f95]"
+                className="w-full border border-slate-200 rounded-lg pl-8 pr-2.5 py-2 text-xs font-semibold text-slate-700 bg-slate-50 focus:outline-none focus:ring-1 focus:ring-brand-700"
                 aria-label="Start date filter"
               />
             </div>
@@ -277,7 +277,7 @@ export default function AwaitingPaymentPage() {
                   setSelectedMonth("");
                   setSelectedClaims(new Set());
                 }}
-                className="w-full border border-slate-200 rounded-lg pl-8 pr-2.5 py-2 text-xs font-semibold text-slate-700 bg-slate-50 focus:outline-none focus:ring-1 focus:ring-[#3f3f95]"
+                className="w-full border border-slate-200 rounded-lg pl-8 pr-2.5 py-2 text-xs font-semibold text-slate-700 bg-slate-50 focus:outline-none focus:ring-1 focus:ring-brand-700"
                 aria-label="End date filter"
               />
             </div>
@@ -326,7 +326,7 @@ export default function AwaitingPaymentPage() {
               <Checkbox 
                 checked={selectedClaims.size === filteredClaims.length && filteredClaims.length > 0}
                 onCheckedChange={toggleAll}
-                className="border-slate-300 text-[#3f3f95] focus:ring-[#3f3f95]"
+                className="border-slate-300 text-brand-700 focus:ring-brand-700"
               />
               <span className="text-xs font-black text-slate-600 uppercase tracking-tight">
                 {selectedClaims.size} selected
@@ -336,13 +336,13 @@ export default function AwaitingPaymentPage() {
             <div className="flex items-center gap-3">
               {selectedClaims.size > 0 && (
                 <span className="text-xs font-bold text-slate-900 mr-2">
-                  Total Value: <span className="font-mono text-[#3f3f95] font-black">{money(totalAmountSelected)}</span>
+                  Total Value: <span className="font-mono text-brand-700 font-black">{money(totalAmountSelected)}</span>
                 </span>
               )}
               <Button 
                 onClick={() => setIsBatchModalOpen(true)}
                 disabled={selectedClaims.size === 0}
-                className="bg-[#3f3f95] hover:bg-[#34347d] text-white font-black uppercase text-xs tracking-wider h-8 rounded-lg transition-all shadow-sm shadow-[#3f3f95]/10 disabled:opacity-50"
+                className="bg-brand-700 hover:bg-brand-800 text-white font-black uppercase text-xs tracking-wider h-8 rounded-lg transition-all shadow-sm shadow-brand-700/10 disabled:opacity-50"
               >
                 Create Batch from Selected ({selectedClaims.size})
               </Button>
@@ -393,7 +393,7 @@ export default function AwaitingPaymentPage() {
                           checked={selectedClaims.has(c.id)}
                           onCheckedChange={() => toggleClaim(c.id)}
                           onClick={(e) => e.stopPropagation()} // Prevent double trigger
-                          className="border-slate-300 text-[#3f3f95] focus:ring-[#3f3f95]"
+                          className="border-slate-300 text-brand-700 focus:ring-brand-700"
                         />
                       </td>
                     )}

@@ -444,7 +444,7 @@ export default function ClaimsReportsPage() {
               <Download className="h-3.5 w-3.5" /> Export / Download
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-52 rounded-xl shadow-lg border border-slate-150 bg-white p-1 z-50">
+          <DropdownMenuContent align="end" className="w-52 rounded-xl shadow-lg border border-slate-100 bg-white p-1 z-50">
             <DropdownMenuItem onClick={exportCSV} className="rounded-lg text-xs font-semibold cursor-pointer py-2 hover:bg-slate-50 transition-colors">
               Download CSV (Claims)
             </DropdownMenuItem>

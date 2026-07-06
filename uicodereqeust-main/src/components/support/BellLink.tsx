@@ -41,13 +41,13 @@ export function BellLink({ count, isInternal, onNavigate }: BellLinkProps) {
             onClick={onNavigate}
             className={cn(
               "h-8 w-8 rounded-lg relative transition-colors",
-              count > 0 ? "text-[#3f3f95]" : "text-slate-400 hover:text-slate-600"
+              count > 0 ? "text-brand-700" : "text-slate-400 hover:text-slate-600"
             )}
             aria-label={`${label}${count > 0 ? `, ${count} unread` : ""}`}
           >
             {count > 0 ? <Inbox className="h-4 w-4" /> : <Bell className="h-4 w-4" />}
             {count > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-[#01aef2] text-xs font-black text-white ring-2 ring-white">
+              <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-sky-500 text-xs font-black text-white ring-2 ring-white">
                 {count > 99 ? "99+" : count}
               </span>
             )}

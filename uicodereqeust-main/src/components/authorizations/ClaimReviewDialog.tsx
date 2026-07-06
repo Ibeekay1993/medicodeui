@@ -144,12 +144,12 @@ export default function ClaimReviewDialog({
                               <p className={cn("text-xs font-black uppercase tracking-tight italic", isDeclined ? "text-rose-700/50" : "text-emerald-600")}>
                                 {qty} unit{qty === 1 ? "" : "s"} x ₦{unitPrice.toLocaleString()}
                               </p>
-                              <p className={cn("text-xs font-black font-mono", isDeclined ? "text-rose-750 line-through" : "text-slate-900")}>
+                              <p className={cn("text-xs font-black font-mono", isDeclined ? "text-rose-700 line-through" : "text-slate-900")}>
                                 ₦{total.toLocaleString()}
                               </p>
                             </div>
                             {isDeclined && item.decline_reason && (
-                              <div className="text-xs text-rose-750 font-medium bg-rose-100/30 rounded-md px-2 py-1 border border-rose-200/40 mt-1 pl-5">
+                              <div className="text-xs text-rose-700 font-medium bg-rose-100/30 rounded-md px-2 py-1 border border-rose-200/40 mt-1 pl-5">
                                 <span className="font-bold text-rose-800">Reason for decline:</span> {item.decline_reason}
                               </div>
                             )}

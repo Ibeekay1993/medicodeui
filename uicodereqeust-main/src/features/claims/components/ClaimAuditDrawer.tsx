@@ -118,7 +118,7 @@ export default function ClaimAuditDrawer({
               {/* Visual Compliance Guardrails Widget */}
               <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm space-y-3.5">
                 <div className="flex items-center justify-between border-b border-slate-50 pb-2">
-                  <h4 className="text-xs font-semibold text-slate-750 flex items-center gap-1.5">
+                  <h4 className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
                     <FolderOpen className="w-3.5 h-3.5 text-slate-500" />
                     Audit Compliance Guardrails
                   </h4>
@@ -129,7 +129,7 @@ export default function ClaimAuditDrawer({
 
                 <div className="grid gap-2 text-xs">
                   {/* Check 1: Patient Name Match */}
-                  <div className="flex items-center justify-between p-2 rounded-xl bg-slate-55 border border-slate-100">
+                  <div className="flex items-center justify-between p-2 rounded-xl bg-slate-50 border border-slate-100">
                     <div className="flex items-center gap-2">
                       <div className={cn(
                         "w-2 h-2 rounded-full",
@@ -146,7 +146,7 @@ export default function ClaimAuditDrawer({
                   </div>
 
                   {/* Check 2: Policy ID Verification */}
-                  <div className="flex items-center justify-between p-2 rounded-xl bg-slate-55 border border-slate-100">
+                  <div className="flex items-center justify-between p-2 rounded-xl bg-slate-50 border border-slate-100">
                     <div className="flex items-center gap-2">
                       <div className={cn(
                         "w-2 h-2 rounded-full",
@@ -163,7 +163,7 @@ export default function ClaimAuditDrawer({
                   </div>
 
                   {/* Check 3: Claim Ownership & Referrals */}
-                  <div className="flex items-center justify-between p-2 rounded-xl bg-slate-55 border border-slate-100">
+                  <div className="flex items-center justify-between p-2 rounded-xl bg-slate-50 border border-slate-100">
                     <div className="flex items-center gap-2">
                       <div className={cn(
                         "w-2 h-2 rounded-full",
@@ -180,7 +180,7 @@ export default function ClaimAuditDrawer({
                   </div>
 
                   {/* Check 4: Pre-authorization Validity */}
-                  <div className="flex items-center justify-between p-2 rounded-xl bg-slate-55 border border-slate-100">
+                  <div className="flex items-center justify-between p-2 rounded-xl bg-slate-50 border border-slate-100">
                     <div className="flex items-center gap-2">
                       <div className={cn(
                         "w-2 h-2 rounded-full",
@@ -438,7 +438,7 @@ export default function ClaimAuditDrawer({
                               <p className="text-xs font-semibold text-slate-500 mt-1">
                                 {isPreDeclined ? "Declined by Utilization Manager during Pre-Auth" : `Approved: ${qty} of ${originalQty} unit${originalQty > 1 ? 's' : ''}`}
                               </p>
-                              {decision.reasonCategory && !isPreDeclined && <p className="mt-1.5 text-xs font-semibold leading-snug text-rose-650">Category: {decision.reasonCategory}</p>}
+                              {decision.reasonCategory && !isPreDeclined && <p className="mt-1.5 text-xs font-semibold leading-snug text-rose-600">Category: {decision.reasonCategory}</p>}
                               {decision.reason && !isPreDeclined && <p className={cn("mt-1 text-xs font-semibold leading-snug", isDeclined ? "text-rose-600" : "text-amber-600")}>Reason: {decision.reason}</p>}
                               {isPreDeclined && (
                                 <p className="mt-1 text-xs font-semibold leading-snug text-rose-600 bg-slate-50/50 p-1.5 rounded border border-slate-200">
@@ -587,7 +587,7 @@ Reason: The claims auditing panel has rejected this claim in its entirety. Direc
                     </Button>
                   </div>
                 ) : (
-                  <p className="text-xs font-semibold text-slate-650 text-center py-4 bg-slate-50 rounded-xl border border-slate-100">
+                  <p className="text-xs font-semibold text-slate-600 text-center py-4 bg-slate-50 rounded-xl border border-slate-100">
                     Claim has been finalized as <span className="text-slate-900 font-semibold">{(selectedClaim.status || "").replace("_", " ")}</span>
                   </p>
                 )}

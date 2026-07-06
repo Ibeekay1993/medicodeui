@@ -241,7 +241,7 @@ export default function ClaimsAnalysisPage() {
               <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-[280px] p-0 rounded-xl shadow-md border-slate-150">
+          <PopoverContent className="w-[280px] p-0 rounded-xl shadow-md border-slate-100">
             <Command>
               <CommandInput placeholder="Search hospitals..." className="h-9 text-xs" />
               <CommandList>
@@ -400,7 +400,7 @@ export default function ClaimsAnalysisPage() {
                 </thead>
                 <tbody className="divide-y divide-slate-50">
                   {paginatedHospitals.map((hospital) => (
-                    <tr key={hospital.key} className="text-sm font-semibold text-slate-650 hover:bg-slate-50/40 transition-colors duration-150">
+                    <tr key={hospital.key} className="text-sm font-semibold text-slate-600 hover:bg-slate-50/40 transition-colors duration-150">
                       <td className="p-4 pl-6">
                         <div className="flex items-center gap-2.5">
                           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100/80 text-slate-600 border border-slate-200/40 shrink-0">

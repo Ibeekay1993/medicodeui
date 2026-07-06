@@ -119,7 +119,7 @@ export function CreateBatchModal({
             </div>
             <div className="flex justify-between items-center text-xs">
               <span className="font-semibold text-slate-400">CLAIMS SELECTED:</span>
-              <span className="font-black text-[#3f3f95]">{selectedClaims.length} Claim(s)</span>
+              <span className="font-black text-brand-700">{selectedClaims.length} Claim(s)</span>
             </div>
             <div className="border-t border-slate-200 my-2 pt-2 flex justify-between items-center text-xs">
               <span className="font-black text-slate-900 uppercase">Total Amount:</span>
@@ -153,7 +153,7 @@ export function CreateBatchModal({
             type="button"
             onClick={handleCreateBatch}
             disabled={isSubmitting || !batchRef}
-            className="bg-[#3f3f95] hover:bg-[#34347d] text-white font-black uppercase text-xs tracking-wider h-9 px-5 rounded-lg transition-all shadow-sm shadow-[#3f3f95]/10"
+            className="bg-brand-700 hover:bg-brand-800 text-white font-black uppercase text-xs tracking-wider h-9 px-5 rounded-lg transition-all shadow-sm shadow-brand-700/10"
           >
             {isSubmitting ? (
               <span className="flex items-center gap-1.5">

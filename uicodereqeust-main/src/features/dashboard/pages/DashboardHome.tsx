@@ -605,7 +605,7 @@ export default function DashboardHome() {
             <div className="mb-6 flex flex-col sm:flex-row sm:items-start justify-between gap-4">
               <div>
                 <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-900">
-                  <ShieldCheck className="h-4 w-4 text-[#1D9E75]" strokeWidth={2} />
+                  <ShieldCheck className="h-4 w-4 text-emerald-600" strokeWidth={2} />
                   Authorization Activity
                 </h3>
                 <p className="mt-1 text-xs text-slate-500">Live volume by issue date (Last 7 Days)</p>
@@ -654,7 +654,7 @@ export default function DashboardHome() {
             <div className="mb-6 flex flex-col sm:flex-row sm:items-start justify-between gap-4">
               <div>
                 <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-900">
-                  <Banknote className="h-4 w-4 text-[#BA7517]" strokeWidth={2} />
+                  <Banknote className="h-4 w-4 text-amber-700" strokeWidth={2} />
                   Claims Activity
                 </h3>
                 <p className="mt-1 text-xs text-slate-500">Live volume by submission date (Last 7 Days)</p>
@@ -703,25 +703,25 @@ export default function DashboardHome() {
         <div className="grid gap-6 lg:grid-cols-[2.5fr_1fr]">
           <Card className="med-card overflow-hidden p-6">
             <div className="mb-6">
-              <h3 className="flex items-center gap-2 text-sm font-semibold text-[#1E293B]">
+              <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-800">
                 {role === "finance" ? (
                   <>
-                    <Banknote className="h-4 w-4 text-[#BA7517]" strokeWidth={1.5} />
+                    <Banknote className="h-4 w-4 text-amber-700" strokeWidth={1.5} />
                     Payment Activity
                   </>
                 ) : role === "claims" ? (
                   <>
-                    <Banknote className="h-4 w-4 text-[#BA7517]" strokeWidth={1.5} />
+                    <Banknote className="h-4 w-4 text-amber-700" strokeWidth={1.5} />
                     Claims Activity
                   </>
                 ) : (
                   <>
-                    <TrendingUp className="h-4 w-4 text-[#93c34b]" strokeWidth={1.5} />
+                    <TrendingUp className="h-4 w-4 text-lime-500" strokeWidth={1.5} />
                     Volume Performance
                   </>
                 )}
               </h3>
-              <p className="mt-1 text-sm text-[#888780]">
+              <p className="mt-1 text-sm text-slate-500">
                 {role === "finance"
                   ? "Live payment activity, last 7 calendar days"
                   : role === "claims"
@@ -772,7 +772,7 @@ export default function DashboardHome() {
 
           <div className="space-y-6">
             <Card className="med-card p-5">
-              <h3 className="mb-4 text-xs font-semibold uppercase tracking-[0.06em] text-[#888780]">Quick Access</h3>
+              <h3 className="mb-4 text-xs font-semibold uppercase tracking-[0.06em] text-slate-500">Quick Access</h3>
               <div className="grid grid-cols-1 gap-3">
                 {actions.map((action) => (
                   <button key={action.name} onClick={() => navigate(action.href)} className="flex items-center gap-3 rounded-lg p-3 text-left transition hover:bg-slate-50">
@@ -780,8 +780,8 @@ export default function DashboardHome() {
                       <action.icon className="h-5 w-5" strokeWidth={1.5} />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <h4 className="text-sm font-medium text-[#1a1a1a]">{action.name}</h4>
-                      <p className="mt-0.5 text-xs text-[#888780]">{action.desc}</p>
+                      <h4 className="text-sm font-medium text-slate-900">{action.name}</h4>
+                      <p className="mt-0.5 text-xs text-slate-500">{action.desc}</p>
                     </div>
                     <ArrowUpRight className="h-4 w-4 text-slate-300" strokeWidth={1.5} />
                   </button>

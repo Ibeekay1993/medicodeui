@@ -75,7 +75,7 @@ export function BatchDetailsDrawer({
                 </div>
                 <div>
                   <p className="text-xs font-black uppercase tracking-wider text-slate-400">Claims Count</p>
-                  <p className="font-mono font-black text-[#3f3f95] text-xs mt-0.5">
+                  <p className="font-mono font-black text-brand-700 text-xs mt-0.5">
                     {batch.total_claims} Claim(s)
                   </p>
                 </div>
@@ -122,9 +122,9 @@ export function BatchDetailsDrawer({
                               window.open(data.signedUrl, "_blank");
                             }
                           }}
-                          className="flex items-center gap-1 text-xs font-black uppercase text-[#3f3f95] hover:text-[#34347d] border border-slate-200 bg-white rounded px-2 py-1 transition-all cursor-pointer"
+                          className="flex items-center gap-1 text-xs font-black uppercase text-brand-700 hover:text-brand-800 border border-slate-200 bg-white rounded px-2 py-1 transition-all cursor-pointer"
                         >
-                          <FileSpreadsheet className="h-3.5 w-3.5 shrink-0 text-[#3f3f95]" />
+                          <FileSpreadsheet className="h-3.5 w-3.5 shrink-0 text-brand-700" />
                           View Payment Proof ({batch.receipt_name || "File"})
                         </button>
                       </div>

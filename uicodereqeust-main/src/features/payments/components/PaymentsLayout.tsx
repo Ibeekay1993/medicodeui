@@ -21,7 +21,7 @@ export default function PaymentsLayout() {
             className={({ isActive }) =>
               `pb-3 px-1 border-b-2 text-xs font-black uppercase tracking-wider transition-all ${
                 isActive
-                  ? "border-[#3f3f95] text-[#3f3f95]"
+                  ? "border-brand-700 text-brand-700"
                   : "border-transparent text-slate-400 hover:text-slate-600 hover:border-slate-300"
               }`
             }
@@ -33,7 +33,7 @@ export default function PaymentsLayout() {
             className={({ isActive }) =>
               `pb-3 px-1 border-b-2 text-xs font-black uppercase tracking-wider transition-all ${
                 isActive
-                  ? "border-[#3f3f95] text-[#3f3f95]"
+                  ? "border-brand-700 text-brand-700"
                   : "border-transparent text-slate-400 hover:text-slate-600 hover:border-slate-300"
               }`
             }
@@ -45,7 +45,7 @@ export default function PaymentsLayout() {
             className={({ isActive }) =>
               `pb-3 px-1 border-b-2 text-xs font-black uppercase tracking-wider transition-all ${
                 isActive
-                  ? "border-[#3f3f95] text-[#3f3f95]"
+                  ? "border-brand-700 text-brand-700"
                   : "border-transparent text-slate-400 hover:text-slate-600 hover:border-slate-300"
               }`
             }

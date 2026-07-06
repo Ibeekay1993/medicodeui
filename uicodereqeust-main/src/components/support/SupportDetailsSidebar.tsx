@@ -74,7 +74,7 @@ export function SupportDetailsSidebar({
       )}
     >
       {/* Header with mobile back handle */}
-      <div className="p-3 border-b border-slate-150 flex items-center justify-between bg-white shrink-0">
+      <div className="p-3 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
         <div>
           <h2 className="text-lg font-semibold text-slate-800">
             Dispute Details
@@ -351,7 +351,7 @@ export function SupportDetailsSidebar({
                     <Button
                       onClick={handleUnlinkCase}
                       variant="outline"
-                      className="w-full h-8 rounded-lg text-rose-600 border-rose-250 hover:bg-rose-50 font-black uppercase tracking-wider text-xs transition-all mt-2"
+                      className="w-full h-8 rounded-lg text-rose-600 border-rose-200 hover:bg-rose-50 font-black uppercase tracking-wider text-xs transition-all mt-2"
                     >
                       Unlink Case
                     </Button>
