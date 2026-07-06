@@ -691,14 +691,14 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
                     onClick={() => actions.handleDecline(actions.editDecisionNote)}
                     disabled={actions.processing || !actions.editDecisionNote}
                   >
-                    {actions.processing ? <Loader2 className="w-4 h-4 animate-spin" /> : "Decline"}
+                    {actions.processingAction === "decline" ? <Loader2 className="w-4 h-4 animate-spin" /> : "Decline"}
                   </Button>
                   <Button
                     className="w-full sm:w-auto sm:flex-1 h-11 sm:h-12 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] sm:text-xs font-black uppercase tracking-widest shadow-md transition-all flex items-center justify-center gap-1.5"
                     onClick={actions.handleApprove}
                     disabled={actions.processing}
                   >
-                    {actions.processing ? <Loader2 className="w-4 h-4 animate-spin" /> : "Approve"}
+                    {actions.processingAction === "approve" ? <Loader2 className="w-4 h-4 animate-spin" /> : "Approve"}
                   </Button>
                 </div>
               </TabsContent>
