@@ -55,6 +55,7 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
   const { role } = useAuth();
   const [historyPage, setHistoryPage] = useState(1);
   const [activeTab, setActiveTab] = useState("verification");
+  const [showStickyName, setShowStickyName] = useState(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   // 1. Determine request metadata
@@ -225,11 +226,24 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
       <DialogContent
         className="w-[94vw] max-w-[94vw] sm:max-w-3xl md:max-w-5xl lg:max-w-6xl max-h-[92dvh] rounded-[1.5rem] sm:rounded-[2rem] border-0 bg-white/95 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-white to-slate-50/50 backdrop-blur-2xl selection:bg-slate-200 p-0 shadow-[0_8px_40px_rgb(0,0,0,0.08)] ring-1 ring-slate-200 overflow-y-auto overflow-x-hidden min-w-0 [&_*]:min-w-0 [&>button.absolute.right-4]:hidden"
         ref={scrollContainerRef}
+        onScroll={(e) => setShowStickyName((e.target as HTMLElement).scrollTop > 60)}
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
+        <div className="sticky top-0 z-[100] w-full h-0 pointer-events-none">
+          <div 
+            className={cn(
+              "absolute top-0 left-0 right-0 bg-white/95 backdrop-blur-md border-b border-slate-200 px-5 py-2 shadow-sm transition-opacity duration-200 ease-in-out pointer-events-auto rounded-t-[1.5rem] sm:rounded-t-[2rem]",
+              showStickyName ? "opacity-100" : "opacity-0"
+            )}
+          >
+            <p className="text-[12px] sm:text-[13px] font-extrabold text-slate-900 uppercase tracking-wider truncate text-center">
+              {requestPatientName || "Unknown Patient"}
+            </p>
+          </div>
+        </div>
         <Tabs value={activeTab} onValueChange={setActiveTab as any} className="w-full min-w-0">
         {/* Fixed Header */}
-        <div className="shrink-0 z-30 px-5 pt-4 pb-2 bg-white border-b border-slate-200 rounded-t-[1.5rem] sm:rounded-t-[2rem] shadow-sm relative flex flex-col gap-4 min-w-0 w-full">
+        <div className="shrink-0 z-30 px-5 pt-4 pb-2 border-b border-slate-200 shadow-sm relative flex flex-col gap-4 min-w-0 w-full">
           <button 
             onClick={onClose}
             className="absolute top-4 right-4 p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-full transition-colors z-40"
