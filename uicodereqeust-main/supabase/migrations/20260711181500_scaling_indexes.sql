@@ -9,7 +9,6 @@ CREATE INDEX IF NOT EXISTS idx_hosp_claims_hospital_id ON public.hospital_claims
 CREATE INDEX IF NOT EXISTS idx_hosp_claims_created_at ON public.hospital_claims(created_at DESC);
 
 -- Indexes for Patients
-CREATE INDEX IF NOT EXISTS idx_patients_nhis_number ON public.patients(nhis_number);
 CREATE INDEX IF NOT EXISTS idx_patients_policy_number ON public.patients(policy_number);
 
 -- Indexes for Audit Logs
