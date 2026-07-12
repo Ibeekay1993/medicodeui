@@ -18,7 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { HospitalReferralField } from "@/components/HospitalReferralField";
-import { AlertTriangle, Building2, ChevronDown, ChevronUp, ChevronRight, Trash2, X, Loader2 } from "lucide-react";
+import { AlertTriangle, Building2, ChevronDown, ChevronUp, ChevronRight, Trash2, X, Loader2, Copy, Send } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 
@@ -56,7 +56,25 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
   const [historyPage, setHistoryPage] = useState(1);
   const [activeTab, setActiveTab] = useState("verification");
   const [showStickyName, setShowStickyName] = useState(false);
+  const [isResending, setIsResending] = useState(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  const handleResendOtp = async () => {
+    if (!request?.id) return;
+    setIsResending(true);
+    try {
+      const { error } = await supabase.functions.invoke("send-approval-email", {
+        body: { authorization_id: request.id },
+      });
+      if (error) throw error;
+      toast({ title: "OTP Resent", description: "The OTP has been resent to the patient." });
+    } catch (err: any) {
+      console.error(err);
+      toast({ variant: "destructive", title: "Failed to resend", description: err.message || "An error occurred." });
+    } finally {
+      setIsResending(false);
+    }
+  };
 
   // 1. Determine request metadata
   const isHospitalDirected = ["hospital_portal", "hospital", "portal"].includes(request?.source);
@@ -480,6 +498,44 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
 
               {/* ─── Tab 2: Clinical Review ─── */}
               <TabsContent value="clinical" className="space-y-4 mt-0">
+                {/* OTP Banner */}
+                {otpValue && (
+                  <div className="bg-emerald-50 rounded-2xl p-4 sm:p-5 mb-4 border border-emerald-200 shadow-sm flex items-center justify-between">
+                    <div>
+                      <div className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest">
+                        Patient OTP / Arrival PIN
+                      </div>
+                      <div className="text-2xl font-black text-emerald-900 mt-1 tracking-widest font-mono">
+                        {otpValue}
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="h-10 w-10 bg-white border-emerald-200 text-emerald-700 hover:bg-emerald-100 shrink-0"
+                        onClick={() => {
+                          navigator.clipboard.writeText(otpValue);
+                          toast({ title: "OTP Copied!" });
+                        }}
+                        title="Copy OTP"
+                      >
+                        <Copy className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="default"
+                        className="h-10 px-4 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shrink-0"
+                        onClick={handleResendOtp}
+                        disabled={isResending}
+                        title="Resend OTP"
+                      >
+                        {isResending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Send className="h-4 w-4 mr-2" />}
+                        Resend
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
                 {/* Standard Request Facility Banner (Non-Referral) */}
                 {!request?.referred_hospital_name && (request?.requesting_hospital_name || requestingHospitalName) && (
                   <div className="bg-slate-50 rounded-2xl p-4 sm:p-5 mb-4 border border-slate-200 min-w-0 shadow-sm">
