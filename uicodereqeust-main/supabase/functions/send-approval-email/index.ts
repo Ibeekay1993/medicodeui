@@ -124,7 +124,9 @@ serve(async (req) => {
           otp_code: otp,
           hospital_name: request.hospital_name || "the hospital",
           patient_name: request.patient_name || "Patient",
-          authorization_request_id: authorization_id
+          authorization_request_id: authorization_id,
+          diagnosis: request.diagnosis || "",
+          items: request.approved_items || []
         }
       }).catch(err => console.error("WhatsApp trigger failed:", err));
     }
@@ -147,7 +149,14 @@ serve(async (req) => {
 
     if (Array.isArray(request.approved_items) && request.approved_items.length > 0) {
       serviceItems = request.approved_items
-        .map((item: any) => extractServiceName(item))
+        .map((item: any) => {
+          const qty = item.quantity || 1;
+          const name = item.name || extractServiceName(item);
+          if (item.declined) {
+            return `<del style="color:#ef4444;">${qty}x ${name}</del> <span style="color:#ef4444;font-size:10px;font-weight:bold;">(Rejected)</span>`;
+          }
+          return `&#10003; ${qty}x ${name}`;
+        })
         .filter(Boolean);
     } else if (request.treatment) {
       serviceItems = String(request.treatment)

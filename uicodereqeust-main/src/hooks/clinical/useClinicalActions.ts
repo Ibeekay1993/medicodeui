@@ -291,6 +291,16 @@ export function useClinicalActions({
               currentCode = String(newCode || "");
             }
           }
+
+          if (dbStatus === "approved") {
+            const hasApproved = approvedItems.some(i => !i.declined);
+            const hasDeclined = approvedItems.some(i => i.declined);
+            if (!hasApproved && hasDeclined) {
+              dbStatus = "rejected";
+            } else if (hasApproved && hasDeclined) {
+              dbStatus = "partially_approved";
+            }
+          }
         }
 
         const decisionReason = editDecisionNote.trim() || null;
@@ -350,7 +360,7 @@ export function useClinicalActions({
             diagnosis: editDiagnosis,
             current_treatment_diagnosis: editCurrentDiagnosis,
             treatment:
-              dbStatus === "approved" && approvedSummary
+              (dbStatus === "approved" || dbStatus === "partially_approved") && approvedSummary
                 ? approvedSummary
                 : (request.referred_hospital_name && !editTreatment.includes("[PROPOSED TREATMENT PLAN"))
                 ? `[ORIGINAL REFERRAL REASON (From ${request.requesting_hospital_name || request.hospital_name || "Referring Hospital"})]:\n${parseReferralTreatment(request.treatment || "").original || "Not specified"}\n\n[PROPOSED TREATMENT PLAN (From ${request.referred_hospital_name})]:\n${editTreatment}`
@@ -362,11 +372,11 @@ export function useClinicalActions({
             referred_hospital_id: finalReferredHospitalId,
             referred_hospital_name: finalReferredHospitalName,
             claiming_hospital_id:
-              dbStatus === "approved"
+              (dbStatus === "approved" || dbStatus === "partially_approved")
                 ? treatingHospitalId
                 : request.claiming_hospital_id || request.hospital_id || null,
             claiming_hospital_name:
-              dbStatus === "approved"
+              (dbStatus === "approved" || dbStatus === "partially_approved")
                 ? treatingHospitalName
                 : request.claiming_hospital_name || request.hospital_name || null,
             authorization_code: currentCode,
@@ -374,19 +384,19 @@ export function useClinicalActions({
             clinical_notes: clinicalNotes,
             decided_at: decidedAt,
             decided_by: user?.id,
-            approved_by: (dbStatus === "approved" || dbStatus === "referral_approved") ? user?.id : null,
-            nurse_initials: (dbStatus === "approved" || dbStatus === "referral_approved") ? nurseInitials : null,
-            authorized_by_name: (dbStatus === "approved" || dbStatus === "referral_approved") ? nurseDisplayName : null,
-            authorized_by_email: (dbStatus === "approved" || dbStatus === "referral_approved") ? user?.email ?? null : null,
+            approved_by: (dbStatus === "approved" || dbStatus === "partially_approved" || dbStatus === "referral_approved") ? user?.id : null,
+            nurse_initials: (dbStatus === "approved" || dbStatus === "partially_approved" || dbStatus === "referral_approved") ? nurseInitials : null,
+            authorized_by_name: (dbStatus === "approved" || dbStatus === "partially_approved" || dbStatus === "referral_approved") ? nurseDisplayName : null,
+            authorized_by_email: (dbStatus === "approved" || dbStatus === "partially_approved" || dbStatus === "referral_approved") ? user?.email ?? null : null,
             updated_at: decidedAt,
-            approved_tariff_code: dbStatus === "approved" ? firstApprovedItem?.code ?? null : null,
-            approved_tariff_name: dbStatus === "approved" ? firstApprovedItem?.name ?? null : null,
+            approved_tariff_code: (dbStatus === "approved" || dbStatus === "partially_approved") ? firstApprovedItem?.code ?? null : null,
+            approved_tariff_name: (dbStatus === "approved" || dbStatus === "partially_approved") ? firstApprovedItem?.name ?? null : null,
             approved_tariff_category:
-              dbStatus === "approved" ? firstApprovedItem?.category ?? null : null,
+              (dbStatus === "approved" || dbStatus === "partially_approved") ? firstApprovedItem?.category ?? null : null,
             approved_tariff_amount:
-              dbStatus === "approved" && firstApprovedItem ? itemTotal(firstApprovedItem) : null,
-            approved_items: dbStatus === "approved" ? approvedPayload : [],
-            total_amount: dbStatus === "approved" ? approvedTotal : 0,
+              (dbStatus === "approved" || dbStatus === "partially_approved") && firstApprovedItem ? itemTotal(firstApprovedItem) : null,
+            approved_items: (dbStatus === "approved" || dbStatus === "partially_approved") ? approvedPayload : [],
+            total_amount: (dbStatus === "approved" || dbStatus === "partially_approved") ? approvedTotal : 0,
           } as any)
           .eq("id", request.id);
 
@@ -403,10 +413,10 @@ export function useClinicalActions({
             diagnosis: editDiagnosis,
             auth_code: currentCode,
             referral_to: editReferralHospitalName.trim() || null,
-            claiming_hospital_id: (dbStatus === "approved" || dbStatus === "referral_approved") ? treatingHospitalId : null,
-            nurse_initials: (dbStatus === "approved" || dbStatus === "referral_approved") ? nurseInitials : null,
-            authorized_by_name: (dbStatus === "approved" || dbStatus === "referral_approved") ? nurseDisplayName : null,
-            authorized_by_user_id: (dbStatus === "approved" || dbStatus === "referral_approved") ? user?.id : null,
+            claiming_hospital_id: (dbStatus === "approved" || dbStatus === "partially_approved" || dbStatus === "referral_approved") ? treatingHospitalId : null,
+            nurse_initials: (dbStatus === "approved" || dbStatus === "partially_approved" || dbStatus === "referral_approved") ? nurseInitials : null,
+            authorized_by_name: (dbStatus === "approved" || dbStatus === "partially_approved" || dbStatus === "referral_approved") ? nurseDisplayName : null,
+            authorized_by_user_id: (dbStatus === "approved" || dbStatus === "partially_approved" || dbStatus === "referral_approved") ? user?.id : null,
             ip: "client-side",
             timestamp: new Date().toISOString(),
           },
@@ -414,7 +424,7 @@ export function useClinicalActions({
 
         resetIbadanWorkbookHistoryCache();
 
-        if (dbStatus === "approved" || dbStatus === "referral_approved") {
+        if (dbStatus === "approved" || dbStatus === "referral_approved" || dbStatus === "partially_approved") {
           setApprovalResult({
             authCode: currentCode || "Pending",
             patientName: cleanPatientName(request.patient_name),
@@ -453,7 +463,7 @@ export function useClinicalActions({
         }
 
         // Send approval email to patient (standard treatment approval)
-        if (targetStatus === "approved" && request.patient_email && !request.patient_email.startsWith("no-email")) {
+        if ((targetStatus === "approved" || targetStatus === "partially_approved" || dbStatus === "partially_approved") && request.patient_email && !request.patient_email.startsWith("no-email")) {
           supabase.functions
             .invoke("send-approval-email", {
               method: "POST",
@@ -774,7 +784,7 @@ export function useClinicalActions({
       toast({ variant: "destructive", title: "Unauthorized", description: "Hospitals cannot save clinical edits." });
       return;
     }
-    if (editStatus === "approved") {
+    if (editStatus === "approved" || editStatus === "partially_approved") {
       const itemsMissingReason = approvedItems.filter(
         (item) => item.declined && (!item.decline_reason || !item.decline_reason.trim())
       );
@@ -789,6 +799,7 @@ export function useClinicalActions({
     }
     const statusMap: Record<string, string> = {
       approved: "APPROVED",
+      partially_approved: "PARTIALLY APPROVED",
       rejected: "DECLINED",
       deferred: "DEFERRED",
       pending: "Pending",

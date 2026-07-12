@@ -14,7 +14,7 @@ serve(async (req) => {
   }
 
   try {
-    const { phone_number, otp_code, authorization_request_id, hospital_name, patient_name } = await req.json();
+    const { phone_number, otp_code, authorization_request_id, hospital_name, patient_name, diagnosis, items } = await req.json();
 
     if (!phone_number || !otp_code) {
       return new Response(JSON.stringify({ error: "Missing required parameters" }), {
@@ -51,7 +51,21 @@ serve(async (req) => {
 
     const pName = patient_name ? patient_name.trim() : "Patient";
     const hName = hospital_name || "the hospital";
-    const messageText = `Hello ${pName}!\n\nA new authorization request has been approved for you at ${hName}.\nYour Arrival PIN is: *${otp_code}*\n\nThank you,\n*Ronsberger HMO*`;
+    const diag = diagnosis ? `\n*Diagnosis:* ${diagnosis}` : "";
+    
+    let itemsText = "";
+    if (items && Array.isArray(items) && items.length > 0) {
+      itemsText = "\n\n*Requested Services:*\n" + items.map((item: any) => {
+        const qty = item.quantity || 1;
+        const name = item.name || "Service";
+        if (item.declined) {
+          return `~${qty}x ${name}~ (Rejected)`;
+        }
+        return `✅ ${qty}x ${name}`;
+      }).join("\n");
+    }
+
+    const messageText = `Hello ${pName}!\n\nA new authorization request has been approved for you at ${hName}.${diag}${itemsText}\n\nYour Arrival PIN is: *${otp_code}*\n\nThank you,\n*Ronsberger HMO*`;
 
     const wasenderPayload = {
       to: formattedNumber,

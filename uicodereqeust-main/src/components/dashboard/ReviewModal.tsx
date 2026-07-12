@@ -331,15 +331,15 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
               
               {/* Step 4: Review */}
               <div className="flex flex-col items-center gap-1 min-w-0">
-                <div className={cn("w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full", ["pending_authorization"].includes(request.status) ? "w-3.5 h-3.5 sm:w-4 sm:h-4 bg-white border-[3px] border-slate-800" : ["approved", "authorization_approved"].includes(request.status) ? "bg-slate-800" : "bg-slate-200")} />
+                <div className={cn("w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full", ["pending_authorization"].includes(request.status) ? "w-3.5 h-3.5 sm:w-4 sm:h-4 bg-white border-[3px] border-slate-800" : ["approved", "partially_approved", "authorization_approved"].includes(request.status) ? "bg-slate-800" : "bg-slate-200")} />
                 <span className={cn("text-[8px] sm:text-[10px] font-bold uppercase tracking-wider", ["pending_authorization"].includes(request.status) ? "text-slate-800" : "text-slate-400")}>Review</span>
               </div>
-              <div className={cn("h-0.5 sm:h-1 w-2 sm:w-4 flex-shrink-0 transition-colors duration-300", ["approved", "authorization_approved"].includes(request.status) ? "bg-slate-800" : "bg-slate-200")} />
+              <div className={cn("h-0.5 sm:h-1 w-2 sm:w-4 flex-shrink-0 transition-colors duration-300", ["approved", "partially_approved", "authorization_approved"].includes(request.status) ? "bg-slate-800" : "bg-slate-200")} />
               
               {/* Step 5: Authorized */}
               <div className="flex flex-col items-center gap-1 min-w-0">
-                <div className={cn("w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full", ["approved", "authorization_approved"].includes(request.status) ? "w-3.5 h-3.5 sm:w-4 sm:h-4 bg-white border-[3px] border-slate-800" : "bg-slate-200")} />
-                <span className={cn("text-[8px] sm:text-[10px] font-bold uppercase tracking-wider", ["approved", "authorization_approved"].includes(request.status) ? "text-slate-800" : "text-slate-400")}>Authorized</span>
+                <div className={cn("w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full", ["approved", "partially_approved", "authorization_approved"].includes(request.status) ? "w-3.5 h-3.5 sm:w-4 sm:h-4 bg-white border-[3px] border-slate-800" : "bg-slate-200")} />
+                <span className={cn("text-[8px] sm:text-[10px] font-bold uppercase tracking-wider", ["approved", "partially_approved", "authorization_approved"].includes(request.status) ? "text-slate-800" : "text-slate-400")}>Authorized</span>
               </div>
             </div>
           ) : (

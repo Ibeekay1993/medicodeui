@@ -105,17 +105,19 @@ export function PatientVerifyCard({
             <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center text-[12px] font-bold ${
               checking ? "border-slate-300 text-slate-400" :
               policyVerified && patientMatchStatus === "exact" ? "border-green-500 text-green-500" :
-              policyVerified ? "border-yellow-500 text-yellow-500" :
+              policyVerified && patientMatchStatus === "partial" ? "border-yellow-500 text-yellow-500" :
+              policyVerified && patientMatchStatus === "none" ? "border-red-500 text-red-500" :
               "border-red-500 text-red-500"
             }`}>
               {checking ? "◓" : policyVerified && patientMatchStatus === "exact" ? "✓" : "!"}
             </div>
             <div>
               <div className="text-[13px] font-extrabold text-slate-800">NHIS Confirmation</div>
-              <div className={`text-[11px] ${!policyVerified && !checking ? 'text-red-500 font-bold' : 'text-slate-400'}`}>
+              <div className={`text-[11px] ${!policyVerified && !checking ? 'text-red-500 font-bold' : policyVerified && patientMatchStatus === 'none' ? 'text-red-500 font-bold' : 'text-slate-400'}`}>
                 {checking ? "Checking registry..." :
                  policyVerified && patientMatchStatus === "exact" ? "Verified master records registry" :
-                 policyVerified ? "Partial match in registry" :
+                 policyVerified && patientMatchStatus === "partial" ? "Partial match in registry" :
+                 policyVerified && patientMatchStatus === "none" ? "Policy found, patient name mismatch" :
                  "Not found in registry"}
               </div>
             </div>
@@ -130,15 +132,15 @@ export function PatientVerifyCard({
 
         {showFamily && (
           <div className="mt-3 border-t border-slate-100 pt-3 animate-in fade-in duration-200">
-            <div className={`flex items-start gap-2 p-3 rounded-xl mb-2 border ${policyVerified ? 'bg-slate-50 border-slate-100' : 'bg-red-50 border-red-100'}`}>
-              <div className={`text-[16px] mt-0.5 ${policyVerified ? 'text-green-500' : 'text-red-500'}`}>
-                {policyVerified ? "✓" : "✗"}
+            <div className={`flex items-start gap-2 p-3 rounded-xl mb-2 border ${policyVerified ? (patientMatchStatus === 'none' ? 'bg-amber-50 border-amber-100' : 'bg-slate-50 border-slate-100') : 'bg-red-50 border-red-100'}`}>
+              <div className={`text-[16px] mt-0.5 ${policyVerified ? (patientMatchStatus === 'none' ? 'text-amber-500' : 'text-green-500') : 'text-red-500'}`}>
+                {policyVerified ? (patientMatchStatus === 'none' ? "!" : "✓") : "✗"}
               </div>
               <div>
-                <strong className={`text-[12px] sm:text-[13px] block ${policyVerified ? 'text-slate-800' : 'text-red-800'}`}>
+                <strong className={`text-[12px] sm:text-[13px] block ${policyVerified ? (patientMatchStatus === 'none' ? 'text-amber-800' : 'text-slate-800') : 'text-red-800'}`}>
                   {policyVerified ? "Policy number matched:" : "Policy number NOT found:"}
                 </strong>
-                <p className={`text-[11px] sm:text-[12px] mt-0.5 ${policyVerified ? 'text-slate-500' : 'text-red-600'}`}>
+                <p className={`text-[11px] sm:text-[12px] mt-0.5 ${policyVerified ? (patientMatchStatus === 'none' ? 'text-amber-700' : 'text-slate-500') : 'text-red-600'}`}>
                   {policyVerified ? "Exact policy found in monthly NHIS Accredited List." : "This policy number is not in the active NHIS registry."}
                 </p>
               </div>

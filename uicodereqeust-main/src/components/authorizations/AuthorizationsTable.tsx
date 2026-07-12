@@ -19,6 +19,7 @@ import {
 
 const STATUS_COLORS: Record<string, { bg: string; text: string; border: string }> = {
   approved: { bg: "bg-[#CCFBF1]", text: "text-[#0D9488]", border: "border-[#99F6E4]" },
+  partially_approved: { bg: "bg-[#FEF3C7]", text: "text-[#D97706]", border: "border-[#FDE68A]" },
   referral_approved: { bg: "bg-[#F1F5F9]", text: "text-[#64748B]", border: "border-[#E2E8F0]" },
   pending: { bg: "bg-[#FEF3C7]", text: "text-[#D97706]", border: "border-[#FDE68A]" },
   rejected: { bg: "bg-[#FEE2E2]", text: "text-[#DC2626]", border: "border-[#FECACA]" },
@@ -96,7 +97,10 @@ export default function AuthorizationsTable({
     }
   };
 
-  const isApproved = (r: any) => String(r.status || "").toLowerCase().includes("approved") || String(r.status || "").toLowerCase().includes("accepted");
+  const isApproved = (r: any) => {
+    const s = String(r.status || "").toLowerCase();
+    return s.includes("approved") || s.includes("accepted");
+  };
 
   return (
     <>
@@ -194,6 +198,7 @@ export default function AuthorizationsTable({
                             const s = String(r.status || "").toLowerCase();
                             const map: Record<string, string> = {
                               approved: `${STATUS_COLORS.approved.bg} ${STATUS_COLORS.approved.text} ${STATUS_COLORS.approved.border}`,
+                              partially_approved: `${STATUS_COLORS.partially_approved.bg} ${STATUS_COLORS.partially_approved.text} ${STATUS_COLORS.partially_approved.border}`,
                               referral_approved: `${STATUS_COLORS.referral_approved.bg} ${STATUS_COLORS.referral_approved.text} ${STATUS_COLORS.referral_approved.border}`,
                               pending: `${STATUS_COLORS.pending.bg} ${STATUS_COLORS.pending.text} ${STATUS_COLORS.pending.border}`,
                               rejected: `${STATUS_COLORS.rejected.bg} ${STATUS_COLORS.rejected.text} ${STATUS_COLORS.rejected.border}`,
@@ -203,6 +208,7 @@ export default function AuthorizationsTable({
                             {(() => {
                               const st = String(r.status || "");
                               if (st === "referral_approved") return "REF APPROVED";
+                              if (st === "partially_approved") return "PARTIALLY APPROVED";
                               if (st === "referral_accepted") return "REF ACCEPTED";
                               return st.replace("_", " ");
                             })()}
@@ -281,6 +287,7 @@ export default function AuthorizationsTable({
                       const s = String(r.status || "").toLowerCase();
                       const map: Record<string, string> = {
                         approved: "bg-emerald-50 text-emerald-600",
+                        partially_approved: "bg-amber-50 text-amber-600",
                         referral_approved: "bg-slate-100 text-slate-600",
                         pending: "bg-amber-50 text-amber-600",
                         rejected: "bg-rose-50 text-rose-600",
@@ -291,6 +298,7 @@ export default function AuthorizationsTable({
                         const s = String(r.status || "").toLowerCase();
                         const map: Record<string, string> = {
                           approved: "bg-emerald-500",
+                          partially_approved: "bg-amber-500",
                           referral_approved: "bg-slate-400",
                           pending: "bg-amber-500",
                           rejected: "bg-rose-500",
@@ -300,6 +308,7 @@ export default function AuthorizationsTable({
                       {(() => {
                         const st = String(r.status || "");
                         if (st === "referral_approved") return "REF APPROVED";
+                        if (st === "partially_approved") return "PARTIALLY APPROVED";
                         if (st === "referral_accepted") return "REF ACCEPTED";
                         return st.replace("_", " ");
                       })()}
