@@ -160,6 +160,7 @@ export default function ReportFilters({
             <SelectItem value="referral_accepted" className="text-xs font-bold cursor-pointer rounded-lg">Referral Accepted</SelectItem>
             <SelectItem value="pending_authorization" className="text-xs font-bold cursor-pointer rounded-lg">Pending Authorization</SelectItem>
             <SelectItem value="approved" className="text-xs font-bold cursor-pointer rounded-lg text-emerald-600">Approved</SelectItem>
+            <SelectItem value="partially_approved" className="text-xs font-bold cursor-pointer rounded-lg text-amber-600">Partially Approved</SelectItem>
             <SelectItem value="rejected" className="text-xs font-bold cursor-pointer rounded-lg text-rose-600">Rejected</SelectItem>
             <SelectItem value="referral_declined" className="text-xs font-bold cursor-pointer rounded-lg text-rose-600">Referral Declined</SelectItem>
             <SelectItem value="referral_expired" className="text-xs font-bold cursor-pointer rounded-lg text-rose-600">Referral Expired</SelectItem>

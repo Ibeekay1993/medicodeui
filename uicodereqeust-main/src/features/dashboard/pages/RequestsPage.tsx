@@ -287,6 +287,7 @@ export default function RequestsPage() {
                 <SelectItem value="referral_accepted" className="text-xs font-semibold">Referral Accepted</SelectItem>
                 <SelectItem value="pending_authorization" className="text-xs font-semibold">Pending Authorization</SelectItem>
                 <SelectItem value="approved" className="text-xs font-semibold text-emerald-600">Approved</SelectItem>
+                <SelectItem value="partially_approved" className="text-xs font-semibold text-amber-600">Partially Approved</SelectItem>
                 <SelectItem value="rejected" className="text-xs font-semibold text-rose-600">Rejected</SelectItem>
                 <SelectItem value="referral_declined" className="text-xs font-semibold text-rose-600">Referral Declined</SelectItem>
                 <SelectItem value="referral_expired" className="text-xs font-semibold text-rose-600">Referral Expired</SelectItem>

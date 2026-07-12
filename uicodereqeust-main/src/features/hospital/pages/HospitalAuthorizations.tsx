@@ -336,6 +336,7 @@ export default function HospitalAuthorizations() {
               { id: "all", label: "All Status" },
               { id: "pending", label: "Pending" },
               { id: "approved", label: "Approved" },
+              { id: "partially_approved", label: "Partially Approved" },
               { id: "rejected", label: "Rejected" },
               { id: "pending_referral", label: "Pending Referral" },
               { id: "referral_approved", label: "Referral Approved" },
