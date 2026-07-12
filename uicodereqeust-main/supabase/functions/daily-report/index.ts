@@ -110,17 +110,9 @@ serve(async (req) => {
 
     if (error) throw error
 
-    // For a forced test send, continue even with no records and send a test email
-    if (!forceSend && (!records || records.length === 0)) {
-      return new Response(JSON.stringify({ message: "No authorizations in the last 24 hours. Skipping email." }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 200,
-      })
-    }
-
-    // If test mode and no real records, use a placeholder so email delivery can be verified
+    // We now send the email even if there are no records, so admins know the system is alive.
     const effectiveRecords = (records && records.length > 0) ? records : [];
-    const isTestWithNoRecords = forceSend && effectiveRecords.length === 0;
+    const isTestWithNoRecords = effectiveRecords.length === 0;
 
     const approvedRecords = effectiveRecords.filter((r: any) => r.status === 'approved')
     const totalAmount = approvedRecords.reduce((sum: number, r: any) => sum + (r.total_amount || 0), 0)
@@ -255,7 +247,7 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         sender: brevoSender,
-        to: [{ email: recipientEmail }],
+        to: recipientEmail.split(',').map(e => ({ email: e.trim() })).filter(e => e.email),
         subject: `${forceSend ? '[TEST] ' : ''}Ronsberger HMO Daily Pre-Auth Report - ${end.toLocaleDateString("en-GB")}`,
         htmlContent: htmlContent,
         attachment: [

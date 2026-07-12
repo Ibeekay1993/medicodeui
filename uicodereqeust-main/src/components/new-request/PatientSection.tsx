@@ -176,8 +176,8 @@ export default function PatientSection({
             </p>
           </>
         ) : (
-          <div className="h-12 flex items-center px-4 rounded-xl bg-slate-50 border border-dashed border-slate-200">
-            <p className="text-xs text-slate-500 italic">No email provided. Patient will need to call the HMO for their request PIN.</p>
+          <div className="h-12 flex items-center px-4 rounded-xl bg-emerald-50/50 border border-dashed border-emerald-200">
+            <p className="text-xs text-emerald-600 font-medium">No email provided. The request PIN will be sent via WhatsApp to the provided phone number.</p>
           </div>
         )}
       </div>

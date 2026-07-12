@@ -3,28 +3,12 @@ import { ClaimRecord, ClaimDraft } from "../types";
 
 export class ClaimsService {
   /**
-   * Fetches all claims for the analysis page across multiple pages.
+   * Fetches summarized claims analysis data directly from the database using an RPC.
    */
-  static async getClaimsAnalysisData(): Promise<ClaimRecord[]> {
-    let page = 0;
-    let hasMore = true;
-    let allData: ClaimRecord[] = [];
-
-    while (hasMore) {
-      const { data, error } = await supabase
-        .from("hospital_claims" as any)
-        .select("id,hospital_id,hospital_name,status,total_amount,created_at")
-        .order("created_at", { ascending: false })
-        .range(page * 1000, (page + 1) * 1000 - 1);
-
-      if (error) throw error;
-      const rows = (data || []) as unknown as ClaimRecord[];
-      allData = [...allData, ...rows];
-      page += 1;
-      hasMore = rows.length === 1000;
-    }
-
-    return allData;
+  static async getClaimsAnalysisSummary(): Promise<any> {
+    const { data, error } = await supabase.rpc("rpc_get_claims_analysis_summary" as any);
+    if (error) throw error;
+    return data;
   }
 
   /**

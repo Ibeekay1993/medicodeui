@@ -66,8 +66,8 @@ export default function ReferralProcessDialog({
 
       if (updateError) throw updateError;
 
-      // 3. Log audit trail
-      await supabase.from("authorization_logs").insert({
+      // 3. Log audit trail (asynchronous, non-blocking)
+      supabase.from("authorization_logs").insert({
         request_id: request.id,
         action: "REFERRAL_ACCEPTED",
         performed_by: hospital.user_id,
@@ -76,7 +76,7 @@ export default function ReferralProcessDialog({
           hospital_name: hospital.name,
           timestamp: new Date().toISOString()
         }
-      });
+      }).then(({ error }) => { if (error) console.error("Async log error:", error); });
 
       toast({ title: "Referral Accepted", description: "Referral successfully accepted. You can now submit the treatment plan." });
       onUpdated();
@@ -111,8 +111,8 @@ export default function ReferralProcessDialog({
 
       if (updateError) throw updateError;
 
-      // Log audit
-      await supabase.from("authorization_logs").insert({
+      // Log audit (asynchronous)
+      supabase.from("authorization_logs").insert({
         request_id: request.id,
         action: "REFERRAL_DECLINED",
         performed_by: hospital.user_id,
@@ -122,7 +122,7 @@ export default function ReferralProcessDialog({
           reason: finalReason,
           timestamp: new Date().toISOString()
         }
-      });
+      }).then(({ error }) => { if (error) console.error("Async log error:", error); });
 
       toast({ title: "Referral Declined", description: "This referral has been declined and permanently locked." });
       onUpdated();

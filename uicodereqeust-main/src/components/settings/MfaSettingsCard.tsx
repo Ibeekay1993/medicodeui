@@ -15,7 +15,6 @@ interface MfaSettingsCardProps {
 }
 
 export default function MfaSettingsCard({ user, fullName, role }: MfaSettingsCardProps) {
-  if (role === "hospital") return null;
 
   const { toast } = useToast();
   const [mfaEnabled, setMfaEnabled] = useState(false);
@@ -94,6 +93,8 @@ export default function MfaSettingsCard({ user, fullName, role }: MfaSettingsCar
       setIsVerifying(false);
     }
   };
+
+  if (role === "hospital") return null;
 
   return (
     <Card className="rounded-xl border-slate-100 bg-white shadow-sm overflow-hidden">

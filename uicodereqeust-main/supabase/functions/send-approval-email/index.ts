@@ -123,6 +123,7 @@ serve(async (req) => {
           phone_number: request.patient_phone,
           otp_code: otp,
           hospital_name: request.hospital_name || "the hospital",
+          patient_name: request.patient_name || "Patient",
           authorization_request_id: authorization_id
         }
       }).catch(err => console.error("WhatsApp trigger failed:", err));

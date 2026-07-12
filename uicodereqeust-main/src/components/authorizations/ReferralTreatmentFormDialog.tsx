@@ -140,8 +140,8 @@ export default function ReferralTreatmentFormDialog({
 
       if (updateError) throw updateError;
 
-      // 2. Log audit event
-      await supabase.from("authorization_logs").insert({
+      // 2. Log audit event (asynchronous)
+      supabase.from("authorization_logs").insert({
         request_id: request.id,
         action: "TREATMENT_SUBMITTED",
         performed_by: hospital.user_id,
@@ -151,7 +151,7 @@ export default function ReferralTreatmentFormDialog({
           total_amount: total,
           timestamp: new Date().toISOString()
         }
-      });
+      }).then(({ error }) => { if (error) console.error("Async log error:", error); });
 
       toast({ title: "Treatment Submitted", description: "Treatment request submitted. Treatment OTP will be sent to the patient upon HMO approval." });
       onUpdated();

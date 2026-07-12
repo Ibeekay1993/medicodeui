@@ -501,7 +501,23 @@ export default function HospitalNewRequest() {
             },
             severity: "info",
           });
-        } catch {}
+        } catch (err) {
+          console.error("Failed to insert audit log for referral", err);
+        }
+      }
+
+      // Asynchronously send submission notification via WhatsApp
+      if (phone && phone.trim().length >= 10) {
+        supabase.functions.invoke("send-submission-notification", {
+          body: {
+            phone_number: phone,
+            patient_name: selectedPatient?.full_name,
+            hospital_name: hospital?.name,
+            diagnoses: diagnoses,
+            urgency: urgency,
+            requested_items: treatments.map((t: any) => ({ quantity: t.quantity, name: t.name }))
+          }
+        }).catch(err => console.error("Failed to send submission notification", err));
       }
 
       // Send the request PIN to the patient email for referrals.
@@ -532,7 +548,7 @@ export default function HospitalNewRequest() {
             toast({
               title: "Referral request submitted",
               description: isNoEmail 
-                ? `Referral to ${resolvedReferralHospitalName || 'hospital'} submitted.` 
+                ? `Referral to ${resolvedReferralHospitalName || 'hospital'} submitted. The Arrival PIN will be sent via WhatsApp upon approval.` 
                 : `Referral submitted. The Arrival PIN will be emailed to the patient upon approval.`,
             });
           }
@@ -540,7 +556,9 @@ export default function HospitalNewRequest() {
           // Standard request - no PIN generated at submission stage anymore
           toast({
             title: "Request submitted successfully",
-            description: "Request submitted to HMO. The Treatment PIN will be emailed to the patient upon approval.",
+            description: isNoEmail
+              ? "Request submitted to HMO. The Treatment PIN will be sent via WhatsApp to the patient upon approval."
+              : "Request submitted to HMO. The Treatment PIN will be emailed to the patient upon approval.",
           });
         }
       } catch (err: any) {
@@ -671,7 +689,9 @@ export default function HospitalNewRequest() {
                   </div>
                   <div className="flex justify-between">
                     <span className="text-xs font-semibold text-slate-500">Contact:</span>
-                    <span className="text-xs font-bold text-slate-900">{phone} | {noEmail ? "No Email Provided" : patientEmail}</span>
+                    <span className="text-xs font-bold text-slate-900">
+                      {phone} {(!noEmail && patientEmail && patientEmail !== "no-email@medicode.com") ? `| ${patientEmail}` : ""}
+                    </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-xs font-semibold text-slate-500">Diagnoses:</span>
@@ -696,25 +716,36 @@ export default function HospitalNewRequest() {
                     <div className="pt-2">
                       <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2">Requested Items</p>
                       <div className="space-y-2">
-                        {treatments.map((t: any, idx: number) => (
-                          <div key={idx} className="flex justify-between items-start text-xs border border-slate-100 rounded-lg p-2 bg-white">
-                            <div className="flex-1 pr-2">
-                              <p className="font-bold text-slate-900">{t.name}</p>
-                              <p className="text-[10px] text-slate-500">Code: {t.code} &middot; {t.category || "Service"}</p>
+                        {treatments.map((t: any, idx: number) => {
+                          const isRef = Boolean(referralHospitalId || (referralHospitalName && referralHospitalName.trim().length > 0));
+                          return (
+                            <div key={idx} className="flex justify-between items-start text-xs border border-slate-100 rounded-lg p-2 bg-white">
+                              <div className="flex-1 pr-2">
+                                <p className="font-bold text-slate-900">{t.name}</p>
+                                <p className="text-[10px] text-slate-500">Code: {t.code} &middot; {t.category || "Service"}</p>
+                              </div>
+                              <div className="text-right whitespace-nowrap">
+                                {!isRef ? (
+                                  <>
+                                    <p className="font-bold text-slate-900">{t.quantity} x NGN {t.amount.toLocaleString()}</p>
+                                    <p className="text-[10px] text-emerald-600 font-bold">NGN {(t.quantity * t.amount).toLocaleString()}</p>
+                                  </>
+                                ) : (
+                                  <p className="font-bold text-slate-900">Qty: {t.quantity}</p>
+                                )}
+                              </div>
                             </div>
-                            <div className="text-right whitespace-nowrap">
-                              <p className="font-bold text-slate-900">{t.quantity} x NGN {t.amount.toLocaleString()}</p>
-                              <p className="text-[10px] text-emerald-600 font-bold">NGN {(t.quantity * t.amount).toLocaleString()}</p>
-                            </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </div>
                   )}
-                  <div className="flex justify-between border-t border-slate-200 pt-3 mt-3">
-                    <span className="text-sm font-black text-slate-900">Total Amount:</span>
-                    <span className="text-sm font-black text-emerald-600">NGN {total.toLocaleString()}</span>
-                  </div>
+                  {!(referralHospitalId || (referralHospitalName && referralHospitalName.trim().length > 0)) && (
+                    <div className="flex justify-between border-t border-slate-200 pt-3 mt-3">
+                      <span className="text-sm font-black text-slate-900">Total Amount:</span>
+                      <span className="text-sm font-black text-emerald-600">NGN {total.toLocaleString()}</span>
+                    </div>
+                  )}
                 </div>
 
               </div>

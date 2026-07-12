@@ -1,4 +1,4 @@
-﻿import React, { useState, useRef } from "react";
+import React, { useState, useRef } from "react";
 import { Upload, FileText, X, CheckCircle2, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -126,7 +126,7 @@ export default function DocumentUploadSection({
               </div>
             </div>
           ) : (
-            <>
+            <div className="flex flex-col items-center justify-center text-center">
               <Upload className="mx-auto h-10 w-10 mb-4 text-slate-400" />
               <h3 className="text-sm font-bold text-slate-900">{isDragging ? "Drop file here" : "Upload doctor's report"}</h3>
               <p className="text-xs text-slate-500 mt-1">PDF, JPG, or PNG (max 10MB)</p>
@@ -134,7 +134,7 @@ export default function DocumentUploadSection({
                 <FileText className="mr-2 h-4 w-4" />
                 Select File
               </label>
-            </>
+            </div>
           )}
         </div>
       ) : (

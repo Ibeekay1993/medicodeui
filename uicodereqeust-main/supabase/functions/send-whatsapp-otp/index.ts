@@ -1,12 +1,12 @@
-﻿import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 
 export const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const META_WHATSAPP_ACCESS_TOKEN = Deno.env.get("META_WHATSAPP_ACCESS_TOKEN") || "";
-const META_PHONE_NUMBER_ID = Deno.env.get("META_PHONE_NUMBER_ID") || "";
+const WASENDER_API_URL = Deno.env.get("WASENDER_API_URL") || "https://wasenderapi.com/api/send-message";
+const WASENDER_API_KEY = Deno.env.get("WASENDER_API_KEY") || "";
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -14,7 +14,7 @@ serve(async (req) => {
   }
 
   try {
-    const { phone_number, otp_code, authorization_request_id, hospital_name } = await req.json();
+    const { phone_number, otp_code, authorization_request_id, hospital_name, patient_name } = await req.json();
 
     if (!phone_number || !otp_code) {
       return new Response(JSON.stringify({ error: "Missing required parameters" }), {
@@ -23,73 +23,77 @@ serve(async (req) => {
       });
     }
 
-    if (!META_WHATSAPP_ACCESS_TOKEN || !META_PHONE_NUMBER_ID) {
-      console.warn("Meta WhatsApp credentials not configured. Skipping WhatsApp send.");
+    if (!WASENDER_API_KEY) {
+      console.warn("WASender API key not configured. Skipping WhatsApp send.");
       return new Response(JSON.stringify({ success: false, message: "WhatsApp credentials missing" }), {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" }
       });
     }
 
-    // Format phone number to WhatsApp international format (no + symbol)
+    // Format phone number to WhatsApp international format (with + symbol for WASender)
     const cleanNumber = phone_number.replace(/\D/g, "");
-    const formattedNumber = cleanNumber.length === 10 ? "234" + cleanNumber : cleanNumber;
+    let formattedNumber = cleanNumber;
+    
+    // If it's a Nigerian 11-digit number starting with 0 (e.g. 080...), replace 0 with 234
+    if (cleanNumber.length === 11 && cleanNumber.startsWith("0")) {
+      formattedNumber = "+234" + cleanNumber.substring(1);
+    } 
+    // If it's 10 digits (missing the leading 0), prepend +234
+    else if (cleanNumber.length === 10) {
+      formattedNumber = "+234" + cleanNumber;
+    } else {
+      // WASender usually prefers a + at the start
+      formattedNumber = "+" + cleanNumber;
+    }
 
-    console.log(`Sending Official Meta WhatsApp message to ${formattedNumber}...`);
+    console.log(`Sending WASender WhatsApp message to ${formattedNumber}...`);
 
-    // In a real scenario, you must use a pre-approved Meta WhatsApp Template.
-    // Replace "arrival_pin_template" with your actual template name in Meta Business Manager.
-    const metaPayload = {
-      messaging_product: "whatsapp",
+    const pName = patient_name ? patient_name.trim() : "Patient";
+    const hName = hospital_name || "the hospital";
+    const messageText = `Hello ${pName}!\n\nA new authorization request has been approved for you at ${hName}.\nYour Arrival PIN is: *${otp_code}*`;
+
+    const wasenderPayload = {
       to: formattedNumber,
-      type: "template",
-      template: {
-        name: "arrival_pin_template", 
-        language: {
-          code: "en"
-        },
-        components: [
-          {
-            type: "body",
-            parameters: [
-              { type: "text", text: hospital_name || "the hospital" },
-              { type: "text", text: otp_code }
-            ]
-          }
-        ]
-      }
+      text: messageText
     };
 
-    const response = await fetch(`https://graph.facebook.com/v19.0/${META_PHONE_NUMBER_ID}/messages`, {
+    const response = await fetch(WASENDER_API_URL, {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${META_WHATSAPP_ACCESS_TOKEN}`,
+        "Authorization": `Bearer ${WASENDER_API_KEY}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(metaPayload),
+      body: JSON.stringify(wasenderPayload),
     });
 
-    const result = await response.json();
+    // WASender might not return standard JSON, so we handle safely
+    const responseText = await response.text();
+    let result;
+    try {
+      result = JSON.parse(responseText);
+    } catch (e) {
+      result = { raw: responseText };
+    }
 
     if (!response.ok) {
-      console.error("Meta WhatsApp API Error:", result);
+      console.error("WASender API Error:", result);
       return new Response(
         JSON.stringify({
-          error: "Failed to send WhatsApp message via Meta API",
+          error: "Failed to send WhatsApp message via WASender API",
           details: result,
         }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    console.log("Meta WhatsApp message sent successfully.");
+    console.log("WASender WhatsApp message sent successfully.");
 
     return new Response(
       JSON.stringify({
         success: true,
-        message: "WhatsApp message delivered via Meta API",
-        method: "whatsapp",
-        meta_message_id: result?.messages?.[0]?.id
+        message: "WhatsApp message delivered via WASender API",
+        method: "whatsapp"
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

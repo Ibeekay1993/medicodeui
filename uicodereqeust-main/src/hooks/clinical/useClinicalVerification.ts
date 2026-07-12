@@ -21,91 +21,7 @@ export function useClinicalVerification(
   const [sheetHistory, setSheetHistory] = useState<any[]>([]);
   const [familyMembers, setFamilyMembers] = useState<any[]>([]);
 
-  const checkNHISList = useCallback(async () => {
-    try {
-      if (!request.policy_number && !request.patient_name) return;
 
-      const policy = normalizePolicyNumber(request.policy_number);
-      const patientName = String(request.patient_name || "").trim();
-
-      let policyRows: any[] = [];
-      if (policy) {
-        const exactLookup = await supabase
-          .from("nhis_beneficiaries")
-          .select("*")
-          .eq("policy_number", policy);
-        if (exactLookup.error) throw exactLookup.error;
-        policyRows = exactLookup.data || [];
-
-        if (policyRows.length === 0) {
-          const prefixLookup = await supabase
-            .from("nhis_beneficiaries")
-            .select("*")
-            .ilike("policy_number", `${policy}%`);
-          if (prefixLookup.error) throw prefixLookup.error;
-          policyRows = prefixLookup.data || [];
-        }
-      }
-
-      let nameRows: any[] = [];
-      if (patientName && policyRows.length === 0) {
-        const { data, error } = await supabase
-          .from("nhis_beneficiaries")
-          .select("*")
-          .or(`full_name.ilike.%${patientName}%,surname.ilike.%${patientName}%,first_name.ilike.%${patientName}%`)
-          .limit(50);
-        if (error) throw error;
-        nameRows = data || [];
-      }
-
-      const matchedRows = policyRows.length > 0 ? policyRows : nameRows;
-      const hasPolicyMatch = policyRows.length > 0;
-      const hasNameMatch = matchedRows.length > 0;
-
-      let matchStatus: "exact" | "partial" | "none" = "none";
-      let bestMatchMemberId: string | null = null;
-      
-      if (hasNameMatch || hasPolicyMatch) {
-        const reqName = patientName.toLowerCase();
-        const reqTokens = reqName.split(/[\s,]+/).filter(Boolean);
-        let bestMatch = 0;
-
-        for (const row of matchedRows) {
-          const rowName = String(row.full_name || `${row.surname || ""} ${row.first_name || ""}`).toLowerCase();
-          const rowTokens = rowName.split(/[\s,]+/).filter(Boolean);
-
-          let matches = 0;
-          for (const token of reqTokens) {
-            if (rowTokens.some(rt => rt === token || rt.includes(token) || token.includes(rt))) {
-              matches++;
-            }
-          }
-          if (matches > bestMatch) {
-            bestMatch = matches;
-            bestMatchMemberId = row.id;
-          }
-        }
-
-        if (bestMatch >= Math.max(2, reqTokens.length) || (bestMatch > 0 && reqTokens.length === 1)) {
-          matchStatus = "exact";
-        } else if (bestMatch > 0) {
-          matchStatus = "partial";
-        } else {
-          matchStatus = "none";
-          bestMatchMemberId = null;
-        }
-      }
-
-      setMatchedMemberId(bestMatchMemberId);
-      setPatientMatchStatus(matchStatus);
-      setPolicyVerified(hasPolicyMatch);
-      setNhisVerified(hasPolicyMatch || hasNameMatch);
-      setPatientVerified(hasPolicyMatch || hasNameMatch);
-      setFamilyMembers(matchedRows);
-    } catch (err) {
-      console.error("NHIS verify error:", err);
-    }
-  }, [request]);
 
   const fetchGoogleSheetHistory = useCallback(async () => {
     try {
@@ -153,65 +69,106 @@ export function useClinicalVerification(
     }
   }, [request]);
 
-  const runLocalDBChecks = useCallback(async () => {
+  const runVerificationSuite = useCallback(async () => {
+    setChecking(true);
+    
+    // Fire off Google Sheet History in parallel to avoid blocking the main DB checks
+    const sheetPromise = fetchGoogleSheetHistory();
+
     try {
       const policy = normalizePolicyNumber(request.policy_number);
+      const patientName = String(request.patient_name || "").trim();
+      let matchedRows: any[] = [];
+      let hasPolicyMatch = false;
+      let hasNameMatch = false;
 
-      if (policy || request.patient_name) {
-        let policyRows: any[] = [];
+      // 1. Fetch from nhis_beneficiaries ONCE to avoid duplicate queries and race conditions
+      if (policy || patientName) {
         if (policy) {
-          const exactLookup = await supabase
-            .from("nhis_beneficiaries")
-            .select("*")
-            .eq("policy_number", policy);
-          if (exactLookup.error) throw exactLookup.error;
-          policyRows = exactLookup.data || [];
-
-          if (policyRows.length === 0) {
-            const prefixLookup = await supabase
-              .from("nhis_beneficiaries")
-              .select("*")
-              .ilike("policy_number", `${policy}%`);
-            if (prefixLookup.error) throw prefixLookup.error;
-            policyRows = prefixLookup.data || [];
+          const exactLookup = await supabase.from("nhis_beneficiaries").select("*").eq("policy_number", policy);
+          matchedRows = exactLookup.data || [];
+          if (matchedRows.length === 0) {
+            const prefixLookup = await supabase.from("nhis_beneficiaries").select("*").ilike("policy_number", `${policy}%`);
+            matchedRows = prefixLookup.data || [];
           }
         }
+        
+        hasPolicyMatch = matchedRows.length > 0;
 
-        const hasPolicyMatch = (policyRows || []).length > 0;
-        let matchedBeneficiaries = policyRows || [];
-
-        if (!hasPolicyMatch && request.patient_name) {
-          const { data: nameRows } = await supabase
-            .from("nhis_beneficiaries")
+        if (!hasPolicyMatch && patientName) {
+          const { data } = await supabase.from("nhis_beneficiaries")
             .select("*")
-            .or(`full_name.ilike.%${request.patient_name}%,surname.ilike.%${request.patient_name}%,first_name.ilike.%${request.patient_name}%`)
+            .or(`full_name.ilike.%${patientName}%,surname.ilike.%${patientName}%,first_name.ilike.%${patientName}%`)
             .limit(50);
-          matchedBeneficiaries = nameRows || [];
+          matchedRows = data || [];
+        }
+        
+        hasNameMatch = matchedRows.length > 0 && !hasPolicyMatch;
+      }
+      
+      // 2. NHIS matching logic 
+      let matchStatus: "exact" | "partial" | "none" = "none";
+      let bestMatchMemberId: string | null = null;
+      
+      if (hasNameMatch || hasPolicyMatch) {
+        const reqName = patientName.toLowerCase();
+        const reqTokens = reqName.split(/[\s,]+/).filter(Boolean);
+        let bestMatch = 0;
+
+        for (const row of matchedRows) {
+          const rowName = String(row.full_name || `${row.surname || ""} ${row.first_name || ""}`).toLowerCase();
+          const rowTokens = rowName.split(/[\s,]+/).filter(Boolean);
+
+          let matches = 0;
+          for (const token of reqTokens) {
+            if (rowTokens.some(rt => rt === token || rt.includes(token) || token.includes(rt))) {
+              matches++;
+            }
+          }
+          if (matches > bestMatch) {
+            bestMatch = matches;
+            bestMatchMemberId = row.id;
+          }
         }
 
-        if (matchedBeneficiaries.length > 0) {
-          setPatientVerified(true);
-          setFamilyMembers(matchedBeneficiaries);
-        } else if (request.policy_number) {
-          const { data: patients } = await supabase
-            .from("patients")
-            .select("*")
-            .eq("policy_number", request.policy_number);
-
-          if (patients && patients.length > 0) {
-            setPatientVerified(true);
-            setFamilyMembers(patients);
-            const principal = patients.find((p: any) => p.role === "PRINCIPAL") || patients[0];
-            if (principal.expiry_date && new Date(principal.expiry_date) < new Date()) {
-              setPatientVerified(false);
-            }
-          } else {
-            setPatientVerified(false);
-          }
+        if (bestMatch >= Math.max(2, reqTokens.length) || (bestMatch > 0 && reqTokens.length === 1)) {
+          matchStatus = "exact";
+        } else if (bestMatch > 0) {
+          matchStatus = "partial";
+        } else {
+          matchStatus = "none";
+          bestMatchMemberId = null;
         }
       }
 
-      // Local DB history
+      setMatchedMemberId(bestMatchMemberId);
+      setPatientMatchStatus(matchStatus);
+      setPolicyVerified(hasPolicyMatch);
+      setNhisVerified(hasPolicyMatch || hasNameMatch);
+      
+      // 3. Fallback logic for patients table
+      if (matchedRows.length > 0) {
+        setPatientVerified(true);
+        setFamilyMembers(matchedRows);
+      } else if (request.policy_number) {
+        const { data: patients } = await supabase.from("patients").select("*").eq("policy_number", request.policy_number);
+        if (patients && patients.length > 0) {
+          setPatientVerified(true);
+          setFamilyMembers(patients);
+          const principal = patients.find((p: any) => p.role === "PRINCIPAL") || patients[0];
+          if (principal.expiry_date && new Date(principal.expiry_date) < new Date()) {
+            setPatientVerified(false);
+          }
+        } else {
+          setPatientVerified(false);
+          setFamilyMembers([]);
+        }
+      } else {
+         setPatientVerified(false);
+         setFamilyMembers([]);
+      }
+
+      // 4. Local DB History 
       if (request.policy_number) {
         const { data: history } = await supabase
           .from("authorization_requests")
@@ -223,7 +180,6 @@ export function useClinicalVerification(
           .limit(5);
         if (history) setLocalHistory(history);
 
-        // 30-day refill check from local DB
         if (history && history.length > 0) {
           const latest = history[0];
           if (latest.decided_at) {
@@ -238,20 +194,15 @@ export function useClinicalVerification(
           setEarlyRefill(null);
         }
       }
-    } catch (err) {
-      console.error("Local DB check error:", err);
-    }
-  }, [request]);
 
-  const runVerificationSuite = useCallback(async () => {
-    setChecking(true);
-    await Promise.all([
-      checkNHISList(),
-      runLocalDBChecks(),
-      fetchGoogleSheetHistory(),
-    ]);
+    } catch (err) {
+      console.error("Verification error:", err);
+    }
+
+    // Wait for the background history fetch to complete
+    await sheetPromise;
     setChecking(false);
-  }, [request, checkNHISList, runLocalDBChecks, fetchGoogleSheetHistory]);
+  }, [request, fetchGoogleSheetHistory]);
 
   useEffect(() => {
     if (open && request) {

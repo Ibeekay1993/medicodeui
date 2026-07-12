@@ -392,8 +392,8 @@ export function useClinicalActions({
 
         if (updateError) throw updateError;
 
-        // Audit Log for Security
-        await supabase.from("authorization_logs").insert({
+        // Audit Log for Security (asynchronous)
+        supabase.from("authorization_logs").insert({
           request_id: request.id,
           action: `SET_STATUS_${dbStatus.toUpperCase()}`,
           performed_by: user?.id,
@@ -410,7 +410,7 @@ export function useClinicalActions({
             ip: "client-side",
             timestamp: new Date().toISOString(),
           },
-        });
+        }).then(({ error }) => { if (error) console.error("Async log error:", error); });
 
         resetIbadanWorkbookHistoryCache();
 
@@ -705,7 +705,8 @@ export function useClinicalActions({
 
       if (updateError) throw updateError;
 
-      await supabase.from("authorization_logs").insert({
+      // Audit log (asynchronous)
+      supabase.from("authorization_logs").insert({
         request_id: request.id,
         action: "REFERRAL_REASSIGNED",
         performed_by: user?.id,
@@ -715,7 +716,7 @@ export function useClinicalActions({
           new_referred_hospital_id: editReferralHospitalId,
           new_referred_hospital_name: editReferralHospitalName,
         },
-      });
+      }).then(({ error }) => { if (error) console.error("Async log error:", error); });
 
       await supabase.functions.invoke("send-otp", {
         method: "POST",
