@@ -506,11 +506,12 @@ export default function HospitalNewRequest() {
         }
       }
 
-      // Asynchronously send submission notification via WhatsApp
-      if (phone && phone.trim().length >= 10) {
+      // Asynchronously send submission notification via Email and WhatsApp
+      if ((phone && phone.trim().length >= 10) || (patientEmail && patientEmail.trim() !== "no-email@medicode.com")) {
         supabase.functions.invoke("send-submission-notification", {
           body: {
             phone_number: phone,
+            patient_email: patientEmail,
             patient_name: selectedPatient?.full_name,
             hospital_name: hospital?.name,
             diagnoses: diagnoses,

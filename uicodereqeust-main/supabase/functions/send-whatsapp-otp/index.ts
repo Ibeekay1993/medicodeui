@@ -51,7 +51,7 @@ serve(async (req) => {
 
     const pName = patient_name ? patient_name.trim() : "Patient";
     const hName = hospital_name || "the hospital";
-    const messageText = `Hello ${pName}!\n\nA new authorization request has been approved for you at ${hName}.\nYour Arrival PIN is: *${otp_code}*`;
+    const messageText = `Hello ${pName}!\n\nA new authorization request has been approved for you at ${hName}.\nYour Arrival PIN is: *${otp_code}*\n\nThank you,\n*Ronsberger HMO*`;
 
     const wasenderPayload = {
       to: formattedNumber,
