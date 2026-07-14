@@ -3,9 +3,11 @@ import globals from "globals";
 import reactHooks from "eslint-plugin-react-hooks";
 import reactRefresh from "eslint-plugin-react-refresh";
 import tseslint from "typescript-eslint";
+import security from "eslint-plugin-security";
+import importPlugin from "eslint-plugin-import";
 
 export default tseslint.config(
-  { ignores: ["dist"] },
+  { ignores: ["dist", "src/integrations/supabase/types.ts"] },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     files: ["**/*.{ts,tsx}"],
@@ -16,9 +18,14 @@ export default tseslint.config(
     plugins: {
       "react-hooks": reactHooks,
       "react-refresh": reactRefresh,
+      "security": security,
+      "import": importPlugin,
     },
     rules: {
       ...reactHooks.configs.recommended.rules,
+      ...security.configs.recommended.rules,
+      ...importPlugin.configs.recommended.rules,
+      ...importPlugin.configs.typescript.rules,
       "react-refresh/only-export-components": ["warn", { allowConstantExport: true }],
       "react-hooks/rules-of-hooks": "error",
       "@typescript-eslint/no-unused-vars": "warn",
@@ -27,6 +34,7 @@ export default tseslint.config(
       "@typescript-eslint/ban-ts-comment": "warn",
       "react-hooks/exhaustive-deps": "warn",
       "no-useless-escape": "warn",
+      "import/no-unresolved": "off"
     },
   },
 );
