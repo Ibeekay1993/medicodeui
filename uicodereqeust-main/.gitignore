@@ -49,3 +49,11 @@ whatsapp_old_*
 tsc_*.txt
 ts_errors*.txt
 scratch_*.sql
+
+# AI Agent Files
+.agents/
+.gemini/
+*.log
+task.md
+implementation_plan.md
+walkthrough.md
