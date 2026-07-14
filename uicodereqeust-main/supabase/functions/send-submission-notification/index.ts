@@ -29,11 +29,10 @@ serve(async (req) => {
     const hName = hospital_name || "a hospital";
     const diagnosisText = (diagnoses && diagnoses.length > 0) ? diagnoses.join(", ") : "Not specified";
     const itemsList = (requested_items && requested_items.length > 0) 
-      ? requested_items.map((item: any) => `- ${item.quantity}x ${item.name}`).join("\n") 
+      ? requested_items.map((item: Record<string, unknown>) => `- ${item.quantity}x ${item.name}`).join("\n") 
       : "No specific items listed";
 
     let whatsappSent = false;
-    let emailSent = false;
     let emailStatus = "skipped";
 
     // 1. Send WhatsApp Notification
@@ -84,7 +83,7 @@ serve(async (req) => {
       
       const brevoSender = parseBrevoSender(BREVO_FROM_EMAIL);
       const itemsHtml = (requested_items && requested_items.length > 0)
-        ? requested_items.map((item: any) => `<li>${item.quantity}x ${item.name}</li>`).join("")
+        ? requested_items.map((item: Record<string, unknown>) => `<li>${item.quantity}x ${item.name}</li>`).join("")
         : "<li>No specific items listed</li>";
 
       const htmlContent = `
@@ -136,7 +135,6 @@ serve(async (req) => {
         });
 
         if (brevoResponse.ok) {
-          emailSent = true;
           emailStatus = "sent";
         } else {
           const errText = await brevoResponse.text();
@@ -158,9 +156,9 @@ serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Submission Notification Edge Function Error:", error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : String(error) }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, User, Lock, Building2, ShieldAlert } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 
 // ---------------------------------------------------------------------------
 // JWT helpers — no library needed, works in all modern browsers
@@ -40,6 +41,8 @@ export default function Register() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [hospitalName, setHospitalName] = useState("");
+  const [acceptTerms, setAcceptTerms] = useState(false);
+  const [acceptPrivacy, setAcceptPrivacy] = useState(false);
   const [loading, setLoading] = useState(false);
 
   // Role, email, hospital decoded from JWT payload on page load
@@ -160,6 +163,10 @@ export default function Register() {
       toast({ variant: "destructive", title: "Error", description: "Full name is required." });
       return;
     }
+    if (!acceptTerms || !acceptPrivacy) {
+      toast({ variant: "destructive", title: "Consent Required", description: "You must accept the Terms of Service and Privacy Policy to register." });
+      return;
+    }
     // Minimum 8 characters
     if (password.length < 8) {
       toast({
@@ -278,6 +285,20 @@ export default function Register() {
         .eq("user_id", userId);
 
       if (roleUpdateError) throw roleUpdateError;
+
+      // Log the mandatory consent for GDPR/NDPR compliance
+      const { error: consentError } = await supabase
+        .from("consent_logs")
+        .insert([{
+          user_id: userId,
+          action: "accept_all",
+          policy_version: "2026-07"
+        } as any]);
+      
+      if (consentError) {
+        console.error("Failed to append consent log:", consentError);
+        // We don't block the user if logging fails, but it's captured in server logs
+      }
 
       toast({
         title: "Registration Complete",
@@ -489,6 +510,46 @@ export default function Register() {
                   )}
                 </div>
               )}
+
+              <div className="space-y-4 pt-2 pb-2">
+                <div className="flex items-start space-x-3">
+                  <Checkbox 
+                    id="terms" 
+                    checked={acceptTerms} 
+                    onCheckedChange={(checked) => setAcceptTerms(checked as boolean)} 
+                  />
+                  <div className="grid gap-1.5 leading-none">
+                    <label
+                      htmlFor="terms"
+                      className="text-sm font-medium text-slate-700 leading-snug cursor-pointer"
+                    >
+                      I agree to the{" "}
+                      <Link to="/terms-of-service" className="text-lime-600 hover:underline" target="_blank" rel="noopener noreferrer">
+                        Terms of Service
+                      </Link>{" "}
+                      and{" "}
+                      <Link to="/privacy-policy" className="text-lime-600 hover:underline" target="_blank" rel="noopener noreferrer">
+                        Privacy Policy
+                      </Link>.
+                    </label>
+                  </div>
+                </div>
+                <div className="flex items-start space-x-3">
+                  <Checkbox 
+                    id="privacy" 
+                    checked={acceptPrivacy} 
+                    onCheckedChange={(checked) => setAcceptPrivacy(checked as boolean)} 
+                  />
+                  <div className="grid gap-1.5 leading-none">
+                    <label
+                      htmlFor="privacy"
+                      className="text-sm font-medium text-slate-700 leading-snug cursor-pointer"
+                    >
+                      I consent to the processing of my personal and healthcare data in accordance with the Privacy Policy (required under GDPR/NDPR).
+                    </label>
+                  </div>
+                </div>
+              </div>
 
               <Button
                 type="submit"

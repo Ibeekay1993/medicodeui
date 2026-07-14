@@ -1,4 +1,3 @@
-// @ts-nocheck
 // Centralized email template for all Ronsberger HMO patient-facing emails.
 // All emails MUST use this template to ensure consistent branding.
 
@@ -76,6 +75,7 @@ export function stripCodesAndPricing(item: string): string {
   }
   
   // Remove any remaining standalone pricing patterns
+  // eslint-disable-next-line security/detect-unsafe-regex
   cleaned = cleaned.replace(/[₦$£€]\s*[\d,]+\.?\d*\s*(\s*x\s*[₦$£€]\s*[\d,]+\.?\d*)?/g, "").trim();
   
   return cleaned;
@@ -84,7 +84,7 @@ export function stripCodesAndPricing(item: string): string {
 /**
  * Extract just the service name from an approved_items array item.
  */
-export function extractServiceName(rawItem: any): string {
+export function extractServiceName(rawItem: Record<string, unknown>): string {
   const possibleName = rawItem?.name ?? rawItem?.item_name ?? "Service";
   const asString = String(possibleName);
   

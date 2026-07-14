@@ -1,5 +1,3 @@
-// @ts-nocheck
-// deno-lint-ignore-file no-explicit-any
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders, getServiceClient, validateUser, parseBrevoSender } from "../_shared/auth.ts";
 import {
@@ -87,7 +85,7 @@ serve(async (req) => {
     let serviceItems: string[] = [];
     if (Array.isArray(request.approved_items) && request.approved_items.length > 0) {
       serviceItems = request.approved_items
-        .map((item: any) => extractServiceName(item))
+        .map((item: Record<string, unknown>) => extractServiceName(item))
         .filter(Boolean);
     } else if (request.treatment) {
       serviceItems = String(request.treatment)
@@ -216,13 +214,13 @@ serve(async (req) => {
         const brevoData = await brevoResponse.json();
         console.log(`Brevo response status: ${brevoResponse.status}`, brevoData);
 
-        if (brevoResponse.ok && (brevoData as any).messageId) {
+        if (brevoResponse.ok && (brevoData as Record<string, unknown>).messageId) {
           emailStatus = "sent";
-          emailResponseId = (brevoData as any).messageId;
+          emailResponseId = String((brevoData as Record<string, unknown>).messageId);
           console.log(`Referral notification sent successfully. Message ID: ${emailResponseId}`);
         } else {
           emailStatus = "failed";
-          emailError = (brevoData as any).message || (brevoData as any).error || `HTTP ${brevoResponse.status}`;
+          emailError = String((brevoData as Record<string, unknown>).message || (brevoData as Record<string, unknown>).error || `HTTP ${brevoResponse.status}`);
           console.error(`Brevo API error: ${emailError}`, brevoData);
         }
       } catch (emailErr) {

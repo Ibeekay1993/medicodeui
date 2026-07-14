@@ -1,4 +1,4 @@
-// @ts-nocheck
+import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders, getServiceClient, validateUser } from "../_shared/auth.ts";
 
@@ -199,6 +199,7 @@ function stripFieldLabels(text: string): string {
     .map(line => {
       const trimmed = line.trim();
       for (const label of KNOWN_FIELD_LABELS) {
+        // eslint-disable-next-line security/detect-non-literal-regexp
         const labelPattern = new RegExp(
           `^${label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}[\\s:]*`,
           "i"
@@ -234,7 +235,7 @@ function splitTerms(text: string) {
 
   // Step 1: Split by newlines, then by common punctuation and conjunctions
   const parts = normalized
-    .split(/\r?\n|[\+,\&;\|]|\band\b|\bthen\b|\bwith\b|\bplus\b/gi)
+    .split(/\r?\n|[+,&;|]|\band\b|\bthen\b|\bwith\b|\bplus\b/gi)
     .map((part) => part.trim())
     .filter((part) => part.length > 1);
 
@@ -300,14 +301,17 @@ function extractDurationDays(term: string) {
 }
 
 function extractDoseMultiplier(term: string) {
+  // eslint-disable-next-line security/detect-unsafe-regex
   const dose = term.match(/\b(?:take\s*)?(\d+(?:\.\d+)?)\s*(?:tabs?|tablets?|caps?|capsules?)\b/i);
   const parsed = dose ? Number(dose[1]) : 1;
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 1;
 }
 
 function normalizeStrength(value: string) {
+  // eslint-disable-next-line security/detect-unsafe-regex
   const gram = value.match(/(\d+(?:\.\d+)?)\s*g\b/i);
   if (gram) return `${Number(gram[1]) * 1000}mg`;
+  // eslint-disable-next-line security/detect-unsafe-regex
   const mg = value.match(/(\d+(?:\.\d+)?)\s*mg\b/i);
   if (mg) return `${Number(mg[1])}mg`;
   return "";
@@ -320,7 +324,7 @@ function extractDosageForm(value: string) {
   return "";
 }
 
-function itemHasForm(item: any, form: string) {
+function itemHasForm(item: Record<string, unknown>, form: string) {
   if (!form) return false;
   const haystack = `${item.name || ""} ${item.dosage_form || ""} ${item.presentation || ""}`.toLowerCase();
   if (form === "aerosol") return /aerosol|spray|inhal/.test(haystack);
@@ -343,6 +347,7 @@ function expandBrandAliases(term: string) {
   const normalized = normalizeDrugToken(term);
   const expansions: Array<{ brand: string; generic: string }> = [];
   for (const [brand, generic] of Object.entries(BRAND_ALIASES)) {
+    // eslint-disable-next-line security/detect-non-literal-regexp
     const pattern = new RegExp(`(^|\\s)${brand.replace(/[^A-Z0-9]/g, "\\s+")}(\\s|$)`, "i");
     if (pattern.test(normalized)) expansions.push({ brand, generic });
   }
@@ -371,14 +376,16 @@ function hospitalAcronym(value: string) {
     .join("");
 }
 
-function scoreHospitalMatch(hospital: any, text: string) {
+function scoreHospitalMatch(hospital: Record<string, unknown>, text: string) {
   const source = normalizeHospitalText(text);
   const name = normalizeHospitalText(hospital?.name);
   const code = normalizeHospitalText(hospital?.code);
   const short = hospitalAcronym(hospital?.name || "");
   if (!source || !name) return 0;
-  if (code && new RegExp(`\\b${code}\\b`, "i").test(source)) return 120;
-  if (short && new RegExp(`\\b${short}\\b`, "i").test(source)) return 115;
+  // eslint-disable-next-line security/detect-non-literal-regexp
+  if (code && new RegExp(`\\b${String(code).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i").test(source)) return 120;
+  // eslint-disable-next-line security/detect-non-literal-regexp
+  if (short && new RegExp(`\\b${String(short).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i").test(source)) return 115;
   if (source.includes(name)) return 110;
   const words = name.split(/\s+/).filter((part) => part.length > 3);
   const matched = words.filter((word) => source.includes(word)).length;
@@ -386,10 +393,11 @@ function scoreHospitalMatch(hospital: any, text: string) {
   return 0;
 }
 
-function isCombinationItem(item: any) {
+function isCombinationItem(item: Record<string, unknown>) {
   const name = String(item.name || "").toLowerCase();
   if (name.includes("+") || name.includes(" and ") || name.includes(" plus ")) return true;
   if (name.includes("/")) {
+    // eslint-disable-next-line security/detect-unsafe-regex
     const cleanName = name.replace(/\b\d+(?:\.\d+)?\s*(?:mg|g|mcg|ml)?\s*\/\s*\d+(?:\.\d+)?\s*(?:mg|g|mcg|ml)?\b/gi, "");
     if (cleanName.includes("/")) return true;
   }
@@ -406,7 +414,10 @@ function inputSuggestsCombination(term: string) {
 
 function extractSearchWords(term: string) {
   const brandExpanded = expandBrandAliases(term).reduce(
-    (current, alias) => current.replace(new RegExp(alias.brand, "ig"), alias.generic),
+    (current, alias) => {
+      // eslint-disable-next-line security/detect-non-literal-regexp
+      return current.replace(new RegExp(alias.brand.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "ig"), alias.generic);
+    },
     normalizeClinicalText(term),
   );
 
@@ -423,7 +434,7 @@ function extractSearchWords(term: string) {
     .slice(0, 20);
 }
 
-function rankItem(item: any, term: string, expandedNames: string[]) {
+function rankItem(item: Record<string, unknown>, term: string, expandedNames: string[]) {
   const haystack = `${item.name || ""} ${item.code || ""}`.toLowerCase();
   const lowerTerm = term.toLowerCase();
   const words = extractSearchWords(term);
@@ -460,19 +471,21 @@ function rankItem(item: any, term: string, expandedNames: string[]) {
   if (String(item.category || "").toLowerCase() === "drug" && (strength || words.some((word) => DRUG_PREFIXES.has(word)))) score += 15;
   
   // Use whole word match for lowerTerm instead of substring
+  // eslint-disable-next-line security/detect-non-literal-regexp
   const termPattern = new RegExp(`(^|\\s)${lowerTerm.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(\\s|$)`, "i");
   if (termPattern.test(haystack)) score += 40;
   
   return score;
 }
 
-async function findBestItem(supabase: any, term: string) {
+async function findBestItem(supabase: SupabaseClient, term: string) {
   const upperTerm = term.toUpperCase().trim();
   const lowerTerm = term.toLowerCase();
-  const abbreviationNames = CLINICAL_ABBREVIATIONS[upperTerm] || [];
+  const abbreviationNames = Object.hasOwn(CLINICAL_ABBREVIATIONS, upperTerm) ? CLINICAL_ABBREVIATIONS[upperTerm as keyof typeof CLINICAL_ABBREVIATIONS] : [];
   const expandedNames = [...abbreviationNames];
 
   for (const [abbr, names] of Object.entries(CLINICAL_ABBREVIATIONS)) {
+    // eslint-disable-next-line security/detect-non-literal-regexp
     const pattern = new RegExp(`(^|\\s)${abbr.replace("/", "\\/")}(\\s|$)`, "i");
     if (pattern.test(term)) expandedNames.push(...names);
   }
@@ -489,9 +502,9 @@ async function findBestItem(supabase: any, term: string) {
     term,
   ].filter(Boolean);
 
-  const seen = new Map<string, any>();
+  const seen = new Map<string, Record<string, unknown>>();
 
-  const addRows = (rows: any[] | null | undefined) => {
+  const addRows = (rows: Record<string, unknown>[] | null | undefined) => {
     for (const row of rows || []) {
       if (row?.code && !seen.has(row.code)) seen.set(row.code, row);
     }
@@ -523,7 +536,7 @@ async function findBestItem(supabase: any, term: string) {
     .select("shorthand, confidence, nhia_items!inner(*)")
     .ilike("shorthand", term)
     .limit(50);
-  for (const row of abbreviationRows || []) addRows([(row as any).nhia_items]);
+  for (const row of abbreviationRows || []) addRows([(row as Record<string, unknown>).nhia_items as Record<string, unknown>]);
 
   const { data: arrayRows } = await supabase
     .from("nhia_items")
@@ -561,7 +574,7 @@ serve(async (req) => {
 
     const supabase = getServiceClient();
     const seen = new Set<string>();
-    const items: any[] = [];
+    const items: Record<string, unknown>[] = [];
 
     // Trim whitespace from entire input text (handle leading/trailing tabs, spaces)
     const trimmedText = String(text).replace(/\t+/g, " ").trim();
@@ -572,9 +585,9 @@ serve(async (req) => {
       .eq("is_active", true)
       .limit(500);
     const referralHospital = (hospitalRows || [])
-      .map((hospital: any) => ({ hospital, score: scoreHospitalMatch(hospital, trimmedText) }))
-      .filter((entry: any) => entry.score > 0)
-      .sort((left: any, right: any) => right.score - left.score)[0]?.hospital || null;
+      .map((hospital: Record<string, unknown>) => ({ hospital, score: scoreHospitalMatch(hospital, trimmedText) }))
+      .filter((entry: { score: number }) => entry.score > 0)
+      .sort((left: { score: number }, right: { score: number }) => right.score - left.score)[0]?.hospital || null;
 
     const terms = splitTerms(trimmedText);
     for (const term of terms) {
@@ -606,7 +619,7 @@ serve(async (req) => {
         quantity,
         dosage_form: item.dosage_form,
         strengths: item.strengths,
-        matched_via: expandBrandAliases(term).length ? "brand" : CLINICAL_ABBREVIATIONS[term.toUpperCase()] ? "abbreviation" : "text",
+        matched_via: expandBrandAliases(term).length ? "brand" : Object.hasOwn(CLINICAL_ABBREVIATIONS, term.toUpperCase()) ? "abbreviation" : "text",
         matched_text: term,
         confidence: "high",
         frequency: frequency.label,

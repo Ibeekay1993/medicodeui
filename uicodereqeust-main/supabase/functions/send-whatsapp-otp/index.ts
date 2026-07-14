@@ -14,7 +14,7 @@ serve(async (req) => {
   }
 
   try {
-    const { phone_number, otp_code, authorization_request_id, hospital_name, patient_name, diagnosis, items } = await req.json();
+    const { phone_number, otp_code, hospital_name, patient_name, diagnosis, items } = await req.json();
 
     if (!phone_number || !otp_code) {
       return new Response(JSON.stringify({ error: "Missing required parameters" }), {
@@ -55,7 +55,7 @@ serve(async (req) => {
     
     let itemsText = "";
     if (items && Array.isArray(items) && items.length > 0) {
-      itemsText = "\n\n*Requested Services:*\n" + items.map((item: any) => {
+      itemsText = "\n\n*Requested Services:*\n" + items.map((item: Record<string, unknown>) => {
         const qty = item.quantity || 1;
         const name = item.name || "Service";
         if (item.declined) {
@@ -86,7 +86,7 @@ serve(async (req) => {
     let result;
     try {
       result = JSON.parse(responseText);
-    } catch (e) {
+    } catch {
       result = { raw: responseText };
     }
 
@@ -111,9 +111,9 @@ serve(async (req) => {
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Internal Function Error:", error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : String(error) }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

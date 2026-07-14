@@ -1,13 +1,19 @@
-// @ts-nocheck
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders, getServiceClient, validateUser, parseBrevoSender } from "../_shared/auth.ts";
+
+interface InvitePayload {
+  email?: string;
+  fullName?: string;
+  role?: string;
+  phone?: string | null;
+  hospital_id?: string | null;
+}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
-  let payload: any = {};
-  let adminUser: any = null;
+  let payload: InvitePayload = {};
+  let adminUser: { id?: string; email?: string } | null = null;
   const safeAudit = async (supabase: ReturnType<typeof getServiceClient>, action: string, details: Record<string, unknown>, severity = "info") => {
     await supabase.from("audit_logs").insert({
       action,
@@ -92,7 +98,7 @@ serve(async (req) => {
     try {
       const { data: existingAuthUsers, error: listError } = await supabase.auth.admin.listUsers({ page: 1, perPage: 1000 });
       if (listError) throw listError;
-      if ((existingAuthUsers?.users || []).some((u: any) => String(u.email || "").toLowerCase() === normalizedEmail)) {
+      if ((existingAuthUsers?.users || []).some((u: { email?: string }) => String(u.email || "").toLowerCase() === normalizedEmail)) {
         throw new Error("A user with this email already exists.");
       }
     } catch (duplicateCheckError) {
@@ -145,15 +151,15 @@ serve(async (req) => {
       throw new Error("SMTP service (Brevo) is not configured on the server.");
     }
 
-    const roleDisplayNames: Record<string, string> = {
-      admin: "Administrator",
-      hospital: "Hospital Representative",
-      nurse: "Utilization Manager",
-      utilization_manager: "Utilization Manager",
-      claims: "Claims Officer",
-      finance: "Finance Officer",
-    };
-    const displayRole = roleDisplayNames[role] || role;
+    const roleDisplayNames = new Map<string, string>([
+      ["admin", "Administrator"],
+      ["hospital", "Hospital Representative"],
+      ["nurse", "Utilization Manager"],
+      ["utilization_manager", "Utilization Manager"],
+      ["claims", "Claims Officer"],
+      ["finance", "Finance Officer"],
+    ]);
+    const displayRole = roleDisplayNames.get(role) || role;
 
     const brevoSender = parseBrevoSender(brevoFromRaw);
     console.log(`📧 Sending invitation email to ${normalizedEmail} from ${brevoSender.name} <${brevoSender.email}>`);
@@ -294,7 +300,7 @@ serve(async (req) => {
         error_message: err instanceof Error ? err.message : "Invitation failed",
         timestamp: new Date().toISOString(),
       }, "critical");
-    } catch (_) {
+    } catch {
       // Ignore audit write failures so the original error is returned.
     }
     return new Response(JSON.stringify({ error: true, message: err instanceof Error ? err.message : "Invitation failed" }), {

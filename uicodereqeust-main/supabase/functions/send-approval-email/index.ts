@@ -1,5 +1,4 @@
-// @ts-nocheck
-// deno-lint-ignore-file no-explicit-any
+import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders, getServiceClient, validateUser, parseBrevoSender } from "../_shared/auth.ts";
 import {
@@ -9,7 +8,7 @@ import {
   stripCodesAndPricing,
 } from "../_shared/email-template.ts";
 
-async function generateUniquePIN(supabase: any): Promise<string> {
+async function generateUniquePIN(supabase: SupabaseClient): Promise<string> {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // Removed O, 0, 1, I
   let attempts = 0;
   while (attempts < 10) {
@@ -17,6 +16,7 @@ async function generateUniquePIN(supabase: any): Promise<string> {
     const array = new Uint8Array(6);
     crypto.getRandomValues(array);
     for (let i = 0; i < 6; i++) {
+      // eslint-disable-next-line security/detect-object-injection
       pin += chars[array[i] % chars.length];
     }
     
@@ -149,7 +149,7 @@ serve(async (req) => {
 
     if (Array.isArray(request.approved_items) && request.approved_items.length > 0) {
       serviceItems = request.approved_items
-        .map((item: any) => {
+        .map((item: Record<string, unknown>) => {
           const qty = item.quantity || 1;
           const name = item.name || extractServiceName(item);
           if (item.declined) {
@@ -275,13 +275,13 @@ serve(async (req) => {
         const brevoData = await brevoResponse.json();
         console.log(`Brevo response status: ${brevoResponse.status}`, brevoData);
 
-        if (brevoResponse.ok && (brevoData as any).messageId) {
+        if (brevoResponse.ok && (brevoData as Record<string, unknown>).messageId) {
           emailStatus = "sent";
-          emailResponseId = (brevoData as any).messageId;
+          emailResponseId = String((brevoData as Record<string, unknown>).messageId);
           console.log(`Approval email sent successfully. Message ID: ${emailResponseId}`);
         } else {
           emailStatus = "failed";
-          emailError = (brevoData as any).message || (brevoData as any).error || `HTTP ${brevoResponse.status}`;
+          emailError = String((brevoData as Record<string, unknown>).message || (brevoData as Record<string, unknown>).error || `HTTP ${brevoResponse.status}`);
           console.error(`Brevo API error: ${emailError}`, brevoData);
         }
       } catch (emailErr) {

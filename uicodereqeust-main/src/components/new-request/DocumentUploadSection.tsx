@@ -34,9 +34,9 @@ export default function DocumentUploadSection({
       return;
     }
 
-    const maxSize = 10 * 1024 * 1024;
+    const maxSize = 5 * 1024 * 1024;
     if (file.size > maxSize) {
-      toast({ variant: "destructive", title: "File too large", description: "Max size is 10MB." });
+      toast({ variant: "destructive", title: "File too large", description: "Max size is 5MB." });
       return;
     }
 

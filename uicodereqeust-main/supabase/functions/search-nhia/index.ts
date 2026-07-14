@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders, getServiceClient, validateUser } from "../_shared/auth.ts";
 
@@ -45,23 +44,56 @@ const BRAND_ALIASES: Record<string, string> = {
   LOZOL: "Indapamide",
 };
 
+const BRAND_PATTERNS = [
+  { pattern: /(^|\s)COZAAR(\s|$)/i, generic: "Losartan" },
+  { pattern: /(^|\s)GLUCOPHAGE(\s|$)/i, generic: "Metformin" },
+  { pattern: /(^|\s)NORVASC(\s|$)/i, generic: "Amlodipine" },
+  { pattern: /(^|\s)AUGMENTIN(\s|$)/i, generic: "Amoxicillin Clavulanic Acid" },
+  { pattern: /(^|\s)CO-AMOXICLAV(\s|$)/i, generic: "Amoxicillin Clavulanic Acid" },
+  { pattern: /(^|\s)PANADOL(\s|$)/i, generic: "Paracetamol" },
+  { pattern: /(^|\s)DIOVAN(\s|$)/i, generic: "Valsartan" },
+  { pattern: /(^|\s)MICARDIS(\s|$)/i, generic: "Telmisartan" },
+  { pattern: /(^|\s)NATRILIX(\s|$)/i, generic: "Indapamide" },
+  { pattern: /(^|\s)VENTOLIN(\s|$)/i, generic: "Salbutamol" },
+  { pattern: /(^|\s)LASIX(\s|$)/i, generic: "Furosemide" },
+  { pattern: /(^|\s)ZESTRIL(\s|$)/i, generic: "Lisinopril" },
+  { pattern: /(^|\s)TENORMIN(\s|$)/i, generic: "Atenolol" },
+  { pattern: /(^|\s)ADALAT(\s|$)/i, generic: "Nifedipine" },
+  { pattern: /(^|\s)LOZOL(\s|$)/i, generic: "Indapamide" }
+];
+
+const CLINICAL_ABBREVIATIONS_MAP = new Map(Object.entries(CLINICAL_ABBREVIATIONS));
+const BRAND_ALIASES_MAP = new Map(Object.entries(BRAND_ALIASES));
+
+export interface NHIAItem {
+  code?: string;
+  name?: string;
+  category?: string;
+  subcategory?: string;
+  amount?: number;
+  [key: string]: unknown;
+}
+
 function normalizeStrength(value: string) {
   const normalized = String(value || "").toLowerCase()
     .replace(/\t+/g, "")    // Remove tabs
     .replace(/(\w+):\s*/g, "$1") // Strip field label colons
     .replace(/\s+/g, "");   // Remove all whitespace
-  const gram = normalized.match(/\b(\d+(?:\.\d+)?)g\b/);
+  // eslint-disable-next-line security/detect-unsafe-regex
+  const gram = normalized.match(/\b(\d{1,5}(?:\.\d{1,5})?)g\b/);
   if (gram) return `${Number(gram[1]) * 1000}mg`;
-  const mg = normalized.match(/\b(\d+(?:\.\d+)?)mg\b/);
+  // eslint-disable-next-line security/detect-unsafe-regex
+  const mg = normalized.match(/\b(\d{1,5}(?:\.\d{1,5})?)mg\b/);
   if (mg) return `${Number(mg[1])}mg`;
   return "";
 }
 
-function isCombinationItem(item: any) {
+function isCombinationItem(item: NHIAItem) {
   const name = String(item.name || "").toLowerCase();
   if (name.includes("+") || name.includes(" and ") || name.includes(" plus ")) return true;
   if (name.includes("/")) {
-    const cleanName = name.replace(/\b\d+(?:\.\d+)?\s*(?:mg|g|mcg|ml)?\s*\/\s*\d+(?:\.\d+)?\s*(?:mg|g|mcg|ml)?\b/gi, "");
+    // eslint-disable-next-line security/detect-unsafe-regex
+    const cleanName = name.replace(/\b\d{1,5}(?:\.\d{1,5})?\s{0,3}(?:mg|g|mcg|ml)?\s{0,3}\/\s{0,3}\d{1,5}(?:\.\d{1,5})?\s{0,3}(?:mg|g|mcg|ml)?\b/gi, "");
     if (cleanName.includes("/")) return true;
   }
   return false;
@@ -82,14 +114,13 @@ function expandBrandAliases(term: string) {
     .replace(/[^A-Z0-9]+/g, " ")
     .trim();
   const found: string[] = [];
-  for (const [brand, generic] of Object.entries(BRAND_ALIASES)) {
-    const pattern = new RegExp(`(^|\\s)${brand.replace(/[^A-Z0-9]/g, "\\s+")}(\\s|$)`, "i");
+  for (const { pattern, generic } of BRAND_PATTERNS) {
     if (pattern.test(normalized)) found.push(generic);
   }
   return found;
 }
 
-function scoreResult(item: any, searchTerm: string, expandedTerms: string[]) {
+function scoreResult(item: NHIAItem, searchTerm: string, expandedTerms: string[]) {
   const haystack = `${item.name || ""} ${item.code || ""}`.toLowerCase();
   const lower = searchTerm.toLowerCase();
   const requestedStrength = normalizeStrength(searchTerm);
@@ -124,27 +155,32 @@ serve(async (req) => {
     const searchLower = searchTerm.toLowerCase();
     const searchUpper = searchTerm.toUpperCase();
     const expandedTerms = [
-      ...(CLINICAL_ABBREVIATIONS[searchUpper] || []),
-      ...(BRAND_ALIASES[searchUpper] ? [BRAND_ALIASES[searchUpper]] : []),
+      ...(CLINICAL_ABBREVIATIONS_MAP.get(searchUpper) || []),
+      ...(BRAND_ALIASES_MAP.has(searchUpper) ? [BRAND_ALIASES_MAP.get(searchUpper) as string] : []),
       ...expandBrandAliases(searchTerm),
     ];
 
-    const addCategory = (builder: any) => {
+    interface QueryBuilder {
+      eq(column: string, value: unknown): QueryBuilder;
+      [key: string]: unknown;
+    }
+
+    const addCategory = (builder: QueryBuilder) => {
       if (category) return builder.eq("category", category);
       return builder;
     };
 
     const { data: exact } = await addCategory(
-      supabase.from("nhia_items").select("*").or(`code.ilike.${searchTerm},code.ilike.%${searchTerm}%`).eq("is_active", true),
-    );
+      supabase.from("nhia_items").select("*").or(`code.ilike.${searchTerm},code.ilike.%${searchTerm}%`).eq("is_active", true) as unknown as QueryBuilder
+    ) as unknown as { data: NHIAItem[] | null };
 
     const { data: nameMatch } = await addCategory(
-      supabase.from("nhia_items").select("*").or(`name.ilike.%${searchTerm}%,subcategory.ilike.%${searchTerm}%`).eq("is_active", true),
-    ).limit(100);
+      supabase.from("nhia_items").select("*").or(`name.ilike.%${searchTerm}%,subcategory.ilike.%${searchTerm}%`).eq("is_active", true) as unknown as QueryBuilder
+    ) as unknown as { data: NHIAItem[] | null };
 
     const { data: arrayMatch } = await addCategory(
-      supabase.from("nhia_items").select("*").contains("common_abbreviations", [searchUpper]).eq("is_active", true),
-    ).limit(100);
+      supabase.from("nhia_items").select("*").contains("common_abbreviations", [searchUpper]).eq("is_active", true) as unknown as QueryBuilder
+    ) as unknown as { data: NHIAItem[] | null };
 
     const { data: abbrevMatch } = await supabase
       .from("abbreviations")
@@ -159,13 +195,13 @@ serve(async (req) => {
             .select("code,name,amount,category,subcategory")
             .or(`name.ilike.%${term}%,code.ilike.%${term}%,subcategory.ilike.%${term}%`)
             .eq("is_active", true)
-            .limit(100)
-        ),
+            .limit(100) as unknown as QueryBuilder
+        ) as unknown as { data: NHIAItem[] | null },
       ),
     );
 
     const seen = new Set<string>();
-    const results: any[] = [];
+    const results: NHIAItem[] = [];
 
     for (const item of [
       ...(exact || []),
@@ -173,18 +209,18 @@ serve(async (req) => {
       ...(arrayMatch || []),
       ...expandedMatches.flatMap((result) => result.data || []),
     ]) {
-      if (!seen.has(item.code)) {
+      if (item.code && !seen.has(item.code)) {
         seen.add(item.code);
-        results.push(item);
+        results.push(item as NHIAItem);
       }
     }
 
     for (const match of abbrevMatch || []) {
-      const item = (match as any).nhia_items;
+      const item = (match as Record<string, unknown>).nhia_items as NHIAItem;
       if (!item || seen.has(item.code)) continue;
       if (category && item.category !== category) continue;
-      seen.add(item.code);
-      results.push({ ...item, matched_via: "abbreviation", confidence: (match as any).confidence });
+      seen.add(item.code || "");
+      results.push({ ...item, matched_via: "abbreviation", confidence: (match as Record<string, unknown>).confidence as number });
     }
 
     // If query is a short prefix (3+ chars), also fetch partial/substring matches
@@ -197,9 +233,9 @@ serve(async (req) => {
         .limit(200);
       
       for (const item of partialMatches || []) {
-        if (!seen.has(item.code)) {
+        if (item.code && !seen.has(item.code)) {
           seen.add(item.code);
-          results.push(item);
+          results.push(item as NHIAItem);
         }
       }
     }

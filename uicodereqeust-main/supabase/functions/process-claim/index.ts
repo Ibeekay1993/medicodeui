@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders, getServiceClient, validateUser } from "../_shared/auth.ts";
 
@@ -67,7 +66,7 @@ serve(async (req) => {
         claimed: true,
         claim_status: claimStatus,
         updated_at: new Date().toISOString(),
-      } as any)
+      } as Record<string, unknown>)
       .eq("id", claim.request_id);
 
     await supabase.from("audit_logs").insert({

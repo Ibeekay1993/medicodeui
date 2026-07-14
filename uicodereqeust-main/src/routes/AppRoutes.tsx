@@ -4,6 +4,7 @@ import { PageLoader } from "@/components/PageLoader";
 import { ChunkErrorBoundary } from "@/components/ChunkErrorBoundary";
 import ScrollToTop from "@/components/ScrollToTop";
 import { DeployVersionWatcher } from "@/components/DeployVersionWatcher";
+import { CookieConsent } from "@/components/CookieConsent";
 
 import { TabStatePreserver } from "@/components/TabStatePreserver";
 import { RootRedirect } from "./RootRedirect";
@@ -19,6 +20,8 @@ const ResetPassword = lazy(() => import("@/pages/ResetPassword"));
 const MfaSetup = lazy(() => import("@/pages/MfaSetup"));
 const Register = lazy(() => import("@/pages/Register"));
 const NotFound = lazy(() => import("@/pages/NotFound"));
+const PrivacyPolicy = lazy(() => import("@/pages/PrivacyPolicy"));
+const TermsOfService = lazy(() => import("@/pages/TermsOfService"));
 
 /**
  * AppRoutes is the application's root routing component.
@@ -32,6 +35,7 @@ export function AppRoutes() {
       {/* Application-level side effects — order matters */}
       <ScrollToTop />
       <DeployVersionWatcher />
+      <CookieConsent />
 
       <TabStatePreserver />
 
@@ -46,6 +50,8 @@ export function AppRoutes() {
             <Route path="/login" element={<Login />} />
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+            <Route path="/terms-of-service" element={<TermsOfService />} />
 
             {/* Domain route modules — one component per role portal */}
             {HospitalRoutes()}

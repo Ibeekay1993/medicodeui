@@ -1,9 +1,9 @@
-// @ts-nocheck
 // SECURITY: OTP values are never returned in API responses.
+import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders, getServiceClient, validateUser } from "../_shared/auth.ts";
 
-async function generateUniqueOTP(supabase: any): Promise<string> {
+async function generateUniqueOTP(supabase: SupabaseClient): Promise<string> {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // Removed O, 0, 1, I
   let attempts = 0;
   while (attempts < 10) {
@@ -11,6 +11,7 @@ async function generateUniqueOTP(supabase: any): Promise<string> {
     const array = new Uint8Array(6);
     crypto.getRandomValues(array);
     for (let i = 0; i < 6; i++) {
+      // eslint-disable-next-line security/detect-object-injection
       pin += chars[array[i] % chars.length];
     }
     

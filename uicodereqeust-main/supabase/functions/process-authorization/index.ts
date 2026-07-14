@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders, getServiceClient, sanitizeString, validateUser } from "../_shared/auth.ts";
 
@@ -45,7 +44,7 @@ function normalizeHospitalName(name: string): string {
  * Uses ILIKE for partial matching and confirms via normalized comparison.
  * Returns null if no match found.
  */
-async function findHospitalIdByName(supabase: any, name: string): Promise<string | null> {
+async function findHospitalIdByName(supabase: ReturnType<typeof getServiceClient>, name: string): Promise<string | null> {
   if (!name || !name.trim()) return null;
   const normalizedInput = normalizeHospitalName(name);
   try {
@@ -157,10 +156,10 @@ serve(async (req) => {
         throw new Error("One or more NHIA codes were not found");
       }
 
-      const validByCode = new Map(nhiaItems.map((item: any) => [item.code, item]));
+      const validByCode = new Map(nhiaItems.map((item: Record<string, unknown>) => [item.code, item]));
       const requestedByCode = new Map(approvedItems.map((item) => [String(item.code || "").trim(), item]));
       const normalizedItems = codes.map((code) => {
-        const item = validByCode.get(code) as any;
+        const item = validByCode.get(code) as Record<string, unknown>;
         const requested = requestedByCode.get(code) || {};
         const unitPrice = Number(requested.unit_price ?? item.amount ?? requested.price ?? 0);
         const quantity = Math.max(1, Number(requested.quantity || 1));
@@ -233,7 +232,7 @@ serve(async (req) => {
           authorized_by_email: user.email || null,
           decided_at: decidedAt,
           updated_at: decidedAt,
-        } as any)
+        } as Record<string, unknown>)
         .eq("id", requestRow.id);
 
       if (updateError) throw updateError;
@@ -283,7 +282,7 @@ serve(async (req) => {
         decided_by: user.id,
         decided_at: decidedAt,
         updated_at: decidedAt,
-      } as any)
+      } as Record<string, unknown>)
       .eq("id", requestRow.id);
 
     if (updateError) throw updateError;

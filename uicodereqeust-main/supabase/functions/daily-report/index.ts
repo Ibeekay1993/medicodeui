@@ -1,6 +1,24 @@
-// @ts-nocheck — Deno Edge Function, checked by Supabase CLI, not browser TypeScript
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { corsHeaders, getServiceClient, parseBrevoSender, validateUser } from "../_shared/auth.ts"
+
+interface AuthRequest {
+  id?: string;
+  created_at?: string;
+  request_id?: string;
+  patient_name?: string;
+  patient_phone?: string;
+  policy_number?: string;
+  diagnosis?: string;
+  treatment?: string;
+  requesting_hospital?: string;
+  hospital_name?: string;
+  source?: string;
+  authorization_code?: string;
+  status?: string;
+  rejection_reason?: string;
+  notes?: string;
+  total_amount?: number;
+}
 
 serve(async (req) => {
   // Handle CORS OPTIONS preflight request
@@ -52,7 +70,7 @@ serve(async (req) => {
         if (payload && payload.force === true) {
           forceSend = true
         }
-      } catch (_) {
+      } catch {
         // Body was empty or not valid JSON, proceed normally
       }
     }
@@ -114,8 +132,8 @@ serve(async (req) => {
     const effectiveRecords = (records && records.length > 0) ? records : [];
     const isTestWithNoRecords = effectiveRecords.length === 0;
 
-    const approvedRecords = effectiveRecords.filter((r: any) => r.status === 'approved')
-    const totalAmount = approvedRecords.reduce((sum: number, r: any) => sum + (r.total_amount || 0), 0)
+    const approvedRecords = effectiveRecords.filter((r: AuthRequest) => r.status === 'approved')
+    const totalAmount = approvedRecords.reduce((sum: number, r: AuthRequest) => sum + (r.total_amount || 0), 0)
     
     // Build HTML email body
     const htmlContent = `
@@ -161,7 +179,7 @@ serve(async (req) => {
             </tr>
           </thead>
           <tbody>
-            ${approvedRecords.slice(0, 10).map((r: any) => `
+            ${approvedRecords.slice(0, 10).map((r: AuthRequest) => `
               <tr style="border-bottom: 1px solid #f1f5f9;">
                 <td style="padding: 10px; font-weight: bold; font-family: monospace; color: #2563eb;">${r.authorization_code || 'N/A'}</td>
                 <td style="padding: 10px; font-weight: 700; color: #334155;">${r.patient_name}</td>
@@ -200,7 +218,7 @@ serve(async (req) => {
       "Decision Reason"
     ];
 
-    const csvRows = effectiveRecords.map((r: any, i: number) => {
+    const csvRows = effectiveRecords.map((r: AuthRequest, i: number) => {
       const row = [
         String(i + 1),
         new Date(r.created_at).toLocaleDateString("en-GB"),
@@ -226,9 +244,9 @@ serve(async (req) => {
     const csvBytes = encoder.encode(csvContent);
     
     let binary = "";
-    const len = csvBytes.byteLength;
-    for (let i = 0; i < len; i++) {
-      binary += String.fromCharCode(csvBytes[i]);
+    
+    for (const byte of csvBytes) {
+      binary += String.fromCharCode(byte);
     }
     const base64Csv = btoa(binary);
 
@@ -273,9 +291,10 @@ serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
     });
-  } catch (error: any) {
-    console.error('❌ daily-report error:', error.message);
-    return new Response(JSON.stringify({ error: error.message, success: false }), {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error('❌ daily-report error:', errorMessage);
+    return new Response(JSON.stringify({ error: errorMessage, success: false }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
     });

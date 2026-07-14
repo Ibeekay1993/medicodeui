@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders, getServiceClient, sanitizeString, validateUser } from "../_shared/auth.ts";
 
@@ -47,7 +46,7 @@ serve(async (req) => {
     const approvedItems = Array.isArray(auth.approved_items) ? auth.approved_items : [];
     const claimNumber = generateClaimNumber();
     const approvedFor = approvedItems.length
-      ? approvedItems.map((item: any) => `${item.code || "NHIA"} - ${item.name || "Approved item"}`).join("; ")
+      ? approvedItems.map((item: Record<string, unknown>) => `${item.code || "NHIA"} - ${item.name || "Approved item"}`).join("; ")
       : auth.treatment || "Approved service";
 
     const { data: claim, error: claimError } = await supabase
@@ -75,14 +74,14 @@ serve(async (req) => {
         submitted_at: new Date().toISOString(),
         notes: "",
         created_by: user.id,
-      } as any)
+      } as Record<string, unknown>)
       .select("*")
       .single();
 
     if (claimError) throw claimError;
 
     const lines = approvedItems.length
-      ? approvedItems.map((item: any) => ({
+      ? approvedItems.map((item: Record<string, unknown>) => ({
           claim_id: claim.id,
           description: item.name || "Approved item",
           code: item.code || "NHIA",
@@ -97,7 +96,7 @@ serve(async (req) => {
           charge: Number(auth.approved_tariff_amount || auth.total_amount || 0),
         }];
 
-    const { error: lineError } = await supabase.from("hospital_claim_lines").insert(lines as any);
+    const { error: lineError } = await supabase.from("hospital_claim_lines").insert(lines as Record<string, unknown>[]);
     if (lineError) throw lineError;
 
     await supabase
@@ -106,7 +105,7 @@ serve(async (req) => {
         claimed: true,
         claim_status: "submitted",
         updated_at: new Date().toISOString(),
-      } as any)
+      } as Record<string, unknown>)
       .eq("id", auth.id);
 
     await supabase.from("audit_logs").insert({

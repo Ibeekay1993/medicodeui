@@ -178,7 +178,22 @@ export function SupportChatArea({
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const files = Array.from(e.target.files);
-      setPendingFiles((prev) => [...prev, ...files]);
+      const allowedTypes = ["application/pdf", "image/jpeg", "image/jpg", "image/png"];
+      const maxSize = 5 * 1024 * 1024; // 5MB
+
+      const validFiles = files.filter((file) => {
+        if (!allowedTypes.includes(file.type)) {
+          toast({ variant: "destructive", title: "Invalid file type", description: `${file.name} is not a PDF, JPG, or PNG.` });
+          return false;
+        }
+        if (file.size > maxSize) {
+          toast({ variant: "destructive", title: "File too large", description: `${file.name} exceeds the 5MB limit.` });
+          return false;
+        }
+        return true;
+      });
+
+      setPendingFiles((prev) => [...prev, ...validFiles]);
     }
   };
 

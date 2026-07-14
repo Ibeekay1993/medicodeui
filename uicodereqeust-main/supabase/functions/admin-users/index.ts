@@ -1,17 +1,84 @@
-// @ts-nocheck
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders, getServiceClient, validateUser } from "../_shared/auth.ts";
+
+interface AdminActionBody {
+  action?: string;
+  user_id?: string;
+  id?: string;
+  email?: string;
+  full_name?: string;
+  phone?: string;
+  role?: string;
+  hospital_id?: string | null;
+  access_status?: string;
+}
+
+interface UserRoleRow {
+  id?: string;
+  user_id?: string | null;
+  role?: string;
+  full_name?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  hospital_id?: string | null;
+  access_status?: string;
+  updated_at?: string | null;
+}
+
+interface AuthUserItem {
+  id?: string;
+  email?: string;
+  phone?: string;
+  user_metadata?: {
+    full_name?: string;
+    name?: string;
+    phone?: string;
+    role?: string;
+    hospital_id?: string | null;
+    [key: string]: unknown;
+  };
+  created_at?: string;
+  last_sign_in_at?: string;
+  email_confirmed_at?: string;
+}
+
+interface HospitalRow {
+  id?: string;
+  name?: string;
+  code?: string;
+  email?: string | null;
+  phone?: string | null;
+  user_id?: string | null;
+}
+
+interface CombinedUser {
+  id?: string;
+  user_id?: string | null;
+  role?: string;
+  full_name?: string;
+  access_status?: string;
+  email?: string;
+  phone?: string;
+  hospital_id?: string | null;
+  hospital_name?: string;
+  hospital_code?: string;
+  created_at?: string | null;
+  updated_at?: string | null;
+  last_sign_in?: string | null;
+  email_confirmed?: boolean;
+  auth_only?: boolean;
+}
+
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
-  let body: any = {};
-  let actor: any = null;
+  let body: AdminActionBody = {};
+  let actor: { user?: AuthUserItem; profile?: { name?: string; role?: string; } } | null = null;
   let action = "unknown";
   let supabase: ReturnType<typeof getServiceClient> | null = null;
 
-  const safePayload = (payload: any) => {
+  const safePayload = (payload: Record<string, unknown>) => {
     const copy = { ...(payload || {}) };
     delete copy.password;
     delete copy.confirmText;
@@ -23,7 +90,7 @@ serve(async (req) => {
   const toMessage = (err: unknown): string => {
     if (!err) return "Unknown error";
     if (typeof err === "string") return err;
-    const e = err as any;
+    const e = err as Record<string, unknown>;
     return (
       e?.message ||
       e?.error_description ||
@@ -75,7 +142,7 @@ serve(async (req) => {
           headers: { "Content-Type": "application/json", "apikey": serviceKey!, "Authorization": `Bearer ${serviceKey!}` },
           body: JSON.stringify({}),
         });
-      } catch (_) {
+      } catch {
         // best-effort; already deployed in migration
       }
 
@@ -90,10 +157,10 @@ serve(async (req) => {
         .select("id, name, code, email, phone, user_id")
         .order("name");
 
-      let authUsers: any = { users: [] };
-      let authFetchSucceeded = false;
+      let authUsers: { users: AuthUserItem[] } = { users: [] };
+
       try {
-        const allUsers: any[] = [];
+        const allUsers: AuthUserItem[] = [];
         let page = 1;
         let keepGoing = true;
         while (keepGoing) {
@@ -105,7 +172,7 @@ serve(async (req) => {
           page += 1;
         }
         authUsers = { users: allUsers };
-        authFetchSucceeded = true;
+
       } catch (authError) {
         await logAdminUserEvent(
           "ADMIN_USERS_AUTH_LIST_WARNING",
@@ -119,14 +186,14 @@ serve(async (req) => {
       }
 
       const activeRoles = ["admin", "hospital", "utilization_manager", "claims", "finance"];
-      const filteredRoles = (roles || []).filter((r: any) => activeRoles.includes(r.role));
+      const filteredRoles = (roles || []).filter((r: UserRoleRow) => activeRoles.includes(r.role as string));
 
-      const authById = new Map((authUsers?.users || []).map((u: any) => [u.id, u]));
-      const authByEmail = new Map((authUsers?.users || []).map((u: any) => [String(u.email || "").toLowerCase(), u]));
-      const hospitalById = new Map((hospitals || []).map((h: any) => [h.id, h]));
-      const hospitalByUserId = new Map((hospitals || []).filter((h: any) => h.user_id).map((h: any) => [h.user_id, h]));
+      const authById = new Map((authUsers?.users || []).map((u: AuthUserItem) => [u.id, u]));
+      const authByEmail = new Map((authUsers?.users || []).map((u: AuthUserItem) => [String(u.email || "").toLowerCase(), u]));
+      const hospitalById = new Map((hospitals || []).map((h: HospitalRow) => [h.id, h]));
+      const hospitalByUserId = new Map((hospitals || []).filter((h: HospitalRow) => h.user_id).map((h: HospitalRow) => [h.user_id, h]));
 
-      const buildUserRecord = (r: any | null, authUser: any | null, roleFallback = "unassigned") => {
+      const buildUserRecord = (r: UserRoleRow | null, authUser: AuthUserItem | null, roleFallback = "unassigned"): CombinedUser => {
         const authId = authUser?.id || r?.user_id;
         const linkedHospital = hospitalById.get(r?.hospital_id) || hospitalByUserId.get(authId) || hospitalByUserId.get(r?.user_id);
 
@@ -205,7 +272,7 @@ serve(async (req) => {
         }
       }
 
-      const combined: any[] = [];
+      const combined: CombinedUser[] = [];
       const processedAuthIds = new Set<string>();
       const orphanedRoleIds: string[] = []; // role rows with deleted auth users
 
@@ -268,10 +335,10 @@ serve(async (req) => {
       }
 
       // Dedup by stable key (prefer user_id, else auth id, else email)
-      const dedupedUsers: any[] = [];
-      const dedupeMap = new Map<string, any>();
+      const dedupedUsers: CombinedUser[] = [];
+      const dedupeMap = new Map<string, CombinedUser>();
 
-      const nonEmpty = (a: any, b: any) => {
+      const nonEmpty = (a: unknown, b: unknown) => {
         const as = a == null ? "" : String(a);
         const bs = b == null ? "" : String(b);
         return as.trim() ? as : (bs.trim() ? bs : "");
@@ -312,20 +379,20 @@ serve(async (req) => {
       const dedupedEmails = new Set<string>();
       const dedupedNames = new Map<string, number>(); // normalized name → index in dedupedUsers
       for (let i = 0; i < dedupedUsers.length; i++) {
-        if (dedupedUsers[i].user_id) dedupedUserIds.add(dedupedUsers[i].user_id);
-        if (dedupedUsers[i].email && String(dedupedUsers[i].email).trim()) dedupedEmails.add(String(dedupedUsers[i].email).trim().toLowerCase());
-        const n = String(dedupedUsers[i].full_name || "").trim().toLowerCase();
-        if (n && !dedupedUsers[i].auth_only) dedupedNames.set(n, i);
+        if (dedupedUsers.at(i)!.user_id) dedupedUserIds.add(dedupedUsers.at(i)!.user_id);
+        if (dedupedUsers.at(i)!.email && String(dedupedUsers.at(i)!.email).trim()) dedupedEmails.add(String(dedupedUsers.at(i)!.email).trim().toLowerCase());
+        const n = String(dedupedUsers.at(i)!.full_name || "").trim().toLowerCase();
+        if (n && !dedupedUsers.at(i)!.auth_only) dedupedNames.set(n, i);
       }
       for (let i = 0; i < dedupedUsers.length; i++) {
-        const u = dedupedUsers[i];
+        const u = dedupedUsers.at(i)!;
         // Only merge auth-only entries into their role-row counterparts
         if (!u.auth_only) continue;
         const n = String(u.full_name || "").trim().toLowerCase();
         if (!n) continue;
         const matchIdx = dedupedNames.get(n);
         if (matchIdx === undefined || matchIdx === i) continue;
-        const target = dedupedUsers[matchIdx];
+        const target = dedupedUsers.at(matchIdx)!;
         // Merge auth data into the role-row entry
         if (!target.email && u.email) target.email = u.email;
         if (!target.user_id && u.user_id) target.user_id = u.user_id;
@@ -358,7 +425,7 @@ serve(async (req) => {
       
       const brevoApiKey = Deno.env.get("BREVO_API_KEY");
       if (brevoApiKey) {
-        const resetLink = (data as any)?.properties?.action_link || "";
+        const resetLink = (data as { properties?: { action_link?: string } })?.properties?.action_link || "";
         const senderRaw = Deno.env.get("BREVO_FROM_EMAIL") || "Ronsberger HMO <noreply@ronsbergerhmo.com>";
         const senderMatch = senderRaw.match(/^(.+?)\s*<([^>]+)>$/);
         const brevoSender = senderMatch
@@ -431,7 +498,7 @@ serve(async (req) => {
         }
       }
 
-      const userMetadata: any = {};
+      const userMetadata: Record<string, unknown> = {};
       if (full_name !== undefined) userMetadata.full_name = full_name;
       if (role !== undefined) userMetadata.role = role;
       if (hospital_id !== undefined) userMetadata.hospital_id = hospital_id || null;
@@ -454,7 +521,7 @@ serve(async (req) => {
         if (duplicateRoleError) throw duplicateRoleError;
       }
 
-      const updates: any = {};
+      const updates: Record<string, unknown> = {};
       if (full_name !== undefined) updates.full_name = full_name;
       if (email !== undefined) updates.email = email;
       if (phone !== undefined) updates.phone = phone;
@@ -542,7 +609,7 @@ serve(async (req) => {
       if (user_id) {
         try {
           await supabase.auth.admin.signOut(user_id, "global");
-        } catch (_) {
+        } catch {
           // best-effort sign out
         }
       }
@@ -580,12 +647,12 @@ serve(async (req) => {
         try {
           const { data } = await supabase.auth.admin.getUserByEmail(resolvedEmail);
           resolvedUserId = data?.user?.id || null;
-        } catch (_) {
+        } catch {
           resolvedUserId = null;
         }
       }
 
-      const roleRows: any[] = [];
+      const roleRows: UserRoleRow[] = [];
       if (resolvedRoleId) {
         const { data: byId, error: byIdError } = await supabase
           .from("user_roles")
@@ -614,7 +681,7 @@ serve(async (req) => {
         if (!resolvedUserId && byEmail?.[0]?.user_id) resolvedUserId = byEmail[0].user_id;
       }
 
-      const roleIds = Array.from(new Set(roleRows.map((r: any) => r.id).filter(Boolean)));
+      const roleIds = Array.from(new Set(roleRows.map((r: UserRoleRow) => r.id).filter(Boolean)));
       if (resolvedRoleId && !roleIds.includes(resolvedRoleId)) roleIds.push(resolvedRoleId);
       if (!roleIds.length && !resolvedUserId) throw new Error("User not found");
 
@@ -633,7 +700,7 @@ serve(async (req) => {
       if (resolvedUserId) {
         try {
           await supabase.auth.admin.signOut(resolvedUserId, "global");
-        } catch (_) {
+        } catch {
           // best-effort sign out
         }
         const { error: authError } = await supabase.auth.admin.deleteUser(resolvedUserId);
@@ -669,7 +736,7 @@ serve(async (req) => {
           .from("user_roles")
           .select("id")
           .in("id", deleteRoleIds);
-        const validRoleIds = (existingRoleRows || []).map((r: any) => r.id);
+        const validRoleIds = (existingRoleRows || []).map((r: UserRoleRow) => r.id);
         if (validRoleIds.length) {
           const { error: roleError } = await supabase.from("user_roles").delete().in("id", validRoleIds);
           if (roleError) throw new Error(`Role row delete failed: ${toMessage(roleError)}`);
@@ -679,7 +746,7 @@ serve(async (req) => {
       if (resolvedUserId) {
         try {
           await supabase.from("hospitals").update({ user_id: null }).eq("user_id", resolvedUserId);
-        } catch (_) {
+        } catch {
           // best-effort cleanup
         }
       }
