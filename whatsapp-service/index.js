@@ -1,9 +1,11 @@
 const express = require('express');
+const cors = require('cors');
 const { Client, LocalAuth } = require('whatsapp-web.js');
 const qrcode = require('qrcode');
 const puppeteer = require('puppeteer');
 
 const app = express();
+app.use(cors());
 app.use(express.json());
 
 // Initialize the WhatsApp Client
