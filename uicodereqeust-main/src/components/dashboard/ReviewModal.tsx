@@ -60,17 +60,52 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const handleResendOtp = async () => {
-    if (!request?.id) return;
+    if (!request) return;
     setIsResending(true);
     try {
-      const { error } = await supabase.functions.invoke("send-approval-email", {
-        body: { authorization_id: request.id },
-      });
-      if (error) throw error;
-      toast({ title: "OTP Resent", description: "The OTP has been resent to the patient." });
+      if (!request.patient_phone) {
+         throw new Error("This patient does not have a WhatsApp phone number on record.");
+      }
+
+      // Prepare WhatsApp message
+      const patientName = cleanPatientName(request.patient_name || "");
+      const policyNo = request.policy_number || "N/A";
+      const hospitalName = request.hospital_name || "the hospital";
+      const diagnosis = request.diagnosis || "Not specified";
+      const priority = request.priority || "ROUTINE";
+      const pin = otpValue || request.auth_code || "";
+
+      let itemsText = "";
+      if (request.items && Array.isArray(request.items) && request.items.length > 0) {
+        itemsText = "\n\n*Approved Services*\n\n" + request.items.map((item: any) => {
+          const qty = item.quantity || 1;
+          const name = item.name || "Service";
+          return `• ${qty}x ${name}`;
+        }).join("\n");
+      }
+
+      const messageText = `*Ronsberger HMO*\n\n*Patient Arrival PIN*\n\nHello *${patientName}*,\n\nYour patient arrival PIN is:\n\n*${pin}*\n\n*Request Details*\n\nPatient: *${patientName}*\nPolicy No.: *${policyNo}*\nHospital: *${hospitalName}*\nDiagnosis: *${diagnosis}*\nPriority: *${priority}*${itemsText}\n\nPlease provide this PIN to the reception at your approved hospital to authorize and finalize your treatment.`;
+
+      // Format phone number
+      const cleanNumber = request.patient_phone.replace(/\D/g, "");
+      let formattedNumber = cleanNumber;
+      if (cleanNumber.length === 11 && cleanNumber.startsWith("0")) {
+        formattedNumber = "234" + cleanNumber.substring(1);
+      } else if (cleanNumber.length === 10) {
+        formattedNumber = "234" + cleanNumber;
+      }
+
+      const whatsappUrl = `https://wa.me/${formattedNumber}?text=${encodeURIComponent(messageText)}`;
+      
+      const opened = window.open(whatsappUrl, "_blank", "noopener,noreferrer");
+      if (!opened) {
+        throw new Error("Unable to open WhatsApp. Please check your popup blocker settings.");
+      }
+
+      toast({ title: "WhatsApp opened with the message ready to send." });
     } catch (err: any) {
       console.error(err);
-      toast({ variant: "destructive", title: "Failed to resend", description: err.message || "An error occurred." });
+      toast({ variant: "destructive", title: "Error", description: err.message || "An error occurred." });
     } finally {
       setIsResending(false);
     }
@@ -209,6 +244,17 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
     setEditTreatment,
   });
 
+  useEffect(() => {
+    if (actions.approvalResult || actions.declineResult) {
+      // Small timeout to allow the DOM to render the new elements before scrolling
+      setTimeout(() => {
+        if (scrollContainerRef.current) {
+          scrollContainerRef.current.scrollTo({ top: 0, behavior: "smooth" });
+        }
+      }, 50);
+    }
+  }, [actions.approvalResult, actions.declineResult]);
+
   // 4. Initialize verification validation hook
   const verification = useClinicalVerification(open, request);
 
@@ -324,7 +370,9 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
           </div>
 
           {/* Process Tracker */}
-          {request?.referred_hospital_name ? (
+          {!(actions.approvalResult || actions.declineResult) && (
+            <>
+              {request?.referred_hospital_name ? (
             <div className="flex justify-center items-center gap-1 sm:gap-2 px-2 sm:px-6 py-2 w-full">
               {/* Step 1: Referral */}
               <div className="flex flex-col items-center gap-1 min-w-0">
@@ -394,6 +442,8 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
               Clinical Review
             </TabsTrigger>
           </TabsList>
+            </>
+          )}
         </div>
 
                         {/* Modal body container (Scrollable) */}
@@ -423,6 +473,44 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
                 <p className="font-semibold text-amber-800 mt-1">
                   Please select a new referred hospital in the section below and click "Reassign Referral" to route it to another facility.
                 </p>
+              </div>
+            </div>
+          )}
+
+          {/* OTP Banner on Approved View */}
+          {actions.approvalResult && otpValue && (
+            <div className="bg-emerald-50 rounded-2xl p-4 sm:p-5 mb-4 border border-emerald-200 shadow-sm flex items-center justify-between animate-in fade-in duration-300">
+              <div>
+                <div className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest">
+                  Patient OTP / Arrival PIN
+                </div>
+                <div className="text-2xl font-black text-emerald-900 mt-1 tracking-widest font-mono">
+                  {otpValue}
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-10 w-10 bg-white border-emerald-200 text-emerald-700 hover:bg-emerald-100 shrink-0"
+                  onClick={() => {
+                    navigator.clipboard.writeText(otpValue);
+                    toast({ title: "OTP Copied!" });
+                  }}
+                  title="Copy OTP"
+                >
+                  <Copy className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="default"
+                  className="h-10 px-4 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shrink-0"
+                  onClick={handleResendOtp}
+                  disabled={isResending}
+                  title="Resend OTP"
+                >
+                  {isResending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Send className="h-4 w-4 mr-2" />}
+                  Resend
+                </Button>
               </div>
             </div>
           )}

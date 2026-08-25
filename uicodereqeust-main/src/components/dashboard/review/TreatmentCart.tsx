@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,6 +27,7 @@ import {
   itemUnitPrice,
   itemTotal,
 } from "@/lib/clinicalUtils";
+import { FloatingPanel } from "@/components/ui/floating-panel";
 
 interface TreatmentCartProps {
   request: any;
@@ -82,6 +83,7 @@ export const TreatmentCart = React.memo(function TreatmentCart({
   const [showItemDetails, setShowItemDetails] = useState<Record<string, boolean>>({});
   const [declineDialogItem, setDeclineDialogItem] = useState<TariffOption | null>(null);
   const [declineReasonText, setDeclineReasonText] = useState("");
+  const manualSearchRef = useRef<HTMLInputElement>(null);
 
   const handleConfirmDecline = () => {
     if (declineDialogItem) {
@@ -382,6 +384,7 @@ export const TreatmentCart = React.memo(function TreatmentCart({
             <div className="relative">
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
               <Input
+                ref={manualSearchRef}
                 placeholder="Search code, brand name, generic name, or abbreviation..."
                 value={tariffSearch}
                 onChange={(event) => setTariffSearch(event.target.value)}
@@ -394,7 +397,13 @@ export const TreatmentCart = React.memo(function TreatmentCart({
             </div>
 
             {tariffOptions.length > 0 && (
-              <div className="absolute left-0 right-0 z-30 mt-1 max-h-64 overflow-auto rounded-xl border border-slate-100 bg-white shadow-xl divide-y divide-slate-100 animate-in fade-in duration-100">
+              <FloatingPanel
+                anchorRef={manualSearchRef}
+                open={tariffOptions.length > 0}
+                maxHeight={320}
+                onEscapeKeyDown={() => setTariffOptions([])}
+                className="divide-y divide-slate-100"
+              >
                 {tariffOptions.map((option) => (
                   <button
                     key={`${option.code}-${option.name}`}
@@ -436,7 +445,7 @@ export const TreatmentCart = React.memo(function TreatmentCart({
                     </span>
                   </button>
                 ))}
-              </div>
+              </FloatingPanel>
             )}
           </div>
         </div>

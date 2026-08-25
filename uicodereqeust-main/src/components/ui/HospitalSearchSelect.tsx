@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Check, ChevronDown, Search, Building } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { FloatingPanel } from "@/components/ui/floating-panel";
 
 interface Hospital {
   id: string;
@@ -25,6 +26,7 @@ export function HospitalSearchSelect({
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -48,6 +50,7 @@ export function HospitalSearchSelect({
   return (
     <div className={cn("relative w-full sm:w-64", className)} ref={dropdownRef}>
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => setIsOpen(!isOpen)}
         className="w-full h-8 flex items-center justify-between border-none rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-50 focus:outline-none focus:ring-1 focus:ring-[#3f3f95]"
@@ -60,7 +63,14 @@ export function HospitalSearchSelect({
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 sm:left-0 mt-1 w-full max-w-xs sm:w-80 rounded-xl border border-slate-100 bg-white/95 backdrop-blur-md shadow-lg p-2 z-50 space-y-2 animate-in fade-in slide-in-from-top-1 duration-200">
+        <FloatingPanel
+          anchorRef={triggerRef}
+          open={isOpen}
+          maxHeight={360}
+          minWidth={280}
+          onEscapeKeyDown={() => setIsOpen(false)}
+          className="space-y-2 bg-white/95 p-2 backdrop-blur-md"
+        >
           <div className="relative">
             <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
             <input
@@ -103,7 +113,7 @@ export function HospitalSearchSelect({
                 </button>
               ))}
           </div>
-        </div>
+        </FloatingPanel>
       )}
     </div>
   );
