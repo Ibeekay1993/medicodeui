@@ -1,6 +1,6 @@
 const express = require('express');
 const { Client, LocalAuth } = require('whatsapp-web.js');
-const qrcode = require('qrcode-terminal');
+const qrcode = require('qrcode');
 const puppeteer = require('puppeteer');
 
 const app = express();
@@ -17,17 +17,17 @@ const client = new Client({
 });
 
 let isClientReady = false;
+let latestQR = null;
 
 client.on('qr', (qr) => {
-    // This will generate a QR code in the Render terminal logs
-    // You will need to check the Render logs and scan this with your phone
-    console.log('SCAN THIS QR CODE WITH YOUR WHATSAPP:');
-    qrcode.generate(qr, { small: true });
+    console.log('New QR Code generated! Please open the Render URL in your browser to scan it.');
+    latestQR = qr;
 });
 
 client.on('ready', () => {
     console.log('WhatsApp Bot is ready and connected to your phone number!');
     isClientReady = true;
+    latestQR = null;
 });
 
 client.on('disconnected', (reason) => {
@@ -96,8 +96,46 @@ app.get('/health', (req, res) => {
     });
 });
 
-app.get('/', (req, res) => {
-    res.send(`Medicode WhatsApp Bot is running! Client Ready: ${isClientReady}`);
+app.get('/', async (req, res) => {
+    if (isClientReady) {
+        return res.send(`
+            <div style="font-family: sans-serif; text-align: center; margin-top: 50px;">
+                <h1 style="color: green;">Medicode WhatsApp Bot is Running!</h1>
+                <p>Status: <b>Connected & Ready</b></p>
+                <p>You can now send authorization messages from the dashboard.</p>
+            </div>
+        `);
+    }
+    
+    if (latestQR) {
+        try {
+            // Generate a data URI for the QR code image
+            const qrImage = await qrcode.toDataURL(latestQR);
+            return res.send(`
+                <div style="font-family: sans-serif; text-align: center; margin-top: 50px;">
+                    <h1>Scan this QR Code with WhatsApp</h1>
+                    <img src="${qrImage}" alt="QR Code" style="width: 300px; height: 300px; border: 1px solid #ccc; padding: 10px; border-radius: 10px;" />
+                    <p style="color: #666; margin-top: 20px;">Status: Waiting for scan...</p>
+                    <p style="font-size: 12px; color: #999;">This page will automatically refresh every 5 seconds.</p>
+                </div>
+                <script>
+                    setTimeout(() => location.reload(), 5000);
+                </script>
+            `);
+        } catch (err) {
+            return res.send('Error generating QR code image.');
+        }
+    }
+    
+    return res.send(`
+        <div style="font-family: sans-serif; text-align: center; margin-top: 50px;">
+            <h1>Medicode WhatsApp Bot is starting up...</h1>
+            <p>Please wait a few seconds and refresh for the QR code.</p>
+        </div>
+        <script>
+            setTimeout(() => location.reload(), 3000);
+        </script>
+    `);
 });
 
 const PORT = process.env.PORT || 3000;
