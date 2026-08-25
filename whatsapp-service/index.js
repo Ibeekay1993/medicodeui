@@ -1,8 +1,6 @@
 const express = require('express');
 const cors = require('cors');
-const { Client, RemoteAuth } = require('whatsapp-web.js');
-const { PostgresStore } = require('wwebjs-postgres');
-const { Pool } = require('pg');
+const { Client, LocalAuth } = require('whatsapp-web.js');
 const qrcode = require('qrcode');
 const puppeteer = require('puppeteer');
 require('dotenv').config();
@@ -11,55 +9,43 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Initialize the Database Pool for Session Storage
-const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: { rejectUnauthorized: false }
-});
-
 let isClientReady = false;
 let latestQR = null;
-let client = null;
 
-pool.connect().then(async () => {
-    console.log('Connected to Supabase Postgres DB for session storage.');
-    const store = new PostgresStore({ pool: pool });
-    
-    client = new Client({
-        authStrategy: new RemoteAuth({
-            store: store,
-            backupSyncIntervalMs: 60000 // Backup session every 1 minute
-        }),
-        puppeteer: {
-            executablePath: puppeteer.executablePath(),
-            args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-accelerated-2d-canvas', '--no-first-run', '--no-zygote', '--single-process', '--disable-gpu']
-        }
-    });
-
-    client.on('qr', (qr) => {
-        console.log('New QR Code generated! Please open the Render URL in your browser to scan it.');
-        latestQR = qr;
-    });
-
-    client.on('ready', () => {
-        console.log('WhatsApp Bot is ready and connected to your phone number!');
-        isClientReady = true;
-        latestQR = null;
-    });
-
-    client.on('remote_session_saved', () => {
-        console.log('WhatsApp session successfully backed up to Supabase database!');
-    });
-
-    client.on('disconnected', (reason) => {
-        console.log('WhatsApp Bot was disconnected:', reason);
-        isClientReady = false;
-    });
-
-    await client.initialize();
-}).catch(err => {
-    console.error('Failed to connect to Database:', err);
+const client = new Client({
+    authStrategy: new LocalAuth(),
+    puppeteer: {
+        executablePath: puppeteer.executablePath(),
+        args: [
+            '--no-sandbox', 
+            '--disable-setuid-sandbox', 
+            '--disable-dev-shm-usage', 
+            '--disable-accelerated-2d-canvas', 
+            '--no-first-run', 
+            '--no-zygote', 
+            '--single-process', 
+            '--disable-gpu'
+        ]
+    }
 });
+
+client.on('qr', (qr) => {
+    console.log('New QR Code generated! Please open the Render URL in your browser to scan it.');
+    latestQR = qr;
+});
+
+client.on('ready', () => {
+    console.log('WhatsApp Bot is ready and connected to your phone number!');
+    isClientReady = true;
+    latestQR = null;
+});
+
+client.on('disconnected', (reason) => {
+    console.log('WhatsApp Bot was disconnected:', reason);
+    isClientReady = false;
+});
+
+client.initialize().catch(err => console.error('Failed to initialize client:', err));
 
 // The client initialization is now handled above after connecting to the DB.
 
