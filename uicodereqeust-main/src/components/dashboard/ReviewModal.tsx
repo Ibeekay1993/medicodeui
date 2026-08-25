@@ -98,29 +98,14 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
         formattedNumber = "234" + cleanNumber;
       }
 
-      // Call the underground Render WhatsApp bot
-      const response = await fetch("https://medicodeui.onrender.com/send-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          phone_number: formattedNumber,
-          message: messageText
-        })
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || "Failed to send WhatsApp message via bot");
-      }
-
-      toast({ title: "WhatsApp message sent successfully in the background!" });
+      // Revert to opening WhatsApp Web directly as requested by the user
+      const whatsappUrl = `https://wa.me/${formattedNumber}?text=${encodeURIComponent(messageText)}`;
+      window.open(whatsappUrl, "_blank");
+      
+      toast({ title: "Opening WhatsApp..." });
     } catch (err: any) {
       console.error(err);
-      let errorMsg = err.message || "An unexpected error occurred.";
-      if (errorMsg.includes("Failed to fetch") || errorMsg.includes("NetworkError")) {
-        errorMsg = "Unable to reach the WhatsApp bot. Please check your internet connection and try again.";
-      }
-      toast({ variant: "destructive", title: "Message Failed", description: errorMsg });
+      toast({ variant: "destructive", title: "Error", description: err.message || "An unexpected error occurred." });
     } finally {
       setIsResending(false);
     }
