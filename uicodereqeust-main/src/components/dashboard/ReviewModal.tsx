@@ -24,6 +24,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 // Custom Hooks
 import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "@/hooks/use-toast";
 import { useClinicalVerification } from "@/hooks/clinical/useClinicalVerification";
 import { useTariffSearch } from "@/hooks/clinical/useTariffSearch";
 import { useClinicalActions } from "@/hooks/clinical/useClinicalActions";

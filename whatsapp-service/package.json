@@ -16,9 +16,9 @@
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "pg": "^8.11.3",
-    "wwebjs-postgres": "^1.0.0",
-    "whatsapp-web.js": "^1.23.0",
+    "puppeteer": "^24.0.0",
     "qrcode": "^1.5.3",
-    "puppeteer": "^24.0.0"
+    "whatsapp-web.js": "^1.23.0",
+    "wwebjs-postgres": "^1.0.0"
   }
 }
