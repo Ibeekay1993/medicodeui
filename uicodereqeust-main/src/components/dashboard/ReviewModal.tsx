@@ -61,6 +61,7 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
 
   const handleResendOtp = async () => {
     if (!request) return;
+    alert("Triggering WhatsApp Bot in the background...");
     setIsResending(true);
     try {
       if (!request.patient_phone) {
