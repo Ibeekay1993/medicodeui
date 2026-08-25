@@ -23,7 +23,7 @@ let client = null;
 
 pool.connect().then(async () => {
     console.log('Connected to Supabase Postgres DB for session storage.');
-    const store = new PostgresStore({ db: pool });
+    const store = new PostgresStore({ pool: pool });
     
     client = new Client({
         authStrategy: new RemoteAuth({
