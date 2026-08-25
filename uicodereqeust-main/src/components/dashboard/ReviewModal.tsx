@@ -88,7 +88,8 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
       const messageText = `*Ronsberger HMO*\n\n*AUTHORIZATION APPROVED*\n\nHello *${patientName}*,\n\nWe are pleased to inform you that your treatment request submitted through *${hospitalName}* has been *approved* by Ronsberger HMO.\n\nYour requested treatment has been authorized based on the diagnosis and request details below.\n\n*Request Details*\n\nPatient: *${patientName}*\nPolicy No.: *${policyNo}*\nHospital: *${hospitalName}*\nDiagnosis: *${diagnosis}*\nPriority: *${priority}*${itemsText}\n\n*Your Patient Arrival PIN*\n\n*${pin}*\n\nPlease provide this PIN to the reception at *${hospitalName}* when you arrive. The PIN will be used to confirm your authorization and finalize your approved treatment.\n\n*Important Notice*\nPlease contact us immediately if these services were not fully rendered to you, or if you are asked to make any additional payments for the approved items listed above.\n\nThank you for choosing Ronsberger HMO.`;
 
       // Format phone number
-      const cleanNumber = request.patient_phone.replace(/\D/g, "");
+      const phoneStr = String(request.patient_phone || "");
+      const cleanNumber = phoneStr.replace(/\D/g, "");
       let formattedNumber = cleanNumber;
       if (cleanNumber.length === 11 && cleanNumber.startsWith("0")) {
         formattedNumber = "234" + cleanNumber.substring(1);
@@ -114,7 +115,11 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
       toast({ title: "WhatsApp message sent successfully in the background!" });
     } catch (err: any) {
       console.error(err);
-      toast({ variant: "destructive", title: "Error", description: err.message || "An error occurred." });
+      let errorMsg = err.message || "An unexpected error occurred.";
+      if (errorMsg.includes("Failed to fetch") || errorMsg.includes("NetworkError")) {
+        errorMsg = "Unable to reach the WhatsApp bot. Please check your internet connection and try again.";
+      }
+      toast({ variant: "destructive", title: "Message Failed", description: errorMsg });
     } finally {
       setIsResending(false);
     }
