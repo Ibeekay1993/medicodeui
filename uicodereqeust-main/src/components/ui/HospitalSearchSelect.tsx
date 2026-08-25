@@ -66,7 +66,7 @@ export function HospitalSearchSelect({
         <FloatingPanel
           anchorRef={triggerRef}
           open={isOpen}
-          maxHeight={360}
+          maxHeight={500}
           minWidth={280}
           onEscapeKeyDown={() => setIsOpen(false)}
           className="space-y-2 bg-white/95 p-2 backdrop-blur-md"

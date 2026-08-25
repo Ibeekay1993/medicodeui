@@ -397,11 +397,11 @@ export const TreatmentCart = React.memo(function TreatmentCart({
             </div>
 
             {tariffOptions.length > 0 && (
-              <FloatingPanel
-                anchorRef={manualSearchRef}
-                open={tariffOptions.length > 0}
-                maxHeight={320}
-                onEscapeKeyDown={() => setTariffOptions([])}
+                <FloatingPanel
+                  anchorRef={manualSearchRef}
+                  open={tariffOptions.length > 0}
+                  maxHeight={500}
+                  onEscapeKeyDown={() => setTariffOptions([])}
                 className="divide-y divide-slate-100"
               >
                 {tariffOptions.map((option) => (

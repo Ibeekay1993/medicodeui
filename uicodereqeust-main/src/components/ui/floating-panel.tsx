@@ -25,7 +25,7 @@ export function FloatingPanel({
   className,
   offset = 6,
   minWidth = 180,
-  maxHeight = 320,
+  maxHeight = 500,
   onEscapeKeyDown,
 }: FloatingPanelProps) {
   const panelRef = useRef<HTMLDivElement>(null);
@@ -98,7 +98,7 @@ export function FloatingPanel({
       ref={panelRef}
       onMouseDown={(event) => event.stopPropagation()}
       className={cn(
-        "overflow-auto overscroll-contain rounded-xl border border-slate-100 bg-white text-popover-foreground shadow-2xl outline-none animate-in fade-in-0 zoom-in-95 duration-100",
+        "flex flex-col overflow-y-auto overscroll-contain rounded-xl border border-slate-100 bg-white text-popover-foreground shadow-2xl outline-none animate-in fade-in-0 zoom-in-95 duration-100 scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-transparent",
         className,
       )}
       role="listbox"
