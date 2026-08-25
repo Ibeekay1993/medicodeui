@@ -77,14 +77,14 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
 
       let itemsText = "";
       if (request.items && Array.isArray(request.items) && request.items.length > 0) {
-        itemsText = "\n\n*Approved Services*\n\n" + request.items.map((item: any) => {
+        itemsText = "\n\n*Approved Treatment / Services*\n\n" + request.items.map((item: any) => {
           const qty = item.quantity || 1;
           const name = item.name || "Service";
-          return `• ${qty}x ${name}`;
+          return `• *${qty}x ${name}*`;
         }).join("\n");
       }
 
-      const messageText = `*Ronsberger HMO*\n\n*Patient Arrival PIN*\n\nHello *${patientName}*,\n\nYour patient arrival PIN is:\n\n*${pin}*\n\n*Request Details*\n\nPatient: *${patientName}*\nPolicy No.: *${policyNo}*\nHospital: *${hospitalName}*\nDiagnosis: *${diagnosis}*\nPriority: *${priority}*${itemsText}\n\nPlease provide this PIN to the reception at your approved hospital to authorize and finalize your treatment.`;
+      const messageText = `*Ronsberger HMO*\n\n*AUTHORIZATION APPROVED*\n\nHello *${patientName}*,\n\nWe are pleased to inform you that your treatment request submitted through *${hospitalName}* has been *approved* by Ronsberger HMO.\n\nYour requested treatment has been authorized based on the diagnosis and request details below.\n\n*Request Details*\n\nPatient: *${patientName}*\nPolicy No.: *${policyNo}*\nHospital: *${hospitalName}*\nDiagnosis: *${diagnosis}*\nPriority: *${priority}*${itemsText}\n\n*Your Patient Arrival PIN*\n\n*${pin}*\n\nPlease provide this PIN to the reception at *${hospitalName}* when you arrive. The PIN will be used to confirm your authorization and finalize your approved treatment.\n\nThank you for choosing Ronsberger HMO.`;
 
       // Format phone number
       const cleanNumber = request.patient_phone.replace(/\D/g, "");
