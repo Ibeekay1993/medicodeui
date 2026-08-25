@@ -12,13 +12,13 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@whiskeysockets/baileys": "^7.0.0-rc14",
     "cors": "^2.8.5",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
-    "pg": "^8.11.3",
-    "puppeteer": "^24.0.0",
-    "qrcode": "^1.5.3",
-    "whatsapp-web.js": "^1.23.0",
-    "wwebjs-postgres": "^1.0.0"
+    "pino": "^10.3.1",
+    "qrcode": "^1.5.4",
+    "whatsapp-web": {},
+    "whatsapp-web.js": "^1.23.0"
   }
 }

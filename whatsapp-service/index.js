@@ -1,8 +1,8 @@
 const express = require('express');
 const cors = require('cors');
-const { Client, LocalAuth } = require('whatsapp-web.js');
+const { makeWASocket, useMultiFileAuthState, DisconnectReason } = require('@whiskeysockets/baileys');
+const pino = require('pino');
 const qrcode = require('qrcode');
-const puppeteer = require('puppeteer');
 require('dotenv').config();
 
 const app = express();
@@ -11,61 +11,67 @@ app.use(express.json());
 
 let isClientReady = false;
 let latestQR = null;
+let sock = null;
 
-const client = new Client({
-    authStrategy: new LocalAuth(),
-    puppeteer: {
-        executablePath: puppeteer.executablePath(),
-        args: [
-            '--no-sandbox', 
-            '--disable-setuid-sandbox', 
-            '--disable-dev-shm-usage', 
-            '--disable-accelerated-2d-canvas', 
-            '--no-first-run', 
-            '--no-zygote', 
-            '--single-process', 
-            '--disable-gpu'
-        ]
-    }
-});
+async function connectToWhatsApp() {
+    const { state, saveCreds } = await useMultiFileAuthState('baileys_auth_info');
 
-client.on('qr', (qr) => {
-    console.log('New QR Code generated! Please open the Render URL in your browser to scan it.');
-    latestQR = qr;
-});
+    sock = makeWASocket({
+        auth: state,
+        printQRInTerminal: false,
+        logger: pino({ level: 'silent' }), // Suppress massive logs
+        browser: ['Medicode Bot', 'Chrome', '1.0.0']
+    });
 
-client.on('ready', () => {
-    console.log('WhatsApp Bot is ready and connected to your phone number!');
-    isClientReady = true;
-    latestQR = null;
-});
+    sock.ev.on('creds.update', saveCreds);
 
-client.on('disconnected', (reason) => {
-    console.log('WhatsApp Bot was disconnected:', reason);
-    isClientReady = false;
-});
+    sock.ev.on('connection.update', (update) => {
+        const { connection, lastDisconnect, qr } = update;
+        
+        if (qr) {
+            console.log('New QR Code generated! Please open the Render URL in your browser to scan it.');
+            latestQR = qr;
+        }
 
-client.initialize().catch(err => console.error('Failed to initialize client:', err));
+        if (connection === 'close') {
+            isClientReady = false;
+            const shouldReconnect = (lastDisconnect.error)?.output?.statusCode !== DisconnectReason.loggedOut;
+            console.log('connection closed due to ', lastDisconnect.error, ', reconnecting ', shouldReconnect);
+            
+            if (shouldReconnect) {
+                connectToWhatsApp();
+            } else {
+                console.log('Logged out from WhatsApp. Please scan the QR code again.');
+                latestQR = null;
+                connectToWhatsApp();
+            }
+        } else if (connection === 'open') {
+            console.log('WhatsApp Bot is ready and connected to your phone number!');
+            isClientReady = true;
+            latestQR = null;
+        }
+    });
+}
 
-// The client initialization is now handled above after connecting to the DB.
+connectToWhatsApp();
 
 function normalizePhoneNumber(phoneNumber) {
     const digits = String(phoneNumber || '').replace(/\D/g, '');
     
     if (!digits) throw new Error('phone_number is required');
     
-    // Convert to WhatsApp format (number@c.us)
+    // Convert to Baileys format (number@s.whatsapp.net)
     if (digits.startsWith('234')) {
-        return `${digits}@c.us`;
+        return `${digits}@s.whatsapp.net`;
     }
     if (digits.length === 10) {
-        return `234${digits}@c.us`;
+        return `234${digits}@s.whatsapp.net`;
     }
     if (digits.length === 11 && digits.startsWith('0')) {
-        return `234${digits.slice(1)}@c.us`;
+        return `234${digits.slice(1)}@s.whatsapp.net`;
     }
     
-    return `${digits}@c.us`;
+    return `${digits}@s.whatsapp.net`;
 }
 
 app.post('/send-otp', async (req, res) => {
@@ -76,26 +82,26 @@ app.post('/send-otp', async (req, res) => {
             return res.status(400).json({ error: 'phone_number and message are required' });
         }
 
-        if (!isClientReady) {
+        if (!isClientReady || !sock) {
             return res.status(503).json({ error: 'WhatsApp client is not ready yet. Please scan the QR code in the server logs.' });
         }
 
         const text = message || otp;
         const chatId = normalizePhoneNumber(phone_number);
         
-        // Send the message using your connected phone
-        const result = await client.sendMessage(chatId, text);
+        // Send the message using Baileys
+        const result = await sock.sendMessage(chatId, { text: text });
         
         return res.json({
             success: true,
-            method: 'whatsapp-web.js',
+            method: 'baileys',
             phone_number: chatId,
             message: text,
-            result: { id: result.id._serialized }
+            result: result
         });
     } catch (error) {
         console.error('Error sending WhatsApp message:', error.message);
-        return res.status(500).json({ error: error.message, method: 'whatsapp-web.js' });
+        return res.status(500).json({ error: error.message, method: 'baileys' });
     }
 });
 
@@ -103,7 +109,7 @@ app.get('/health', (req, res) => {
     res.json({ 
         status: 'ok', 
         service: 'medicode-whatsapp-bot', 
-        method: 'whatsapp-web.js',
+        method: 'baileys',
         isReady: isClientReady
     });
 });
