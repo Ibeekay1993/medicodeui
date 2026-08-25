@@ -76,8 +76,9 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
       const pin = otpValue || request.auth_code || "";
 
       let itemsText = "";
-      if (request.items && Array.isArray(request.items) && request.items.length > 0) {
-        itemsText = "\n\n*Approved Treatment / Services*\n\n" + request.items.map((item: any) => {
+      const itemsList = request.approved_items || request.items;
+      if (itemsList && Array.isArray(itemsList) && itemsList.length > 0) {
+        itemsText = "\n\n*Approved Treatment / Services*\n\n" + itemsList.map((item: any) => {
           const qty = item.quantity || 1;
           const name = item.name || "Service";
           return `• *${qty}x ${name}*`;
