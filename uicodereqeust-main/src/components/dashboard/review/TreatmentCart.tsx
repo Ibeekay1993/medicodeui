@@ -408,7 +408,9 @@ export const TreatmentCart = React.memo(function TreatmentCart({
                   <button
                     key={`${option.code}-${option.name}`}
                     type="button"
-                    onClick={() => {
+                    onPointerDown={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
                       addApprovedItem({
                         ...option,
                         matched_via: option.matched_via || "manual",
