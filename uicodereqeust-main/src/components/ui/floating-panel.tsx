@@ -31,6 +31,9 @@ export function FloatingPanel({
   const panelRef = useRef<HTMLDivElement>(null);
   const [mounted, setMounted] = useState(false);
   const [style, setStyle] = useState<FloatingPanelStyle>({ visibility: "hidden" });
+  // Portal into the nearest open Radix dialog so Radix's DismissableLayer
+  // does NOT treat clicks on our panel as "outside" clicks.
+  const [portalTarget, setPortalTarget] = useState<Element | null>(null);
 
   const updatePosition = useCallback(() => {
     const anchor = anchorRef.current;
@@ -68,6 +71,15 @@ export function FloatingPanel({
     setMounted(true);
   }, []);
 
+  // Resolve the portal target once when the panel opens.
+  // Prefer the nearest [role="dialog"] so our panel lives inside Radix's layer tree.
+  useEffect(() => {
+    if (!open) return;
+    const anchor = anchorRef.current;
+    const dialog = anchor?.closest('[role="dialog"]') ?? null;
+    setPortalTarget(dialog ?? document.body);
+  }, [open, anchorRef]);
+
   useLayoutEffect(() => {
     if (!open) return;
     updatePosition();
@@ -91,11 +103,14 @@ export function FloatingPanel({
     };
   }, [onEscapeKeyDown, open, updatePosition]);
 
-  if (!mounted || !open) return null;
+  if (!mounted || !open || !portalTarget) return null;
 
   return createPortal(
     <div
       ref={panelRef}
+      // preventDefault keeps the search input focused while clicking a result.
+      // Both onPointerDown and onMouseDown are needed to cover all browsers/Radix phases.
+      onPointerDown={(event) => { event.preventDefault(); event.stopPropagation(); }}
       onMouseDown={(event) => { event.preventDefault(); event.stopPropagation(); }}
       className={cn(
         "flex flex-col overflow-y-auto overscroll-contain rounded-xl border border-slate-100 bg-white text-popover-foreground shadow-2xl outline-none animate-in fade-in-0 zoom-in-95 duration-100 scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-transparent",
@@ -106,6 +121,6 @@ export function FloatingPanel({
     >
       {children}
     </div>,
-    document.body,
+    portalTarget,
   );
 }
