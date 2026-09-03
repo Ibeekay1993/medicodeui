@@ -31,9 +31,6 @@ export function FloatingPanel({
   const panelRef = useRef<HTMLDivElement>(null);
   const [mounted, setMounted] = useState(false);
   const [style, setStyle] = useState<FloatingPanelStyle>({ visibility: "hidden" });
-  // Portal into the nearest open Radix dialog so Radix's DismissableLayer
-  // does NOT treat clicks on our panel as "outside" clicks.
-  const [portalTarget, setPortalTarget] = useState<Element | null>(null);
 
   const updatePosition = useCallback(() => {
     const anchor = anchorRef.current;
@@ -71,15 +68,6 @@ export function FloatingPanel({
     setMounted(true);
   }, []);
 
-  // Resolve the portal target once when the panel opens.
-  // Prefer the nearest [role="dialog"] so our panel lives inside Radix's layer tree.
-  useEffect(() => {
-    if (!open) return;
-    const anchor = anchorRef.current;
-    const dialog = anchor?.closest('[role="dialog"]') ?? null;
-    setPortalTarget(dialog ?? document.body);
-  }, [open, anchorRef]);
-
   useLayoutEffect(() => {
     if (!open) return;
     updatePosition();
@@ -103,7 +91,12 @@ export function FloatingPanel({
     };
   }, [onEscapeKeyDown, open, updatePosition]);
 
-  if (!mounted || !open || !portalTarget) return null;
+  if (!mounted || !open) return null;
+
+  // Compute the portal target inline (no state race condition).
+  // Prefer the nearest [role="dialog"] so Radix's DismissableLayer treats
+  // clicks inside the panel as "inside" the dialog, not outside.
+  const portalTarget = anchorRef.current?.closest('[role="dialog"]') ?? document.body;
 
   return createPortal(
     <div
@@ -124,3 +117,4 @@ export function FloatingPanel({
     portalTarget,
   );
 }
+

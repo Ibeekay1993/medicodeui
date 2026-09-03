@@ -59,17 +59,24 @@ serve(async (req) => {
 
     const otp = existingOtp?.otp_value || "PENDING";
 
-    // Trigger WhatsApp Notification if phone number exists
+    // Trigger WhatsApp Notification if phone number exists.
+    // We route through the internal `send-whatsapp` Edge Function (Evolution
+    // outbound) instead of the legacy WASender. The Evolution API key never
+    // leaves the server. `send-whatsapp` accepts the same X-Api-Key we use
+    // for `submit-authorization`, so we reuse MEDAUTH_INTERNAL_API_KEY.
     if (request.patient_phone && otp !== "PENDING") {
       console.log(`Triggering WhatsApp PIN for ${request.patient_phone}`);
+      const pName = patientName;
+      const hName = referredHospital;
+      const whatsappText =
+        `Hello ${pName}!\n\nA new authorization request has been approved for you at ${hName}.\n\n` +
+        `Your Arrival PIN is: *${otp}*\n\nThank you,\n*Ronsberger HMO*`;
       // We don't await this so it doesn't block the email
-      supabase.functions.invoke("send-whatsapp-otp", {
+      supabase.functions.invoke("send-whatsapp", {
         body: {
           phone_number: request.patient_phone,
-          otp_code: otp,
-          hospital_name: referredHospital,
-          authorization_request_id: authorization_id
-        }
+          message: whatsappText,
+        },
       }).catch(err => console.error("WhatsApp trigger failed:", err));
     }
 
