@@ -98,11 +98,23 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
         formattedNumber = "234" + cleanNumber;
       }
 
-      // Revert to opening WhatsApp Web directly as requested by the user
-      const whatsappUrl = `https://wa.me/${formattedNumber}?text=${encodeURIComponent(messageText)}`;
-      window.open(whatsappUrl, "_blank");
-      
-      toast({ title: "Opening WhatsApp..." });
+      // Direct background send via Evolution API (send-whatsapp Edge Function)
+      const { data: sendResult, error: sendError } = await supabase.functions.invoke("send-whatsapp", {
+        body: {
+          phone_number: formattedNumber,
+          message: messageText,
+        },
+      });
+
+      if (sendError || !sendResult?.success) {
+        // Fallback to wa.me if Evolution outbound fails
+        console.warn("Evolution direct send failed, opening wa.me fallback", sendError);
+        const whatsappUrl = `https://wa.me/${formattedNumber}?text=${encodeURIComponent(messageText)}`;
+        window.open(whatsappUrl, "_blank");
+        toast({ title: "Opening WhatsApp...", description: "Switched to direct chat" });
+      } else {
+        toast({ title: "WhatsApp Sent!", description: `Arrival PIN sent to ${formattedNumber}` });
+      }
     } catch (err: any) {
       console.error(err);
       toast({ variant: "destructive", title: "Error", description: err.message || "An unexpected error occurred." });

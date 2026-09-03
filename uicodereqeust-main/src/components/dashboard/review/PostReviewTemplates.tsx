@@ -8,7 +8,9 @@ import {
   Copy,
   Sparkles,
   Trash2,
+  Send,
 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 import {
   formatNaira,
   itemUnitPrice,
@@ -180,10 +182,66 @@ export const PostReviewTemplates = React.memo(function PostReviewTemplates({
 
         <div className="flex flex-col gap-2.5">
           <Button
-            onClick={copyApprovalMessage}
+            onClick={async () => {
+              const rawPhone = request?.patient_phone || "";
+              const digits = String(rawPhone).replace(/\D/g, "");
+              let formatted = digits;
+              if (digits.startsWith("234")) formatted = digits;
+              else if (digits.length === 10) formatted = "234" + digits;
+              else if (digits.length === 11 && digits.startsWith("0")) formatted = "234" + digits.slice(1);
+
+              const dateStr = new Date().toLocaleDateString("en-GB");
+              const itemLines = approvalResult.items.length
+                ? approvalResult.items
+                    .map((item) =>
+                      item.declined
+                        ? `[DECLINED] ${item.code || "NHIA"} - ${item.name}${item.decline_reason ? ` (Reason: ${item.decline_reason})` : ""}`
+                        : `${item.code || "NHIA"} - ${item.name}: ${itemQuantity(item)}`
+                    )
+                    .join("\n")
+                : approvalResult.treatment;
+
+              const requester = request.requesting_hospital_name || request.hospital_name || approvalResult.hospitalName;
+              const referralLine = editReferralHospitalName.trim()
+                ? `\nRequest Raised By: ${requester}\nReferral To: ${editReferralHospitalName.trim()}\nClaim Rights: ${editReferralHospitalName.trim()} only`
+                : "";
+
+              const msg = `AUTHORIZATION APPROVED\n\nPatient: ${approvalResult.patientName}\nPolicy No: ${approvalResult.policyNumber}\nAuth Code: ${approvalResult.authCode}\nHospital: ${approvalResult.hospitalName}${referralLine}\nDiagnosis: ${approvalResult.diagnosis}\n\nApproved Items:\n${itemLines}\nDate: ${dateStr}\n\nPlease present this code at the hospital reception.\nRonsberger HMO UI Desk`;
+
+              if (!formatted) {
+                // If no phone on file, copy to clipboard as fallback
+                navigator.clipboard.writeText(msg);
+                toast({ title: "Copied!", description: "No phone on record. Copied message to clipboard." });
+                return;
+              }
+
+              try {
+                const { data, error } = await supabase.functions.invoke("send-whatsapp", {
+                  body: { phone_number: formatted, message: msg },
+                });
+                if (error || !data?.success) {
+                  const url = `https://wa.me/${formatted}?text=${encodeURIComponent(msg)}`;
+                  window.open(url, "_blank");
+                  toast({ title: "Opening WhatsApp...", description: "Switched to direct chat" });
+                } else {
+                  toast({ title: "WhatsApp Sent!", description: `Authorization sent directly to ${formatted}` });
+                }
+              } catch (e: any) {
+                const url = `https://wa.me/${formatted}?text=${encodeURIComponent(msg)}`;
+                window.open(url, "_blank");
+              }
+            }}
             className="w-full h-14 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-sm gap-2 shadow-lg shadow-emerald-100 uppercase tracking-widest transition-transform hover:scale-[1.01]"
           >
-            <Copy className="w-4.5 h-4.5" /> Copy WhatsApp Signature
+            <Send className="w-4.5 h-4.5" /> Send Approval via WhatsApp
+          </Button>
+
+          <Button
+            onClick={copyApprovalMessage}
+            variant="outline"
+            className="w-full h-11 rounded-xl border-slate-200 text-slate-700 font-bold text-xs gap-2 hover:bg-slate-50 uppercase tracking-wider"
+          >
+            <Copy className="w-4 h-4" /> Copy WhatsApp Signature
           </Button>
           <Button
             onClick={handleCopyCodeOnly}
