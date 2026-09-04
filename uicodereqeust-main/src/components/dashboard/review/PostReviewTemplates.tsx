@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -9,6 +9,9 @@ import {
   Sparkles,
   Trash2,
   Send,
+  Loader2,
+  Building2,
+  UserCheck,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -68,6 +71,9 @@ export const PostReviewTemplates = React.memo(function PostReviewTemplates({
   nurseInitials,
 }: PostReviewTemplatesProps) {
   const { toast } = useToast();
+  const [sendingHospital, setSendingHospital] = useState(false);
+  const [sendingPatient, setSendingPatient] = useState(false);
+  const [sendingDecline, setSendingDecline] = useState(false);
 
   const handleCopyCodeOnly = () => {
     if (!approvalResult) return;
@@ -76,6 +82,142 @@ export const PostReviewTemplates = React.memo(function PostReviewTemplates({
       title: "Code Copied",
       description: "Authorization code copied to clipboard.",
     });
+  };
+
+  const formatPhoneNumber = (raw: string) => {
+    const digits = String(raw || "").replace(/\D/g, "");
+    if (digits.startsWith("234")) return digits;
+    if (digits.length === 10) return "234" + digits;
+    if (digits.length === 11 && digits.startsWith("0")) return "234" + digits.slice(1);
+    return digits;
+  };
+
+  const handleSendToHospital = async () => {
+    if (!approvalResult) return;
+    setSendingHospital(true);
+    try {
+      const rawPhone = request?.patient_phone || request?.phone_number || "";
+      const formatted = formatPhoneNumber(rawPhone);
+      const reqRef = request?.request_id || request?.id?.slice(0, 8) || "REQ";
+      const dateStr = new Date().toLocaleDateString("en-GB");
+
+      const itemLines = approvalResult.items.length
+        ? approvalResult.items
+            .map((item) =>
+              item.declined
+                ? `[DECLINED] ${item.code || "NHIA"} - ${item.name}${item.decline_reason ? ` (Reason: ${item.decline_reason})` : ""}`
+                : `${item.code || "NHIA"} - ${item.name}: ${itemQuantity(item)}`
+            )
+            .join("\n")
+        : approvalResult.treatment;
+
+      const requester = request?.requesting_hospital_name || request?.hospital_name || approvalResult.hospitalName;
+      const referralLine = editReferralHospitalName.trim()
+        ? `\nRequest Raised By: ${requester}\nReferral To: ${editReferralHospitalName.trim()}\nClaim Rights: ${editReferralHospitalName.trim()} only`
+        : "";
+
+      const msg = `AUTHORIZATION APPROVED\n\nPatient: ${approvalResult.patientName}\nPolicy No: ${approvalResult.policyNumber}\nAuth Code: ${approvalResult.authCode}\nHospital: ${approvalResult.hospitalName}${referralLine}\nDiagnosis: ${approvalResult.diagnosis}\n\nApproved Items:\n${itemLines}\nDate: ${dateStr}\n\nPlease present this code at the hospital reception.\nRonsberger HMO UI Desk`;
+
+      if (!formatted) {
+        navigator.clipboard.writeText(msg);
+        toast({ title: "Copied!", description: "No phone on record. Copied response to clipboard." });
+        return;
+      }
+
+      const { data, error } = await supabase.functions.invoke("send-whatsapp", {
+        body: { phone_number: formatted, message: msg },
+      });
+
+      if (error || !data?.success) {
+        const url = `https://wa.me/${formatted}?text=${encodeURIComponent(msg)}`;
+        window.open(url, "_blank");
+        toast({ title: "Opening WhatsApp...", description: "Switched to direct WhatsApp web" });
+      } else {
+        toast({ title: "WhatsApp Sent to Hospital!", description: `Response sent to ${formatted}` });
+      }
+    } catch (e: any) {
+      console.error(e);
+      toast({ variant: "destructive", title: "Error", description: e.message || "Failed to send WhatsApp." });
+    } finally {
+      setSendingHospital(false);
+    }
+  };
+
+  const handleNotifyPatient = async () => {
+    if (!approvalResult) return;
+    setSendingPatient(true);
+    try {
+      const rawPhone = request?.patient_phone || "";
+      const formatted = formatPhoneNumber(rawPhone);
+      const priorityStr = (request?.urgency || "ROUTINE").toUpperCase();
+
+      const approvedItemsList = approvalResult.items.length
+        ? approvalResult.items
+            .filter((item) => !item.declined)
+            .map((item) => `• *${itemQuantity(item)}x ${item.name}*`)
+            .join("\n")
+        : (approvalResult.treatment ? `• *${approvalResult.treatment}*` : "• *Approved as prescribed*");
+
+      const msg = `*Ronsberger HMO*\n\n*AUTHORIZATION APPROVED*\n\nHello *${approvalResult.patientName}*,\n\nWe are pleased to inform you that your treatment request submitted through *${approvalResult.hospitalName}* has been *approved* by Ronsberger HMO.\n\nYour requested treatment has been authorized based on the diagnosis and request details below.\n\n*Request Details*\n\nPatient: *${approvalResult.patientName}*\nPolicy No.: *${approvalResult.policyNumber}*\nHospital: *${approvalResult.hospitalName}*\nDiagnosis: *${approvalResult.diagnosis}*\nPriority: *${priorityStr}*\n\n*Approved Treatment / Services*\n\n${approvedItemsList}\n\n*Important Notice*\nPlease contact us immediately if these services were not fully rendered to you, or if you are asked to make any additional payments for the approved items listed above.\n\nThank you for choosing Ronsberger HMO.`;
+
+      if (!formatted) {
+        navigator.clipboard.writeText(msg);
+        toast({ title: "Copied!", description: "No patient phone on record. Copied patient notice to clipboard." });
+        return;
+      }
+
+      const { data, error } = await supabase.functions.invoke("send-whatsapp", {
+        body: { phone_number: formatted, message: msg },
+      });
+
+      if (error || !data?.success) {
+        const url = `https://wa.me/${formatted}?text=${encodeURIComponent(msg)}`;
+        window.open(url, "_blank");
+        toast({ title: "Opening WhatsApp...", description: "Switched to direct WhatsApp web" });
+      } else {
+        toast({ title: "Patient Notified!", description: `Approval PIN sent to patient (${formatted})` });
+      }
+    } catch (e: any) {
+      console.error(e);
+      toast({ variant: "destructive", title: "Error", description: e.message || "Failed to notify patient." });
+    } finally {
+      setSendingPatient(false);
+    }
+  };
+
+  const handleSendDeclineToHospital = async () => {
+    if (!declineResult) return;
+    setSendingDecline(true);
+    try {
+      const rawPhone = request?.patient_phone || request?.phone_number || "";
+      const formatted = formatPhoneNumber(rawPhone);
+      const reqRef = request?.request_id || request?.id?.slice(0, 8) || "REQ";
+
+      const msg = `*Ronsberger HMO*\n\n*AUTHORIZATION DECLINED*\n\n*Reference:* ${reqRef}\n*Patient:* ${declineResult.patientName}\n*Policy No:* ${declineResult.policyNumber}\n*Hospital:* ${declineResult.hospitalName}\n*Diagnosis:* ${declineResult.diagnosis}\n\n*Reason for Decline:*\n${declineResult.reason}\n\nIf you need clarification, please reply to this message.\n\n— Ronsberger HMO Medical Desk`;
+
+      if (!formatted) {
+        navigator.clipboard.writeText(msg);
+        toast({ title: "Copied!", description: "No phone on record. Copied decline note to clipboard." });
+        return;
+      }
+
+      const { data, error } = await supabase.functions.invoke("send-whatsapp", {
+        body: { phone_number: formatted, message: msg },
+      });
+
+      if (error || !data?.success) {
+        const url = `https://wa.me/${formatted}?text=${encodeURIComponent(msg)}`;
+        window.open(url, "_blank");
+        toast({ title: "Opening WhatsApp...", description: "Switched to direct WhatsApp web" });
+      } else {
+        toast({ title: "Decline Sent via WhatsApp!", description: `Decline notice sent to ${formatted}` });
+      }
+    } catch (e: any) {
+      console.error(e);
+      toast({ variant: "destructive", title: "Error", description: e.message || "Failed to send decline notice." });
+    } finally {
+      setSendingDecline(false);
+    }
   };
 
   if (approvalResult) {
@@ -114,7 +256,7 @@ export const PostReviewTemplates = React.memo(function PostReviewTemplates({
             <div className="rounded-xl border border-slate-100 bg-slate-50/70 p-3 text-xs font-semibold leading-relaxed text-slate-800 shadow-inner">
               Referral To: {editReferralHospitalName.trim()}
               <br />
-              Request Raised By: {request.requesting_hospital_name || request.hospital_name || "Original hospital"}
+              Request Raised By: {request?.requesting_hospital_name || request?.hospital_name || "Original hospital"}
               <br />
               <span className="text-xs text-slate-500 font-bold">Claim and payment rights belong to the referred hospital only.</span>
             </div>
@@ -181,75 +323,43 @@ export const PostReviewTemplates = React.memo(function PostReviewTemplates({
         </div>
 
         <div className="flex flex-col gap-2.5">
+          {/* Primary Action 1: Send Response to Hospital via WhatsApp */}
           <Button
-            onClick={async () => {
-              const rawPhone = request?.patient_phone || "";
-              const digits = String(rawPhone).replace(/\D/g, "");
-              let formatted = digits;
-              if (digits.startsWith("234")) formatted = digits;
-              else if (digits.length === 10) formatted = "234" + digits;
-              else if (digits.length === 11 && digits.startsWith("0")) formatted = "234" + digits.slice(1);
-
-              const dateStr = new Date().toLocaleDateString("en-GB");
-              const itemLines = approvalResult.items.length
-                ? approvalResult.items
-                    .map((item) =>
-                      item.declined
-                        ? `[DECLINED] ${item.code || "NHIA"} - ${item.name}${item.decline_reason ? ` (Reason: ${item.decline_reason})` : ""}`
-                        : `${item.code || "NHIA"} - ${item.name}: ${itemQuantity(item)}`
-                    )
-                    .join("\n")
-                : approvalResult.treatment;
-
-              const requester = request.requesting_hospital_name || request.hospital_name || approvalResult.hospitalName;
-              const referralLine = editReferralHospitalName.trim()
-                ? `\nRequest Raised By: ${requester}\nReferral To: ${editReferralHospitalName.trim()}\nClaim Rights: ${editReferralHospitalName.trim()} only`
-                : "";
-
-              const msg = `AUTHORIZATION APPROVED\n\nPatient: ${approvalResult.patientName}\nPolicy No: ${approvalResult.policyNumber}\nAuth Code: ${approvalResult.authCode}\nHospital: ${approvalResult.hospitalName}${referralLine}\nDiagnosis: ${approvalResult.diagnosis}\n\nApproved Items:\n${itemLines}\nDate: ${dateStr}\n\nPlease present this code at the hospital reception.\nRonsberger HMO UI Desk`;
-
-              if (!formatted) {
-                // If no phone on file, copy to clipboard as fallback
-                navigator.clipboard.writeText(msg);
-                toast({ title: "Copied!", description: "No phone on record. Copied message to clipboard." });
-                return;
-              }
-
-              try {
-                const { data, error } = await supabase.functions.invoke("send-whatsapp", {
-                  body: { phone_number: formatted, message: msg },
-                });
-                if (error || !data?.success) {
-                  const url = `https://wa.me/${formatted}?text=${encodeURIComponent(msg)}`;
-                  window.open(url, "_blank");
-                  toast({ title: "Opening WhatsApp...", description: "Switched to direct chat" });
-                } else {
-                  toast({ title: "WhatsApp Sent!", description: `Authorization sent directly to ${formatted}` });
-                }
-              } catch (e: any) {
-                const url = `https://wa.me/${formatted}?text=${encodeURIComponent(msg)}`;
-                window.open(url, "_blank");
-              }
-            }}
-            className="w-full h-14 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-sm gap-2 shadow-lg shadow-emerald-100 uppercase tracking-widest transition-transform hover:scale-[1.01]"
+            onClick={handleSendToHospital}
+            disabled={sendingHospital}
+            className="w-full h-13 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs sm:text-sm gap-2 shadow-lg shadow-emerald-100 uppercase tracking-widest transition-transform hover:scale-[1.01]"
           >
-            <Send className="w-4.5 h-4.5" /> Send Approval via WhatsApp
+            {sendingHospital ? <Loader2 className="w-4 h-4 animate-spin" /> : <Building2 className="w-4.5 h-4.5" />}
+            Send Response to Hospital (WhatsApp)
           </Button>
 
+          {/* Primary Action 2: Notify Patient via WhatsApp */}
           <Button
-            onClick={copyApprovalMessage}
-            variant="outline"
-            className="w-full h-11 rounded-xl border-slate-200 text-slate-700 font-bold text-xs gap-2 hover:bg-slate-50 uppercase tracking-wider"
+            onClick={handleNotifyPatient}
+            disabled={sendingPatient}
+            className="w-full h-12 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white font-black text-xs gap-2 shadow-md uppercase tracking-wider transition-transform hover:scale-[1.01]"
           >
-            <Copy className="w-4 h-4" /> Copy WhatsApp Signature
+            {sendingPatient ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserCheck className="w-4 h-4 text-emerald-400" />}
+            Notify Patient via WhatsApp (PIN)
           </Button>
-          <Button
-            onClick={handleCopyCodeOnly}
-            variant="outline"
-            className="w-full h-10 rounded-xl border-slate-200 text-slate-600 font-bold text-xs gap-2 hover:bg-slate-50 uppercase tracking-wider"
-          >
-            <Copy className="w-4 h-4" /> Copy Code Only
-          </Button>
+
+          {/* Copy Options */}
+          <div className="grid grid-cols-2 gap-2 pt-1">
+            <Button
+              onClick={copyApprovalMessage}
+              variant="outline"
+              className="h-11 rounded-xl border-slate-200 text-slate-700 font-bold text-xs gap-1.5 hover:bg-slate-50 uppercase tracking-wider"
+            >
+              <Copy className="w-4 h-4 text-slate-500" /> Copy Signature
+            </Button>
+            <Button
+              onClick={handleCopyCodeOnly}
+              variant="outline"
+              className="h-11 rounded-xl border-slate-200 text-slate-600 font-bold text-xs gap-1.5 hover:bg-slate-50 uppercase tracking-wider"
+            >
+              <Copy className="w-4 h-4 text-slate-500" /> Copy Code Only
+            </Button>
+          </div>
         </div>
 
         <div className="flex gap-2.5 border-t border-slate-100 pt-4">
@@ -322,12 +432,24 @@ export const PostReviewTemplates = React.memo(function PostReviewTemplates({
           </p>
         </div>
 
-        <Button
-          onClick={copyDeclineMessage}
-          className="w-full h-14 rounded-2xl bg-rose-600 hover:bg-rose-700 text-white font-black text-sm gap-2 shadow-lg shadow-rose-100 uppercase tracking-widest transition-transform hover:scale-[1.01]"
-        >
-          <Copy className="w-4.5 h-4.5" /> Copy Decline Message
-        </Button>
+        <div className="flex flex-col gap-2.5">
+          <Button
+            onClick={handleSendDeclineToHospital}
+            disabled={sendingDecline}
+            className="w-full h-14 rounded-2xl bg-rose-600 hover:bg-rose-700 text-white font-black text-sm gap-2 shadow-lg shadow-rose-100 uppercase tracking-widest transition-transform hover:scale-[1.01]"
+          >
+            {sendingDecline ? <Loader2 className="w-4.5 h-4.5 animate-spin" /> : <Send className="w-4.5 h-4.5" />}
+            Send Decline Response via WhatsApp
+          </Button>
+
+          <Button
+            onClick={copyDeclineMessage}
+            variant="outline"
+            className="w-full h-11 rounded-xl border-slate-200 text-slate-700 font-bold text-xs gap-2 hover:bg-slate-50 uppercase tracking-wider"
+          >
+            <Copy className="w-4 h-4 text-slate-500" /> Copy Decline Message
+          </Button>
+        </div>
 
         <div className="flex gap-2.5 border-t border-slate-100 pt-4">
           <Button

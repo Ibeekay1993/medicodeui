@@ -161,9 +161,12 @@ serve(async (req) => {
   let detectedItems: any[] = [];
   if (treatment && treatment !== "Not provided") {
     try {
+      const ac = new AbortController();
+      const timer = setTimeout(() => ac.abort(), 12000);
       const { data: parseResult } = await supabase.functions.invoke("parse-request-text", {
         body: { text: treatment },
-      });
+      }, { signal: ac.signal } as any).catch(() => ({ data: null as any }));
+      clearTimeout(timer);
       if (parseResult?.items && Array.isArray(parseResult.items)) {
         detectedItems = parseResult.items.map((item: any) => ({
           code: item.code,
@@ -177,7 +180,7 @@ serve(async (req) => {
         }));
       }
     } catch (e) {
-      console.warn("submit-authorization: auto-detect tariff error", e);
+      console.warn("submit-authorization: auto-detect tariff error", (e as Error)?.message || e);
     }
   }
 

@@ -1,0 +1,14 @@
+# Dependencies
+node_modules/
+
+# AI agent local state
+.kilo/
+
+# WhatsApp bot runtime (can contain session credentials)
+whatsapp-service/baileys_auth_info/
+whatsapp-service/.env
+.env
+!.env.example
+
+# Logs
+*.log

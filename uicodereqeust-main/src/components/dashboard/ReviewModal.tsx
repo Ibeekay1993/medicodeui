@@ -125,9 +125,27 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
 
   // 1. Determine request metadata
   const isHospitalDirected = ["hospital_portal", "hospital", "portal"].includes(request?.source);
-  const isParsedRequest = request?.source === "whatsapp_parser";
+  const isParsedRequest = ["whatsapp_parser", "whatsapp"].includes(request?.source);
   const requestPatientName = cleanPatientName(request?.patient_name || "");
   const requestPolicyNumber = String(request?.policy_number || "").trim();
+
+  const formattedNotes = useMemo(() => {
+    if (!request?.clinical_notes || typeof request.clinical_notes !== "string") return null;
+    const trimmed = request.clinical_notes.trim();
+    if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        const parts: string[] = [];
+        if (parsed.patient_id_free_text) parts.push(`Patient ID: ${parsed.patient_id_free_text}`);
+        if (parsed.referral_to) parts.push(`Referral To: ${parsed.referral_to}`);
+        if (parsed.notes) parts.push(parsed.notes);
+        return parts.length > 0 ? parts.join(" • ") : null;
+      } catch {
+        return trimmed;
+      }
+    }
+    return trimmed;
+  }, [request?.clinical_notes]);
 
   // 1b. Look up the patient's registered primary hospital from nhis_beneficiaries
   const [primaryHospital, setPrimaryHospital] = useState<{ hcp_name: string; hcp_code: string } | null>(null);
@@ -645,9 +663,9 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
                     <div className="text-[16px] sm:text-[18px] font-extrabold text-slate-800 mt-2 leading-tight break-words [overflow-wrap:anywhere]">
                       {requestingHospitalName || "Unknown Hospital"}
                     </div>
-                    {request?.clinical_notes && (
+                    {formattedNotes && (
                       <div className="text-[13px] font-medium text-slate-500 mt-1.5 leading-relaxed break-words [overflow-wrap:anywhere]">
-                        <span className="font-bold text-slate-700">Clinical Notes:</span> {request.clinical_notes}
+                        <span className="font-bold text-slate-700">Clinical Notes:</span> {formattedNotes}
                       </div>
                     )}
                   </div>
@@ -663,7 +681,7 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
                       Referred to: {request.referred_hospital_name}
                     </div>
                     <div className="text-[13px] font-medium text-slate-500 mt-1.5 leading-relaxed break-words [overflow-wrap:anywhere]">
-                      {request?.clinical_notes ? `Notes from ${requestingHospitalName}: ${request.clinical_notes}` : `Patient referred by ${requestingHospitalName} for further clinical evaluation and management.`}
+                      {formattedNotes ? `Notes from ${requestingHospitalName}: ${formattedNotes}` : `Patient referred by ${requestingHospitalName} for further clinical evaluation and management.`}
                     </div>
                   </div>
                 )}

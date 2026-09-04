@@ -93,24 +93,23 @@ export function FloatingPanel({
 
   if (!mounted || !open) return null;
 
-  // Compute the portal target inline (no state race condition).
-  // Prefer the nearest [role="dialog"] so Radix's DismissableLayer treats
-  // clicks inside the panel as "inside" the dialog, not outside.
-  const portalTarget = anchorRef.current?.closest('[role="dialog"]') ?? document.body;
+  // Portal directly to document.body so fixed dropdowns are never clipped by parent dialog containers
+  const portalTarget = document.body;
 
   return createPortal(
     <div
       ref={panelRef}
-      // preventDefault keeps the search input focused while clicking a result.
-      // Both onPointerDown and onMouseDown are needed to cover all browsers/Radix phases.
       onPointerDown={(event) => { event.preventDefault(); event.stopPropagation(); }}
       onMouseDown={(event) => { event.preventDefault(); event.stopPropagation(); }}
       className={cn(
-        "flex flex-col overflow-y-auto overscroll-contain rounded-xl border border-slate-100 bg-white text-popover-foreground shadow-2xl outline-none animate-in fade-in-0 zoom-in-95 duration-100 scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-transparent",
+        "flex flex-col overflow-y-auto overscroll-contain rounded-xl border border-slate-200 bg-white text-popover-foreground shadow-2xl outline-none animate-in fade-in-0 zoom-in-95 duration-100",
         className,
       )}
       role="listbox"
-      style={style}
+      style={{
+        ...style,
+        zIndex: 2147483647,
+      }}
     >
       {children}
     </div>,
