@@ -16,7 +16,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers:
+  "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type, x-api-key",
 };
 
@@ -68,7 +68,6 @@ serve(async (req) => {
     return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return bad(405, "method_not_allowed");
 
-  // ── 1) Authenticate ─────────────────────────────────────────────────────
   const provided = req.headers.get("x-api-key") || "";
   if (!MEDAUTH_API_KEY || provided !== MEDAUTH_API_KEY) {
     return bad(401, "invalid_api_key");
@@ -80,7 +79,6 @@ serve(async (req) => {
     }
   }
 
-  // ── 2) Parse + validate ─────────────────────────────────────────────────
   let body: any;
   try {
     body = await req.json();
@@ -100,7 +98,6 @@ serve(async (req) => {
   let hospitalName = "";
   let whatsappSenderPhone = "";
 
-  // ── 3) WhatsApp sender + beneficiary authentication ─────────────────────
   if (source === "whatsapp") {
     if (!whatsappMessageId) {
       return bad(422, "whatsapp_message_id_required");
@@ -143,8 +140,6 @@ serve(async (req) => {
       return bad(422, reason);
     }
 
-    // The database function returns canonical beneficiary values. Never trust
-    // the free-text patient identity after this point.
     patientName = sanitize(context.patient_name, 200);
     policyNumber = sanitize(context.policy_number, 80);
     hospitalId = context.hospital_id ? String(context.hospital_id) : null;
@@ -166,9 +161,6 @@ serve(async (req) => {
 
     hospitalName = sanitize(hospital.name, 200);
 
-    // The worker currently sends the patient's phone in phone_number when it
-    // extracted one, and otherwise sends the WhatsApp sender phone. Never store
-    // the hospital sender as patient_phone.
     const candidatePatientPhone = sanitize(
       body.patient_phone || body.phone_number,
       32,
@@ -226,8 +218,6 @@ serve(async (req) => {
     : [];
   const patientId = sanitize(body.patient_id, 80) || null;
 
-  // Hospital identity is authoritative from the authenticated sender. Referral
-  // hospital remains a separate destination and may be supplied as request data.
   const rawReferralHospitalName = sanitize(body.referral_hospital_name, 200);
   let referralHospitalId: string | null = null;
   let referralHospitalName: string | null = rawReferralHospitalName || null;
@@ -257,7 +247,6 @@ serve(async (req) => {
     }
   }
 
-  // Auto-detect NHIA Tariff Items from treatment/services text.
   let detectedItems: any[] = [];
   if (treatment && treatment !== "Not provided") {
     try {
