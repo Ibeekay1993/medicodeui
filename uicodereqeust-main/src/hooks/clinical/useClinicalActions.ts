@@ -94,7 +94,7 @@ export function useClinicalActions({
       setEditReferralHospitalName(request.referred_hospital_name || "");
       setReferralCollapsed(!request.referred_hospital_name);
       setEditStatus(request.status || "pending");
-      setEditDecisionNote(request.decision_reason || request.clinical_notes || "");
+      setEditDecisionNote(request.decision_reason || "");
       setRejectReason("");
       setApprovalResult(null);
       setDeclineResult(null);
@@ -543,6 +543,7 @@ export function useClinicalActions({
       editReferralHospitalName,
       approvedItems,
       approvedTotal,
+      editDecisionNote,
       nurseInitials,
       nurseDisplayName,
       user,
