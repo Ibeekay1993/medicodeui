@@ -7,8 +7,10 @@ import { describe, expect, it } from "vitest";
 import {
   brainGuard,
   buildContext,
+  classifyGeminiFailure,
   cleanQueryPatientName,
   deriveProviderSearchTerm,
+  deterministicFallbackAnalysis,
   extractAuthFieldsFromRaw,
   extractQueryPatientName,
   hasStrongAuthIndicators,
@@ -261,6 +263,117 @@ describe("deriveProviderSearchTerm", () => {
     expect(deriveProviderSearchTerm("I want to ask for a health provider")).toBe("");
     expect(deriveProviderSearchTerm("hospitals in Ibadan")).toBe("Ibadan");
     expect(deriveProviderSearchTerm("Do you have providers in Lagos?")).toBe("Lagos");
-    expect(deriveProviderSearchTerm("maternity in Ibadan")).toBe("maternity Ibadan");
+    expect(deriveProviderSearchTerm("maternity in Ibadan")).toBe(
+      "maternity Ibadan",
+    );
+  });
+});
+
+describe("classifyGeminiFailure", () => {
+  it("flags a 429 as quota-exhausted with a short retry", () => {
+    const f = classifyGeminiFailure(
+      "Gemini HTTP 429: {\"error\":{\"status\":\"RESOURCE_EXHAUSTED\"}}",
+    );
+    expect(f.httpStatus).toBe(429);
+    expect(f.quotaExhausted).toBe(true);
+    expect(f.retryDelayMs).toBe(1500);
+  });
+
+  it("retries transient 5xx but not a definitive 400", () => {
+    expect(
+      classifyGeminiFailure("Gemini HTTP 503: backend error").quotaExhausted,
+    ).toBe(false);
+    expect(
+      classifyGeminiFailure("Gemini HTTP 503: backend error").retryDelayMs,
+    ).toBe(800);
+    expect(
+      classifyGeminiFailure("Gemini HTTP 400: bad request").retryDelayMs,
+    ).toBeNull();
+  });
+
+  it("classifies a quota error without a parseable HTTP status", () => {
+    const f = classifyGeminiFailure("Gemini API quota exceeded for the minute");
+    expect(f.httpStatus).toBeNull();
+    expect(f.quotaExhausted).toBe(true);
+  });
+
+  it("treats a bare network error as transient (retry, no status)", () => {
+    const f = classifyGeminiFailure("fetch failed: connection reset");
+    expect(f.httpStatus).toBeNull();
+    expect(f.retryDelayMs).toBe(800);
+  });
+});
+
+describe("deterministicFallbackAnalysis (Gemini unavailable)", () => {
+  it("preserves structured authorization intake without Gemini", () => {
+    const msg = [
+      "Full Name: Segun Akinoe",
+      "NHIA No: 1234567",
+      "Diagnosis: Malaria",
+      "Treatment: Paracetamol Artemether/Lumefantrine",
+    ].join("\n");
+    const out = deterministicFallbackAnalysis(msg, {});
+    expect(out.intent).toBe("NEW_AUTHORIZATION");
+    expect(out.geminiFallback).toBe(true);
+  });
+
+  it("answers status enquiries deterministically", () => {
+    const out = deterministicFallbackAnalysis(
+      "What is the status for Segun Akinoe?",
+      { last_patient_name: "Segun" },
+    );
+    expect(out.intent).toBe("AUTHORIZATION_STATUS");
+    expect(out.queryPatientName).toBe("Segun Akinoe");
+    expect(out.geminiFallback).toBe(true);
+  });
+
+  it("routes provider questions to PROVIDER_QUERY", () => {
+    expect(
+      deterministicFallbackAnalysis("hospitals in Ibadan", {}).intent,
+    ).toBe("PROVIDER_QUERY");
+  });
+
+  it("recognises cancellation / reset text", () => {
+    expect(deterministicFallbackAnalysis("cancel", {}).intent).toBe(
+      "CANCELLATION",
+    );
+    expect(deterministicFallbackAnalysis("start over", {}).intent).toBe(
+      "CANCELLATION",
+    );
+  });
+
+  it("recognises bare greetings even without the fast paths", () => {
+    expect(deterministicFallbackAnalysis("Good morning", {}).intent).toBe(
+      "GREETING",
+    );
+    expect(deterministicFallbackAnalysis("Thank you", {}).intent).toBe(
+      "GREETING",
+    );
+  });
+
+  it("recognises a submit-intent opener so the flow keeps working", () => {
+    expect(
+      deterministicFallbackAnalysis("I want to submit a new request", {})
+        .intent,
+    ).toBe("INCOMPLETE_AUTHORIZATION");
+  });
+
+  it("scopes an unnamed status question to the sender's last patient", () => {
+    const out = deterministicFallbackAnalysis(
+      "What is the status of my request?",
+      { last_patient_name: "Segun" },
+    );
+    expect(out.intent).toBe("AUTHORIZATION_STATUS");
+    // No name in the message → falls back to the sender's last known patient.
+    expect(out.queryPatientName).toBe("Segun");
+  });
+
+  it("leaves the name null when the sender has no prior patient", () => {
+    const out = deterministicFallbackAnalysis(
+      "What is the status of my request?",
+      { last_patient_name: null },
+    );
+    expect(out.intent).toBe("AUTHORIZATION_STATUS");
+    expect(out.queryPatientName).toBeNull();
   });
 });

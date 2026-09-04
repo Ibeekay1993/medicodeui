@@ -5,9 +5,10 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import {
-  brainGuard,
   buildContext,
+  classifyGeminiFailure,
   deriveProviderSearchTerm,
+  deterministicFallbackAnalysis,
   extractAuthFieldsFromRaw,
   hasStrongAuthIndicators,
   splitPatientBlocks,
@@ -138,6 +139,43 @@ Rules: structured authorization information is authorization; status/update/appr
       "UNIVERSITY OF IBADAN HEALTH SERVICES (JAJA HEALTH CLINIC)";
   return parsed;
 }
+
+// ── Gemini call wrapper: one short retry on transient failures, then degrade ──
+// 429 (free-tier quota) and 5xx are often transient; a single short retry keeps
+// the worker inside Evolution's latency budget. If the retry also fails, the
+// error propagates and processMessageBody falls back to the deterministic brain
+// so the WhatsApp service stays operational instead of going silent.
+async function analyzeWithGemini(
+  text: string,
+  context: string,
+  messageId: string,
+): Promise<GeminiAnalysisResult> {
+  try {
+    return await extractWithGemini(text, context);
+  } catch (e) {
+    const failure = classifyGeminiFailure((e as Error).message);
+    log("gemini", messageId, "error", {
+      http: failure.httpStatus,
+      quota_exhausted: failure.quotaExhausted,
+      error: (e as Error).message.slice(0, 200),
+    });
+    const delay = failure.retryDelayMs;
+    if (delay === null) throw e;
+    log("gemini_retry_wait", messageId, "ok", { delay });
+    await new Promise((r) => setTimeout(r, delay));
+    try {
+      return await extractWithGemini(text, context);
+    } catch (e2) {
+      const failure2 = classifyGeminiFailure((e2 as Error).message);
+      log("gemini_retry", messageId, "error", {
+        http: failure2.httpStatus,
+        quota_exhausted: failure2.quotaExhausted,
+      });
+      throw e2;
+    }
+  }
+}
+
 async function sendWhatsAppMessage(toPhone: string, text: string) {
   if (!EVOLUTION_API_URL || !EVOLUTION_API_KEY)
     throw new Error("Evolution creds missing");
@@ -351,6 +389,11 @@ async function processMessageBody(
   const context = buildContext(conversation, (history || []).reverse());
   let finalReply: string | null = null,
     priority = 0;
+  // Duplicate-call guard: Evolution re-delivery can repeat an identical block
+  // inside one payload. Memoize analyses per normalized block so each distinct
+  // block costs exactly one Gemini call (cross-invocation duplicates are
+  // already prevented by the status CAS claim in processOne).
+  const blockAnalysisCache = new Map<string, GeminiAnalysisResult>();
   for (const blockText of blocks) {
     let analysis: GeminiAnalysisResult;
     const trimmed = blockText.trim();
@@ -395,13 +438,26 @@ async function processMessageBody(
           missingInfo: [],
           isCancellationIntent: false,
         };
-      else if (trimmed && !placeholderOnly.test(trimmed))
-        analysis = brainGuard(
-          trimmed,
-          await extractWithGemini(trimmed, context),
-          conversation,
-        );
-      else
+      else if (trimmed && !placeholderOnly.test(trimmed)) {
+        const cacheKey = trimmed.toLowerCase().replace(/\s+/g, " ");
+        const cached = blockAnalysisCache.get(cacheKey);
+        if (cached) {
+          analysis = { ...cached, raw: undefined };
+        } else {
+          try {
+            analysis = await analyzeWithGemini(trimmed, context, messageId);
+          } catch {
+            // Gemini unavailable (429 quota, 5xx, network, bad JSON):
+            // degrade to the deterministic brain instead of failing the row.
+            analysis = deterministicFallbackAnalysis(trimmed, conversation);
+            log("gemini_fallback", messageId, "ok", {
+              intent: analysis.intent,
+              reason: "gemini_unavailable",
+            });
+          }
+          blockAnalysisCache.set(cacheKey, analysis);
+        }
+      } else
         analysis = {
           intent: "NON_TEXT_MESSAGE",
           urgencyLevel: 3,
@@ -414,16 +470,7 @@ async function processMessageBody(
         .eq("message_id", messageId);
     } catch (e) {
       log("brain", messageId, "error", { error: (e as Error).message });
-      analysis = brainGuard(
-        trimmed,
-        {
-          intent: "UNKNOWN",
-          urgencyLevel: 3,
-          missingInfo: [],
-          isCancellationIntent: false,
-        },
-        conversation,
-      );
+      analysis = deterministicFallbackAnalysis(trimmed, conversation);
     }
     let intent = String(analysis.intent || "UNKNOWN").toUpperCase();
     if (analysis.isCancellationIntent) intent = "CANCELLATION";

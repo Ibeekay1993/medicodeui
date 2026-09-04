@@ -119,6 +119,9 @@ export interface GeminiAnalysisResult {
   queryPatientName?: string | null;
   queryPolicyNumber?: string | null;
   conversationalReply?: string | null;
+  // True when this analysis was produced by the deterministic fallback
+  // (Gemini unavailable — quota/429, 5xx, network, or unparseable response).
+  geminiFallback?: boolean;
   raw?: unknown;
 }
 
@@ -195,13 +198,17 @@ export function brainGuard(
     ) ||
     (hasStatusWord &&
       /\b(?:request|authorization|case|patient|him|her|it|this|my)\b/i.test(t));
+  const providerKeyword =
+    /\b(?:health\s*care\s+providers?|health\s+providers?|providers?|hospitals?|clinics?|doctors?|specialists?|facilit(?:y|ies))\b/i;
+  const providerAction =
+    /\b(?:need|want|looking|find|ask|recommend|which|where|nearest|available|help)\b/i;
+  // "hospitals in Ibadan" / "clinics near me" — a provider keyword followed by a
+  // location preposition is a provider query even without an action verb.
+  const providerLocation =
+    /\b(?:hospitals?|clinics?|doctors?|specialists?|facilit(?:y|ies)|providers?)\b\s+(?:in|at|near|around|within)\b/i;
   const provider =
-    /\b(?:health\s*care\s+providers?|health\s+providers?|providers?|hospitals?|clinics?|doctors?|specialists?|facilit(?:y|ies))\b/i.test(
-      t,
-    ) &&
-    /\b(?:need|want|looking|find|ask|recommend|which|where|nearest|available|help)\b/i.test(
-      t,
-    );
+    (providerKeyword.test(t) && providerAction.test(t)) ||
+    providerLocation.test(t);
   const auth =
     hasStrongAuthIndicators(t) ||
     (/\b(?:submit|request|authorization|pre[- ]?authorization)\b/i.test(t) &&
@@ -295,4 +302,93 @@ export function deriveProviderSearchTerm(text: string): string {
     .filter(Boolean)
     .filter((w) => !PROVIDER_STOPWORD_RE.test(w));
   return words.slice(0, 3).join(" ").trim();
+}
+
+// ── Gemini failure classification (pure, for the 429 fallback) ────────────────
+// extractWithGemini throws `Gemini HTTP <status>: <body>` on non-OK responses.
+// Classify the failure so the worker can decide: retry briefly (429/5xx are
+// often transient or per-minute quota) or degrade to the deterministic brain.
+export interface GeminiFailureInfo {
+  httpStatus: number | null;
+  quotaExhausted: boolean;
+  // Milliseconds to wait before a single retry, or null = do not retry.
+  retryDelayMs: number | null;
+}
+
+export function classifyGeminiFailure(
+  errorMessage: string,
+): GeminiFailureInfo {
+  const msg = String(errorMessage || "");
+  const m = /Gemini HTTP (\d{3})/.exec(msg);
+  const httpStatus = m ? Number(m[1]) : null;
+  const quotaExhausted =
+    httpStatus === 429 ||
+    /quota|resource[_ -]?exhausted|rate\s*limit|too\s*many\s*requests/i.test(
+      msg,
+    );
+  const transient =
+    httpStatus === null ||
+    httpStatus === 429 ||
+    httpStatus === 500 ||
+    httpStatus === 502 ||
+    httpStatus === 503 ||
+    httpStatus === 504;
+  // 429 on the free tier is usually a per-minute window — one short retry is
+  // cheap; anything longer would push the worker past Evolution's latency
+  // budget, so a failure after the retry degrades to the deterministic brain.
+  const retryDelayMs = !transient
+    ? null
+    : httpStatus === 429
+      ? 1500
+      : 800;
+  return { httpStatus, quotaExhausted, retryDelayMs };
+}
+
+// ── Deterministic fallback analysis (Gemini unavailable) ─────────────────────
+// Produces a useful, honest analysis when the AI layer is down so the WhatsApp
+// service degrades gracefully instead of going silent or retrying forever.
+// Deterministic code answers what it can; structured authorization intake,
+// status/provider enquiries and task switching all survive a Gemini outage.
+export function deterministicFallbackAnalysis(
+  text: string,
+  conversation: any,
+): GeminiAnalysisResult {
+  const t = String(text || "").trim();
+  const base: GeminiAnalysisResult = {
+    intent: "UNKNOWN",
+    urgencyLevel: 3,
+    missingInfo: [],
+    isCancellationIntent: false,
+    geminiFallback: true,
+  };
+  if (!t) return { ...base, intent: "NON_TEXT_MESSAGE" };
+  // Cancellation / reset.
+  if (
+    /^(?:cancel(?:\s+(?:my\s+)?(?:request|authorization|it|this))?|stop|start\s+over|reset|nevermind|never\s+mind)\.?$/i.test(
+      t,
+    )
+  )
+    return { ...base, intent: "CANCELLATION", isCancellationIntent: true };
+  // Bare greetings / thanks (covers variants the index.ts fast paths miss).
+  if (
+    !hasStrongAuthIndicators(t) &&
+    !/\b(?:status|update|approved|rejected|provider|hospital|clinic)\b/i.test(t) &&
+    t.split(/\s+/).length <= 4 &&
+    /^(?:hi|hello|hey|howdy|greetings|good\s*(?:morning|afternoon|evening|day)|thank(?:s| you)(?: very much)?|thanks\b)/i.test(
+      t,
+    )
+  )
+    return { ...base, intent: "GREETING" };
+  // Submit-intent with no fields yet: starting a draft is deterministic.
+  // (brainGuard alone would return UNKNOWN, losing the flow while Gemini is down.)
+  if (
+    !hasStrongAuthIndicators(t) &&
+    !/\b(?:status|update|approved|rejection|rejected)\b/i.test(t) &&
+    /\b(?:submit|send|start|open|create|new|make)\b/i.test(t) &&
+    /\b(?:request|requests|authorization|auth|pre[- ]?authorization|preauth)\b/i.test(
+      t,
+    )
+  )
+    return { ...base, intent: "INCOMPLETE_AUTHORIZATION" };
+  return brainGuard(t, base, conversation);
 }
