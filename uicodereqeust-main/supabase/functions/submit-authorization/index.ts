@@ -5,38 +5,22 @@
 // service role to bypass the `Hospitals can create pending requests` RLS policy
 // while still writing the same columns a hospital user would write.
 //
-// Body shape (kept loose to match what the worker sends):
-// {
-//   "source": "whatsapp",          // tracked for audit; optional
-//   "patient_id": "P-001" | null,  // free-text patient reference
-//   "patient_name"?: string,       // optional; if missing, derived from phone
-//   "policy_number"?: string,      // optional
-//   "phone_number": "2348012...",  // required
-//   "provider_name"?: string,      // hospital/provider name (free text)
-//   "procedure_type"?: string,
-//   "diagnosis"?: string,          // synthesized from message if absent
-//   "urgency_level"?: 1|2|3|4|5,   // mapped to urgency TEXT below
-//   "missing_info"?: string[],
-//   "raw_message"?: string,
-//   "whatsapp_message_id"?: string // Meta wamid for cross-link
-// }
-//
-// Response: { "id": "<uuid>", "request_id": "REQ-YYYYMMDD-NNN", "status": "pending" }
-//
-// Free-tier note: this function does NOT call Gemini or Meta itself. It only writes
-// a row in authorization_requests. The actual extraction happened upstream in the
-// worker, and the template reply happens after this returns.
+// WhatsApp security is enforced twice:
+//   1. This function resolves the sender from the persisted WhatsApp message and
+//      requires an active hospital contact in user_roles.
+//   2. A database BEFORE INSERT trigger independently enforces the same sender
+//      identity and exact beneficiary match, protecting the worker fallback path.
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-api-key",
+  "Access-Control-Allow-Headers:
+    "authorization, x-client-info, apikey, content-type, x-api-key",
 };
 
 const MEDAUTH_API_KEY = Deno.env.get("MEDAUTH_INTERNAL_API_KEY") || "";
-// Optional override: require this additional header to scope the worker → this fn
 const WORKER_SHARED_SECRET = Deno.env.get("WHATSAPP_WORKER_SECRET") || "";
 
 function getServiceClient() {
@@ -47,10 +31,16 @@ function getServiceClient() {
   );
 }
 
-function mapUrgency(level: unknown): "routine" | "low" | "standard" | "urgent" | "emergency" {
+function mapUrgency(
+  level: unknown,
+): "routine" | "low" | "standard" | "urgent" | "emergency" {
   const n = Math.max(1, Math.min(5, Number(level ?? 3) | 0));
   return ["routine", "low", "standard", "urgent", "emergency"][n - 1] as
-    "routine" | "low" | "standard" | "urgent" | "emergency";
+    | "routine"
+    | "low"
+    | "standard"
+    | "urgent"
+    | "emergency";
 }
 
 function bad(status: number, message: string) {
@@ -64,8 +54,18 @@ function sanitize(value: unknown, max = 500): string {
   return String(value ?? "").trim().slice(0, max).replace(/[<>]/g, "");
 }
 
+function normalizePhone(value: string): string {
+  let digits = value.replace(/[^0-9]/g, "");
+  if (digits.startsWith("00")) digits = digits.slice(2);
+  if (digits.startsWith("0") && digits.length === 11) {
+    digits = `234${digits.slice(1)}`;
+  }
+  return digits;
+}
+
 serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  if (req.method === "OPTIONS")
+    return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return bad(405, "method_not_allowed");
 
   // ── 1) Authenticate ─────────────────────────────────────────────────────
@@ -73,8 +73,6 @@ serve(async (req) => {
   if (!MEDAUTH_API_KEY || provided !== MEDAUTH_API_KEY) {
     return bad(401, "invalid_api_key");
   }
-  // If the worker shares a secret, accept that as an alternative credential
-  // (lets the worker call us without burning the MEDAUTH key in app logs).
   if (WORKER_SHARED_SECRET) {
     const ws = req.headers.get("x-worker-secret") || "";
     if (ws !== WORKER_SHARED_SECRET && provided !== MEDAUTH_API_KEY) {
@@ -84,72 +82,174 @@ serve(async (req) => {
 
   // ── 2) Parse + validate ─────────────────────────────────────────────────
   let body: any;
-  try { body = await req.json(); } catch { return bad(400, "invalid_json"); }
+  try {
+    body = await req.json();
+  } catch {
+    return bad(400, "invalid_json");
+  }
 
-  const phoneNumber = sanitize(body.phone_number, 32);
-  if (!phoneNumber) return bad(400, "phone_number_required");
-
-  // Synthesize display fields. We never auto-claim a patient identity — anything
-  // that says "patient is X" must come from the patient (and is therefore free text).
-  const patientName = sanitize(body.patient_name, 200) || `WhatsApp patient (${phoneNumber})`;
-  const policyNumber = sanitize(body.policy_number, 80) || `WA-${phoneNumber}`;
-  const providerName = sanitize(body.provider_name, 200) || "Not provided";
-  const procedureType = sanitize(body.procedure_type, 200) || "Not provided";
-  const diagnosis = sanitize(body.diagnosis, 1000)
-    || (procedureType !== "Not provided" ? `Pending clinical review — ${procedureType}` : "Pending clinical review");
-  const treatment = sanitize(body.treatment, 1000) || procedureType;
-  const urgency = mapUrgency(body.urgency_level);
-  const whatsappMessageId = sanitize(body.whatsapp_message_id || body.source_message_id, 120) || null;
-  const rawMessage = sanitize(body.raw_message, 4000) || null;
-  const missingInfo = Array.isArray(body.missing_info) ? body.missing_info.slice(0, 10) : [];
-  const patientId = sanitize(body.patient_id, 80) || null;
-
-  // Hospital and referral handling
-  const rawHospitalName = sanitize(body.hospital_name || body.provider_name, 200);
-  const rawReferralHospitalName = sanitize(body.referral_hospital_name, 200);
-  
-  let hospitalId: string | null = null;
-  let hospitalName: string = rawHospitalName;
-  let referralHospitalId: string | null = null;
-  let referralHospitalName: string | null = rawReferralHospitalName || null;
-
+  const source = sanitize(body.source, 40).toLowerCase() || "whatsapp";
+  const whatsappMessageId =
+    sanitize(body.whatsapp_message_id || body.source_message_id, 120) || null;
   const supabase = getServiceClient();
 
-  // Normalize originating hospital
-  if (rawHospitalName) {
-    let searchName = rawHospitalName;
-    const lower = rawHospitalName.toLowerCase();
-    if (lower.includes("university health service") || lower.includes("jaja")) {
-      searchName = "UNIVERSITY OF IBADAN HEALTH SERVICES (JAJA HEALTH CLINIC)";
+  let phoneNumber = sanitize(body.phone_number, 32);
+  let patientName = sanitize(body.patient_name, 200);
+  let policyNumber = sanitize(body.policy_number, 80);
+  let hospitalId: string | null = null;
+  let hospitalName = "";
+  let whatsappSenderPhone = "";
+
+  // ── 3) WhatsApp sender + beneficiary authentication ─────────────────────
+  if (source === "whatsapp") {
+    if (!whatsappMessageId) {
+      return bad(422, "whatsapp_message_id_required");
     }
-    const { data: matchedHospitals } = await supabase
+
+    const { data: context, error: contextError } = await supabase.rpc(
+      "resolve_whatsapp_authorization_context",
+      {
+        _message_id: whatsappMessageId,
+        _patient_name: patientName,
+        _policy_number: policyNumber,
+      },
+    );
+
+    if (contextError) {
+      console.error(
+        "submit-authorization: WhatsApp security lookup failed",
+        contextError.message,
+      );
+      return bad(500, "whatsapp_security_check_failed");
+    }
+
+    if (!context?.ok) {
+      const reason = String(context?.reason || "security_validation_failed");
+      if (reason === "unregistered_sender" || reason === "ambiguous_sender") {
+        return bad(403, "whatsapp_hospital_not_authorized");
+      }
+      if (reason === "patient_name_required") {
+        return bad(422, "patient_name_required");
+      }
+      if (reason === "policy_number_required") {
+        return bad(422, "policy_number_required");
+      }
+      if (reason === "beneficiary_ambiguous") {
+        return bad(422, "beneficiary_ambiguous");
+      }
+      if (reason === "beneficiary_mismatch") {
+        return bad(422, "beneficiary_mismatch");
+      }
+      return bad(422, reason);
+    }
+
+    // The database function returns canonical beneficiary values. Never trust
+    // the free-text patient identity after this point.
+    patientName = sanitize(context.patient_name, 200);
+    policyNumber = sanitize(context.policy_number, 80);
+    hospitalId = context.hospital_id ? String(context.hospital_id) : null;
+    whatsappSenderPhone = normalizePhone(String(context.sender_phone || ""));
+
+    if (!hospitalId || !patientName || !policyNumber) {
+      return bad(500, "whatsapp_security_context_incomplete");
+    }
+
+    const { data: hospital } = await supabase
       .from("hospitals")
       .select("id, name")
-      .ilike("name", `%${searchName.split(" ").slice(0, 3).join(" ")}%`)
-      .limit(1);
+      .eq("id", hospitalId)
+      .maybeSingle();
 
-    if (matchedHospitals && matchedHospitals.length > 0) {
-      hospitalId = matchedHospitals[0].id;
-      hospitalName = matchedHospitals[0].name;
+    if (!hospital?.id || !hospital?.name) {
+      return bad(403, "whatsapp_hospital_not_authorized");
+    }
+
+    hospitalName = sanitize(hospital.name, 200);
+
+    // The worker currently sends the patient's phone in phone_number when it
+    // extracted one, and otherwise sends the WhatsApp sender phone. Never store
+    // the hospital sender as patient_phone.
+    const candidatePatientPhone = sanitize(
+      body.patient_phone || body.phone_number,
+      32,
+    );
+    if (
+      candidatePatientPhone &&
+      normalizePhone(candidatePatientPhone) !== whatsappSenderPhone
+    ) {
+      phoneNumber = candidatePatientPhone;
     } else {
-      hospitalName = searchName;
+      phoneNumber = "";
+    }
+  } else {
+    if (!phoneNumber) return bad(400, "phone_number_required");
+
+    const rawHospitalName = sanitize(
+      body.hospital_name || body.provider_name,
+      200,
+    );
+    if (rawHospitalName) {
+      let searchName = rawHospitalName;
+      const lower = rawHospitalName.toLowerCase();
+      if (lower.includes("university health service") || lower.includes("jaja")) {
+        searchName = "UNIVERSITY OF IBADAN HEALTH SERVICES (JAJA HEALTH CLINIC)";
+      }
+      const { data: matchedHospitals } = await supabase
+        .from("hospitals")
+        .select("id, name")
+        .ilike(
+          "name",
+          `%${searchName.split(" ").slice(0, 3).join(" ")}%`,
+        )
+        .limit(1);
+      if (matchedHospitals?.length) {
+        hospitalId = matchedHospitals[0].id;
+        hospitalName = matchedHospitals[0].name;
+      } else {
+        hospitalName = searchName;
+      }
     }
   }
 
-  // Normalize referral hospital
+  const providerName = sanitize(body.provider_name, 200) || "Not provided";
+  const procedureType = sanitize(body.procedure_type, 200) || "Not provided";
+  const diagnosis =
+    sanitize(body.diagnosis, 1000) ||
+    (procedureType !== "Not provided"
+      ? `Pending clinical review — ${procedureType}`
+      : "Pending clinical review");
+  const treatment = sanitize(body.treatment, 1000) || procedureType;
+  const urgency = mapUrgency(body.urgency_level);
+  const rawMessage = sanitize(body.raw_message, 4000) || null;
+  const missingInfo = Array.isArray(body.missing_info)
+    ? body.missing_info.slice(0, 10)
+    : [];
+  const patientId = sanitize(body.patient_id, 80) || null;
+
+  // Hospital identity is authoritative from the authenticated sender. Referral
+  // hospital remains a separate destination and may be supplied as request data.
+  const rawReferralHospitalName = sanitize(body.referral_hospital_name, 200);
+  let referralHospitalId: string | null = null;
+  let referralHospitalName: string | null = rawReferralHospitalName || null;
+
   if (rawReferralHospitalName) {
     let searchReferral = rawReferralHospitalName;
     const lowerRef = rawReferralHospitalName.toLowerCase();
-    if (lowerRef.includes("uch") || lowerRef.includes("university college hospital")) {
+    if (
+      lowerRef.includes("uch") ||
+      lowerRef.includes("university college hospital")
+    ) {
       searchReferral = "UNIVERSITY COLLEGE HOSPITAL";
     }
     const { data: matchedRefHospitals } = await supabase
       .from("hospitals")
       .select("id, name")
-      .ilike("name", `%${searchReferral.split(" ").slice(0, 3).join(" ")}%`)
+      .ilike(
+        "name",
+        `%${searchReferral.split(" ").slice(0, 3).join(" ")}%`,
+      )
       .limit(1);
-
-    if (matchedRefHospitals && matchedRefHospitals.length > 0) {
+    if (matchedRefHospitals?.length) {
       referralHospitalId = matchedRefHospitals[0].id;
       referralHospitalName = matchedRefHospitals[0].name;
     } else {
@@ -157,15 +257,19 @@ serve(async (req) => {
     }
   }
 
-  // Auto-detect NHIA Tariff Items from treatment/services text
+  // Auto-detect NHIA Tariff Items from treatment/services text.
   let detectedItems: any[] = [];
   if (treatment && treatment !== "Not provided") {
     try {
       const ac = new AbortController();
       const timer = setTimeout(() => ac.abort(), 12000);
-      const { data: parseResult } = await supabase.functions.invoke("parse-request-text", {
-        body: { text: treatment },
-      }, { signal: ac.signal } as any).catch(() => ({ data: null as any }));
+      const { data: parseResult } = await supabase.functions
+        .invoke(
+          "parse-request-text",
+          { body: { text: treatment } },
+          { signal: ac.signal } as any,
+        )
+        .catch(() => ({ data: null as any }));
       clearTimeout(timer);
       if (parseResult?.items && Array.isArray(parseResult.items)) {
         detectedItems = parseResult.items.map((item: any) => ({
@@ -180,18 +284,21 @@ serve(async (req) => {
         }));
       }
     } catch (e) {
-      console.warn("submit-authorization: auto-detect tariff error", (e as Error)?.message || e);
+      console.warn(
+        "submit-authorization: auto-detect tariff error",
+        (e as Error)?.message || e,
+      );
     }
   }
 
-  // Cross-link the request back to the WhatsApp message id (audit trail)
   const clinicalNotes = JSON.stringify({
-    source: sanitize(body.source, 40) || "whatsapp",
+    source,
     patient_id_free_text: patientId,
-    provider_name_free_text: hospitalName,
+    provider_name_free_text: providerName,
     referral_to: referralHospitalName,
     missing_info: missingInfo,
     whatsapp_message_id: whatsappMessageId,
+    whatsapp_sender_phone: source === "whatsapp" ? whatsappSenderPhone : null,
     captured_at: new Date().toISOString(),
   });
 
@@ -200,7 +307,7 @@ serve(async (req) => {
     policy_number: policyNumber,
     diagnosis,
     treatment,
-    patient_phone: phoneNumber,
+    patient_phone: phoneNumber || null,
     hospital_name: hospitalName || null,
     hospital_id: hospitalId,
     requesting_hospital_id: hospitalId,
@@ -214,7 +321,7 @@ serve(async (req) => {
     approved_items: detectedItems,
     doctor_name: "WhatsApp automated intake",
     urgency,
-    source: "whatsapp",
+    source,
     clinical_notes: clinicalNotes,
     whatsapp_raw_message: whatsappMessageId,
     status: "pending",
@@ -232,7 +339,6 @@ serve(async (req) => {
     return bad(500, "insert_failed: " + (insErr?.message || "unknown"));
   }
 
-  // ── 4) Link the WhatsApp message to the new request id ────────────────
   if (whatsappMessageId) {
     await supabase
       .from("whatsapp_messages")
@@ -240,12 +346,15 @@ serve(async (req) => {
       .eq("message_id", whatsappMessageId);
   }
 
-  return new Response(JSON.stringify({
-    id: row.id,
-    request_id: row.request_id,
-    status: row.status,
-  }), {
-    status: 201,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
-  });
+  return new Response(
+    JSON.stringify({
+      id: row.id,
+      request_id: row.request_id,
+      status: row.status,
+    }),
+    {
+      status: 201,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    },
+  );
 });
