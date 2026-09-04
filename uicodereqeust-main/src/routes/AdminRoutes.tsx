@@ -17,6 +17,7 @@ const SupportMessagesPage = lazy(() => import("@/features/dashboard/pages/Suppor
 const ReportsPage = lazy(() => import("@/features/dashboard/pages/ReportsPage"));
 const AuditLogsPage = lazy(() => import("@/features/dashboard/pages/AuditLogsPage"));
 const WhatsAppPage = lazy(() => import("@/features/dashboard/pages/WhatsAppPage"));
+const WhatsAppAccessPage = lazy(() => import("@/features/dashboard/pages/WhatsAppAccessPage"));
 const HospitalsPage = lazy(() => import("@/features/dashboard/pages/HospitalsPage"));
 const UsersPage = lazy(() => import("@/features/dashboard/pages/UsersPage"));
 const DeleteRequestsPage = lazy(() => import("@/features/dashboard/pages/DeleteRequestsPage"));
@@ -52,6 +53,7 @@ export function AdminRoutes() {
       <Route path="reports" element={<ReportsPage />} />
       <Route path="audit" element={<AuditLogsPage />} />
       <Route path="whatsapp" element={<WhatsAppPage />} />
+      <Route path="whatsapp-access" element={<WhatsAppAccessPage />} />
       <Route path="hospitals" element={<HospitalsPage />} />
       <Route path="users" element={<UsersPage />} />
       <Route path="audit-logs" element={<AuditLogsPage />} />
