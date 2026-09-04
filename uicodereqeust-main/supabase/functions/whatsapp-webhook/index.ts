@@ -76,7 +76,7 @@ async function resolveHospitalSender(
 
   const { data, error } = await supabase
     .from("user_roles")
-    .select("user_id, full_name, role, hospital_id, access_status")
+    .select("user_id, full_name, role, phone, hospital_id, access_status")
     .eq("role", "hospital")
     .eq("access_status", "active")
     .not("hospital_id", "is", null);
@@ -278,8 +278,6 @@ serve(async (req) => {
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
   const sender = await resolveHospitalSender(supabase, phoneNumber);
 
-  // Always retain the raw inbound event. Unauthorized senders are marked
-  // completed so they cannot enter the authorization worker queue.
   const insertRow: Record<string, unknown> = {
     message_id: evolutionMessageId,
     phone_number: phoneNumber,
@@ -318,15 +316,12 @@ serve(async (req) => {
   }
 
   if (!sender.authorized) {
-    // Never reveal which part of the identity check failed. Do not disclose
-    // whether a number exists as a patient, hospital contact, or prior requester.
     if (String(sender.reason) !== "identity_lookup_failed") {
       await sendRestrictedReply(phoneNumber);
     }
     return jsonResponse({ ok: true, restricted: true });
   }
 
-  // ── Fan out authorized hospital messages to the existing worker ───────────
   if (supabaseUrl && serviceKey) {
     try {
       const whHeaders: Record<string, string> = {
