@@ -29,9 +29,7 @@ const PATIENT_RESTRICTED_REPLY =
   "This WhatsApp service is for registered healthcare providers. Patients and unregistered numbers cannot submit or track medical authorization requests through this channel. Please contact your healthcare provider for assistance.\n\n— Ronsberger HMO";
 
 function getServiceClient() {
-  return createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, {
-    auth: { persistSession: false },
-  });
+  return createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
 }
 
 function normalizePhoneNumber(raw: string): string {
@@ -44,40 +42,32 @@ function normalizePhoneNumber(raw: string): string {
 }
 
 function jsonResponse(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
-  });
+  return new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 }
 function unauthorized() { return jsonResponse({ error: "unauthorized" }, 401); }
 function badRequest(reason: string) { return jsonResponse({ error: reason }, 400); }
 
-async function resolveHospitalSender(
-  supabase: ReturnType<typeof getServiceClient>,
-  phoneNumber: string,
-) {
+async function resolveHospitalSender(supabase: ReturnType<typeof getServiceClient>, phoneNumber: string) {
   const normalized = normalizePhoneNumber(phoneNumber);
   if (!normalized) return { authorized: false as const, reason: "phone_required" };
 
+  // Do not compare raw stored formatting. Existing/admin-entered values may be
+  // +234..., 234..., or local 080... format, so normalize both sides here.
   const { data, error } = await supabase
     .from("hospital_whatsapp_contacts")
     .select("id, hospital_id, contact_name, contact_role, phone_number, status")
     .eq("status", "active")
-    .eq("phone_number", normalized)
-    .limit(2);
+    .limit(500);
 
   if (error) {
     console.error("evolution-webhook: WhatsApp access lookup failed", error.message);
     return { authorized: false as const, reason: "identity_lookup_failed" };
   }
 
-  const matches = data || [];
+  const matches = (data || []).filter((row: any) => normalizePhoneNumber(String(row.phone_number || "")) === normalized);
   const hospitals = [...new Set(matches.map((row: any) => String(row.hospital_id)).filter(Boolean))];
   if (hospitals.length !== 1) {
-    return {
-      authorized: false as const,
-      reason: hospitals.length > 1 ? "ambiguous_sender" : "unregistered_sender",
-    };
+    return { authorized: false as const, reason: hospitals.length > 1 ? "ambiguous_sender" : "unregistered_sender" };
   }
 
   const contact = matches.find((row: any) => String(row.hospital_id) === hospitals[0]);
@@ -97,11 +87,7 @@ async function sendRestrictedReply(toPhone: string) {
   }
   const url = `${EVOLUTION_API_URL.replace(/\/$/, "")}/message/sendText/${encodeURIComponent(EVOLUTION_INSTANCE_NAME)}`;
   try {
-    const response = await fetch(url, {
-      method: "POST",
-      headers: { apikey: EVOLUTION_API_KEY, "Content-Type": "application/json" },
-      body: JSON.stringify({ number: toPhone, text: PATIENT_RESTRICTED_REPLY }),
-    });
+    const response = await fetch(url, { method: "POST", headers: { apikey: EVOLUTION_API_KEY, "Content-Type": "application/json" }, body: JSON.stringify({ number: toPhone, text: PATIENT_RESTRICTED_REPLY }) });
     if (!response.ok) {
       const body = await response.text();
       console.error("evolution-webhook: restricted reply failed", response.status, body.slice(0, 200));
@@ -111,12 +97,9 @@ async function sendRestrictedReply(toPhone: string) {
   }
 }
 
-/** Extract human-readable text from an Evolution v2 message envelope. */
 function extractMessageContent(message: Record<string, unknown> | null | undefined): { text: string; type: string; mediaUrl: string | null } {
   if (!message || typeof message !== "object") return { text: "", type: "unknown", mediaUrl: null };
-  if (typeof message.conversation === "string" && message.conversation.length) {
-    return { text: message.conversation, type: "text", mediaUrl: null };
-  }
+  if (typeof message.conversation === "string" && message.conversation.length) return { text: message.conversation, type: "text", mediaUrl: null };
   const ext = (message as Record<string, Record<string, unknown>>).extendedTextMessage;
   if (ext && typeof ext.text === "string") return { text: ext.text, type: "text", mediaUrl: null };
   const img = (message as Record<string, Record<string, unknown>>).imageMessage;
@@ -215,11 +198,7 @@ serve(async (req) => {
     try {
       const whHeaders: Record<string, string> = { "Content-Type": "application/json", "Authorization": `Bearer ${serviceKey}` };
       if (WORKER_SECRET) whHeaders["x-worker-secret"] = WORKER_SECRET;
-      fetch(`${supabaseUrl}/functions/v1/whatsapp-worker`, {
-        method: "POST",
-        headers: whHeaders,
-        body: JSON.stringify({ message_id: evolutionMessageId, trigger: "evolution_webhook" }),
-      }).catch((e) => console.error("worker invoke failed", e?.message || String(e)));
+      fetch(`${supabaseUrl}/functions/v1/whatsapp-worker`, { method: "POST", headers: whHeaders, body: JSON.stringify({ message_id: evolutionMessageId, trigger: "evolution_webhook" }) }).catch((e) => console.error("worker invoke failed", e?.message || String(e)));
     } catch (e) {
       console.error("worker invoke threw", (e as Error).message);
     }
