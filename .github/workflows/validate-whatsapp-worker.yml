@@ -1,0 +1,16 @@
+name: Validate WhatsApp Worker
+
+on:
+  push:
+    branches: [feat/whatsapp-ai-brain-spec]
+
+jobs:
+  typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Type check worker
+        run: deno check uicodereqeust-main/supabase/functions/whatsapp-worker/index.ts
