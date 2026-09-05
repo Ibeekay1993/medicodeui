@@ -35,6 +35,7 @@ import {
   buildAiResponse,
   isEscalationIntent,
   getErrorMessage,
+  getRouteTags,
 } from "@/lib/support-helpers";
 import { MessageBubble } from "./MessageBubble";
 
@@ -302,6 +303,23 @@ export function SupportChatArea({
               }
             : prev
         );
+      }
+
+      // 2b. If conversation originated from WhatsApp, forward public reply to customer WhatsApp
+      if (!isPrivateNoteState && selected) {
+        const routeTags = getRouteTags(selected);
+        const waTag = routeTags.find((t: string) => t.startsWith("whatsapp:"));
+        const waPhone = waTag ? waTag.replace(/^whatsapp:/, "").trim() : (selected.request_metadata?.phone_number || null);
+        if (waPhone) {
+          supabase.functions.invoke("send-whatsapp", {
+            body: {
+              phone_number: waPhone,
+              message: `Ronsberger Customer Support:\n\n${bodyText}\n\n— Ronsberger HMO`,
+            },
+          }).catch((err) => {
+            console.warn("Outbound WhatsApp reply send failed", err);
+          });
+        }
       }
 
       // 3. Upload & Dispatch other files in the queue

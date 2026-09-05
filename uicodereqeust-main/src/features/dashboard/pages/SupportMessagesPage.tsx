@@ -87,7 +87,7 @@ export default function SupportMessagesPage() {
         if (role === "claims") {
           q = q.eq("department", "Claims");
         } else if (role === "utilization_manager") {
-          q = q.eq("department", "Authorization");
+          q = q.in("department", ["Authorization", "General Support", "WhatsApp Support", "Clinical Support"]);
         }
       }
 

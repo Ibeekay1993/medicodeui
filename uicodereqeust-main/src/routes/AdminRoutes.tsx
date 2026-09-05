@@ -16,7 +16,7 @@ const FinanceReportsPage = lazy(() => import("@/features/payments/pages/FinanceR
 const SupportMessagesPage = lazy(() => import("@/features/dashboard/pages/SupportMessagesPage"));
 const ReportsPage = lazy(() => import("@/features/dashboard/pages/ReportsPage"));
 const AuditLogsPage = lazy(() => import("@/features/dashboard/pages/AuditLogsPage"));
-const WhatsAppHubPage = lazy(() => import("@/features/dashboard/pages/WhatsAppHubPage"));
+const WhatsAppPage = lazy(() => import("@/features/dashboard/pages/WhatsAppPage"));
 const WhatsAppAccessPage = lazy(() => import("@/features/dashboard/pages/WhatsAppAccessPage"));
 const HospitalsPage = lazy(() => import("@/features/dashboard/pages/HospitalsPage"));
 const UsersPage = lazy(() => import("@/features/dashboard/pages/UsersPage"));
@@ -52,7 +52,7 @@ export function AdminRoutes() {
       <Route path="messages" element={<SupportMessagesPage />} />
       <Route path="reports" element={<ReportsPage />} />
       <Route path="audit" element={<AuditLogsPage />} />
-      <Route path="whatsapp" element={<WhatsAppHubPage />} />
+      <Route path="whatsapp" element={<WhatsAppPage />} />
       <Route path="whatsapp-access" element={<WhatsAppAccessPage />} />
       <Route path="hospitals" element={<HospitalsPage />} />
       <Route path="users" element={<UsersPage />} />

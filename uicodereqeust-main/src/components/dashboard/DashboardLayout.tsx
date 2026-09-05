@@ -270,6 +270,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       { name: "Hospitals", href: `${basePath}/hospitals`, icon: Building2, hidden: r !== "admin" },
       { name: "Users", href: `${basePath}/users`, icon: Users, hidden: r !== "admin" },
       { name: "WhatsApp Parser", href: `${basePath}/whatsapp`, icon: MessageSquare, hidden: r === "hospital" },
+      { name: "Hospital WhatsApp Access", href: `${basePath}/whatsapp-access`, icon: ShieldCheck, hidden: r !== "admin" },
       
       { name: "Audit Feed", href: `${basePath}/audit`, icon: Activity, hidden: r !== "admin" },
       { name: "Announcements", href: `${basePath}/announcements`, icon: Megaphone, hidden: r !== "admin" },
@@ -380,6 +381,9 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     }
     if (path.startsWith("/backoffice/admin/audit")) {
       return { title: "System Audit Trail", description: "Track system activity, user actions, and data changes" };
+    }
+    if (path.startsWith("/backoffice/admin/whatsapp-access")) {
+      return { title: "Hospital WhatsApp Access", description: "Manage authorized hospital WhatsApp phone numbers & access control" };
     }
     if (path.startsWith("/backoffice/admin/whatsapp")) {
       return { title: "WhatsApp Parser", description: "Clinical Intake Engine" };

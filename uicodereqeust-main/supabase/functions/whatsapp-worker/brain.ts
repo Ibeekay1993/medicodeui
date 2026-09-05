@@ -397,3 +397,224 @@ export function deterministicFallbackAnalysis(
     return { ...base, intent: "INCOMPLETE_AUTHORIZATION" };
   return brainGuard(t, base, conversation);
 }
+
+// ── WhatsApp Group Message Detection ──────────────────────────────────────────
+// Complete isolation for WhatsApp group messages.
+// Returns true if the payload represents a group message, group broadcast, or participant-based group event.
+export function isWhatsAppGroupMessage(body: any): boolean {
+  if (!body || typeof body !== "object") return false;
+  const data = body.data || body;
+  const key = data?.key || {};
+  const remoteJid = String(key.remoteJid || data.remoteJid || data.chatJid || "").toLowerCase();
+  const participant = String(key.participant || data.participant || "").trim();
+
+  // 1. Group JID format (Baileys / WhatsApp group addresses end in @g.us or contain @g.us)
+  if (remoteJid.endsWith("@g.us") || remoteJid.includes("@g.us")) return true;
+
+  // 2. Status broadcast or system broadcast JIDs
+  if (remoteJid.includes("status@broadcast") || remoteJid.endsWith("@broadcast")) return true;
+
+  // 3. Explicit group flags from Evolution API
+  if (Boolean(data.isGroup) || Boolean(body.isGroup)) return true;
+
+  // 4. Participant presence distinct from remoteJid in WhatsApp chats indicates a group
+  if (participant.length > 0 && participant !== remoteJid && remoteJid.includes("@")) {
+    return true;
+  }
+
+  return false;
+}
+
+// ── Phone number normalizer ──────────────────────────────────────────────────
+export function normalizePhoneNumber(raw: string): string {
+  let digits = (raw || "").replace(/\D/g, "");
+  if (digits.startsWith("00")) digits = digits.slice(2);
+  if (digits.startsWith("0") && digits.length === 11) return "234" + digits.slice(1);
+  if (digits.startsWith("234")) return digits;
+  if (digits.length === 10) return "234" + digits;
+  return digits;
+}
+
+// ── Access Classification ────────────────────────────────────────────────────
+export type AccessClass = "REGISTERED_HOSPITAL" | "GENERAL_CUSTOMER" | "DISABLED_OR_REVOKED";
+
+export function classifyAccessClass(
+  matches: Array<{ hospital_id?: string | null; status?: string | null }>,
+): {
+  accessClass: AccessClass;
+  authorized: boolean;
+  hospitalId: string | null;
+} {
+  if (!matches || matches.length === 0) {
+    return { accessClass: "GENERAL_CUSTOMER", authorized: false, hospitalId: null };
+  }
+
+  const activeMatches = matches.filter(
+    (m) => String(m.status || "").toLowerCase() === "active",
+  );
+
+  if (activeMatches.length === 0) {
+    // Phone exists in contact table but status is revoked/disabled/inactive
+    return { accessClass: "DISABLED_OR_REVOKED", authorized: false, hospitalId: null };
+  }
+
+  const hospitals = [...new Set(activeMatches.map((m) => String(m.hospital_id || "")).filter(Boolean))];
+  if (hospitals.length !== 1) {
+    // Ambiguous: multiple active hospitals claim the same phone number
+    return { accessClass: "GENERAL_CUSTOMER", authorized: false, hospitalId: null };
+  }
+
+  return {
+    accessClass: "REGISTERED_HOSPITAL",
+    authorized: true,
+    hospitalId: hospitals[0],
+  };
+}
+
+// ── General Customer Intent & Safe Replies ───────────────────────────────────
+export type GeneralCustomerIntent =
+  | "PROVIDER_CLAIM"
+  | "PROVIDER_REGISTRATION"
+  | "CALLBACK_REQUEST"
+  | "SUPPORT_REQUEST"
+  | "FAQ"
+  | "GREETING";
+
+export const GENERAL_CUSTOMER_WELCOME =
+  "Welcome to Ronsberger HMO 👋\n\n" +
+  "We’re here to help with your HMO questions, benefits, services, and general support.\n\n" +
+  "💬 You can chat with our Customer Support team directly here on WhatsApp, or request a phone call and we’ll assist you.\n\n" +
+  "Our healthcare-provider WhatsApp service also supports medical authorization requests for registered hospitals and clinics.\n\n" +
+  "How would you like to continue?\n\n" +
+  "1️⃣ Chat with Customer Support\n" +
+  "2️⃣ Request a Phone Call\n" +
+  "3️⃣ Ask a General HMO Question\n\n" +
+  "— Ronsberger HMO";
+
+export const GENERAL_CUSTOMER_CLAIM_RESTRICTION =
+  "Medical authorization requests and provider portal services are reserved for verified hospital accounts registered with Ronsberger HMO.\n\n" +
+  "If you are a registered healthcare provider, please ensure you are messaging from your facility's registered WhatsApp number or contact Provider Relations to register your number.\n\n" +
+  "For HMO plan questions, member services, or general support, we are happy to assist:\n\n" +
+  "1️⃣ Chat with Customer Support\n" +
+  "2️⃣ Request a Phone Call\n" +
+  "3️⃣ Ask a General HMO Question\n\n" +
+  "— Ronsberger HMO";
+
+export const GENERAL_CUSTOMER_CALLBACK_REPLY =
+  "Thank you. Your request for a phone call has been received. Our Customer Support team will reach out to you by phone as soon as possible.\n\n" +
+  "— Ronsberger HMO";
+
+export const GENERAL_CUSTOMER_SUPPORT_CONNECT_REPLY =
+  "You are now connected with Ronsberger Customer Support. A representative will respond to you right here on WhatsApp shortly.\n\n" +
+  "Please feel free to type your question or message below.\n\n" +
+  "— Ronsberger HMO";
+
+export const GENERAL_CUSTOMER_FAQ_REPLY =
+  "Ronsberger HMO provides comprehensive healthcare coverage, wellness services, and medical provider network access across Nigeria.\n\n" +
+  "Please type your question about our plans, benefits, or services, and we’ll be glad to help! You can also type '1' at any time to chat with a live support representative.\n\n" +
+  "— Ronsberger HMO";
+
+export function classifyGeneralCustomerIntent(
+  text: string,
+  isPotentialProvider: boolean = false,
+): GeneralCustomerIntent {
+  const t = (text || "").trim().toLowerCase();
+  if (!t) return "GREETING";
+
+  // 1. Explicit provider registration phrasing
+  const registrationPhrases = [
+    "register my hospital", "register this number", "register our hospital",
+    "how do i register", "how to register", "i want to register",
+    "want to register", "need to register", "get access",
+    "get provider access", "need provider access", "hospital access",
+    "clinic access", "onboard", "sign up as a provider", "join as provider",
+    "provider registration",
+  ];
+  if (registrationPhrases.some((p) => t.includes(p))) return "PROVIDER_REGISTRATION";
+
+  // 2. Provider claims or authorization keywords -> restrict safely
+  const providerKeywords = [
+    "authorization",
+    "authorisation",
+    "auth code",
+    "code request",
+    "submit auth",
+    "patient auth",
+    "i am a doctor",
+    "i am doctor",
+    "i'm a doctor",
+    "from uch",
+    "from luth",
+    "from hospital",
+    "general hospital",
+    "clinic",
+    "register me",
+    "register hospital",
+    "medical director",
+    "medical officer",
+  ];
+  if (providerKeywords.some((kw) => t.includes(kw))) {
+    return "PROVIDER_CLAIM";
+  }
+
+  // 3. Provider information phrasing
+  const providerInfoPhrases = [
+    "provider information", "provider info", "how does authorization work",
+    "how does the authorization process work", "authorization process",
+    "what is required to register",
+  ];
+  if (providerInfoPhrases.some((p) => t.includes(p))) return "FAQ";
+
+  // 4. Menu numbering handling based on provider vs customer context
+  if (isPotentialProvider) {
+    // 1️⃣ Provider Registration
+    if (t === "1" || t === "1️⃣" || t.startsWith("1.") || t.startsWith("option 1")) {
+      return "PROVIDER_REGISTRATION";
+    }
+    // 2️⃣ Chat with Customer Support
+    if (t === "2" || t === "2️⃣" || t.startsWith("2.") || t.startsWith("option 2")) {
+      return "SUPPORT_REQUEST";
+    }
+    // 3️⃣ Request a Phone Call
+    if (t === "3" || t === "3️⃣" || t.startsWith("3.") || t.startsWith("option 3")) {
+      return "CALLBACK_REQUEST";
+    }
+    // 4️⃣ Provider Information
+    if (t === "4" || t === "4️⃣" || t.startsWith("4.") || t.startsWith("option 4")) {
+      return "FAQ";
+    }
+    // 5️⃣ General HMO Question
+    if (t === "5" || t === "5️⃣" || t.startsWith("5.") || t.startsWith("option 5")) {
+      return "FAQ";
+    }
+  } else {
+    // General Customer Menu:
+    // 1️⃣ Chat with Customer Support
+    if (t === "1" || t === "1️⃣" || t.startsWith("1.") || t.startsWith("option 1")) {
+      return "SUPPORT_REQUEST";
+    }
+    // 2️⃣ Request a Phone Call
+    if (t === "2" || t === "2️⃣" || t.startsWith("2.") || t.startsWith("option 2")) {
+      return "CALLBACK_REQUEST";
+    }
+    // 3️⃣ Ask a General HMO Question
+    if (t === "3" || t === "3️⃣" || t.startsWith("3.") || t.startsWith("option 3")) {
+      return "FAQ";
+    }
+  }
+
+  // 5. Natural language matching
+  if (/\b(?:request\s+(?:a\s+)?(?:phone\s+)?call|call\s*me|call\s*back|callback|phone\s*call|someone\s+call)\b/i.test(t)) {
+    return "CALLBACK_REQUEST";
+  }
+
+  if (/\b(?:chat\s+with\s+(?:customer\s+)?support|customer\s*support|human\s*agent|support\s*team|help\s*desk|speak\s+with\s+(?:an?\s+)?agent|representative|i\s+need\s+(?:support|help)|need\s+(?:support|help)|get\s+help)\b/i.test(t)) {
+    return "SUPPORT_REQUEST";
+  }
+
+  if (/\b(?:ask\s+a\s+general|general\s+question|general\s+hmo\s+question|benefits|services|plans|coverage|what\s+does\s+ronsberger|tell\s+me\s+about)\b/i.test(t)) {
+    return "FAQ";
+  }
+
+  return "GREETING";
+}

@@ -10,6 +10,7 @@ import {
   deterministicFallbackAnalysis,
   extractAuthFieldsFromRaw,
   hasStrongAuthIndicators,
+  normalizePhoneNumber,
   splitPatientBlocks,
 } from "./brain.ts";
 import {
@@ -98,6 +99,38 @@ async function sendWhatsAppMessage(toPhone: string, text: string) {
     throw new Error(`Evolution send ${res.status}: ${body.slice(0, 200)}`);
   return body;
 }
+
+async function resolveHospitalSender(
+  supabase: ReturnType<typeof getServiceClient>,
+  phoneNumber: string,
+) {
+  const normalized = normalizePhoneNumber(phoneNumber);
+  if (!normalized) return { authorized: false, reason: "phone_required" };
+
+  const { data, error } = await supabase
+    .from("hospital_whatsapp_contacts")
+    .select("id, hospital_id, contact_name, contact_role, phone_number, status")
+    .eq("status", "active")
+    .limit(500);
+
+  if (error) {
+    return { authorized: false, reason: "identity_lookup_failed" };
+  }
+
+  const matches = (data || []).filter(
+    (row: any) => normalizePhoneNumber(String(row.phone_number || "")) === normalized,
+  );
+  const hospitals = [...new Set(matches.map((row: any) => String(row.hospital_id)).filter(Boolean))];
+  if (hospitals.length !== 1) {
+    return {
+      authorized: false,
+      reason: hospitals.length > 1 ? "ambiguous_sender" : "unregistered_sender",
+    };
+  }
+
+  return { authorized: true, hospitalId: hospitals[0] };
+}
+
 async function postAuthorization(
   supabase: ReturnType<typeof getServiceClient>,
   payload: Record<string, unknown>,
@@ -449,7 +482,7 @@ async function processMessageBody(
       let reply = "";
       if (intent === "GREETING")
         reply =
-          "Hello! Welcome to Ronsberger HMO Medical Authorization Portal.\n\nHow can I assist you today? You can submit a patient authorization request or check request status anytime.";
+          "Hello! Welcome to Ronsberger HMO Provider Authorization Portal.\n\nHow can I assist your hospital today? You can submit a patient authorization request or check request status anytime.";
       else if (intent === "HELP")
         reply =
           "Welcome to Ronsberger HMO Authorization Assistant.\n\n• To submit an authorization: Send patient details (Name, NHIA/Policy No, Diagnosis, Treatment/Procedures, Hospital).\n• To check status: Ask 'What is the status of [Patient Name]?'\n• For providers: Ask e.g. 'Which hospitals can I use in Ibadan?'\n\n— Ronsberger HMO";
@@ -704,6 +737,25 @@ async function processOne(
       log("claim", messageId, "error", { error: claimError.message });
     return;
   }
+
+  // Defense-in-depth: Ensure the message sender is an active registered hospital contact
+  const sender = await resolveHospitalSender(supabase, row.phone_number);
+  if (!sender.authorized) {
+    log("auth_guard", messageId, "skipped", {
+      reason: sender.reason,
+      phone: row.phone_number ? String(row.phone_number).slice(-4) : "none",
+    });
+    await supabase
+      .from("whatsapp_messages")
+      .update({
+        status: "completed",
+        last_error: `Dropped by auth guard: ${sender.reason}`,
+        processed_at: new Date().toISOString(),
+      })
+      .eq("message_id", messageId);
+    return;
+  }
+
   try {
     await processMessageBody(supabase, row);
     await supabase

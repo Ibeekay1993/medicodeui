@@ -15,6 +15,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { HospitalsAdminService } from "../services/hospitalsAdminService";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -95,22 +96,28 @@ export default function WhatsAppAccessPage() {
   const load = async () => {
     setLoading(true);
     try {
-      const [{ data: hospitalData, error: hospitalError }, { data: contactData, error: contactError }] = await Promise.all([
-        supabase.from("hospitals").select("id,name,code,is_active").eq("is_active", true).order("name"),
+      const [hospList, { data: contactData, error: contactError }] = await Promise.all([
+        HospitalsAdminService.getHospitalsPaged(),
         supabase
           .from("hospital_whatsapp_contacts" as any)
-          .select("id,hospital_id,phone_number,contact_name,contact_role,status,created_at,updated_at")
+          .select("id,hospital_id,phone_number,contact_name,contact_role,status,created_at,updated_at,hospital:hospitals(id,name,code,is_active)")
           .order("updated_at", { ascending: false }),
       ]);
-      if (hospitalError) throw hospitalError;
       if (contactError) throw contactError;
 
-      const hospList = (hospitalData || []) as Hospital[];
-      setHospitals(hospList);
+      const loadedHospitals = (hospList || []) as Hospital[];
+      setHospitals(loadedHospitals);
 
-      const rows = (contactData || []) as Contact[];
-      const names = new Map(hospList.map((h) => [h.id, h.name]));
-      setContacts(rows.map((row) => ({ ...row, hospital: { name: names.get(row.hospital_id) || "Unknown hospital" } })));
+      const rows = (contactData || []) as any[];
+      const names = new Map(loadedHospitals.map((h) => [h.id, h.name]));
+      setContacts(
+        rows.map((row) => ({
+          ...row,
+          hospital: {
+            name: row.hospital?.name || names.get(row.hospital_id) || "Unknown hospital",
+          },
+        }))
+      );
     } catch (error: any) {
       toast({ variant: "destructive", title: "Unable to load WhatsApp access", description: error.message });
     } finally {
@@ -123,15 +130,15 @@ export default function WhatsAppAccessPage() {
     try {
       const { data, error } = await supabase
         .from("hospital_whatsapp_audit_logs" as any)
-        .select("id,actor_id,contact_id,hospital_id,phone_number,action,old_status,new_status,details,created_at")
+        .select("id,actor_id,contact_id,hospital_id,phone_number,action,old_status,new_status,details,created_at,hospital:hospitals(id,name)")
         .order("created_at", { ascending: false })
         .limit(100);
 
       if (error) throw error;
       const names = new Map(hospitals.map((h) => [h.id, h.name]));
-      const logs = ((data || []) as AuditLog[]).map((log) => ({
+      const logs = ((data || []) as any[]).map((log) => ({
         ...log,
-        hospital_name: names.get(log.hospital_id) || "Unknown hospital",
+        hospital_name: log.hospital?.name || names.get(log.hospital_id) || "Unknown hospital",
       }));
       setAuditLogs(logs);
     } catch (error: any) {

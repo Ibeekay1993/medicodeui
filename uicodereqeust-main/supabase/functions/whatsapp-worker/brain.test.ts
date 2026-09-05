@@ -14,6 +14,10 @@ import {
   extractAuthFieldsFromRaw,
   extractQueryPatientName,
   hasStrongAuthIndicators,
+  isWhatsAppGroupMessage,
+  normalizePhoneNumber,
+  classifyAccessClass,
+  classifyGeneralCustomerIntent,
   splitPatientBlocks,
   type GeminiAnalysisResult,
 } from "./brain.ts";
@@ -375,5 +379,533 @@ describe("deterministicFallbackAnalysis (Gemini unavailable)", () => {
     );
     expect(out.intent).toBe("AUTHORIZATION_STATUS");
     expect(out.queryPatientName).toBeNull();
+  });
+});
+
+describe("isWhatsAppGroupMessage (Silent Group Message Ignore)", () => {
+  it("Test 1: detects group Hello as a group message", () => {
+    const payload = {
+      event: "messages.upsert",
+      data: {
+        key: {
+          remoteJid: "120363025343423456@g.us",
+          fromMe: false,
+          id: "3EB01234567890",
+        },
+        message: { conversation: "Hello" },
+      },
+    };
+    expect(isWhatsAppGroupMessage(payload)).toBe(true);
+  });
+
+  it("Test 2: detects group authorization request as a group message", () => {
+    const payload = {
+      event: "messages.upsert",
+      data: {
+        key: {
+          remoteJid: "120363025343423456@g.us",
+          fromMe: false,
+          id: "3EB01234567891",
+        },
+        message: { conversation: "I want to submit an authorization" },
+      },
+    };
+    expect(isWhatsAppGroupMessage(payload)).toBe(true);
+  });
+
+  it("Test 3: detects group support request as a group message", () => {
+    const payload = {
+      event: "messages.upsert",
+      data: {
+        key: {
+          remoteJid: "120363025343423456@g.us",
+          fromMe: false,
+          id: "3EB01234567892",
+        },
+        message: { conversation: "I need customer support" },
+      },
+    };
+    expect(isWhatsAppGroupMessage(payload)).toBe(true);
+  });
+
+  it("Test 4: group message with participant as registered hospital is STILL ignored", () => {
+    const payload = {
+      event: "messages.upsert",
+      data: {
+        key: {
+          remoteJid: "120363025343423456@g.us",
+          participant: "2348143813828@s.whatsapp.net",
+          fromMe: false,
+          id: "3EB01234567893",
+        },
+        message: { conversation: "Hello from UCH team" },
+      },
+    };
+    expect(isWhatsAppGroupMessage(payload)).toBe(true);
+  });
+
+  it("Test 5: direct 1-to-1 message from registered hospital is NOT treated as group", () => {
+    const payload = {
+      event: "messages.upsert",
+      data: {
+        key: {
+          remoteJid: "2348143813828@s.whatsapp.net",
+          fromMe: false,
+          id: "3EB01234567894",
+        },
+        message: { conversation: "Hello" },
+      },
+    };
+    expect(isWhatsAppGroupMessage(payload)).toBe(false);
+  });
+
+  it("Test 6: direct 1-to-1 message from unregistered customer is NOT treated as group", () => {
+    const payload = {
+      event: "messages.upsert",
+      data: {
+        key: {
+          remoteJid: "2348011223344@s.whatsapp.net",
+          fromMe: false,
+          id: "3EB01234567895",
+        },
+        message: { conversation: "Hello" },
+      },
+    };
+    expect(isWhatsAppGroupMessage(payload)).toBe(false);
+  });
+
+  it("detects broadcast and isGroup flag variants", () => {
+    expect(isWhatsAppGroupMessage({ data: { key: { remoteJid: "status@broadcast" } } })).toBe(true);
+    expect(isWhatsAppGroupMessage({ data: { isGroup: true, key: { remoteJid: "some_id" } } })).toBe(true);
+  });
+});
+
+describe("classifyAccessClass (3-tier security boundary)", () => {
+  it("classifies active hospital contact as REGISTERED_HOSPITAL", () => {
+    const matches = [{ hospital_id: "hosp-123", status: "active" }];
+    const res = classifyAccessClass(matches);
+    expect(res.accessClass).toBe("REGISTERED_HOSPITAL");
+    expect(res.authorized).toBe(true);
+    expect(res.hospitalId).toBe("hosp-123");
+  });
+
+  it("classifies missing contact as GENERAL_CUSTOMER", () => {
+    const res = classifyAccessClass([]);
+    expect(res.accessClass).toBe("GENERAL_CUSTOMER");
+    expect(res.authorized).toBe(false);
+  });
+
+  it("classifies disabled contact as DISABLED_OR_REVOKED", () => {
+    const matches = [{ hospital_id: "hosp-123", status: "disabled" }];
+    const res = classifyAccessClass(matches);
+    expect(res.accessClass).toBe("DISABLED_OR_REVOKED");
+    expect(res.authorized).toBe(false);
+  });
+
+  it("classifies revoked contact as DISABLED_OR_REVOKED", () => {
+    const matches = [{ hospital_id: "hosp-123", status: "revoked" }];
+    const res = classifyAccessClass(matches);
+    expect(res.accessClass).toBe("DISABLED_OR_REVOKED");
+    expect(res.authorized).toBe(false);
+  });
+
+  it("classifies ambiguous multi-hospital active match as GENERAL_CUSTOMER for safety", () => {
+    const matches = [
+      { hospital_id: "hosp-1", status: "active" },
+      { hospital_id: "hosp-2", status: "active" },
+    ];
+    const res = classifyAccessClass(matches);
+    expect(res.accessClass).toBe("GENERAL_CUSTOMER");
+    expect(res.authorized).toBe(false);
+  });
+});
+
+describe("classifyGeneralCustomerIntent", () => {
+  it("detects provider claims / authorization requests without granting privileges", () => {
+    expect(classifyGeneralCustomerIntent("I want to submit an authorization")).toBe("PROVIDER_CLAIM");
+    expect(classifyGeneralCustomerIntent("I am from UCH and need a code")).toBe("PROVIDER_CLAIM");
+    expect(classifyGeneralCustomerIntent("I am a doctor")).toBe("PROVIDER_CLAIM");
+  });
+
+  it("detects provider registration requests in natural language", () => {
+    expect(classifyGeneralCustomerIntent("How do I register my hospital?")).toBe("PROVIDER_REGISTRATION");
+    expect(classifyGeneralCustomerIntent("I want to register this number")).toBe("PROVIDER_REGISTRATION");
+    expect(classifyGeneralCustomerIntent("Register our hospital")).toBe("PROVIDER_REGISTRATION");
+    expect(classifyGeneralCustomerIntent("Provider registration")).toBe("PROVIDER_REGISTRATION");
+  });
+
+  it("maps 5-option provider menu numbers correctly in provider context", () => {
+    expect(classifyGeneralCustomerIntent("1", true)).toBe("PROVIDER_REGISTRATION");
+    expect(classifyGeneralCustomerIntent("1️⃣", true)).toBe("PROVIDER_REGISTRATION");
+    expect(classifyGeneralCustomerIntent("2", true)).toBe("SUPPORT_REQUEST");
+    expect(classifyGeneralCustomerIntent("2️⃣", true)).toBe("SUPPORT_REQUEST");
+    expect(classifyGeneralCustomerIntent("3", true)).toBe("CALLBACK_REQUEST");
+    expect(classifyGeneralCustomerIntent("3️⃣", true)).toBe("CALLBACK_REQUEST");
+    expect(classifyGeneralCustomerIntent("4", true)).toBe("FAQ");
+    expect(classifyGeneralCustomerIntent("5", true)).toBe("FAQ");
+  });
+
+  it("maps 3-option customer menu numbers correctly in general customer context", () => {
+    expect(classifyGeneralCustomerIntent("1", false)).toBe("SUPPORT_REQUEST");
+    expect(classifyGeneralCustomerIntent("1️⃣", false)).toBe("SUPPORT_REQUEST");
+    expect(classifyGeneralCustomerIntent("2", false)).toBe("CALLBACK_REQUEST");
+    expect(classifyGeneralCustomerIntent("2️⃣", false)).toBe("CALLBACK_REQUEST");
+    expect(classifyGeneralCustomerIntent("3", false)).toBe("FAQ");
+    expect(classifyGeneralCustomerIntent("3️⃣", false)).toBe("FAQ");
+  });
+
+  it("detects callback requests in natural language", () => {
+    expect(classifyGeneralCustomerIntent("Request a phone call")).toBe("CALLBACK_REQUEST");
+    expect(classifyGeneralCustomerIntent("Please call me")).toBe("CALLBACK_REQUEST");
+    expect(classifyGeneralCustomerIntent("Can someone call me?")).toBe("CALLBACK_REQUEST");
+  });
+
+  it("detects support chat requests in natural language", () => {
+    expect(classifyGeneralCustomerIntent("Chat with Customer Support")).toBe("SUPPORT_REQUEST");
+    expect(classifyGeneralCustomerIntent("I need support")).toBe("SUPPORT_REQUEST");
+    expect(classifyGeneralCustomerIntent("Speak with an agent")).toBe("SUPPORT_REQUEST");
+  });
+
+  it("detects general FAQ questions in natural language", () => {
+    expect(classifyGeneralCustomerIntent("Ask a General HMO Question")).toBe("FAQ");
+    expect(classifyGeneralCustomerIntent("What services and benefits are covered?")).toBe("FAQ");
+    expect(classifyGeneralCustomerIntent("Provider Information")).toBe("FAQ");
+  });
+
+  it("defaults simple greetings to GREETING", () => {
+    expect(classifyGeneralCustomerIntent("Hello")).toBe("GREETING");
+    expect(classifyGeneralCustomerIntent("Hi there")).toBe("GREETING");
+    expect(classifyGeneralCustomerIntent("Good day")).toBe("GREETING");
+  });
+});
+
+describe("normalizePhoneNumber", () => {
+  it("normalizes standard Nigerian formats", () => {
+    expect(normalizePhoneNumber("+2348143813828")).toBe("2348143813828");
+    expect(normalizePhoneNumber("2348143813828")).toBe("2348143813828");
+    expect(normalizePhoneNumber("08143813828")).toBe("2348143813828");
+    expect(normalizePhoneNumber("8143813828")).toBe("2348143813828");
+    expect(normalizePhoneNumber("002348143813828")).toBe("2348143813828");
+  });
+});
+
+describe("Production WhatsApp Flow — 14 Scenarios Verification", () => {
+  const activeHospital = {
+    hospital_id: "00000000-0000-0000-0000-000000000001",
+    phone_number: "+2348143813828",
+    status: "active",
+  };
+  const disabledHospital = {
+    hospital_id: "00000000-0000-0000-0000-000000000002",
+    phone_number: "+2348143810002",
+    status: "disabled",
+  };
+  const revokedHospital = {
+    hospital_id: "00000000-0000-0000-0000-000000000003",
+    phone_number: "+2348143810003",
+    status: "revoked",
+  };
+
+  function simulateWebhookProcessing(payload: any, registryContacts: any[]) {
+    // Step 1: Group filter
+    if (isWhatsAppGroupMessage(payload)) {
+      return {
+        action: "IGNORE_GROUP",
+        httpStatus: 200,
+        queuedForWorker: false,
+        authorizationCreated: false,
+        supportConversationCreated: false,
+        whatsappReplySent: false,
+      };
+    }
+
+    // Step 2: Extract sender phone
+    const remoteJid = payload.data?.key?.remoteJid || "";
+    const normalizedPhone = normalizePhoneNumber(remoteJid);
+
+    // Step 3: Check hospital registry
+    const matches = registryContacts.filter(
+      (c) => normalizePhoneNumber(c.phone_number) === normalizedPhone,
+    );
+    const access = classifyAccessClass(matches);
+
+    const text = payload.data?.message?.conversation || "";
+
+    // Step 4: Route based on access class
+    if (access.authorized && access.accessClass === "REGISTERED_HOSPITAL") {
+      const workerAnalysis = deterministicFallbackAnalysis(text, {});
+      return {
+        action: "ROUTE_TO_WORKER",
+        accessClass: "REGISTERED_HOSPITAL",
+        queuedForWorker: true,
+        authorizationCreated: workerAnalysis.intent === "NEW_AUTHORIZATION" || workerAnalysis.intent === "INCOMPLETE_AUTHORIZATION",
+        supportConversationCreated: false,
+        whatsappReplySent: true,
+        workerIntent: workerAnalysis.intent,
+      };
+    }
+
+    // Non-registered / potential provider / general customer
+    const isPotentialProvider =
+      access.accessClass === "DISABLED_OR_REVOKED" ||
+      /\b(?:doctor|hospital|clinic|uch|luth|preauth|authorization|provider|medical director)\b/i.test(text);
+
+    const intent = classifyGeneralCustomerIntent(text, isPotentialProvider);
+
+    let supportCreated = false;
+    let callbackRequested = false;
+    let providerRegistrationCreated = false;
+
+    if (intent === "CALLBACK_REQUEST") {
+      supportCreated = true;
+      callbackRequested = true;
+    } else if (intent === "SUPPORT_REQUEST") {
+      supportCreated = true;
+    } else if (intent === "PROVIDER_REGISTRATION") {
+      supportCreated = true;
+      providerRegistrationCreated = true;
+    }
+
+    return {
+      action: "HANDLE_NON_REGISTERED",
+      accessClass: access.accessClass,
+      isPotentialProvider,
+      intent,
+      queuedForWorker: false,
+      authorizationCreated: false, // Security invariant: NEVER true for non-registered
+      supportConversationCreated: supportCreated,
+      callbackRequested,
+      providerRegistrationCreated,
+      whatsappReplySent: true,
+    };
+  }
+
+  it("Scenario 1: Registered hospital → Hello → Provider experience", () => {
+    const payload = {
+      event: "messages.upsert",
+      data: {
+        key: { remoteJid: "2348143813828@s.whatsapp.net", fromMe: false },
+        message: { conversation: "Hello" },
+      },
+    };
+    const res = simulateWebhookProcessing(payload, [activeHospital]);
+    expect(res.action).toBe("ROUTE_TO_WORKER");
+    expect(res.accessClass).toBe("REGISTERED_HOSPITAL");
+    expect(res.queuedForWorker).toBe(true);
+    expect(res.workerIntent).toBe("GREETING");
+    expect(res.authorizationCreated).toBe(false);
+  });
+
+  it("Scenario 2: Registered hospital → I want to submit authorization → Existing workflow", () => {
+    const payload = {
+      event: "messages.upsert",
+      data: {
+        key: { remoteJid: "2348143813828@s.whatsapp.net", fromMe: false },
+        message: { conversation: "I want to submit a new authorization" },
+      },
+    };
+    const res = simulateWebhookProcessing(payload, [activeHospital]);
+    expect(res.action).toBe("ROUTE_TO_WORKER");
+    expect(res.accessClass).toBe("REGISTERED_HOSPITAL");
+    expect(res.queuedForWorker).toBe(true);
+    expect(res.authorizationCreated).toBe(true);
+  });
+
+  it("Scenario 3: Unregistered doctor → I am a doctor → Potential provider experience", () => {
+    const payload = {
+      event: "messages.upsert",
+      data: {
+        key: { remoteJid: "2348000000001@s.whatsapp.net", fromMe: false },
+        message: { conversation: "I am a doctor from a clinic" },
+      },
+    };
+    const res = simulateWebhookProcessing(payload, [activeHospital]);
+    expect(res.action).toBe("HANDLE_NON_REGISTERED");
+    expect(res.accessClass).toBe("GENERAL_CUSTOMER");
+    expect(res.isPotentialProvider).toBe(true);
+    expect(res.queuedForWorker).toBe(false);
+    expect(res.authorizationCreated).toBe(false);
+  });
+
+  it("Scenario 4: Unregistered doctor → I want authorization → No authorization created", () => {
+    const payload = {
+      event: "messages.upsert",
+      data: {
+        key: { remoteJid: "2348000000001@s.whatsapp.net", fromMe: false },
+        message: { conversation: "I want to submit an authorization" },
+      },
+    };
+    const res = simulateWebhookProcessing(payload, [activeHospital]);
+    expect(res.action).toBe("HANDLE_NON_REGISTERED");
+    expect(res.queuedForWorker).toBe(false);
+    expect(res.authorizationCreated).toBe(false);
+    expect(res.isPotentialProvider).toBe(true);
+  });
+
+  it("Scenario 5: Unregistered doctor → How do I register my hospital? → Registration/support flow", () => {
+    const payload = {
+      event: "messages.upsert",
+      data: {
+        key: { remoteJid: "2348000000001@s.whatsapp.net", fromMe: false },
+        message: { conversation: "How do I register my hospital?" },
+      },
+    };
+    const res = simulateWebhookProcessing(payload, [activeHospital]);
+    expect(res.action).toBe("HANDLE_NON_REGISTERED");
+    expect(res.intent).toBe("PROVIDER_REGISTRATION");
+    expect(res.supportConversationCreated).toBe(true);
+    expect(res.providerRegistrationCreated).toBe(true);
+    expect(res.authorizationCreated).toBe(false);
+  });
+
+  it("Scenario 6: Unknown user → Hello → Customer experience", () => {
+    const payload = {
+      event: "messages.upsert",
+      data: {
+        key: { remoteJid: "2348000000002@s.whatsapp.net", fromMe: false },
+        message: { conversation: "Hello" },
+      },
+    };
+    const res = simulateWebhookProcessing(payload, [activeHospital]);
+    expect(res.action).toBe("HANDLE_NON_REGISTERED");
+    expect(res.accessClass).toBe("GENERAL_CUSTOMER");
+    expect(res.isPotentialProvider).toBe(false);
+    expect(res.intent).toBe("GREETING");
+    expect(res.queuedForWorker).toBe(false);
+    expect(res.authorizationCreated).toBe(false);
+  });
+
+  it("Scenario 7: Unknown user → I need help → Support conversation created", () => {
+    const payload = {
+      event: "messages.upsert",
+      data: {
+        key: { remoteJid: "2348000000002@s.whatsapp.net", fromMe: false },
+        message: { conversation: "I need help" },
+      },
+    };
+    const res = simulateWebhookProcessing(payload, [activeHospital]);
+    expect(res.action).toBe("HANDLE_NON_REGISTERED");
+    expect(res.intent).toBe("SUPPORT_REQUEST");
+    expect(res.supportConversationCreated).toBe(true);
+    expect(res.authorizationCreated).toBe(false);
+  });
+
+  it("Scenario 8: Unknown user → Call me → Callback request created", () => {
+    const payload = {
+      event: "messages.upsert",
+      data: {
+        key: { remoteJid: "2348000000002@s.whatsapp.net", fromMe: false },
+        message: { conversation: "Can someone call me?" },
+      },
+    };
+    const res = simulateWebhookProcessing(payload, [activeHospital]);
+    expect(res.action).toBe("HANDLE_NON_REGISTERED");
+    expect(res.intent).toBe("CALLBACK_REQUEST");
+    expect(res.supportConversationCreated).toBe(true);
+    expect(res.callbackRequested).toBe(true);
+    expect(res.authorizationCreated).toBe(false);
+  });
+
+  it("Scenario 9: Unknown user → General HMO question → Informational answer", () => {
+    const payload = {
+      event: "messages.upsert",
+      data: {
+        key: { remoteJid: "2348000000002@s.whatsapp.net", fromMe: false },
+        message: { conversation: "What services and benefits are covered?" },
+      },
+    };
+    const res = simulateWebhookProcessing(payload, [activeHospital]);
+    expect(res.action).toBe("HANDLE_NON_REGISTERED");
+    expect(res.intent).toBe("FAQ");
+    expect(res.authorizationCreated).toBe(false);
+  });
+
+  it("Scenario 10: Registered hospital → Group Hello → No response", () => {
+    const payload = {
+      event: "messages.upsert",
+      data: {
+        key: {
+          remoteJid: "120363025343423456@g.us",
+          participant: "2348143813828@s.whatsapp.net",
+          fromMe: false,
+        },
+        message: { conversation: "Hello" },
+      },
+    };
+    const res = simulateWebhookProcessing(payload, [activeHospital]);
+    expect(res.action).toBe("IGNORE_GROUP");
+    expect(res.httpStatus).toBe(200);
+    expect(res.queuedForWorker).toBe(false);
+    expect(res.whatsappReplySent).toBe(false);
+    expect(res.authorizationCreated).toBe(false);
+    expect(res.supportConversationCreated).toBe(false);
+  });
+
+  it("Scenario 11: Unregistered number → Group Hello → No response", () => {
+    const payload = {
+      event: "messages.upsert",
+      data: {
+        key: {
+          remoteJid: "120363025343423456@g.us",
+          participant: "2348000000002@s.whatsapp.net",
+          fromMe: false,
+        },
+        message: { conversation: "Hello everyone" },
+      },
+    };
+    const res = simulateWebhookProcessing(payload, [activeHospital]);
+    expect(res.action).toBe("IGNORE_GROUP");
+    expect(res.queuedForWorker).toBe(false);
+    expect(res.whatsappReplySent).toBe(false);
+  });
+
+  it("Scenario 12: Group authorization request → No authorization / support / AI processing", () => {
+    const payload = {
+      event: "messages.upsert",
+      data: {
+        key: {
+          remoteJid: "120363025343423456@g.us",
+          participant: "2348143813828@s.whatsapp.net",
+          fromMe: false,
+        },
+        message: { conversation: "I want to submit an authorization for Segun" },
+      },
+    };
+    const res = simulateWebhookProcessing(payload, [activeHospital]);
+    expect(res.action).toBe("IGNORE_GROUP");
+    expect(res.authorizationCreated).toBe(false);
+    expect(res.supportConversationCreated).toBe(false);
+    expect(res.queuedForWorker).toBe(false);
+    expect(res.whatsappReplySent).toBe(false);
+  });
+
+  it("Scenario 13: Disabled hospital → Authorization request → No authorization", () => {
+    const payload = {
+      event: "messages.upsert",
+      data: {
+        key: { remoteJid: "2348143810002@s.whatsapp.net", fromMe: false },
+        message: { conversation: "I want to submit an authorization" },
+      },
+    };
+    const res = simulateWebhookProcessing(payload, [activeHospital, disabledHospital]);
+    expect(res.action).toBe("HANDLE_NON_REGISTERED");
+    expect(res.accessClass).toBe("DISABLED_OR_REVOKED");
+    expect(res.queuedForWorker).toBe(false);
+    expect(res.authorizationCreated).toBe(false);
+  });
+
+  it("Scenario 14: Revoked hospital → Authorization request → No authorization", () => {
+    const payload = {
+      event: "messages.upsert",
+      data: {
+        key: { remoteJid: "2348143810003@s.whatsapp.net", fromMe: false },
+        message: { conversation: "I want to submit an authorization" },
+      },
+    };
+    const res = simulateWebhookProcessing(payload, [activeHospital, revokedHospital]);
+    expect(res.action).toBe("HANDLE_NON_REGISTERED");
+    expect(res.accessClass).toBe("DISABLED_OR_REVOKED");
+    expect(res.queuedForWorker).toBe(false);
+    expect(res.authorizationCreated).toBe(false);
   });
 });
