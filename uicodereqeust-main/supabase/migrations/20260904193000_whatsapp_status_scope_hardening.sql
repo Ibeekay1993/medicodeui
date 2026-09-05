@@ -106,6 +106,28 @@ WHERE wm.authorization_request_id IS NOT NULL
 -- therefore rejected inside index predicates (SQLSTATE 42P17). Enum equality
 -- with the literal label is IMMUTABLE and equivalent to the original
 -- lower(role::text) = 'hospital' check.
+
+-- Pre-declare normalize_whatsapp_phone as IMMUTABLE here so the index below
+-- can reference it without depending on migration 20260904203000 having run first.
+-- Migration 20260904203000 will CREATE OR REPLACE this function with the same
+-- definition, so this is fully idempotent.
+CREATE OR REPLACE FUNCTION public.normalize_whatsapp_phone(_phone text)
+RETURNS text
+LANGUAGE plpgsql
+IMMUTABLE
+STRICT
+AS $$
+DECLARE digits text;
+BEGIN
+  digits := regexp_replace(_phone, '[^0-9]', '', 'g');
+  IF digits LIKE '00%' THEN digits := substr(digits, 3); END IF;
+  IF digits LIKE '0%' AND length(digits) = 11 THEN digits := '234' || substr(digits, 2); END IF;
+  IF digits LIKE '234%' THEN RETURN digits; END IF;
+  IF length(digits) = 10 THEN RETURN '234' || digits; END IF;
+  RETURN digits;
+END;
+$$;
+
 CREATE INDEX IF NOT EXISTS idx_user_roles_whatsapp_phone_active
 ON public.user_roles (public.normalize_whatsapp_phone(phone))
 WHERE role = 'hospital'::public.app_role
