@@ -92,6 +92,7 @@ export default function WhatsAppAccessPage() {
     contact_role: "",
     status: "pending",
   });
+  const [hospitalSearch, setHospitalSearch] = useState("");
 
   const load = async () => {
     setLoading(true);
@@ -191,9 +192,25 @@ export default function WhatsAppAccessPage() {
     });
   }, [contacts, search, statusFilter]);
 
+  const selectedHospital = useMemo(
+    () => hospitals.find((h) => h.id === form.hospital_id) || null,
+    [hospitals, form.hospital_id]
+  );
+
+  const filteredHospitals = useMemo(() => {
+    const q = hospitalSearch.trim().toLowerCase();
+    if (!q) return hospitals;
+    return hospitals.filter(
+      (h) =>
+        h.name.toLowerCase().includes(q) ||
+        (h.code || "").toLowerCase().includes(q)
+    );
+  }, [hospitals, hospitalSearch]);
+
   const openCreate = () => {
     setEditing(null);
     setForm({ hospital_id: "", phone_number: "", contact_name: "", contact_role: "", status: "pending" });
+    setHospitalSearch("");
     setOpen(true);
   };
 
@@ -206,6 +223,7 @@ export default function WhatsAppAccessPage() {
       contact_role: contact.contact_role || "",
       status: contact.status,
     });
+    setHospitalSearch("");
     setOpen(true);
   };
 
@@ -577,22 +595,62 @@ export default function WhatsAppAccessPage() {
           <div className="grid gap-4 py-2">
             <div className="grid gap-2">
               <Label>Hospital *</Label>
-              <Select
-                value={form.hospital_id}
-                onValueChange={(value) => setForm((p) => ({ ...p, hospital_id: value }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select hospital record" />
-                </SelectTrigger>
-                <SelectContent>
-                  {hospitals.map((hospital) => (
-                    <SelectItem key={hospital.id} value={hospital.id}>
-                      {hospital.name}
-                      {hospital.code ? ` (${hospital.code})` : ""}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Input
+                value={hospitalSearch}
+                onChange={(e) => setHospitalSearch(e.target.value)}
+                placeholder="Type to search hospital by name or code..."
+              />
+              {form.hospital_id ? (
+                <div className="flex items-center justify-between rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2">
+                  <span className="truncate pr-2 text-xs font-medium text-emerald-800">
+                    {selectedHospital
+                      ? `${selectedHospital.name}${selectedHospital.code ? ` (${selectedHospital.code})` : ""}`
+                      : form.hospital_id}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setForm((p) => ({ ...p, hospital_id: "" }))}
+                    className="text-xs font-semibold text-emerald-700 hover:text-emerald-900 shrink-0"
+                  >
+                    Change
+                  </button>
+                </div>
+              ) : null}
+              <div className="max-h-48 overflow-y-auto rounded-md border border-slate-200 divide-y divide-slate-100">
+                {filteredHospitals.length === 0 ? (
+                  <div className="px-3 py-2 text-xs text-slate-500">
+                    No hospitals match &quot;{hospitalSearch}&quot;.
+                  </div>
+                ) : (
+                  filteredHospitals.map((hospital) => (
+                    <button
+                      key={hospital.id}
+                      type="button"
+                      onClick={() => {
+                        setForm((p) => ({ ...p, hospital_id: hospital.id }));
+                        setHospitalSearch("");
+                      }}
+                      className={cn(
+                        "w-full flex items-center justify-between px-3 py-2 text-left text-xs hover:bg-slate-50 transition-colors",
+                        form.hospital_id === hospital.id && "bg-[#f0f0fa] font-semibold"
+                      )}
+                    >
+                      <span className="truncate pr-2 text-slate-700">
+                        {hospital.name}
+                        {hospital.code ? ` (${hospital.code})` : ""}
+                      </span>
+                      {form.hospital_id === hospital.id ? (
+                        <CheckCircle2 className="h-3.5 w-3.5 text-[#3f3f95] shrink-0" />
+                      ) : null}
+                    </button>
+                  ))
+                )}
+              </div>
+              {hospitals.length > filteredHospitals.length ? (
+                <p className="text-xs text-slate-400">
+                  Showing {filteredHospitals.length} of {hospitals.length} hospitals.
+                </p>
+              ) : null}
             </div>
             <div className="grid gap-2">
               <Label>WhatsApp Phone Number *</Label>
