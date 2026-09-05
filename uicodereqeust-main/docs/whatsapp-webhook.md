@@ -31,9 +31,27 @@ supabase secrets set META_ACCESS_TOKEN=<permanent-system-user-token>
 supabase secrets set META_PHONE_NUMBER_ID=<your-phone-number-id>
 supabase secrets set META_GRAPH_VERSION=v20.0
 
-# Outbound Google AI Studio
+# Outbound Google AI Studio (primary AI provider)
 supabase secrets set GEMINI_API_KEY=<your-gemini-api-key>
 supabase secrets set GEMINI_MODEL=gemini-2.5-flash
+
+# AI provider failover (fallback 1): Groq (OpenAI-compatible)
+supabase secrets set GROQ_API_KEY=<your-groq-api-key>
+supabase secrets set GROQ_MODEL=<groq-model-id>   # e.g. llama-3.3-70b-versatile
+
+# AI provider failover (fallback 2): Modal-hosted model (optional HTTP endpoint)
+# Only set MODAL_ENDPOINT if you have a Modal HTTP inference endpoint deployed.
+# The worker POSTs {"text","context"} and expects an AnalysisResult JSON (or
+# {"analysis": {...}}) back. MODAL_WEBHOOK_SECRET is sent in the
+# "x-modal-webhook-secret" header if configured.
+# supabase secrets set MODAL_ENDPOINT=https://<you>.modal.run/
+# supabase secrets set MODAL_WEBHOOK_SECRET=<shared-secret>
+
+# Per-provider hard timeouts (ms). Default 10000; the worker never lets an AI
+# request hang indefinitely.
+# supabase secrets set GEMINI_TIMEOUT_MS=10000
+# supabase secrets set GROQ_TIMEOUT_MS=10000
+# supabase secrets set MODAL_TIMEOUT_MS=10000
 
 # Outbound internal MedAuth API
 supabase secrets set MEDAUTH_INTERNAL_BASE_URL=https://medicodeui.web.app

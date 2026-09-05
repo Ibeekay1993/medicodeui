@@ -100,8 +100,9 @@ export function hasStrongAuthIndicators(text: string) {
   return AUTH_HEADER_PATTERNS.filter((p) => p.test(text)).length >= 2;
 }
 
-// ── Gemini analysis contract ─────────────────────────────────────────────────
-export interface GeminiAnalysisResult {
+// ── Analysis contract (shared by every AI provider and the deterministic
+// fallback) ───────────────────────────────────────────────────────────────────
+export interface AnalysisResult {
   intent: string;
   patientName?: string | null;
   policyNumber?: string | null;
@@ -120,10 +121,14 @@ export interface GeminiAnalysisResult {
   queryPolicyNumber?: string | null;
   conversationalReply?: string | null;
   // True when this analysis was produced by the deterministic fallback
-  // (Gemini unavailable — quota/429, 5xx, network, or unparseable response).
+  // (all AI providers unavailable — quota/429, 5xx, network, or unparseable
+  // response).
   geminiFallback?: boolean;
   raw?: unknown;
 }
+
+// Backwards-compatible alias so existing call sites and tests keep working.
+export type GeminiAnalysisResult = AnalysisResult;
 
 // ── Query patient-name extraction ────────────────────────────────────────────
 // Captures the patient a status/approval/rejection question refers to.
@@ -352,9 +357,9 @@ export function classifyGeminiFailure(
 export function deterministicFallbackAnalysis(
   text: string,
   conversation: any,
-): GeminiAnalysisResult {
+): AnalysisResult {
   const t = String(text || "").trim();
-  const base: GeminiAnalysisResult = {
+  const base: AnalysisResult = {
     intent: "UNKNOWN",
     urgencyLevel: 3,
     missingInfo: [],

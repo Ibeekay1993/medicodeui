@@ -6,14 +6,16 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import {
   buildContext,
-  classifyGeminiFailure,
   deriveProviderSearchTerm,
   deterministicFallbackAnalysis,
   extractAuthFieldsFromRaw,
   hasStrongAuthIndicators,
   splitPatientBlocks,
-  type GeminiAnalysisResult,
 } from "./brain.ts";
+import {
+  analyzeMessage,
+  type GeminiAnalysisResult,
+} from "./providers.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -36,6 +38,24 @@ const EVOLUTION_INSTANCE_NAME =
 const WORKER_SECRET = Deno.env.get("WHATSAPP_WORKER_SECRET") || "";
 const MAX_ATTEMPTS = Number(Deno.env.get("WHATSAPP_MAX_ATTEMPTS") || "5");
 const WORKER_BATCH = Number(Deno.env.get("WHATSAPP_WORKER_BATCH") || "10");
+
+// AI provider failover config (Gemini → Groq → Modal → deterministic brain).
+// Values are read from environment at cold start; secrets are never logged.
+const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY") || "";
+const GROQ_MODEL = Deno.env.get("GROQ_MODEL") || "";
+const MODAL_ENDPOINT = Deno.env.get("MODAL_ENDPOINT") || "";
+const MODAL_WEBHOOK_SECRET = Deno.env.get("MODAL_WEBHOOK_SECRET") || "";
+const providerEnv = {
+  geminiApiKey: GEMINI_API_KEY,
+  geminiModel: GEMINI_MODEL,
+  groqApiKey: GROQ_API_KEY,
+  groqModel: GROQ_MODEL,
+  modalEndpoint: MODAL_ENDPOINT,
+  modalWebhookSecret: MODAL_WEBHOOK_SECRET,
+  geminiTimeoutMs: Number(Deno.env.get("GEMINI_TIMEOUT_MS") || "10000") || 10000,
+  groqTimeoutMs: Number(Deno.env.get("GROQ_TIMEOUT_MS") || "10000") || 10000,
+  modalTimeoutMs: Number(Deno.env.get("MODAL_TIMEOUT_MS") || "10000") || 10000,
+};
 
 function getServiceClient() {
   return createClient(
@@ -62,118 +82,6 @@ function log(
     .from("whatsapp_processing_log")
     .insert({ message_id, stage, status, detail: detail ?? null })
     .then(() => {});
-}
-async function extractWithGemini(
-  text: string,
-  context = "",
-): Promise<GeminiAnalysisResult> {
-  if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY missing");
-  const systemPrompt = `You are the conversation intelligence layer for Ronsberger HMO Nigeria. Understand the CURRENT WhatsApp message in context, but the current message always has priority over older messages.
-Return JSON only. Classify exactly one intent: GREETING, GENERAL_CONVERSATION, HELP, NEW_AUTHORIZATION, INCOMPLETE_AUTHORIZATION, CONTINUE_AUTHORIZATION, AUTHORIZATION_STATUS, APPROVAL_QUERY, REJECTION_QUERY, AUTHORIZATION_DETAILS, CANCELLATION, PROVIDER_QUERY, NO_AUTHORIZATION, UNKNOWN.
-Rules: structured authorization information is authorization; status/update/approval/rejection questions are enquiries; a subject change switches task; never invent data; provider queries include hospital, clinic, doctor, specialist, facility or healthcare provider; CONTINUE_AUTHORIZATION means information for an unfinished request; conversationalReply is only for GENERAL_CONVERSATION. For enquiry intents set queryPatientName / queryPolicyNumber to the exact patient name or NHIA/NHIS/policy number the user asks about when the message contains one; if the user only says "my request" or "my previous request" without a name, leave them empty.`;
-  const schema = {
-    type: "object",
-    properties: {
-      intent: { type: "string" },
-      patientName: { type: "string" },
-      policyNumber: { type: "string" },
-      diagnosis: { type: "string" },
-      treatment: { type: "string" },
-      procedure: { type: "string" },
-      investigation: { type: "string" },
-      requestedService: { type: "string" },
-      patientPhone: { type: "string" },
-      originatingHospital: { type: "string" },
-      referralHospital: { type: "string" },
-      urgencyLevel: { type: "integer" },
-      missingInfo: { type: "array", items: { type: "string" } },
-      isCancellationIntent: { type: "boolean" },
-      queryPatientName: { type: "string" },
-      queryPolicyNumber: { type: "string" },
-      conversationalReply: { type: "string" },
-    },
-    required: ["intent", "urgencyLevel", "missingInfo", "isCancellationIntent"],
-  } as const;
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      systemInstruction: { parts: [{ text: systemPrompt }] },
-      contents: [
-        {
-          role: "user",
-          parts: [
-            {
-              text: context ? `${context}\n\nCURRENT MESSAGE:\n${text}` : text,
-            },
-          ],
-        },
-      ],
-      generationConfig: {
-        temperature: 0,
-        responseMimeType: "application/json",
-        responseSchema: schema,
-      },
-    }),
-  });
-  if (!res.ok)
-    throw new Error(
-      `Gemini HTTP ${res.status}: ${(await res.text()).slice(0, 400)}`,
-    );
-  const data = await res.json();
-  const part = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!part) throw new Error("Gemini: empty response");
-  const parsed = JSON.parse(part) as GeminiAnalysisResult;
-  parsed.urgencyLevel =
-    typeof parsed.urgencyLevel === "number"
-      ? Math.max(1, Math.min(5, Math.round(parsed.urgencyLevel)))
-      : 3;
-  parsed.missingInfo = Array.isArray(parsed.missingInfo)
-    ? parsed.missingInfo.slice(0, 10)
-    : [];
-  parsed.raw = data;
-  const lower = text.toLowerCase();
-  if (lower.includes("university health service") || lower.includes("jaja"))
-    parsed.originatingHospital =
-      "UNIVERSITY OF IBADAN HEALTH SERVICES (JAJA HEALTH CLINIC)";
-  return parsed;
-}
-
-// ── Gemini call wrapper: one short retry on transient failures, then degrade ──
-// 429 (free-tier quota) and 5xx are often transient; a single short retry keeps
-// the worker inside Evolution's latency budget. If the retry also fails, the
-// error propagates and processMessageBody falls back to the deterministic brain
-// so the WhatsApp service stays operational instead of going silent.
-async function analyzeWithGemini(
-  text: string,
-  context: string,
-  messageId: string,
-): Promise<GeminiAnalysisResult> {
-  try {
-    return await extractWithGemini(text, context);
-  } catch (e) {
-    const failure = classifyGeminiFailure((e as Error).message);
-    log("gemini", messageId, "error", {
-      http: failure.httpStatus,
-      quota_exhausted: failure.quotaExhausted,
-      error: (e as Error).message.slice(0, 200),
-    });
-    const delay = failure.retryDelayMs;
-    if (delay === null) throw e;
-    log("gemini_retry_wait", messageId, "ok", { delay });
-    await new Promise((r) => setTimeout(r, delay));
-    try {
-      return await extractWithGemini(text, context);
-    } catch (e2) {
-      const failure2 = classifyGeminiFailure((e2 as Error).message);
-      log("gemini_retry", messageId, "error", {
-        http: failure2.httpStatus,
-        quota_exhausted: failure2.quotaExhausted,
-      });
-      throw e2;
-    }
-  }
 }
 
 async function sendWhatsAppMessage(toPhone: string, text: string) {
@@ -444,17 +352,17 @@ async function processMessageBody(
         if (cached) {
           analysis = { ...cached, raw: undefined };
         } else {
-          try {
-            analysis = await analyzeWithGemini(trimmed, context, messageId);
-          } catch {
-            // Gemini unavailable (429 quota, 5xx, network, bad JSON):
-            // degrade to the deterministic brain instead of failing the row.
-            analysis = deterministicFallbackAnalysis(trimmed, conversation);
-            log("gemini_fallback", messageId, "ok", {
-              intent: analysis.intent,
-              reason: "gemini_unavailable",
-            });
-          }
+          // AI provider failover: Gemini → Groq → Modal (if configured) →
+          // deterministic fallback. The router never throws and always returns
+          // a valid AnalysisResult, so 429 on one provider immediately moves
+          // to the next instead of retrying the same exhausted provider.
+          analysis = await analyzeMessage(
+            trimmed,
+            context,
+            messageId,
+            conversation,
+            { env: providerEnv, log },
+          );
           blockAnalysisCache.set(cacheKey, analysis);
         }
       } else
@@ -595,7 +503,7 @@ async function processMessageBody(
           .slice(0, 5)
           .map(
             (r: any) =>
-              `• ${r.patient_name} (${r.request_id}) — ${(r.status || "pending").toUpperCase()}`,
+              `• ${r.patient_name} — ${(r.status || "pending").toUpperCase()}`,
           )
           .join("\n");
         finalReply = `I found more than one authorization request from this number. Please provide the patient's full name or NHIA/NHIS number so I can check the correct one.\n\n${list}\n\n— Ronsberger HMO`;
@@ -615,19 +523,17 @@ async function processMessageBody(
         .from("whatsapp_messages")
         .update({ authorization_request_id: r.id })
         .eq("message_id", messageId);
-      // Security: only the human-readable REQ-YYYYMMDD-NNN id may be shown.
-      // Never expose internal UUIDs (or fragments of them) to WhatsApp users.
-      const refSuffix = r.request_id ? ` (Ref: ${r.request_id})` : "",
-        status = String(r.status || "pending").toLowerCase();
+      // Privacy: no internal database UUIDs or REQ- identifiers are exposed in customer WhatsApp messages.
+      const status = String(r.status || "pending").toLowerCase();
       let reply = "";
       if (intent === "AUTHORIZATION_DETAILS")
         reply = `Authorization Details\n\nPatient: ${r.patient_name}\nNHIA/NHIS: ${r.policy_number || "Not specified"}\nDiagnosis: ${r.diagnosis || "Not specified"}\nTreatment/Services: ${r.treatment || "Not specified"}\nHospital: ${r.hospital_name || "Not specified"}\nStatus: ${status.toUpperCase()}\n\n— Ronsberger HMO`;
       else if (status === "approved")
-        reply = `Authorization Update\n\n${r.patient_name}'s medical authorization request${refSuffix} has been APPROVED.\n\nYou may proceed according to the approved details.\n\n— Ronsberger HMO`;
+        reply = `Authorization Update\n\n${r.patient_name}'s medical authorization request has been APPROVED.\n\nYou may proceed according to the approved details.\n\n— Ronsberger HMO`;
       else if (status === "rejected")
-        reply = `Authorization Update\n\n${r.patient_name}'s medical authorization request${refSuffix} was NOT APPROVED.\n\nReason:\n${r.decision_reason || "Does not meet clinical policy guidelines"}\n\nIf you need clarification, please reply to this message.\n\n— Ronsberger HMO`;
+        reply = `Authorization Update\n\n${r.patient_name}'s medical authorization request was NOT APPROVED.\n\nReason:\n${r.decision_reason || "Does not meet clinical policy guidelines"}\n\nIf you need clarification, please reply to this message.\n\n— Ronsberger HMO`;
       else
-        reply = `Authorization Update\n\n${r.patient_name}'s medical authorization request${refSuffix} is currently ${status.toUpperCase()}.\n\nWe will notify you once a final decision is available.\n\n— Ronsberger HMO`;
+        reply = `Authorization Update\n\n${r.patient_name}'s medical authorization request is currently ${status.toUpperCase()}.\n\nWe will notify you once a final decision is available.\n\n— Ronsberger HMO`;
       if (priority < 2) {
         finalReply = reply;
         priority = 2;
@@ -729,10 +635,7 @@ async function processMessageBody(
               .includes(String(service).toLowerCase()),
         );
       if (duplicate) {
-        const dupSuffix = duplicate.request_id
-          ? ` (Ref: ${duplicate.request_id})`
-          : "";
-        finalReply = `It looks like an authorization request for ${patientName} was recently submitted from this number${dupSuffix}. It is currently ${(duplicate.status || "pending").toUpperCase()}.\n\nIf this is a new request for the same patient, please reply with the updated clinical details.\n\n— Ronsberger HMO`;
+        finalReply = `It looks like an authorization request for ${patientName} was recently submitted from this number. It is currently ${(duplicate.status || "pending").toUpperCase()}.\n\nIf this is a new request for the same patient, please reply with the updated clinical details.\n\n— Ronsberger HMO`;
         await updateConversation(supabase, row.phone_number, {
           pending_data: {},
         });

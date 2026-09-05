@@ -102,10 +102,14 @@ WHERE wm.authorization_request_id IS NOT NULL
   );
 
 -- Helpful indexes for the deterministic identity checks.
+-- NOTE: user_roles.role is the app_role enum; enum -> text casts are STABLE and
+-- therefore rejected inside index predicates (SQLSTATE 42P17). Enum equality
+-- with the literal label is IMMUTABLE and equivalent to the original
+-- lower(role::text) = 'hospital' check.
 CREATE INDEX IF NOT EXISTS idx_user_roles_whatsapp_phone_active
 ON public.user_roles (public.normalize_whatsapp_phone(phone))
-WHERE lower(coalesce(role::text, '')) = 'hospital'
-  AND lower(coalesce(access_status::text, '')) = 'active'
+WHERE role = 'hospital'::public.app_role
+  AND lower(coalesce(access_status, '')) = 'active'
   AND hospital_id IS NOT NULL;
 
 CREATE INDEX IF NOT EXISTS idx_nhis_beneficiaries_whatsapp_identity
