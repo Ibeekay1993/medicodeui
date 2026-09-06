@@ -39,6 +39,7 @@ export async function ensureArrivalPin(
     .from("otp_verifications")
     .select("otp_value")
     .eq("authorization_id", authorizationId)
+    .eq("otp_type", "ARRIVAL")
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
