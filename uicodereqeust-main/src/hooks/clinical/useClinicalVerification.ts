@@ -88,7 +88,11 @@ export function useClinicalVerification(
           const exactLookup = await supabase.from("nhis_beneficiaries").select("*").eq("policy_number", policy);
           matchedRows = exactLookup.data || [];
           if (matchedRows.length === 0) {
-            const prefixLookup = await supabase.from("nhis_beneficiaries").select("*").ilike("policy_number", `${policy}%`);
+            const policyRoot = normalizePolicyRoot(policy);
+            const prefixLookup = await supabase
+              .from("nhis_beneficiaries")
+              .select("*")
+              .ilike("policy_number", `${policyRoot}%`);
             matchedRows = prefixLookup.data || [];
           }
         }

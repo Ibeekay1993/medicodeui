@@ -14,6 +14,7 @@ import { Form } from "@/components/ui/form";
 import { useHospitalProfile } from "../hooks/useHospitalDashboard";
 import { useSubmitHospitalRequest } from "../hooks/useHospitalRequests";
 import { useDebounce } from "@/hooks/use-debounce";
+import { normalizePolicyRoot } from "@/lib/clinicalUtils";
 
 import {
   TreatmentItem,
@@ -213,11 +214,34 @@ export default function HospitalNewRequest() {
     queryKey: ["patientSearch", debouncedPatientSearch],
     queryFn: async () => {
       if (debouncedPatientSearch.length < 3) return [];
-      const { data } = await supabase.from("nhis_beneficiaries")
+      const baseQuery = supabase.from("nhis_beneficiaries")
         .select("full_name, policy_number")
         .or(`policy_number.ilike.%${debouncedPatientSearch}%,full_name.ilike.%${debouncedPatientSearch}%`)
         .limit(8);
-      return data || [];
+      const policySearch = /^\d+(?:-\d+)?$/.test(debouncedPatientSearch.trim());
+      if (!policySearch) {
+        const { data } = await baseQuery;
+        return data || [];
+      }
+
+      const policyRoot = normalizePolicyRoot(debouncedPatientSearch);
+      const queries = [baseQuery];
+      if (policyRoot !== debouncedPatientSearch.trim()) {
+        queries.push(
+          supabase.from("nhis_beneficiaries")
+            .select("full_name, policy_number")
+            .ilike("policy_number", `%${policyRoot}%`)
+            .limit(8)
+        );
+      }
+      const results = await Promise.all(queries);
+      const unique = new Map<string, { full_name: string; policy_number: string }>();
+      for (const result of results) {
+        for (const row of result.data || []) {
+          unique.set(`${row.full_name}:${row.policy_number}`, row);
+        }
+      }
+      return Array.from(unique.values()).slice(0, 8);
     },
     enabled: debouncedPatientSearch.length >= 3,
   });
@@ -790,5 +814,4 @@ export default function HospitalNewRequest() {
     </div>
   );
 }
-
 
