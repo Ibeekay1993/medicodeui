@@ -41,6 +41,36 @@ export function splitPatientBlocks(text: string): string[] {
   return lead ? [lead, ...parts] : parts;
 }
 
+// ── Family policy parsing ────────────────────────────────────────────────────
+// NHIA family policies are represented as `1639554`, `1639554-1`, `1639554-2`,
+// `1639554-3`. They all belong to the same BASE family policy (`1639554`); the
+// hyphen suffix identifies the family member's position within the family but
+// it must never gate whether a beneficiary can be found. Only the exact form
+// `digits-digits` is treated as a family policy.
+export function parsePolicyNumber(policy: string): {
+  submittedPolicy: string;
+  basePolicy: string;
+  memberSuffix: string | null;
+  isFamilyPolicy: boolean;
+} {
+  const normalized = String(policy ?? "").trim();
+  const familyMatch = normalized.match(/^(\d+)-(\d+)$/);
+  if (familyMatch) {
+    return {
+      submittedPolicy: normalized,
+      basePolicy: familyMatch[1],
+      memberSuffix: familyMatch[2],
+      isFamilyPolicy: true,
+    };
+  }
+  return {
+    submittedPolicy: normalized,
+    basePolicy: normalized,
+    memberSuffix: null,
+    isFamilyPolicy: false,
+  };
+}
+
 // ── Deterministic authorization field extraction ─────────────────────────────
 export function extractAuthFieldsFromRaw(
   text: string,
@@ -53,6 +83,7 @@ export function extractAuthFieldsFromRaw(
     procedure: null,
     investigation: null,
     requestedService: null,
+    patientPhone: null,
     originatingHospital: null,
   };
   const patterns: [string, RegExp][] = [
@@ -71,6 +102,10 @@ export function extractAuthFieldsFromRaw(
     [
       "requestedService",
       /^(?:\*?\s*(?:services?|consultation)\s*\*?\s*:\s*)(.+)$/i,
+    ],
+    [
+      "patientPhone",
+      /^(?:\*?\s*(?:patient\s*)?(?:phone|mobile|telephone|tel)\s*\*?\s*:\s*)(.+)$/i,
     ],
   ];
   for (const line of text.split(/\r?\n/)) {
@@ -257,6 +292,7 @@ export function brainGuard(
     out.procedure = out.procedure || raw.procedure;
     out.investigation = out.investigation || raw.investigation;
     out.requestedService = out.requestedService || raw.requestedService;
+    out.patientPhone = out.patientPhone || raw.patientPhone;
     out.originatingHospital =
       out.originatingHospital || raw.originatingHospital;
   }
