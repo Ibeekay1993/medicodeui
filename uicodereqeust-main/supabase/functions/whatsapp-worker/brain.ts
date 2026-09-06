@@ -594,6 +594,23 @@ export function normalizePhoneNumber(raw: string): string {
   return digits;
 }
 
+export function authorizationValidationReply(errorMessage: string): string {
+  const error = String(errorMessage || "").toLowerCase();
+  if (error.includes("beneficiary_not_found")) {
+    return "Patient/beneficiary could not be found.\n\nPlease check the policy number and patient details and resend the full authorization request.\n\n— Ronsberger HMO";
+  }
+  if (error.includes("beneficiary_ambiguous")) {
+    return "The beneficiary record is ambiguous.\n\nPlease check the policy number and patient details and resend the full authorization request.\n\n— Ronsberger HMO";
+  }
+  if (error.includes("beneficiary_mismatch")) {
+    return "Patient/beneficiary could not be verified.\n\nPlease check the policy number and patient details and resend the full authorization request.\n\n— Ronsberger HMO";
+  }
+  if (error.includes("policy_number") || error.includes("invalid_policy")) {
+    return "The policy number could not be validated.\n\nPlease check the policy number and resend the full authorization request.\n\n— Ronsberger HMO";
+  }
+  return "The authorization request could not be validated.\n\nPlease check the policy number and patient details and resend the full authorization request.\n\n— Ronsberger HMO";
+}
+
 // ── Access Classification ────────────────────────────────────────────────────
 export type AccessClass = "REGISTERED_HOSPITAL" | "GENERAL_CUSTOMER" | "DISABLED_OR_REVOKED";
 

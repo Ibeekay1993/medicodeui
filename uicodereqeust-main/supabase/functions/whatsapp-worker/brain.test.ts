@@ -22,6 +22,7 @@ import {
   classifyGeneralCustomerIntent,
   splitPatientBlocks,
   type GeminiAnalysisResult,
+  authorizationValidationReply,
 } from "./brain.ts";
 
 function baseAnalysis(
@@ -58,6 +59,28 @@ describe("splitPatientBlocks", () => {
 
   it("keeps a single-patient message as one block", () => {
     expect(splitPatientBlocks("Hello there")).toHaveLength(1);
+  });
+});
+
+describe("authorizationValidationReply", () => {
+  it.each([
+    ["beneficiary_not_found", "could not be found"],
+    ["beneficiary_mismatch", "could not be verified"],
+    ["beneficiary_ambiguous", "is ambiguous"],
+    ["invalid_policy_number", "policy number could not be validated"],
+  ])("returns a safe response for %s", (reason, expected) => {
+    expect(authorizationValidationReply(reason).toLowerCase()).toContain(
+      expected,
+    );
+    expect(authorizationValidationReply(reason)).not.toContain(reason);
+  });
+
+  it("does not expose internal errors in the fallback response", () => {
+    const reply = authorizationValidationReply(
+      "Direct DB fallback failed: relation public.secret_table does not exist",
+    );
+    expect(reply).toContain("could not be validated");
+    expect(reply).not.toContain("secret_table");
   });
 });
 

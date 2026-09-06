@@ -14,6 +14,7 @@ import {
   normalizePhoneNumber,
   parsePolicyNumber,
   splitPatientBlocks,
+  authorizationValidationReply,
 } from "./brain.ts";
 import {
   analyzeMessage,
@@ -701,23 +702,39 @@ async function processMessageBody(
         priority = Math.max(priority, 3);
         continue;
       }
-      const result = await postAuthorization(supabase, {
-        source: "whatsapp",
-        whatsapp_message_id: messageId,
-        patient_name: patientName,
-        policy_number: policyNumber,
-        diagnosis,
-        treatment: service,
-        phone_number: patientPhone
-          ? normalizePhoneNumber(patientPhone)
-          : null,
-        hospital_name: hospital,
-        referral_hospital_name: referral,
-        urgency_level: analysis.urgencyLevel ?? 3,
-        missing_info: [],
-        clinical_items: canonicalItems,
-        raw_message: blockText,
-      });
+      let result: { id: string; request_id?: string };
+      try {
+        result = await postAuthorization(supabase, {
+          source: "whatsapp",
+          whatsapp_message_id: messageId,
+          patient_name: patientName,
+          policy_number: policyNumber,
+          diagnosis,
+          treatment: service,
+          phone_number: patientPhone
+            ? normalizePhoneNumber(patientPhone)
+            : null,
+          hospital_name: hospital,
+          referral_hospital_name: referral,
+          urgency_level: analysis.urgencyLevel ?? 3,
+          missing_info: [],
+          clinical_items: canonicalItems,
+          raw_message: blockText,
+        });
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
+        await updateConversation(supabase, row.phone_number, {
+          pending_data: {},
+          active_intent: "VALIDATION_FAILED",
+        });
+        finalReply = authorizationValidationReply(errorMessage);
+        priority = Math.max(priority, 3);
+        log("authorization_validation", messageId, "skipped", {
+          reason: "request_rejected",
+        });
+        continue;
+      }
       await supabase
         .from("whatsapp_messages")
         .update({
