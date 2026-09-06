@@ -335,9 +335,10 @@ serve(async (req) => {
     return bad(500, "insert_failed: " + (insErr?.message || "unknown"));
   }
 
+  let arrivalPin: string | null = null;
   if (source === "whatsapp") {
     try {
-      await ensureArrivalPin(supabase, row.id);
+      arrivalPin = await ensureArrivalPin(supabase, row.id);
     } catch (error) {
       await supabase.from("authorization_requests").delete().eq("id", row.id);
       console.error(
@@ -360,6 +361,8 @@ serve(async (req) => {
       id: row.id,
       request_id: row.request_id,
       status: row.status,
+      patient_phone: phoneNumber,
+      arrival_pin: arrivalPin,
     }),
     {
       status: 201,

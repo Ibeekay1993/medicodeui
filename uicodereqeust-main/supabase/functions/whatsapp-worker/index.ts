@@ -138,7 +138,7 @@ async function resolveHospitalSender(
 async function postAuthorization(
   supabase: ReturnType<typeof getServiceClient>,
   payload: Record<string, unknown>,
-) {
+): Promise<{ id: string; request_id?: string; status?: string; patient_phone: string; arrival_pin: string }> {
   try {
     const url = `${MEDAUTH_BASE_URL.replace(/\/$/, "")}${MEDAUTH_INTERNAL_PATH}`;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
@@ -157,10 +157,19 @@ async function postAuthorization(
     if (res.ok) {
       const j = await res.json();
       if (j?.id)
+        const patientPhone = normalizePhoneNumber(String(payload.phone_number || ""));
+        const { data: otp } = await supabase
+          .from("otp_verifications")
+          .select("otp_value")
+          .eq("authorization_id", String(j.id))
+          .eq("otp_type", "ARRIVAL")
+          .maybeSingle();
         return {
           id: String(j.id),
           request_id: j.request_id ? String(j.request_id) : undefined,
           status: j.status ? String(j.status) : undefined,
+          patient_phone: patientPhone,
+          arrival_pin: String(otp?.otp_value || ""),
         };
     }
   } catch (e) {
@@ -232,7 +241,19 @@ async function postAuthorization(
       throw error;
     }
   }
-  return { id: row.id, request_id: row.request_id, status: row.status };
+  const { data: otp } = await supabase
+    .from("otp_verifications")
+    .select("otp_value")
+    .eq("authorization_id", String(row.id))
+    .eq("otp_type", "ARRIVAL")
+    .maybeSingle();
+  return {
+    id: row.id,
+    request_id: row.request_id,
+    status: row.status,
+    patient_phone: normalizedPhoneNumber || "",
+    arrival_pin: String(otp?.otp_value || ""),
+  };
 }
 async function getConversation(
   supabase: ReturnType<typeof getServiceClient>,
@@ -749,7 +770,7 @@ async function processMessageBody(
         last_policy_number: policyNumber,
         active_authorization_id: result.id,
       });
-      finalReply = `Your medical authorization request for ${patientName} has been received successfully.\n\nOur team will review it and update you here once a decision is available.\n\n— Ronsberger HMO`;
+      finalReply = `Your medical authorization request for ${patientName} has been received successfully.\n\nPatient contact: ${result.patient_phone}\nPatient Arrival PIN: ${result.arrival_pin || "Pending"}\n\nOur team will review it and update you here once a decision is available.\n\n— Ronsberger HMO`;
       priority = Math.max(priority, 3);
       log("authorization", messageId, "ok", { request_id: result.request_id });
     }
