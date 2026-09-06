@@ -9,6 +9,7 @@ import {
   deriveProviderSearchTerm,
   deterministicFallbackAnalysis,
   extractAuthFieldsFromRaw,
+  extractCanonicalClinicalItems,
   hasStrongAuthIndicators,
   normalizePhoneNumber,
   parsePolicyNumber,
@@ -594,6 +595,7 @@ async function processMessageBody(
       ].includes(intent)
     ) {
       const raw = extractAuthFieldsFromRaw(blockText),
+        canonicalItems = extractCanonicalClinicalItems(blockText),
         current = { ...pendingData },
         newName = analysis.patientName || raw.patientName,
         newPolicy = analysis.policyNumber || raw.policyNumber;
@@ -624,7 +626,13 @@ async function processMessageBody(
         diagnosis =
           analysis.diagnosis || raw.diagnosis || current.diagnosis || null,
         treatment =
-          analysis.treatment || raw.treatment || current.treatment || null,
+          analysis.treatment ||
+          raw.treatment ||
+          (canonicalItems.length
+            ? canonicalItems.map((item) => item.raw_text).join("; ")
+            : null) ||
+          current.treatment ||
+          null,
         procedure =
           analysis.procedure || raw.procedure || current.procedure || null,
         investigation =
@@ -653,21 +661,10 @@ async function processMessageBody(
       if (!patientPhone) missing.push("Patient Phone");
       if (missing.length) {
         await updateConversation(supabase, row.phone_number, {
-          pending_data: {
-            patientName,
-            policyNumber,
-            patientPhone,
-            diagnosis,
-            treatment,
-            procedure,
-            investigation,
-            requestedService,
-            originatingHospital: hospital,
-            referralHospital: referral,
-          },
+          pending_data: {},
           active_intent: "INCOMPLETE_AUTHORIZATION",
         });
-        finalReply = `I have started your authorization request${patientName ? ` for ${patientName}` : ""}, but I still need:\n\n${missing.map((x) => `• ${x}`).join("\n")}\n\nPlease reply with the missing details to complete the request.\n\n— Ronsberger HMO`;
+        finalReply = `Your authorization request is incomplete.\n\nPlease resend the FULL authorization request and include:\n\n${missing.map((x) => `• ${x}`).join("\n")}\n\nOnce the complete request is received, we will process it.\n\n— Ronsberger HMO`;
         priority = Math.max(priority, 3);
         continue;
       }
@@ -718,6 +715,7 @@ async function processMessageBody(
         referral_hospital_name: referral,
         urgency_level: analysis.urgencyLevel ?? 3,
         missing_info: [],
+        clinical_items: canonicalItems,
         raw_message: blockText,
       });
       await supabase

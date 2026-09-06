@@ -219,6 +219,9 @@ serve(async (req) => {
   const missingInfo = Array.isArray(body.missing_info)
     ? body.missing_info.slice(0, 10)
     : [];
+  const clinicalItems = Array.isArray(body.clinical_items)
+    ? body.clinical_items.slice(0, 50)
+    : [];
   const patientId = sanitize(body.patient_id, 80) || null;
 
   const rawReferralHospitalName = sanitize(body.referral_hospital_name, 200);
@@ -289,6 +292,7 @@ serve(async (req) => {
     provider_name_free_text: providerName,
     referral_to: referralHospitalName,
     missing_info: missingInfo,
+    clinical_items: clinicalItems,
     whatsapp_message_id: whatsappMessageId,
     whatsapp_sender_phone: source === "whatsapp" ? whatsappSenderPhone : null,
     captured_at: new Date().toISOString(),

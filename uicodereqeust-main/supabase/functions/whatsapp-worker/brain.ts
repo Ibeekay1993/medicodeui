@@ -89,23 +89,26 @@ export function extractAuthFieldsFromRaw(
   const patterns: [string, RegExp][] = [
     [
       "patientName",
-      /^(?:\*?\s*(?:full\s*name|patient\s*name|name)\s*\*?\s*:\s*)(.+)$/i,
+      /^(?:\*?\s*(?:full\s*name|patient(?:\s*name)?|name)\s*\*?\s*(?::|-|=)\s*)(.+)$/i,
     ],
     [
       "policyNumber",
-      /^(?:\*?\s*(?:nhia\s*(?:no|number)?|nhis\s*(?:no|number)?|policy\s*(?:no|number)?)\s*\*?\s*:\s*)(.+)$/i,
+      /^(?:\*?\s*(?:nhia\s*(?:no|number)?|nhis\s*(?:no|number)?|policy\s*(?:no|number)?)\s*\*?\s*(?::|-|=)\s*)(.+)$/i,
     ],
-    ["diagnosis", /^(?:\*?\s*diagnosis\s*\*?\s*:\s*)(.+)$/i],
-    ["treatment", /^(?:\*?\s*(?:drugs?|treatment)\s*\*?\s*:\s*)(.+)$/i],
-    ["procedure", /^(?:\*?\s*procedures?\s*\*?\s*:\s*)(.+)$/i],
-    ["investigation", /^(?:\*?\s*investigations?\s*\*?\s*:\s*)(.+)$/i],
+    ["diagnosis", /^(?:\*?\s*diagnos(?:is|es)\s*\*?\s*(?::|-|=)\s*)(.+)$/i],
+    [
+      "treatment",
+      /^(?:\*?\s*(?:drugs?|treatments?|medications?|medicines?|medicine|meds?|rx|prescription|prescribed|services?|service|procedures?|procedure|requested\s+services?|requested\s+service|clinical\s+requests?|clinical\s+request)\s*\*?\s*(?::|-|=)\s*)(.+)$/i,
+    ],
+    ["procedure", /^(?:\*?\s*procedures?\s*\*?\s*(?::|-|=)\s*)(.+)$/i],
+    ["investigation", /^(?:\*?\s*investigations?\s*\*?\s*(?::|-|=)\s*)(.+)$/i],
     [
       "requestedService",
-      /^(?:\*?\s*(?:services?|consultation)\s*\*?\s*:\s*)(.+)$/i,
+      /^(?:\*?\s*(?:services?|consultation)\s*\*?\s*(?::|-|=)\s*)(.+)$/i,
     ],
     [
       "patientPhone",
-      /^(?:\*?\s*(?:patient\s*)?(?:phone|mobile|telephone|tel)\s*\*?\s*:\s*)(.+)$/i,
+      /^(?:\*?\s*(?:patient\s*)?(?:phone|mobile|telephone|tel)\s*(?:number)?\s*\*?\s*(?::|-|=)\s*)(.+)$/i,
     ],
   ];
   for (const line of text.split(/\r?\n/)) {
@@ -116,6 +119,7 @@ export function extractAuthFieldsFromRaw(
       if (m && !result[key]) result[key] = m[1].trim();
     }
   }
+
   const lower = text.toLowerCase();
   if (lower.includes("university health service") || lower.includes("jaja"))
     result.originatingHospital =
@@ -123,12 +127,118 @@ export function extractAuthFieldsFromRaw(
   return result;
 }
 
+export type ClinicalItemType = "DRUG" | "SERVICE" | "PROCEDURE" | "TREATMENT" | "UNKNOWN";
+
+export interface CanonicalClinicalItem {
+  raw_text: string;
+  normalized_name: string;
+  item_type: ClinicalItemType;
+  strength: string | null;
+  dosage_form: string | null;
+  frequency: string | null;
+  duration: string | null;
+  quantity: string | null;
+  confidence: number;
+}
+
+const CLINICAL_SECTION_RE =
+  /^\s*\**\s*(?:services?|treatments?|drugs?|medications?|medicines?|medicine|meds?|rx|prescription|prescribed|procedures?|requested\s+services?|requested\s+service|clinical\s+requests?|clinical\s+request)\s*\**\s*(?::|-|=)?\s*(.*)$/i;
+const DOSAGE_FORM_RE =
+  /\b(tab(?:let)?s?|cap(?:sule)?s?|syr(?:up)?|inj(?:ection)?|cream|ointment|susp(?:ension)?|drops?|supp(?:ository)?)\b/i;
+const STRENGTH_RE = /\b\d+(?:\.\d+)?\s*(?:mg|mcg|g|ml|iu|units?)\b/i;
+const DRUG_NAME_RE =
+  /\b(?:amlodipine|losartan|pregabalin|metformin|insulin|amoxicillin|paracetamol|ibuprofen|naproxen|salbutamol|indapamide|furosemide|lisinopril|nifedipine|atenolol|ciprofloxacin|ceftriaxone|metronidazole)\b/i;
+const PROCEDURE_RE =
+  /\b(?:mri|x[\s-]?ray|ct\s*(?:scan)?|ultrasound|scan|endoscopy|appendectomy|surgery|biopsy|full blood count|fbc|ecg|echo|electrocardiogram)\b/i;
+const SERVICE_RE =
+  /\b(?:physiotherapy|wound dressing|surgical review|specialist review|consultation|dressing|therapy)\b/i;
+
+function cleanClinicalText(value: string): string {
+  return value.replace(/^[*\-\u2022]+\s*/, "").replace(/\s+/g, " ").trim();
+}
+
+function classifyClinicalItem(text: string): ClinicalItemType {
+  if (DOSAGE_FORM_RE.test(text) || STRENGTH_RE.test(text) || DRUG_NAME_RE.test(text)) return "DRUG";
+  if (PROCEDURE_RE.test(text)) return "PROCEDURE";
+  if (SERVICE_RE.test(text)) return "SERVICE";
+  return "UNKNOWN";
+}
+
+function parseClinicalItem(text: string): CanonicalClinicalItem {
+  const raw_text = cleanClinicalText(text);
+  const item_type = classifyClinicalItem(raw_text);
+  const withoutPrefix = raw_text.replace(
+    /^(?:tab(?:let)?s?|cap(?:sule)?s?|syr(?:up)?|inj(?:ection)?|cream|ointment|susp(?:ension)?|drops?|supp(?:ository)?)\s+/i,
+    "",
+  );
+  const normalized_name = withoutPrefix
+    .replace(/\b\d+(?:\.\d+)?\s*(?:mg|mcg|g|ml|iu|units?)\b/gi, "")
+    .replace(/\b(?:t|dly|daily|od|bd|b\.d|bid|tds|tid|qds|qid|prn|stat|nocte)\b/gi, "")
+    .replace(/\bx\s*\d+\s*\/+\s*\d+\b/gi, "")
+    .replace(/\s+/g, " ")
+    .replace(/[,.]+$/, "")
+    .trim();
+  const frequencyMatch = raw_text.match(/\b(?:dly|daily|od|bd|b\.d|bid|tds|tid|qds|qid|prn|stat|nocte)\b/i);
+  const durationMatch = raw_text.match(/\bx\s*\d+\s*\/+\s*\d+\b|\b\d+\s*(?:days?|weeks?|months?)\b/i);
+  return {
+    raw_text,
+    normalized_name,
+    item_type,
+    strength: raw_text.match(STRENGTH_RE)?.[0] || null,
+    dosage_form: raw_text.match(DOSAGE_FORM_RE)?.[0] || null,
+    frequency: frequencyMatch?.[0] || null,
+    duration: durationMatch?.[0] || null,
+    quantity: raw_text.match(/\b\d+\s*(?:x|units?|sessions?)\b/i)?.[0] || null,
+    confidence: item_type === "UNKNOWN" ? 0.35 : 0.9,
+  };
+}
+
+export function extractCanonicalClinicalItems(text: string): CanonicalClinicalItem[] {
+  const items: CanonicalClinicalItem[] = [];
+  let inSection = false;
+  const lines = String(text || "").split(/\r?\n/);
+  for (const line of lines) {
+    const section = line.match(CLINICAL_SECTION_RE);
+    if (section) {
+      inSection = true;
+      if (section[1].trim()) {
+        items.push(...section[1].split(/,(?=\s*(?:[A-Za-z*]|Tab\b|Cap\b))/i).map(parseClinicalItem));
+      }
+      continue;
+    }
+    if (!inSection || !line.trim()) continue;
+    if (/^\s*\**\s*(?:name|patient|nhia|nhis|policy|diagnosis|phone|from|hospital)\b/i.test(line)) {
+      inSection = false;
+      continue;
+    }
+    const value = cleanClinicalText(line);
+    if (value) items.push(parseClinicalItem(value));
+  }
+  if (!items.length) {
+    for (const line of lines) {
+      const value = cleanClinicalText(line);
+      if (
+        !value ||
+        /^\**\s*(?:name|patient|nhia|nhis|policy|diagnosis|phone|from|hospital)\b/i.test(
+          value,
+        )
+      ) {
+        continue;
+      }
+      const item = parseClinicalItem(value);
+      if (item.item_type !== "UNKNOWN") items.push(item);
+    }
+  }
+  return items.filter((item) => item.normalized_name);
+}
+
 // ── Strong authorization evidence ────────────────────────────────────────────
 export const AUTH_HEADER_PATTERNS = [
-  /(?:^|\n)\s*(?:full\s*name|patient\s*name|name)\s*:\s*[^\n\r]+/i,
-  /(?:^|\n)\s*(?:nhia\s*(?:no|number)?|nhis\s*(?:no|number)?|policy\s*(?:no|number)?)\s*:\s*[^\n\r]+/i,
-  /(?:^|\n)\s*diagnosis\s*:\s*[^\n\r]+/i,
-  /(?:^|\n)\s*(?:drugs?|treatment|procedures?|investigations?|services?|consultation)\s*:\s*[^\n\r]+/i,
+  /(?:^|\n)\s*\**\s*(?:full\s*name|patient(?:\s*name)?|name)\s*\**\s*(?::|-|=)\s*[^\n\r]+/i,
+  /(?:^|\n)\s*\**\s*(?:nhia\s*(?:no|number)?|nhis\s*(?:no|number)?|policy\s*(?:no|number)?)\s*\**\s*(?::|-|=)\s*[^\n\r]+/i,
+  /(?:^|\n)\s*\**\s*diagnos(?:is|es)\s*\**\s*(?::|-|=)\s*[^\n\r]+/i,
+  /(?:^|\n)\s*\**\s*(?:drugs?|treatments?|procedures?|investigations?|services?|medications?|medicines?|rx|prescription|consultation)\s*\**\s*(?::|-|=)\s*[^\n\r]+/i,
+  /(?:^|\n)\s*\**\s*(?:phone|phone\s+number|patient\s+phone|mobile|telephone|tel)\s*\**\s*(?::|-|=)\s*[^\n\r]+/i,
 ];
 
 export function hasStrongAuthIndicators(text: string) {
@@ -146,6 +256,7 @@ export interface AnalysisResult {
   procedure?: string | null;
   investigation?: string | null;
   requestedService?: string | null;
+  clinicalItems?: CanonicalClinicalItem[];
   patientPhone?: string | null;
   originatingHospital?: string | null;
   referralHospital?: string | null;
@@ -280,7 +391,9 @@ export function brainGuard(
     out.missingInfo = [];
     return out;
   }
-  if (auth && !explicitStatus) {
+  // Structured request evidence is authoritative even when a message contains
+  // status words such as "approved" in its heading or clinical text.
+  if (auth) {
     out.intent = hasStrongAuthIndicators(t)
       ? "NEW_AUTHORIZATION"
       : out.intent || "INCOMPLETE_AUTHORIZATION";
@@ -293,6 +406,16 @@ export function brainGuard(
     out.investigation = out.investigation || raw.investigation;
     out.requestedService = out.requestedService || raw.requestedService;
     out.patientPhone = out.patientPhone || raw.patientPhone;
+    out.clinicalItems = extractCanonicalClinicalItems(t);
+    if (
+      !out.treatment &&
+      !out.procedure &&
+      !out.investigation &&
+      !out.requestedService &&
+      out.clinicalItems.length
+    ) {
+      out.treatment = out.clinicalItems.map((item) => item.raw_text).join("; ");
+    }
     out.originatingHospital =
       out.originatingHospital || raw.originatingHospital;
   }

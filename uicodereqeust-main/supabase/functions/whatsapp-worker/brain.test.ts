@@ -12,6 +12,7 @@ import {
   deriveProviderSearchTerm,
   deterministicFallbackAnalysis,
   extractAuthFieldsFromRaw,
+  extractCanonicalClinicalItems,
   extractQueryPatientName,
   hasStrongAuthIndicators,
   isWhatsAppGroupMessage,
@@ -133,6 +134,92 @@ describe("extractAuthFieldsFromRaw", () => {
     );
     expect(fields.patientPhone).toBe("09155186965");
     expect(fields.originatingHospital).toContain("UNIVERSITY");
+  });
+
+  it.each(["Services", "Drugs", "Treatment"])(
+    "normalizes %s headings without changing clinical classification",
+    (heading) => {
+      const items = extractCanonicalClinicalItems(
+        [
+          "Name : Afolayan Senab",
+          "NHIA no: 1639554",
+          "Diagnosis: HTN, Lumbar spondylosis",
+          `${heading}: Tab Amlodipine 10mg dly x1/12, pregabalin T b.d 75mg x4//52`,
+          "Phone: 09155186965",
+        ].join("\n"),
+      );
+      expect(items).toHaveLength(2);
+      expect(items.map((item) => item.normalized_name)).toEqual([
+        "Amlodipine",
+        "pregabalin",
+      ]);
+      expect(items.map((item) => item.item_type)).toEqual(["DRUG", "DRUG"]);
+      expect(items[0].strength).toBe("10mg");
+      expect(items[0].frequency).toBe("dly");
+      expect(items[0].duration).toBe("x1/12");
+    },
+  );
+
+  it("classifies clinical content instead of trusting the section heading", () => {
+    expect(
+      extractCanonicalClinicalItems("Treatment: MRI lumbar spine")[0].item_type,
+    ).toBe("PROCEDURE");
+    expect(
+      extractCanonicalClinicalItems("Services: Physiotherapy x 6 sessions")[0]
+        .item_type,
+    ).toBe("SERVICE");
+    expect(
+      extractCanonicalClinicalItems(
+        "DRUGS:\nLosartan 25mg\nAmlodipine 10mg",
+      ),
+    ).toHaveLength(2);
+  });
+
+  it.each([
+    "AUTHORIZATION REQUEST",
+    "AUTHORIZATION",
+    "PREAUTHORIZATION",
+    "",
+  ])("recognizes structured authorization payload with heading %j", (heading) => {
+    const message = [
+      heading,
+      "Patient: Oladoyinbo Lanre",
+      "Policy No: 1638608",
+      "Diagnosis: HTN",
+      "Phone: 07030052954",
+      heading ? "Drugs: Losartan 25mg" : "Losartan 25mg",
+    ].filter(Boolean).join("\n");
+    expect(hasStrongAuthIndicators(message)).toBe(true);
+    const parsed = brainGuard(message, baseAnalysis({ intent: "UNKNOWN" }), {});
+    expect(parsed.intent).toBe("NEW_AUTHORIZATION");
+    expect(parsed.patientName).toBe("Oladoyinbo Lanre");
+    expect(parsed.policyNumber).toBe("1638608");
+    expect(extractCanonicalClinicalItems(message)[0].item_type).toBe("DRUG");
+  });
+
+  it("lets structured request evidence beat status words", () => {
+    const message = [
+      "AUTHORIZATION APPROVED",
+      "Patient: Oladoyinbo Lanre",
+      "Policy No: 1638608",
+      "Diagnosis: HTN",
+      "Phone: 07030052954",
+      "Drugs: Losartan 25mg",
+    ].join("\n");
+    expect(brainGuard(message, baseAnalysis({ intent: "UNKNOWN" }), {}).intent).toBe(
+      "NEW_AUTHORIZATION",
+    );
+  });
+
+  it("does not treat a bare phone number as an authorization continuation", () => {
+    expect(hasStrongAuthIndicators("07030052954")).toBe(false);
+    expect(
+      brainGuard(
+        "07030052954",
+        baseAnalysis({ intent: "CONTINUE_AUTHORIZATION" }),
+        { active_intent: "INCOMPLETE_AUTHORIZATION", last_patient_name: "Old Patient" },
+      ).intent,
+    ).not.toBe("NEW_AUTHORIZATION");
   });
 });
 
