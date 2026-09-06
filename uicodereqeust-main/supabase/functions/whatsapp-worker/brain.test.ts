@@ -16,6 +16,7 @@ import {
   hasStrongAuthIndicators,
   isWhatsAppGroupMessage,
   normalizePhoneNumber,
+  parsePolicyNumber,
   classifyAccessClass,
   classifyGeneralCustomerIntent,
   splitPatientBlocks,
@@ -117,6 +118,74 @@ describe("extractAuthFieldsFromRaw", () => {
       "Name: Test User\nNHIA No: 123\nDiagnosis: Fever\nConsultation: Follow up (review)",
     );
     expect(svc.requestedService).toContain("Follow up");
+  });
+
+  it("extracts the patient phone without confusing it with the hospital sender", () => {
+    const fields = extractAuthFieldsFromRaw(
+      [
+        "Name: Afolayan Kayode",
+        "NHIA no: 1639554",
+        "Diagnosis: HTN",
+        "Services: Tab Amlodipine 10mg dly x1/12",
+        "Phone: 09155186965",
+        "From University Health Service.",
+      ].join("\n"),
+    );
+    expect(fields.patientPhone).toBe("09155186965");
+    expect(fields.originatingHospital).toContain("UNIVERSITY");
+  });
+});
+
+describe("parsePolicyNumber", () => {
+  it("treats a bare policy as its own base with no suffix", () => {
+    const p = parsePolicyNumber("1639554");
+    expect(p.isFamilyPolicy).toBe(false);
+    expect(p.basePolicy).toBe("1639554");
+    expect(p.submittedPolicy).toBe("1639554");
+    expect(p.memberSuffix).toBeNull();
+  });
+
+  it("decomposes the principal / dependent / spouse suffixes", () => {
+    expect(parsePolicyNumber("1639554-1")).toMatchObject({
+      submittedPolicy: "1639554-1",
+      basePolicy: "1639554",
+      memberSuffix: "1",
+      isFamilyPolicy: true,
+    });
+    expect(parsePolicyNumber("1639554-2")).toMatchObject({
+      submittedPolicy: "1639554-2",
+      basePolicy: "1639554",
+      memberSuffix: "2",
+      isFamilyPolicy: true,
+    });
+    expect(parsePolicyNumber("1639554-3")).toMatchObject({
+      submittedPolicy: "1639554-3",
+      basePolicy: "1639554",
+      memberSuffix: "3",
+      isFamilyPolicy: true,
+    });
+  });
+
+  it("trims surrounding whitespace before parsing", () => {
+    const p = parsePolicyNumber("  1639554-2  ");
+    expect(p.basePolicy).toBe("1639554");
+    expect(p.memberSuffix).toBe("2");
+    expect(p.isFamilyPolicy).toBe(true);
+  });
+
+  it("does not treat non-`digits-digits` shapes as family policies", () => {
+    expect(parsePolicyNumber("ABC-001").isFamilyPolicy).toBe(false);
+    expect(parsePolicyNumber("ABC-001").basePolicy).toBe("ABC-001");
+    expect(parsePolicyNumber("").basePolicy).toBe("");
+    expect(parsePolicyNumber("1639554.2").isFamilyPolicy).toBe(false);
+  });
+
+  it("never guesses a beneficiary from a suffix", () => {
+    // The suffix is metadata: the base policy is what the family lookup uses,
+    // and identity always comes from the exact beneficiary (name) validation.
+    const suffixTwo = parsePolicyNumber("1639554-2");
+    expect(suffixTwo.basePolicy).toBe("1639554");
+    expect(suffixTwo.memberSuffix).toBe("2");
   });
 });
 

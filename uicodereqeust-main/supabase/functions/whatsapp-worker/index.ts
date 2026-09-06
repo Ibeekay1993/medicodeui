@@ -11,12 +11,14 @@ import {
   extractAuthFieldsFromRaw,
   hasStrongAuthIndicators,
   normalizePhoneNumber,
+  parsePolicyNumber,
   splitPatientBlocks,
 } from "./brain.ts";
 import {
   analyzeMessage,
   type GeminiAnalysisResult,
 } from "./providers.ts";
+import { ensureArrivalPin } from "../_shared/arrival-pin.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -183,6 +185,9 @@ async function postAuthorization(
     .limit(1)
     .maybeSingle();
   if (hosp?.id) hospitalId = hosp.id;
+  const normalizedPhoneNumber = phoneNumber
+    ? normalizePhoneNumber(phoneNumber)
+    : null;
   const { data: row, error } = await supabase
     .from("authorization_requests")
     .insert({
@@ -190,7 +195,7 @@ async function postAuthorization(
       policy_number: policyNumber,
       diagnosis,
       treatment,
-      patient_phone: phoneNumber,
+      patient_phone: normalizedPhoneNumber,
       hospital_name: hospitalName,
       hospital_id: hospitalId,
       requesting_hospital_id: hospitalId,
@@ -217,6 +222,14 @@ async function postAuthorization(
     throw new Error(
       `Direct DB fallback failed: ${error?.message || "unknown"}`,
     );
+  if (String(payload.source || "").toLowerCase() === "whatsapp") {
+    try {
+      await ensureArrivalPin(supabase, row.id);
+    } catch (error) {
+      await supabase.from("authorization_requests").delete().eq("id", row.id);
+      throw error;
+    }
+  }
   return { id: row.id, request_id: row.request_id, status: row.status };
 }
 async function getConversation(
@@ -603,6 +616,11 @@ async function processMessageBody(
       }
       const patientName = newName || current.patientName || null,
         policyNumber = newPolicy || current.policyNumber || null,
+        patientPhone =
+          analysis.patientPhone ||
+          raw.patientPhone ||
+          current.patientPhone ||
+          null,
         diagnosis =
           analysis.diagnosis || raw.diagnosis || current.diagnosis || null,
         treatment =
@@ -632,11 +650,13 @@ async function processMessageBody(
       if (!policyNumber) missing.push("NHIA / Policy Number");
       if (!diagnosis) missing.push("Diagnosis / Clinical Complaint");
       if (!service) missing.push("Requested Treatment, Procedure, or Service");
+      if (!patientPhone) missing.push("Patient Phone");
       if (missing.length) {
         await updateConversation(supabase, row.phone_number, {
           pending_data: {
             patientName,
             policyNumber,
+            patientPhone,
             diagnosis,
             treatment,
             procedure,
@@ -653,13 +673,22 @@ async function processMessageBody(
       }
       const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
       const existing = await findSenderRequests(supabase, row.phone_number),
+        // Family policies `1639554` / `1639554-1` / `1639554-2` share the same
+        // base policy, so duplicate protection compares the BASE policy plus the
+        // exact patient name. Different family members (different names) are
+        // never merged; the same member resubmitted with or without a suffix is
+        // caught.
+        submittedPolicyBase = parsePolicyNumber(String(policyNumber || ""))
+          .basePolicy.toLowerCase()
+          .trim(),
         duplicate = existing.find(
           (r: any) =>
             r.created_at >= cutoff &&
             String(r.patient_name || "").toLowerCase() ===
               patientName!.toLowerCase() &&
-            String(r.policy_number || "").toLowerCase() ===
-              policyNumber!.toLowerCase() &&
+            parsePolicyNumber(String(r.policy_number || "")).basePolicy
+              .toLowerCase()
+              .trim() === submittedPolicyBase &&
             String(r.diagnosis || "")
               .toLowerCase()
               .includes(diagnosis!.toLowerCase()) &&
@@ -682,7 +711,9 @@ async function processMessageBody(
         policy_number: policyNumber,
         diagnosis,
         treatment: service,
-        phone_number: analysis.patientPhone || row.phone_number,
+        phone_number: patientPhone
+          ? normalizePhoneNumber(patientPhone)
+          : null,
         hospital_name: hospital,
         referral_hospital_name: referral,
         urgency_level: analysis.urgencyLevel ?? 3,

@@ -13,6 +13,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { ensureArrivalPin } from "../_shared/arrival-pin.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -173,6 +174,8 @@ serve(async (req) => {
     } else {
       phoneNumber = "";
     }
+    if (!phoneNumber) return bad(422, "patient_phone_required");
+    phoneNumber = normalizePhone(phoneNumber);
   } else {
     if (!phoneNumber) return bad(400, "phone_number_required");
 
@@ -326,6 +329,19 @@ serve(async (req) => {
   if (insErr || !row) {
     console.error("submit-authorization: insert failed", insErr);
     return bad(500, "insert_failed: " + (insErr?.message || "unknown"));
+  }
+
+  if (source === "whatsapp") {
+    try {
+      await ensureArrivalPin(supabase, row.id);
+    } catch (error) {
+      await supabase.from("authorization_requests").delete().eq("id", row.id);
+      console.error(
+        "submit-authorization: arrival PIN creation failed",
+        error instanceof Error ? error.message : error,
+      );
+      return bad(500, "arrival_pin_creation_failed");
+    }
   }
 
   if (whatsappMessageId) {
