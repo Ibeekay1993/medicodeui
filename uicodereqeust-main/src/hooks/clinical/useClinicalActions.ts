@@ -829,7 +829,7 @@ export function useClinicalActions({
       : "";
     const msg = `AUTHORIZATION APPROVED\n\nPatient: ${approvalResult.patientName}\nPolicy No: ${approvalResult.policyNumber}\nAuth Code: ${approvalResult.authCode}\nHospital: ${approvalResult.hospitalName}${referralLine}\nDiagnosis: ${approvalResult.diagnosis}\n\nApproved Items:\n${itemLines}\n\nTotal Approved: ${formatNaira(
       approvalResult.totalAmount
-    )}\nDate: ${dateStr}\nRonsberger HMO UI Desk`;
+    )}\nDate: ${dateStr}\n\nPlease proceed only with the services listed as approved above. Services not listed as approved are not covered under this authorization. For clarification, please contact Ronsberger HMO before treatment.\n\nRonsberger HMO UI Desk`;
     navigator.clipboard.writeText(msg);
     toast({ title: "Copied! Ready to paste to WhatsApp" });
   };
@@ -910,4 +910,3 @@ const findHospitalIdByName = async (name: string) => {
     copyDeclineMessage,
   };
 }
-
