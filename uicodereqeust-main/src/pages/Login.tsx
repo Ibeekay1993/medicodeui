@@ -183,19 +183,27 @@ export default function Login() {
 
 
   // FIX 3: Categorise errors correctly � don't expose internals but distinguish network issues
-  const parseAuthError = (err: any): string => {
+  const isTransientAuthError = (err: any): boolean => {
     const msg: string = (err?.message || "").toLowerCase();
-    if (
+    return (
       msg.includes("fetch") ||
       msg.includes("network") ||
       msg.includes("failed to fetch") ||
       msg.includes("networkerror") ||
       msg.includes("timed out") ||
       msg.includes("timeout") ||
+      msg.includes("did not respond") ||
       msg.includes("cors") ||
-      msg.includes("service unavailable")
-    ) {
-      return "Connection error. Please check your network and try again.";
+      msg.includes("service unavailable") ||
+      msg.includes("502") ||
+      msg.includes("503") ||
+      msg.includes("504")
+    );
+  };
+
+  const parseAuthError = (err: any): string => {
+    if (isTransientAuthError(err)) {
+      return "Connection error. Supabase did not respond. Please wait a moment and try again.";
     }
     // Generic message for any auth failure � prevents user enumeration
     return "Invalid credentials. Please check your email and password.";
@@ -269,7 +277,7 @@ export default function Login() {
       
       let dbAttempts = 1;
       let dbStatus = "active";
-      if (!authenticationSucceeded) {
+      if (!authenticationSucceeded && !isTransientAuthError(err)) {
         try {
           const { data: rpcData, error: rpcErr } = await withAuthTimeout(
             (supabase.rpc as any)("record_failed_login", { p_email: email }),
