@@ -25,7 +25,8 @@ import {
   Users,
   Trash2,
   FileSpreadsheet,
-  Megaphone
+  Megaphone,
+  Brain
 } from "lucide-react";
 import { LiveChat } from "@/components/ui/LiveChat";
 import { NavItem } from "@/components/dashboard/NavItem";
@@ -274,6 +275,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       
       { name: "Audit Feed", href: `${basePath}/audit`, icon: Activity, hidden: r !== "admin" },
       { name: "Announcements", href: `${basePath}/announcements`, icon: Megaphone, hidden: r !== "admin" },
+      { name: "Learning Centre", href: `${basePath}/learning-centre`, icon: Brain, hidden: r !== "admin" },
       { name: "Delete Requests", href: `${basePath}/delete-requests`, icon: Trash2, hidden: r !== "admin" },
       { name: "NHIS Update", href: `${basePath}/nhis-update`, icon: FileSpreadsheet, hidden: r !== "admin" },
       { name: "Historical Import", href: `${basePath}/historical-import`, icon: FileSpreadsheet, hidden: r !== "admin" },
