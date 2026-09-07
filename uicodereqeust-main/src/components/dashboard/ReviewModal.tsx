@@ -230,10 +230,16 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
   // Normalise both hospital names to detect a mismatch
   const requestingHospitalName = String(request?.hospital_name || request?.requesting_hospital_name || "").trim();
   
-  const cleanString = (str: string) => str.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  const cleanHospitalName = (str: string) =>
+    str
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, " ")
+      .replace(/\b(of|ibadan|health|service|services)\b/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
   
-  const reqNameLower = cleanString(requestingHospitalName);
-  const primNameLower = cleanString(primaryHospital?.hcp_name || "");
+  const reqNameLower = cleanHospitalName(requestingHospitalName);
+  const primNameLower = cleanHospitalName(primaryHospital?.hcp_name || "");
   
   const codeMatch = Boolean(
     requestingHospitalCode && 
