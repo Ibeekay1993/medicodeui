@@ -946,9 +946,14 @@ serve(async (req) => {
   let body: any = {};
   try {
     body = await req.json();
-  } catch {}
-  if (body?.message_id) await processOne(supabase, String(body.message_id));
-  else await pollAndProcess(supabase);
+  } catch {
+    body = {};
+  }
+  if (body?.message_id) {
+    await processOne(supabase, String(body.message_id));
+    await enqueueRecentDecisionNotifications(supabase);
+    await processNotifications(supabase);
+  } else await pollAndProcess(supabase);
   return new Response(JSON.stringify({ ok: true }), {
     status: 200,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
