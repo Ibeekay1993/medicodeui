@@ -99,8 +99,8 @@ export function FloatingPanel({
   return createPortal(
     <div
       ref={panelRef}
-      onPointerDown={(event) => { event.preventDefault(); event.stopPropagation(); }}
-      onMouseDown={(event) => { event.preventDefault(); event.stopPropagation(); }}
+      onPointerDown={(event) => { event.stopPropagation(); }}
+      onMouseDown={(event) => { event.stopPropagation(); }}
       className={cn(
         "flex flex-col overflow-y-auto overscroll-contain rounded-xl border border-slate-200 bg-white text-popover-foreground shadow-2xl outline-none animate-in fade-in-0 zoom-in-95 duration-100",
         className,
@@ -116,4 +116,3 @@ export function FloatingPanel({
     portalTarget,
   );
 }
-
