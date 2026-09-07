@@ -86,6 +86,19 @@ export const PostReviewTemplates = React.memo(function PostReviewTemplates({
     return digits;
   };
 
+  const isWhatsAppRequest = () => {
+    if (String(request?.source || "").toLowerCase() === "whatsapp") return true;
+    const notes = request?.clinical_notes;
+    if (!notes) return false;
+    try {
+      const parsed = typeof notes === "string" ? JSON.parse(notes) : notes;
+      return String(parsed?.source || "").toLowerCase() === "whatsapp" ||
+        Boolean(parsed?.whatsapp_message_id || parsed?.whatsapp_sender_phone);
+    } catch {
+      return false;
+    }
+  };
+
   const getRequestSenderPhone = async () => {
     const notes = request?.clinical_notes;
     if (notes) {
@@ -123,6 +136,7 @@ export const PostReviewTemplates = React.memo(function PostReviewTemplates({
     // The authenticated sender is the authoritative recipient for this request.
     // It may no longer be present in the hospital's current contact list.
     if (senderPhone) return senderPhone;
+    if (isWhatsAppRequest()) return "";
     if (!hospitalId) return "";
 
     const { data, error } = await supabase
@@ -189,6 +203,9 @@ export const PostReviewTemplates = React.memo(function PostReviewTemplates({
       const msg = `${approvalHeading}\n\nPatient: ${approvalResult.patientName}\nPolicy No: ${approvalResult.policyNumber}\nAuth Code: ${approvalResult.authCode}\nHospital: ${approvalResult.hospitalName}${referralLine}\nDiagnosis: ${approvalResult.diagnosis}\n\n${serviceLines}\nDate: ${dateStr}\n\nPlease proceed only with the approved services listed above. Declined services must not be provided under this authorization. For clarification, please contact Ronsberger HMO before treatment.\n\nRonsberger HMO UI Desk`;
 
       if (!formatted) {
+        if (isWhatsAppRequest()) {
+          throw new Error("The WhatsApp sender number could not be verified for this request. The response was not sent.");
+        }
         navigator.clipboard.writeText(msg);
         toast({ title: "Copied!", description: "No phone on record. Copied response to clipboard." });
         return;
@@ -232,6 +249,9 @@ export const PostReviewTemplates = React.memo(function PostReviewTemplates({
       const msg = `*Ronsberger HMO*\n\n*AUTHORIZATION ${patientApprovalHeading}*\n\nHello *${approvalResult.patientName}*,\n\nWe are pleased to inform you that your treatment request submitted through *${approvalResult.hospitalName}* has been *${patientApprovalHeading.toLowerCase()}* by Ronsberger HMO.\n\nThe approved services are listed below.\n\n*Request Details*\n\nPatient: *${approvalResult.patientName}*\nPolicy No.: *${approvalResult.policyNumber}*\nHospital: *${approvalResult.hospitalName}*\nDiagnosis: *${approvalResult.diagnosis}*\nPriority: *${priorityStr}*\n\n*Approved Treatment / Services*\n\n${approvedItemsList}\n\n*Important Notice*\nPlease contact us immediately if these services were not fully rendered to you, or if you are asked to make any additional payments for the approved items listed above.\n\nThank you for choosing Ronsberger HMO.`;
 
       if (!formatted) {
+        if (isWhatsAppRequest()) {
+          throw new Error("The WhatsApp sender number could not be verified for this request. The response was not sent.");
+        }
         navigator.clipboard.writeText(msg);
         toast({ title: "Copied!", description: "No patient phone on record. Copied patient notice to clipboard." });
         return;
@@ -402,7 +422,7 @@ export const PostReviewTemplates = React.memo(function PostReviewTemplates({
             {sendingHospital ? <Loader2 className="w-4 h-4 animate-spin" /> : <Building2 className="w-4.5 h-4.5" />}
             Send Response to Hospital (WhatsApp)
           </Button>
-          {!loadingHospitalPhone && !hospitalPhone && (
+          {!loadingHospitalPhone && !hospitalPhone && !isWhatsAppRequest() && (
           <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3 space-y-1.5">
             <label htmlFor="hospital-approval-phone" className="text-xs font-black uppercase tracking-wider text-slate-600">
               Hospital WhatsApp number
@@ -529,7 +549,7 @@ export const PostReviewTemplates = React.memo(function PostReviewTemplates({
             {sendingDecline ? <Loader2 className="w-4.5 h-4.5 animate-spin" /> : <Send className="w-4.5 h-4.5" />}
             Send Decline Response via WhatsApp
           </Button>
-          {!loadingHospitalPhone && !hospitalPhone && (
+          {!loadingHospitalPhone && !hospitalPhone && !isWhatsAppRequest() && (
             <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3 space-y-1.5">
               <label htmlFor="hospital-decline-phone" className="text-xs font-black uppercase tracking-wider text-slate-600">
                 Hospital WhatsApp number
