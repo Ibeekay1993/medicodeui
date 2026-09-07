@@ -19,6 +19,19 @@ type AppRole = Database["public"]["Enums"]["app_role"];
 // ---------------------------------------------------------------------------
 const MAX_FAILED_ATTEMPTS = 3;
 const LOCKOUT_DURATION_MS = 30_000; // 30 seconds
+const AUTH_REQUEST_TIMEOUT_MS = 15_000;
+
+function withAuthTimeout<T>(promise: Promise<T>): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) =>
+      window.setTimeout(
+        () => reject(new Error("Authentication service did not respond in time.")),
+        AUTH_REQUEST_TIMEOUT_MS,
+      ),
+    ),
+  ]);
+}
 
 // ---------------------------------------------------------------------------
 export default function Login() {
@@ -191,10 +204,12 @@ export default function Login() {
     setIsLoading(true);
 
     try {
-      const { data, error: authError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+      const { data, error: authError } = await withAuthTimeout(
+        supabase.auth.signInWithPassword({
+          email,
+          password,
+        }),
+      );
       if (authError) throw authError;
 
       const userId = data.user?.id;
@@ -204,10 +219,14 @@ export default function Login() {
       const resolvedRole = await resolveRole(userId, userEmail);
 
       if (!resolvedRole) {
-        await supabase.auth.signOut();
+        await withAuthTimeout(supabase.auth.signOut()).catch((signOutError) => {
+          console.error("Login: sign-out after missing role timed out", signOutError);
+        });
         let dbAttempts = 3;
         try {
-          const { data: rpcData } = await (supabase.rpc as any)("record_failed_login", { p_email: email });
+          const { data: rpcData } = await withAuthTimeout(
+            (supabase.rpc as any)("record_failed_login", { p_email: email }),
+          );
           if (rpcData && typeof rpcData === "object") {
             dbAttempts = (rpcData as any).failed_attempts || 3;
           }
@@ -224,7 +243,9 @@ export default function Login() {
 
       // Reset throttle on successful login
       try {
-        await (supabase.rpc as any)("reset_failed_login", { p_email: userEmail });
+        await withAuthTimeout(
+          (supabase.rpc as any)("reset_failed_login", { p_email: userEmail }),
+        );
       } catch (rpcEx) {
         console.error("Failed to reset failed login attempts:", rpcEx);
       }
@@ -245,12 +266,18 @@ export default function Login() {
 
       // Wait for useEffect to navigate
     } catch (err: any) {
-      await supabase.auth.signOut();
+      try {
+        await withAuthTimeout(supabase.auth.signOut());
+      } catch (signOutError) {
+        console.error("Login: sign-out after failed authentication timed out", signOutError);
+      }
       
       let dbAttempts = 1;
       let dbStatus = "active";
       try {
-        const { data: rpcData, error: rpcErr } = await (supabase.rpc as any)("record_failed_login", { p_email: email });
+        const { data: rpcData, error: rpcErr } = await withAuthTimeout(
+          (supabase.rpc as any)("record_failed_login", { p_email: email }),
+        );
         if (!rpcErr && rpcData && typeof rpcData === "object") {
           dbAttempts = (rpcData as any).failed_attempts || 1;
           dbStatus = (rpcData as any).status || "active";

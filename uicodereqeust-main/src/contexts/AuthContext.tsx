@@ -28,6 +28,19 @@ const sessionInactivityTimeoutByRole: Partial<Record<AppRole, number>> = {
 };
 const defaultSessionInactivityTimeout = 60 * 60 * 1000;
 const maxSessionLifetime = 4 * 60 * 60 * 1000;
+const AUTH_REQUEST_TIMEOUT_MS = 15_000;
+
+function withAuthTimeout<T>(promise: Promise<T>): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) =>
+      window.setTimeout(
+        () => reject(new Error("Authentication service did not respond in time.")),
+        AUTH_REQUEST_TIMEOUT_MS,
+      ),
+    ),
+  ]);
+}
 
 function getJwtSubject(token: string) {
   try {
@@ -350,20 +363,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     mountedRef.current = true;
 
-    supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
-      if (!mountedRef.current) return;
-      if (initialSession?.access_token) {
-        prevTokenRef.current = initialSession.access_token;
-      }
+    withAuthTimeout(supabase.auth.getSession())
+      .then(({ data: { session: initialSession } }) => {
+        if (!mountedRef.current) return;
+        if (initialSession?.access_token) {
+          prevTokenRef.current = initialSession.access_token;
+        }
 
-      if (isResetPasswordRecoverySession(initialSession) && window.sessionStorage.getItem(resetSubmitStorageKey) !== "true") {
-        supabase.auth.signOut({ scope: "local" }).catch(() => undefined);
-        handleSession(null);
-        return;
-      }
+        if (isResetPasswordRecoverySession(initialSession) && window.sessionStorage.getItem(resetSubmitStorageKey) !== "true") {
+          supabase.auth.signOut({ scope: "local" }).catch(() => undefined);
+          handleSession(null);
+          return;
+        }
 
-      handleSession(initialSession);
-    });
+        handleSession(initialSession);
+      })
+      .catch((error) => {
+        console.error("AuthProvider: initial session lookup failed", error);
+        if (mountedRef.current) {
+          setSession(null);
+          setUser(null);
+          setRole(null);
+          setFullName(null);
+          setHospitalId(null);
+          setLoading(false);
+        }
+      });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, nextSession) => {
       if (!mountedRef.current) return;
@@ -459,4 +484,3 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
-
