@@ -99,16 +99,23 @@ export function FloatingPanel({
   return createPortal(
     <div
       ref={panelRef}
-      onPointerDown={(event) => { event.stopPropagation(); }}
-      onMouseDown={(event) => { event.stopPropagation(); }}
+      onPointerDownCapture={(event) => {
+        event.stopPropagation();
+        event.nativeEvent.stopImmediatePropagation();
+      }}
       className={cn(
-        "flex flex-col overflow-y-auto overscroll-contain rounded-xl border border-slate-200 bg-white text-popover-foreground shadow-2xl outline-none animate-in fade-in-0 zoom-in-95 duration-100",
+        "flex flex-col overflow-y-auto overscroll-contain rounded-xl border border-slate-200 bg-white text-popover-foreground shadow-2xl outline-none animate-in fade-in-0 zoom-in-95 duration-100 [&>button]:shrink-0",
         className,
       )}
       role="listbox"
       style={{
         ...style,
         zIndex: 2147483647,
+        overflowY: "auto",
+        overscrollBehavior: "contain",
+        pointerEvents: "auto",
+        touchAction: "pan-y",
+        WebkitOverflowScrolling: "touch",
       }}
     >
       {children}
