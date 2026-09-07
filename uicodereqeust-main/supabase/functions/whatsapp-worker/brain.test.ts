@@ -134,6 +134,13 @@ describe("extractAuthFieldsFromRaw", () => {
     expect(fields.patientPhone).toBe("09155186965");
     expect(fields.originatingHospital).toContain("UNIVERSITY");
   });
+
+  it("extracts phone numbers labeled as Phone no", () => {
+    const fields = extractAuthFieldsFromRaw(
+      "Full Name: BOSE ILORI\nNHIS No: 2173593-2\nPhone no: +2348059822412\nDiagnosis: DM + HTN",
+    );
+    expect(fields.patientPhone).toBe("+2348059822412");
+  });
 });
 
 describe("parsePolicyNumber", () => {

@@ -105,7 +105,7 @@ export function extractAuthFieldsFromRaw(
     ],
     [
       "patientPhone",
-      /^(?:\*?\s*(?:patient\s*)?(?:phone|mobile|telephone|tel)\s*\*?\s*:\s*)(.+)$/i,
+      /^(?:\*?\s*(?:patient\s*)?(?:phone|mobile|telephone|tel)(?:\s*(?:no|number))?\s*\*?\s*:\s*)(.+)$/i,
     ],
   ];
   for (const line of text.split(/\r?\n/)) {
