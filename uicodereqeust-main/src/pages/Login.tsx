@@ -185,7 +185,11 @@ export default function Login() {
       msg.includes("fetch") ||
       msg.includes("network") ||
       msg.includes("failed to fetch") ||
-      msg.includes("networkerror")
+      msg.includes("networkerror") ||
+      msg.includes("timed out") ||
+      msg.includes("timeout") ||
+      msg.includes("cors") ||
+      msg.includes("service unavailable")
     ) {
       return "Connection error. Please check your network and try again.";
     }
@@ -202,6 +206,7 @@ export default function Login() {
 
     setError("");
     setIsLoading(true);
+    let authenticationSucceeded = false;
 
     try {
       const { data, error: authError } = await withAuthTimeout(
@@ -211,6 +216,7 @@ export default function Login() {
         }),
       );
       if (authError) throw authError;
+      authenticationSucceeded = true;
 
       const userId = data.user?.id;
       const userEmail = data.user?.email ?? email;
@@ -301,6 +307,8 @@ export default function Login() {
           }).catch((err) => console.error("Failed to send reset email on lockout", err));
         }
         setError("Account locked due to 5 failed attempts. A password reset link has been sent to your email to regain access.");
+      } else if (authenticationSucceeded) {
+        setError("Your password was accepted, but your account profile could not be loaded. Please try again or contact support.");
       } else {
         const baseError = parseAuthError(err);
         if (effectiveAttempts === 3) {
