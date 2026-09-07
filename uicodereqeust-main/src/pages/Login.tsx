@@ -232,22 +232,7 @@ export default function Login() {
         await withAuthTimeout(supabase.auth.signOut()).catch((signOutError) => {
           console.error("Login: sign-out after missing role timed out", signOutError);
         });
-        let dbAttempts = 3;
-        try {
-          const { data: rpcData } = await withAuthTimeout(
-            (supabase.rpc as any)("record_failed_login", { p_email: email }),
-          );
-          if (rpcData && typeof rpcData === "object") {
-            dbAttempts = (rpcData as any).failed_attempts || 3;
-          }
-        } catch (rpcEx) {
-          console.error(rpcEx);
-        }
-        setFailedAttempts(dbAttempts);
-        if (dbAttempts >= MAX_FAILED_ATTEMPTS) {
-          setLockedUntil(Date.now() + LOCKOUT_DURATION_MS);
-        }
-        setError("Invalid credentials. Please check your email and password.");
+        setError("Your password was accepted, but your account profile could not be loaded. Please contact support.");
         return;
       }
 
