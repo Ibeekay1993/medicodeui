@@ -139,15 +139,19 @@ export const PostReviewTemplates = React.memo(function PostReviewTemplates({
       const reqRef = request?.request_id || request?.id?.slice(0, 8) || "REQ";
       const dateStr = new Date().toLocaleDateString("en-GB");
 
-      const itemLines = approvalResult.items.length
-        ? approvalResult.items
-            .map((item) =>
-              item.declined
-                ? `[DECLINED] ${item.code || "NHIA"} - ${item.name}${item.decline_reason ? ` (Reason: ${item.decline_reason})` : ""}`
-                : `${item.code || "NHIA"} - ${item.name}: ${itemQuantity(item)}`
-            )
-            .join("\n")
-        : approvalResult.treatment;
+      const approvedLines = approvalResult.items
+        .filter((item) => !item.declined)
+        .map((item) => `${item.code || "NHIA"} - ${item.name}: ${itemQuantity(item)}`)
+        .join("\n");
+      const declinedLines = approvalResult.items
+        .filter((item) => item.declined)
+        .map((item) => `${item.code || "NHIA"} - ${item.name}${item.decline_reason ? ` (Reason: ${item.decline_reason})` : ""}`)
+        .join("\n");
+      const serviceLines = approvalResult.items.length
+        ? `Approved Services:\n${approvedLines || "None"}${
+            declinedLines ? `\n\nDeclined Services:\n${declinedLines}` : ""
+          }`
+        : `Approved Services:\n${approvalResult.treatment}`;
 
       const requester = request?.requesting_hospital_name || request?.hospital_name || approvalResult.hospitalName;
       const referralLine = editReferralHospitalName.trim()
@@ -157,7 +161,7 @@ export const PostReviewTemplates = React.memo(function PostReviewTemplates({
       const approvalHeading = request?.status === "partially_approved"
         ? "AUTHORIZATION PARTIALLY APPROVED"
         : "AUTHORIZATION APPROVED";
-      const msg = `${approvalHeading}\n\nPatient: ${approvalResult.patientName}\nPolicy No: ${approvalResult.policyNumber}\nAuth Code: ${approvalResult.authCode}\nHospital: ${approvalResult.hospitalName}${referralLine}\nDiagnosis: ${approvalResult.diagnosis}\n\nApproved Items:\n${itemLines}\nDate: ${dateStr}\n\nPlease proceed only with the services listed as approved above. Services not listed as approved are not covered under this authorization. For clarification, please contact Ronsberger HMO before treatment.\n\nRonsberger HMO UI Desk`;
+      const msg = `${approvalHeading}\n\nPatient: ${approvalResult.patientName}\nPolicy No: ${approvalResult.policyNumber}\nAuth Code: ${approvalResult.authCode}\nHospital: ${approvalResult.hospitalName}${referralLine}\nDiagnosis: ${approvalResult.diagnosis}\n\n${serviceLines}\nDate: ${dateStr}\n\nPlease proceed only with the approved services listed above. Declined services must not be provided under this authorization. For clarification, please contact Ronsberger HMO before treatment.\n\nRonsberger HMO UI Desk`;
 
       if (!formatted) {
         navigator.clipboard.writeText(msg);
