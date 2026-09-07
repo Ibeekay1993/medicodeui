@@ -82,15 +82,14 @@ export function useClinicalVerification(
       let hasPolicyMatch = false;
       let hasNameMatch = false;
 
-      // 1. Fetch from nhis_beneficiaries ONCE to avoid duplicate queries and race conditions
+      // 1. Resolve the complete family through the canonical database policy
+      // resolver. This supports both suffixed and base-only registry records.
       if (policy || patientName) {
         if (policy) {
-          const exactLookup = await supabase.from("nhis_beneficiaries").select("*").eq("policy_number", policy);
-          matchedRows = exactLookup.data || [];
-          if (matchedRows.length === 0) {
-            const prefixLookup = await supabase.from("nhis_beneficiaries").select("*").ilike("policy_number", `${policy}%`);
-            matchedRows = prefixLookup.data || [];
-          }
+          const { data, error } = await (supabase as any)
+            .rpc("resolve_nhis_family_members", { _policy: request.policy_number });
+          if (error) throw error;
+          matchedRows = data || [];
         }
         
         hasPolicyMatch = matchedRows.length > 0;
@@ -111,30 +110,18 @@ export function useClinicalVerification(
       let bestMatchMemberId: string | null = null;
       
       if (hasNameMatch || hasPolicyMatch) {
-        const reqName = patientName.toLowerCase();
-        const reqTokens = reqName.split(/[\s,]+/).filter(Boolean);
-        let bestMatch = 0;
+        const normalizedRequestedName = patientName.toLowerCase().replace(/\s+/g, " ").trim();
+        const exactNameMatch = matchedRows.find((row) => {
+          const rowName = String(row.full_name || `${row.surname || ""} ${row.first_name || ""}`)
+            .toLowerCase()
+            .replace(/\s+/g, " ")
+            .trim();
+          return rowName === normalizedRequestedName;
+        });
 
-        for (const row of matchedRows) {
-          const rowName = String(row.full_name || `${row.surname || ""} ${row.first_name || ""}`).toLowerCase();
-          const rowTokens = rowName.split(/[\s,]+/).filter(Boolean);
-
-          let matches = 0;
-          for (const token of reqTokens) {
-            if (rowTokens.some(rt => rt === token || rt.includes(token) || token.includes(rt))) {
-              matches++;
-            }
-          }
-          if (matches > bestMatch) {
-            bestMatch = matches;
-            bestMatchMemberId = row.id;
-          }
-        }
-
-        if (bestMatch >= Math.max(2, reqTokens.length) || (bestMatch > 0 && reqTokens.length === 1)) {
+        if (exactNameMatch) {
           matchStatus = "exact";
-        } else if (bestMatch > 0) {
-          matchStatus = "partial";
+          bestMatchMemberId = exactNameMatch.id;
         } else {
           matchStatus = "none";
           bestMatchMemberId = null;

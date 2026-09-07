@@ -158,20 +158,25 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
     }
     let cancelled = false;
     setPrimaryHospitalLoading(true);
-    // The policy_number on a request is the family code (e.g. "3460764").
-    // nhis_beneficiaries stores it the same way. We match on the principal's
-    // record (member_type = PRINCIPAL) to get the registered hospital.
-    supabase
-      .from("nhis_beneficiaries")
-      .select("hcp_name, hcp_code")
-      .eq("policy_number", requestPolicyNumber)
-      .in("member_type", ["PRINCIPAL", "MEMBER"])
-      .limit(1)
-      .single()
-      .then(async ({ data }) => {
+    // Use the same family-policy resolver as patient verification so a
+    // suffixed request policy can still find the principal's hospital.
+    (supabase as any)
+      .rpc("resolve_nhis_family_members", { _policy: requestPolicyNumber })
+      .then(async ({ data, error }: { data: any[] | null; error: unknown }) => {
+        if (error) {
+          console.error("Primary hospital family lookup error:", error);
+          if (!cancelled) {
+            setPrimaryHospital(null);
+            setPrimaryHospitalLoading(false);
+          }
+          return;
+        }
+        const principal = (data || []).find((member) =>
+          ["PRINCIPAL", "MEMBER"].includes(String(member.member_type || "").toUpperCase())
+        );
         if (!cancelled) {
-          let hcp_name = data?.hcp_name || "";
-          const hcp_code = data?.hcp_code || "";
+          let hcp_name = principal?.hcp_name || "";
+          const hcp_code = principal?.hcp_code || "";
           
           if (hcp_code) {
             const { data: hospData } = await supabase.from("hospitals").select("name").eq("code", hcp_code).maybeSingle();
@@ -180,7 +185,7 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
             }
           }
           
-          setPrimaryHospital(data ? { hcp_name, hcp_code } : null);
+          setPrimaryHospital(principal ? { hcp_name, hcp_code } : null);
           setPrimaryHospitalLoading(false);
         }
       });
