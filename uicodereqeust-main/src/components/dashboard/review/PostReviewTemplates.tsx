@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import {
   CheckCircle,
@@ -74,6 +75,8 @@ export const PostReviewTemplates = React.memo(function PostReviewTemplates({
   const [sendingHospital, setSendingHospital] = useState(false);
   const [sendingPatient, setSendingPatient] = useState(false);
   const [sendingDecline, setSendingDecline] = useState(false);
+  const [hospitalPhone, setHospitalPhone] = useState("");
+  const [loadingHospitalPhone, setLoadingHospitalPhone] = useState(false);
 
   const handleCopyCodeOnly = () => {
     if (!approvalResult) return;
@@ -109,11 +112,30 @@ export const PostReviewTemplates = React.memo(function PostReviewTemplates({
     return formatPhoneNumber(data?.phone_number || "");
   };
 
+  useEffect(() => {
+    if (!approvalResult) return;
+    let cancelled = false;
+    setLoadingHospitalPhone(true);
+    getRequestingHospitalPhone()
+      .then((phone) => {
+        if (!cancelled) setHospitalPhone(phone);
+      })
+      .catch((error) => {
+        console.error("Could not load hospital WhatsApp number", error);
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingHospitalPhone(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [approvalResult, request?.requesting_hospital_id, request?.hospital_id]);
+
   const handleSendToHospital = async () => {
     if (!approvalResult) return;
     setSendingHospital(true);
     try {
-      const formatted = await getRequestingHospitalPhone();
+      const formatted = formatPhoneNumber(hospitalPhone) || await getRequestingHospitalPhone();
       const reqRef = request?.request_id || request?.id?.slice(0, 8) || "REQ";
       const dateStr = new Date().toLocaleDateString("en-GB");
 
@@ -132,7 +154,7 @@ export const PostReviewTemplates = React.memo(function PostReviewTemplates({
         ? `\nRequest Raised By: ${requester}\nReferral To: ${editReferralHospitalName.trim()}\nClaim Rights: ${editReferralHospitalName.trim()} only`
         : "";
 
-      const msg = `AUTHORIZATION APPROVED\n\nPatient: ${approvalResult.patientName}\nPolicy No: ${approvalResult.policyNumber}\nAuth Code: ${approvalResult.authCode}\nHospital: ${approvalResult.hospitalName}${referralLine}\nDiagnosis: ${approvalResult.diagnosis}\n\nApproved Items:\n${itemLines}\nDate: ${dateStr}\n\nPlease present this code at the hospital reception.\nRonsberger HMO UI Desk`;
+      const msg = `AUTHORIZATION APPROVED\n\nPatient: ${approvalResult.patientName}\nPolicy No: ${approvalResult.policyNumber}\nAuth Code: ${approvalResult.authCode}\nHospital: ${approvalResult.hospitalName}${referralLine}\nDiagnosis: ${approvalResult.diagnosis}\n\nApproved Items:\n${itemLines}\nDate: ${dateStr}\nRonsberger HMO UI Desk`;
 
       if (!formatted) {
         navigator.clipboard.writeText(msg);
@@ -341,12 +363,28 @@ export const PostReviewTemplates = React.memo(function PostReviewTemplates({
           {/* Primary Action 1: Send Response to Hospital via WhatsApp */}
           <Button
             onClick={handleSendToHospital}
-            disabled={sendingHospital}
+            disabled={sendingHospital || loadingHospitalPhone}
             className="w-full h-13 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs sm:text-sm gap-2 shadow-lg shadow-emerald-100 uppercase tracking-widest transition-transform hover:scale-[1.01]"
           >
             {sendingHospital ? <Loader2 className="w-4 h-4 animate-spin" /> : <Building2 className="w-4.5 h-4.5" />}
             Send Response to Hospital (WhatsApp)
           </Button>
+          <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3 space-y-1.5">
+            <label htmlFor="hospital-approval-phone" className="text-xs font-black uppercase tracking-wider text-slate-600">
+              Hospital WhatsApp number
+            </label>
+            <Input
+              id="hospital-approval-phone"
+              value={hospitalPhone}
+              onChange={(event) => setHospitalPhone(event.target.value)}
+              placeholder="Enter hospital number if none is on record"
+              inputMode="tel"
+              className="h-10 rounded-lg bg-white"
+            />
+            <p className="text-xs font-medium text-slate-500">
+              Use the requesting hospital&apos;s number. The approval will be sent to this number.
+            </p>
+          </div>
 
           {/* Primary Action 2: Notify Patient via WhatsApp */}
           <Button
