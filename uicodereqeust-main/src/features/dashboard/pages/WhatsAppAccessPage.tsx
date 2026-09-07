@@ -354,7 +354,7 @@ export default function WhatsAppAccessPage() {
           <div>
             <div className="flex items-center gap-2">
               <MessageSquare className="h-5 w-5 text-emerald-600" />
-              <h2 className="text-lg font-semibold text-slate-900">Hospital WhatsApp Access Control</h2>
+              <h2 className="text-lg font-semibold text-slate-900">WhatsApp Access Control</h2>
             </div>
             <p className="mt-1 max-w-2xl text-sm text-slate-500">
               Register and authorize official hospital WhatsApp numbers. Only active numbers in this registry are granted medical authorization privileges.
