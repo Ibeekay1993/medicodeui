@@ -667,7 +667,7 @@ async function processMessageBody(
           },
           active_intent: "INCOMPLETE_AUTHORIZATION",
         });
-        finalReply = `I have started your authorization request${patientName ? ` for ${patientName}` : ""}, but I still need:\n\n${missing.map((x) => `• ${x}`).join("\n")}\n\nPlease reply with the missing details to complete the request.\n\n— Ronsberger HMO`;
+        finalReply = `I have started your authorization request${patientName ? ` for ${patientName}` : ""}, but I still need:\n\n${missing.map((x) => `• ${x}`).join("\n")}\n\nPlease resend the full authorization request, including the missing details above, so we can complete it.\n\n— Ronsberger HMO`;
         priority = Math.max(priority, 3);
         continue;
       }
