@@ -92,12 +92,28 @@ export const PostReviewTemplates = React.memo(function PostReviewTemplates({
     return digits;
   };
 
+  const getRequestingHospitalPhone = async () => {
+    const hospitalId = request?.requesting_hospital_id || request?.hospital_id;
+    if (!hospitalId) return "";
+
+    const { data, error } = await supabase
+      .from("hospital_whatsapp_contacts")
+      .select("phone_number")
+      .eq("hospital_id", hospitalId)
+      .eq("status", "active")
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (error) throw error;
+    return formatPhoneNumber(data?.phone_number || "");
+  };
+
   const handleSendToHospital = async () => {
     if (!approvalResult) return;
     setSendingHospital(true);
     try {
-      const rawPhone = request?.patient_phone || request?.phone_number || "";
-      const formatted = formatPhoneNumber(rawPhone);
+      const formatted = await getRequestingHospitalPhone();
       const reqRef = request?.request_id || request?.id?.slice(0, 8) || "REQ";
       const dateStr = new Date().toLocaleDateString("en-GB");
 
@@ -189,8 +205,7 @@ export const PostReviewTemplates = React.memo(function PostReviewTemplates({
     if (!declineResult) return;
     setSendingDecline(true);
     try {
-      const rawPhone = request?.patient_phone || request?.phone_number || "";
-      const formatted = formatPhoneNumber(rawPhone);
+      const formatted = await getRequestingHospitalPhone();
       const reqRef = request?.request_id || request?.id?.slice(0, 8) || "REQ";
 
       const msg = `*Ronsberger HMO*\n\n*AUTHORIZATION DECLINED*\n\n*Reference:* ${reqRef}\n*Patient:* ${declineResult.patientName}\n*Policy No:* ${declineResult.policyNumber}\n*Hospital:* ${declineResult.hospitalName}\n*Diagnosis:* ${declineResult.diagnosis}\n\n*Reason for Decline:*\n${declineResult.reason}\n\nIf you need clarification, please reply to this message.\n\n— Ronsberger HMO Medical Desk`;
