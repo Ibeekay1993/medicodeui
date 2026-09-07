@@ -154,7 +154,10 @@ export const PostReviewTemplates = React.memo(function PostReviewTemplates({
         ? `\nRequest Raised By: ${requester}\nReferral To: ${editReferralHospitalName.trim()}\nClaim Rights: ${editReferralHospitalName.trim()} only`
         : "";
 
-      const msg = `AUTHORIZATION APPROVED\n\nPatient: ${approvalResult.patientName}\nPolicy No: ${approvalResult.policyNumber}\nAuth Code: ${approvalResult.authCode}\nHospital: ${approvalResult.hospitalName}${referralLine}\nDiagnosis: ${approvalResult.diagnosis}\n\nApproved Items:\n${itemLines}\nDate: ${dateStr}\n\nPlease proceed only with the services listed as approved above. Services not listed as approved are not covered under this authorization. For clarification, please contact Ronsberger HMO before treatment.\n\nRonsberger HMO UI Desk`;
+      const approvalHeading = request?.status === "partially_approved"
+        ? "AUTHORIZATION PARTIALLY APPROVED"
+        : "AUTHORIZATION APPROVED";
+      const msg = `${approvalHeading}\n\nPatient: ${approvalResult.patientName}\nPolicy No: ${approvalResult.policyNumber}\nAuth Code: ${approvalResult.authCode}\nHospital: ${approvalResult.hospitalName}${referralLine}\nDiagnosis: ${approvalResult.diagnosis}\n\nApproved Items:\n${itemLines}\nDate: ${dateStr}\n\nPlease proceed only with the services listed as approved above. Services not listed as approved are not covered under this authorization. For clarification, please contact Ronsberger HMO before treatment.\n\nRonsberger HMO UI Desk`;
 
       if (!formatted) {
         navigator.clipboard.writeText(msg);
@@ -188,6 +191,9 @@ export const PostReviewTemplates = React.memo(function PostReviewTemplates({
       const rawPhone = request?.patient_phone || "";
       const formatted = formatPhoneNumber(rawPhone);
       const priorityStr = (request?.urgency || "ROUTINE").toUpperCase();
+      const patientApprovalHeading = request?.status === "partially_approved"
+        ? "PARTIALLY APPROVED"
+        : "APPROVED";
 
       const approvedItemsList = approvalResult.items.length
         ? approvalResult.items
@@ -196,7 +202,7 @@ export const PostReviewTemplates = React.memo(function PostReviewTemplates({
             .join("\n")
         : (approvalResult.treatment ? `• *${approvalResult.treatment}*` : "• *Approved as prescribed*");
 
-      const msg = `*Ronsberger HMO*\n\n*AUTHORIZATION APPROVED*\n\nHello *${approvalResult.patientName}*,\n\nWe are pleased to inform you that your treatment request submitted through *${approvalResult.hospitalName}* has been *approved* by Ronsberger HMO.\n\nYour requested treatment has been authorized based on the diagnosis and request details below.\n\n*Request Details*\n\nPatient: *${approvalResult.patientName}*\nPolicy No.: *${approvalResult.policyNumber}*\nHospital: *${approvalResult.hospitalName}*\nDiagnosis: *${approvalResult.diagnosis}*\nPriority: *${priorityStr}*\n\n*Approved Treatment / Services*\n\n${approvedItemsList}\n\n*Important Notice*\nPlease contact us immediately if these services were not fully rendered to you, or if you are asked to make any additional payments for the approved items listed above.\n\nThank you for choosing Ronsberger HMO.`;
+      const msg = `*Ronsberger HMO*\n\n*AUTHORIZATION ${patientApprovalHeading}*\n\nHello *${approvalResult.patientName}*,\n\nWe are pleased to inform you that your treatment request submitted through *${approvalResult.hospitalName}* has been *${patientApprovalHeading.toLowerCase()}* by Ronsberger HMO.\n\nThe approved services are listed below.\n\n*Request Details*\n\nPatient: *${approvalResult.patientName}*\nPolicy No.: *${approvalResult.policyNumber}*\nHospital: *${approvalResult.hospitalName}*\nDiagnosis: *${approvalResult.diagnosis}*\nPriority: *${priorityStr}*\n\n*Approved Treatment / Services*\n\n${approvedItemsList}\n\n*Important Notice*\nPlease contact us immediately if these services were not fully rendered to you, or if you are asked to make any additional payments for the approved items listed above.\n\nThank you for choosing Ronsberger HMO.`;
 
       if (!formatted) {
         navigator.clipboard.writeText(msg);
@@ -258,11 +264,15 @@ export const PostReviewTemplates = React.memo(function PostReviewTemplates({
   };
 
   if (approvalResult) {
+    const isPartiallyApproved = request?.status === "partially_approved";
+    const approvalHeading = isPartiallyApproved ? "AUTHORIZATION PARTIALLY APPROVED" : "AUTHORIZATION APPROVED";
     return (
       <div className="space-y-6 animate-in fade-in zoom-in-95 duration-300">
         <div className="text-center p-6 sm:p-8 bg-emerald-50/70 rounded-3xl border border-emerald-100 relative overflow-hidden shadow-xs">
           <CheckCircle className="w-12 h-12 sm:w-14 sm:h-14 mx-auto mb-3 text-emerald-600" />
-          <p className="text-xs uppercase font-black tracking-widest text-emerald-800/60 mb-2">Approved Auth Code</p>
+          <p className="text-xs uppercase font-black tracking-widest text-emerald-800/60 mb-2">
+            {isPartiallyApproved ? "Partially Approved Auth Code" : "Approved Auth Code"}
+          </p>
           <p className="text-3xl sm:text-4xl font-black text-emerald-700 tracking-tighter tabular-nums break-all">
             {approvalResult.authCode}
           </p>

@@ -114,7 +114,7 @@ export function useClinicalActions({
           }))
         : [];
 
-      if (request.status === "approved") {
+      if (request.status === "approved" || request.status === "partially_approved") {
         setApprovalResult({
           authCode: request.authorization_code || "Pending",
           patientName: cleanPatientName(request.patient_name),
@@ -824,10 +824,14 @@ export function useClinicalActions({
           .join("\n")
       : approvalResult.treatment;
     const requester = request.requesting_hospital_name || request.hospital_name || approvalResult.hospitalName;
+    const approvalHeading =
+      request.status === "partially_approved"
+        ? "AUTHORIZATION PARTIALLY APPROVED"
+        : "AUTHORIZATION APPROVED";
     const referralLine = editReferralHospitalName.trim()
       ? `\nRequest Raised By: ${requester}\nReferral To: ${editReferralHospitalName.trim()}\nClaim Rights: ${editReferralHospitalName.trim()} only`
       : "";
-    const msg = `AUTHORIZATION APPROVED\n\nPatient: ${approvalResult.patientName}\nPolicy No: ${approvalResult.policyNumber}\nAuth Code: ${approvalResult.authCode}\nHospital: ${approvalResult.hospitalName}${referralLine}\nDiagnosis: ${approvalResult.diagnosis}\n\nApproved Items:\n${itemLines}\n\nTotal Approved: ${formatNaira(
+    const msg = `${approvalHeading}\n\nPatient: ${approvalResult.patientName}\nPolicy No: ${approvalResult.policyNumber}\nAuth Code: ${approvalResult.authCode}\nHospital: ${approvalResult.hospitalName}${referralLine}\nDiagnosis: ${approvalResult.diagnosis}\n\nApproved Items:\n${itemLines}\n\nTotal Approved: ${formatNaira(
       approvalResult.totalAmount
     )}\nDate: ${dateStr}\n\nPlease proceed only with the services listed as approved above. Services not listed as approved are not covered under this authorization. For clarification, please contact Ronsberger HMO before treatment.\n\nRonsberger HMO UI Desk`;
     navigator.clipboard.writeText(msg);
