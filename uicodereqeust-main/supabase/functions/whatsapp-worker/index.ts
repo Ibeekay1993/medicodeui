@@ -832,7 +832,7 @@ async function processNotifications(
         recipient = msgs?.[0]?.phone_number || note.phone_number,
         { data: auth } = await supabase
           .from("authorization_requests")
-          .select("patient_name,status,decision_reason")
+          .select("patient_name,status,decision_reason,approved_items,treatment")
           .eq("id", note.authorization_request_id)
           .single();
       if (!recipient || !auth)
@@ -840,6 +840,18 @@ async function processNotifications(
       let body = "";
       if (note.notification_type === "APPROVAL")
         body = `Authorization Update\n\n${auth.patient_name}'s medical authorization request has been approved.\n\n— Ronsberger HMO`;
+      else if (note.notification_type === "PARTIAL_APPROVAL") {
+        const items = Array.isArray(auth.approved_items) ? auth.approved_items : [];
+        const approved = items
+          .filter((item: any) => !item?.declined)
+          .map((item: any) => `• ${item?.name || item?.code || "Approved service"}`)
+          .join("\n") || `• ${auth.treatment || "See the authorization record"}`;
+        const declined = items
+          .filter((item: any) => item?.declined)
+          .map((item: any) => `• ${item?.name || item?.code || "Declined service"}${item?.decline_reason ? ` — ${item.decline_reason}` : ""}`)
+          .join("\n");
+        body = `Authorization Update\n\n${auth.patient_name}'s medical authorization request has been partially approved.\n\nApproved services:\n${approved}${declined ? `\n\nDeclined services:\n${declined}` : ""}\n\nPlease provide only the approved services. Declined services must not be provided under this authorization.\n\n— Ronsberger HMO`;
+      }
       else if (note.notification_type === "REJECTION")
         body = `Authorization Update\n\n${auth.patient_name}'s medical authorization request has not been approved.\n\nReason: ${auth.decision_reason || "Does not meet clinical policy guidelines"}\n\nIf you need clarification or would like to provide additional information, please reply to this message.\n\n— Ronsberger HMO`;
       else throw new Error("unknown notification type");
@@ -860,6 +872,52 @@ async function processNotifications(
     }
   }
 }
+
+async function enqueueRecentDecisionNotifications(
+  supabase: ReturnType<typeof getServiceClient>,
+) {
+  const cutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+  const { data: requests, error } = await supabase
+    .from("authorization_requests")
+    .select("id,status")
+    .eq("source", "whatsapp")
+    .in("status", ["approved", "partially_approved", "rejected"])
+    .gte("updated_at", cutoff)
+    .limit(WORKER_BATCH * 5);
+  if (error) {
+    log("notification_backfill", "worker", "error", { error: error.message });
+    return;
+  }
+
+  for (const request of requests || []) {
+    const { data: existing } = await supabase
+      .from("whatsapp_notifications")
+      .select("id")
+      .eq("authorization_request_id", request.id)
+      .limit(1);
+    if (existing?.length) continue;
+
+    const notificationType =
+      request.status === "approved"
+        ? "APPROVAL"
+        : request.status === "partially_approved"
+        ? "PARTIAL_APPROVAL"
+        : "REJECTION";
+    const { error: insertError } = await supabase
+      .from("whatsapp_notifications")
+      .insert({
+      authorization_request_id: request.id,
+      notification_type: notificationType,
+      status: "pending",
+      });
+    if (insertError) {
+      log("notification_backfill", String(request.id), "error", {
+        error: insertError.message,
+      });
+    }
+  }
+}
+
 async function pollAndProcess(supabase: ReturnType<typeof getServiceClient>) {
   const now = new Date().toISOString();
   const { data: rows } = await supabase
@@ -869,6 +927,7 @@ async function pollAndProcess(supabase: ReturnType<typeof getServiceClient>) {
     .or(`next_attempt_at.is.null,next_attempt_at.lte.${now}`)
     .order("received_at", { ascending: true })
     .limit(WORKER_BATCH);
+  await enqueueRecentDecisionNotifications(supabase);
   await processNotifications(supabase);
   for (const r of rows || []) await processOne(supabase, r.message_id);
 }

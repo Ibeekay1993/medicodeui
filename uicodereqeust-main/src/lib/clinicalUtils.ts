@@ -60,7 +60,7 @@ export function cleanDiagnosisText(diagnosis: string, patientName: string) {
 
 export function normalizePolicyNumber(value: unknown) {
   return String(value ?? "")
-    .replace(/[^\dA-Za-z]/g, "")
+    .replace(/[^\dA-Za-z-]/g, "")
     .replace(/\.0+$/, "")
     .trim();
 }

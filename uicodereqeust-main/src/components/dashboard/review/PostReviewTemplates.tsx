@@ -78,6 +78,36 @@ export const PostReviewTemplates = React.memo(function PostReviewTemplates({
   const [hospitalPhone, setHospitalPhone] = useState("");
   const [loadingHospitalPhone, setLoadingHospitalPhone] = useState(false);
 
+  const formatPhoneNumber = (raw: string) => {
+    const digits = String(raw || "").replace(/\D/g, "");
+    if (digits.startsWith("234")) return digits;
+    if (digits.length === 10) return "234" + digits;
+    if (digits.length === 11 && digits.startsWith("0")) return "234" + digits.slice(1);
+    return digits;
+  };
+
+  const getRequestSenderPhone = async () => {
+    const notes = request?.clinical_notes;
+    if (notes) {
+      try {
+        const parsed = typeof notes === "string" ? JSON.parse(notes) : notes;
+        if (parsed?.whatsapp_sender_phone) return formatPhoneNumber(parsed.whatsapp_sender_phone);
+      } catch {
+        // Older requests may contain plain-text clinical notes.
+      }
+    }
+    if (!request?.id) return "";
+    const { data, error } = await supabase
+      .from("whatsapp_messages")
+      .select("phone_number")
+      .eq("authorization_request_id", request.id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (error) throw error;
+    return formatPhoneNumber(data?.phone_number || "");
+  };
+
   const handleCopyCodeOnly = () => {
     if (!approvalResult) return;
     navigator.clipboard.writeText(approvalResult.authCode);
@@ -87,16 +117,12 @@ export const PostReviewTemplates = React.memo(function PostReviewTemplates({
     });
   };
 
-  const formatPhoneNumber = (raw: string) => {
-    const digits = String(raw || "").replace(/\D/g, "");
-    if (digits.startsWith("234")) return digits;
-    if (digits.length === 10) return "234" + digits;
-    if (digits.length === 11 && digits.startsWith("0")) return "234" + digits.slice(1);
-    return digits;
-  };
-
   const getRequestingHospitalPhone = async () => {
     const hospitalId = request?.requesting_hospital_id || request?.hospital_id;
+    const senderPhone = await getRequestSenderPhone();
+    // The authenticated sender is the authoritative recipient for this request.
+    // It may no longer be present in the hospital's current contact list.
+    if (senderPhone) return senderPhone;
     if (!hospitalId) return "";
 
     const { data, error } = await supabase
@@ -104,16 +130,15 @@ export const PostReviewTemplates = React.memo(function PostReviewTemplates({
       .select("phone_number")
       .eq("hospital_id", hospitalId)
       .eq("status", "active")
-      .order("updated_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+      .order("updated_at", { ascending: false });
 
     if (error) throw error;
-    return formatPhoneNumber(data?.phone_number || "");
+    const contacts = data || [];
+    return contacts.length === 1 ? formatPhoneNumber(contacts[0].phone_number || "") : "";
   };
 
   useEffect(() => {
-    if (!approvalResult) return;
+    if (!approvalResult && !declineResult) return;
     let cancelled = false;
     setLoadingHospitalPhone(true);
     getRequestingHospitalPhone()
@@ -129,7 +154,7 @@ export const PostReviewTemplates = React.memo(function PostReviewTemplates({
     return () => {
       cancelled = true;
     };
-  }, [approvalResult, request?.requesting_hospital_id, request?.hospital_id]);
+  }, [approvalResult, declineResult, request?.id, request?.clinical_notes, request?.requesting_hospital_id, request?.hospital_id]);
 
   const handleSendToHospital = async () => {
     if (!approvalResult) return;
@@ -174,9 +199,7 @@ export const PostReviewTemplates = React.memo(function PostReviewTemplates({
       });
 
       if (error || !data?.success) {
-        const url = `https://wa.me/${formatted}?text=${encodeURIComponent(msg)}`;
-        window.open(url, "_blank");
-        toast({ title: "Opening WhatsApp...", description: "Switched to direct WhatsApp web" });
+        throw new Error("WhatsApp delivery failed. Please verify the hospital number and try again.");
       } else {
         toast({ title: "WhatsApp Sent to Hospital!", description: `Response sent to ${formatted}` });
       }
@@ -219,9 +242,7 @@ export const PostReviewTemplates = React.memo(function PostReviewTemplates({
       });
 
       if (error || !data?.success) {
-        const url = `https://wa.me/${formatted}?text=${encodeURIComponent(msg)}`;
-        window.open(url, "_blank");
-        toast({ title: "Opening WhatsApp...", description: "Switched to direct WhatsApp web" });
+        throw new Error("WhatsApp delivery failed. Please verify the patient number and try again.");
       } else {
         toast({ title: "Patient Notified!", description: `Approval PIN sent to patient (${formatted})` });
       }
@@ -253,9 +274,7 @@ export const PostReviewTemplates = React.memo(function PostReviewTemplates({
       });
 
       if (error || !data?.success) {
-        const url = `https://wa.me/${formatted}?text=${encodeURIComponent(msg)}`;
-        window.open(url, "_blank");
-        toast({ title: "Opening WhatsApp...", description: "Switched to direct WhatsApp web" });
+        throw new Error("WhatsApp delivery failed. Please verify the hospital number and try again.");
       } else {
         toast({ title: "Decline Sent via WhatsApp!", description: `Decline notice sent to ${formatted}` });
       }
@@ -383,6 +402,7 @@ export const PostReviewTemplates = React.memo(function PostReviewTemplates({
             {sendingHospital ? <Loader2 className="w-4 h-4 animate-spin" /> : <Building2 className="w-4.5 h-4.5" />}
             Send Response to Hospital (WhatsApp)
           </Button>
+          {!loadingHospitalPhone && !hospitalPhone && (
           <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3 space-y-1.5">
             <label htmlFor="hospital-approval-phone" className="text-xs font-black uppercase tracking-wider text-slate-600">
               Hospital WhatsApp number
@@ -399,6 +419,7 @@ export const PostReviewTemplates = React.memo(function PostReviewTemplates({
               Use the requesting hospital&apos;s number. The approval will be sent to this number.
             </p>
           </div>
+          )}
 
           {/* Primary Action 2: Notify Patient via WhatsApp */}
           <Button
@@ -502,12 +523,30 @@ export const PostReviewTemplates = React.memo(function PostReviewTemplates({
         <div className="flex flex-col gap-2.5">
           <Button
             onClick={handleSendDeclineToHospital}
-            disabled={sendingDecline}
+            disabled={sendingDecline || loadingHospitalPhone}
             className="w-full h-14 rounded-2xl bg-rose-600 hover:bg-rose-700 text-white font-black text-sm gap-2 shadow-lg shadow-rose-100 uppercase tracking-widest transition-transform hover:scale-[1.01]"
           >
             {sendingDecline ? <Loader2 className="w-4.5 h-4.5 animate-spin" /> : <Send className="w-4.5 h-4.5" />}
             Send Decline Response via WhatsApp
           </Button>
+          {!loadingHospitalPhone && !hospitalPhone && (
+            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3 space-y-1.5">
+              <label htmlFor="hospital-decline-phone" className="text-xs font-black uppercase tracking-wider text-slate-600">
+                Hospital WhatsApp number
+              </label>
+              <Input
+                id="hospital-decline-phone"
+                value={hospitalPhone}
+                onChange={(event) => setHospitalPhone(event.target.value)}
+                placeholder="Enter hospital number if none is on record"
+                inputMode="tel"
+                className="h-10 rounded-lg bg-white"
+              />
+              <p className="text-xs font-medium text-slate-500">
+                Use the requesting hospital&apos;s number. The decline will be sent to this number.
+              </p>
+            </div>
+          )}
 
           <Button
             onClick={copyDeclineMessage}
