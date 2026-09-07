@@ -156,7 +156,7 @@ async function postAuthorization(
     });
     if (res.ok) {
       const j = await res.json();
-      if (j?.id)
+      if (j?.id) {
         const patientPhone = normalizePhoneNumber(String(payload.phone_number || ""));
         const { data: otp } = await supabase
           .from("otp_verifications")
@@ -171,6 +171,7 @@ async function postAuthorization(
           patient_phone: patientPhone,
           arrival_pin: String(otp?.otp_value || ""),
         };
+      }
     }
   } catch (e) {
     console.warn(
