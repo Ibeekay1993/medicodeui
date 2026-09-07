@@ -110,12 +110,23 @@ export function useClinicalVerification(
       let bestMatchMemberId: string | null = null;
       
       if (hasNameMatch || hasPolicyMatch) {
-        const normalizedRequestedName = patientName.toLowerCase().replace(/\s+/g, " ").trim();
+        const normalizedRequestedName = patientName
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, " ")
+          .trim()
+          .split(/\s+/)
+          .filter(Boolean)
+          .sort()
+          .join(" ");
         const exactNameMatch = matchedRows.find((row) => {
           const rowName = String(row.full_name || `${row.surname || ""} ${row.first_name || ""}`)
             .toLowerCase()
-            .replace(/\s+/g, " ")
-            .trim();
+            .replace(/[^a-z0-9]+/g, " ")
+            .trim()
+            .split(/\s+/)
+            .filter(Boolean)
+            .sort()
+            .join(" ");
           return rowName === normalizedRequestedName;
         });
 
