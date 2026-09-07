@@ -126,11 +126,13 @@ export default function Login() {
     userId: string,
     userEmail: string
   ): Promise<AppRole | null> => {
-    const { data: roleRow } = await (supabase as any)
+    const { data: roleRow, error: roleError } = await (supabase as any)
       .from("user_roles")
       .select("role, access_status, onboarding_completed")
       .eq("user_id", userId)
       .maybeSingle();
+
+    if (roleError) throw roleError;
 
     if (roleRow) {
       const status = accessStatus(roleRow as any);
@@ -151,11 +153,13 @@ export default function Login() {
       return healed[0].out_role as AppRole;
     }
 
-    const { data: retry } = await (supabase as any)
+    const { data: retry, error: retryError } = await (supabase as any)
       .from("user_roles")
       .select("role, access_status, onboarding_completed")
       .eq("user_id", userId)
       .maybeSingle();
+
+    if (retryError) throw retryError;
 
     if (retry) {
       const status = accessStatus(retry as any);
@@ -280,16 +284,18 @@ export default function Login() {
       
       let dbAttempts = 1;
       let dbStatus = "active";
-      try {
-        const { data: rpcData, error: rpcErr } = await withAuthTimeout(
-          (supabase.rpc as any)("record_failed_login", { p_email: email }),
-        );
-        if (!rpcErr && rpcData && typeof rpcData === "object") {
-          dbAttempts = (rpcData as any).failed_attempts || 1;
-          dbStatus = (rpcData as any).status || "active";
+      if (!authenticationSucceeded) {
+        try {
+          const { data: rpcData, error: rpcErr } = await withAuthTimeout(
+            (supabase.rpc as any)("record_failed_login", { p_email: email }),
+          );
+          if (!rpcErr && rpcData && typeof rpcData === "object") {
+            dbAttempts = (rpcData as any).failed_attempts || 1;
+            dbStatus = (rpcData as any).status || "active";
+          }
+        } catch (rpcEx) {
+          console.error("Failed to record login attempt in DB:", rpcEx);
         }
-      } catch (rpcEx) {
-        console.error("Failed to record login attempt in DB:", rpcEx);
       }
 
       const localAttempts = failedAttempts + 1;
