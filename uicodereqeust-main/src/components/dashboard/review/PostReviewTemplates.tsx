@@ -77,6 +77,7 @@ export const PostReviewTemplates = React.memo(function PostReviewTemplates({
   const [sendingDecline, setSendingDecline] = useState(false);
   const [hospitalPhone, setHospitalPhone] = useState("");
   const [loadingHospitalPhone, setLoadingHospitalPhone] = useState(false);
+  const [hospitalContacts, setHospitalContacts] = useState<Array<{ phone_number: string; contact_name?: string | null; hospital_id?: string | null }>>([]);
 
   const formatPhoneNumber = (raw: string) => {
     const digits = String(raw || "").replace(/\D/g, "");
@@ -100,6 +101,7 @@ export const PostReviewTemplates = React.memo(function PostReviewTemplates({
   };
 
   const getRequestSenderPhone = async () => {
+    if (!isWhatsAppRequest()) return "";
     const notes = request?.clinical_notes;
     if (notes) {
       try {
@@ -131,24 +133,13 @@ export const PostReviewTemplates = React.memo(function PostReviewTemplates({
   };
 
   const getRequestingHospitalPhone = async () => {
-    const hospitalId = request?.requesting_hospital_id || request?.hospital_id;
     const senderPhone = await getRequestSenderPhone();
     // The authenticated sender is the authoritative recipient for this request.
     // It may no longer be present in the hospital's current contact list.
     if (senderPhone) return senderPhone;
-    if (isWhatsAppRequest()) return "";
-    if (!hospitalId) return "";
-
-    const { data, error } = await supabase
-      .from("hospital_whatsapp_contacts")
-      .select("phone_number")
-      .eq("hospital_id", hospitalId)
-      .eq("status", "active")
-      .order("updated_at", { ascending: false });
-
-    if (error) throw error;
-    const contacts = data || [];
-    return contacts.length === 1 ? formatPhoneNumber(contacts[0].phone_number || "") : "";
+    // Non-WhatsApp requests have no trustworthy sender. Never select a hospital
+    // contact automatically; the reviewer must choose or enter the recipient.
+    return "";
   };
 
   const getApprovalClosing = (isPartial: boolean) =>
@@ -178,9 +169,22 @@ export const PostReviewTemplates = React.memo(function PostReviewTemplates({
     if (!approvalResult && !declineResult) return;
     let cancelled = false;
     setLoadingHospitalPhone(true);
-    getRequestingHospitalPhone()
-      .then((phone) => {
-        if (!cancelled) setHospitalPhone(phone);
+    Promise.all([
+      getRequestingHospitalPhone(),
+      !isWhatsAppRequest()
+        ? supabase
+            .from("hospital_whatsapp_contacts")
+            .select("phone_number,contact_name,hospital_id")
+            .eq("status", "active")
+            .order("updated_at", { ascending: false })
+        : Promise.resolve({ data: [], error: null }),
+    ])
+      .then(([phoneResult, contactsResult]) => {
+        if (contactsResult.error) throw contactsResult.error;
+        if (!cancelled) {
+          setHospitalPhone(phoneResult);
+          setHospitalContacts((contactsResult.data || []).filter((contact) => contact.phone_number));
+        }
       })
       .catch((error) => {
         console.error("Could not load hospital WhatsApp number", error);
@@ -191,13 +195,14 @@ export const PostReviewTemplates = React.memo(function PostReviewTemplates({
     return () => {
       cancelled = true;
     };
-  }, [approvalResult, declineResult, request?.id, request?.clinical_notes, request?.requesting_hospital_id, request?.hospital_id]);
+  }, [approvalResult, declineResult, request?.id, request?.clinical_notes]);
 
   const handleSendToHospital = async () => {
     if (!approvalResult) return;
     setSendingHospital(true);
     try {
       const formatted = formatPhoneNumber(hospitalPhone) || await getRequestingHospitalPhone();
+      if (!formatted) throw new Error("Enter or select the hospital WhatsApp number before sending.");
       const dateStr = new Date().toLocaleDateString("en-GB");
       const isPartial = request?.status === "partially_approved";
       const serviceLines = formatApprovalServices(approvalResult.items, approvalResult.treatment);
@@ -211,15 +216,6 @@ export const PostReviewTemplates = React.memo(function PostReviewTemplates({
         ? "AUTHORIZATION PARTIALLY APPROVED"
         : "AUTHORIZATION APPROVED";
       const msg = `${approvalHeading}\n\nPatient: ${approvalResult.patientName}\nPolicy No: ${approvalResult.policyNumber}\nAuth Code: ${approvalResult.authCode}\nHospital: ${approvalResult.hospitalName}${referralLine}\nDiagnosis: ${approvalResult.diagnosis}\n\n${serviceLines}\nDate: ${dateStr}\n\n${getApprovalClosing(isPartial)}\n\nRonsberger HMO UI Desk`;
-
-      if (!formatted) {
-        if (isWhatsAppRequest()) {
-          throw new Error("The WhatsApp sender number could not be verified for this request. The response was not sent.");
-        }
-        navigator.clipboard.writeText(msg);
-        toast({ title: "Copied!", description: "No phone on record. Copied response to clipboard." });
-        return;
-      }
 
       const { data, error } = await supabase.functions.invoke("send-whatsapp", {
         body: { phone_number: formatted, message: msg },
@@ -289,24 +285,20 @@ export const PostReviewTemplates = React.memo(function PostReviewTemplates({
     setSendingDecline(true);
     try {
       const formatted = await getRequestingHospitalPhone();
+      if (!formatted && !hospitalPhone) throw new Error("Enter or select the hospital WhatsApp number before sending.");
+      const recipient = formatPhoneNumber(hospitalPhone) || formatted;
       const reqRef = request?.request_id || request?.id?.slice(0, 8) || "REQ";
 
       const msg = `*Ronsberger HMO*\n\n*AUTHORIZATION DECLINED*\n\n*Reference:* ${reqRef}\n*Patient:* ${declineResult.patientName}\n*Policy No:* ${declineResult.policyNumber}\n*Hospital:* ${declineResult.hospitalName}\n*Diagnosis:* ${declineResult.diagnosis}\n\n*Reason for Decline:*\n${declineResult.reason}\n\nIf you need clarification, please reply to this message.\n\n— Ronsberger HMO Medical Desk`;
 
-      if (!formatted) {
-        navigator.clipboard.writeText(msg);
-        toast({ title: "Copied!", description: "No phone on record. Copied decline note to clipboard." });
-        return;
-      }
-
       const { data, error } = await supabase.functions.invoke("send-whatsapp", {
-        body: { phone_number: formatted, message: msg },
+        body: { phone_number: recipient, message: msg },
       });
 
       if (error || !data?.success) {
         throw new Error("WhatsApp delivery failed. Please verify the hospital number and try again.");
       } else {
-        toast({ title: "Decline Sent via WhatsApp!", description: `Decline notice sent to ${formatted}` });
+        toast({ title: "Decline Sent via WhatsApp!", description: `Decline notice sent to ${recipient}` });
       }
     } catch (e: any) {
       console.error(e);
@@ -425,27 +417,35 @@ export const PostReviewTemplates = React.memo(function PostReviewTemplates({
           {/* Primary Action 1: Send Response to Hospital via WhatsApp */}
           <Button
             onClick={handleSendToHospital}
-            disabled={sendingHospital || loadingHospitalPhone}
+          disabled={sendingHospital || loadingHospitalPhone || (!isWhatsAppRequest() && !formatPhoneNumber(hospitalPhone))}
             className="w-full h-13 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs sm:text-sm gap-2 shadow-lg shadow-emerald-100 uppercase tracking-widest transition-transform hover:scale-[1.01]"
           >
             {sendingHospital ? <Loader2 className="w-4 h-4 animate-spin" /> : <Building2 className="w-4.5 h-4.5" />}
             Send Response to Hospital (WhatsApp)
           </Button>
-          {!loadingHospitalPhone && !hospitalPhone && !isWhatsAppRequest() && (
+          {!loadingHospitalPhone && !isWhatsAppRequest() && (
           <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3 space-y-1.5">
             <label htmlFor="hospital-approval-phone" className="text-xs font-black uppercase tracking-wider text-slate-600">
-              Hospital WhatsApp number
+              Select or enter hospital WhatsApp number
             </label>
             <Input
               id="hospital-approval-phone"
+              list="hospital-whatsapp-contacts-approval"
               value={hospitalPhone}
               onChange={(event) => setHospitalPhone(event.target.value)}
-              placeholder="Enter hospital number if none is on record"
+              placeholder="Search contacts or enter a number"
               inputMode="tel"
               className="h-10 rounded-lg bg-white"
             />
+            <datalist id="hospital-whatsapp-contacts-approval">
+              {hospitalContacts.map((contact) => (
+                <option key={`${contact.phone_number}-${contact.hospital_id || ""}`} value={contact.phone_number}>
+                  {contact.contact_name || "Hospital contact"}
+                </option>
+              ))}
+            </datalist>
             <p className="text-xs font-medium text-slate-500">
-              Use the requesting hospital&apos;s number. The approval will be sent to this number.
+              No sender was identified for this request. Choose a listed contact or type the hospital number manually.
             </p>
           </div>
           )}
@@ -552,27 +552,35 @@ export const PostReviewTemplates = React.memo(function PostReviewTemplates({
         <div className="flex flex-col gap-2.5">
           <Button
             onClick={handleSendDeclineToHospital}
-            disabled={sendingDecline || loadingHospitalPhone}
+            disabled={sendingDecline || loadingHospitalPhone || (!isWhatsAppRequest() && !formatPhoneNumber(hospitalPhone))}
             className="w-full h-14 rounded-2xl bg-rose-600 hover:bg-rose-700 text-white font-black text-sm gap-2 shadow-lg shadow-rose-100 uppercase tracking-widest transition-transform hover:scale-[1.01]"
           >
             {sendingDecline ? <Loader2 className="w-4.5 h-4.5 animate-spin" /> : <Send className="w-4.5 h-4.5" />}
             Send Decline Response via WhatsApp
           </Button>
-          {!loadingHospitalPhone && !hospitalPhone && !isWhatsAppRequest() && (
+          {!loadingHospitalPhone && !isWhatsAppRequest() && (
             <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3 space-y-1.5">
               <label htmlFor="hospital-decline-phone" className="text-xs font-black uppercase tracking-wider text-slate-600">
-                Hospital WhatsApp number
+                Select or enter hospital WhatsApp number
               </label>
               <Input
                 id="hospital-decline-phone"
+                list="hospital-whatsapp-contacts-decline"
                 value={hospitalPhone}
                 onChange={(event) => setHospitalPhone(event.target.value)}
-                placeholder="Enter hospital number if none is on record"
+                placeholder="Search contacts or enter a number"
                 inputMode="tel"
                 className="h-10 rounded-lg bg-white"
               />
+              <datalist id="hospital-whatsapp-contacts-decline">
+                {hospitalContacts.map((contact) => (
+                  <option key={`${contact.phone_number}-${contact.hospital_id || ""}`} value={contact.phone_number}>
+                    {contact.contact_name || "Hospital contact"}
+                  </option>
+                ))}
+              </datalist>
               <p className="text-xs font-medium text-slate-500">
-                Use the requesting hospital&apos;s number. The decline will be sent to this number.
+                No sender was identified for this request. Choose a listed contact or type the hospital number manually.
               </p>
             </div>
           )}
