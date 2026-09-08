@@ -151,6 +151,29 @@ export const PostReviewTemplates = React.memo(function PostReviewTemplates({
     return contacts.length === 1 ? formatPhoneNumber(contacts[0].phone_number || "") : "";
   };
 
+  const getApprovalClosing = (isPartial: boolean) =>
+    isPartial
+      ? "Please proceed only with the approved services listed above. Declined services must not be provided under this authorization. For clarification, please contact Ronsberger HMO before treatment."
+      : "Please proceed with the approved services listed above. For clarification, please contact Ronsberger HMO before treatment.";
+
+  const formatApprovalServices = (items: any[], treatment: string) => {
+    if (!items.length) return `Approved Services:\n${treatment}`;
+    const approvedLines = items
+      .filter((item) => !item.declined)
+      .map((item) => `${item.code || "NHIA"} - ${item.name}: ${itemQuantity(item)}`)
+      .join("\n");
+    const declinedLines = items
+      .filter((item) => item.declined)
+      .map((item) => {
+        const line = `${item.code || "NHIA"} - ${item.name}: ${itemQuantity(item)}`;
+        return `~${line}~${item.decline_reason ? ` (Reason: ${item.decline_reason})` : ""}`;
+      })
+      .join("\n");
+    return `Approved Services:\n${approvedLines || "None"}${
+      declinedLines ? `\n\nDeclined Services:\n${declinedLines}` : ""
+    }`;
+  };
+
   useEffect(() => {
     if (!approvalResult && !declineResult) return;
     let cancelled = false;
@@ -175,32 +198,19 @@ export const PostReviewTemplates = React.memo(function PostReviewTemplates({
     setSendingHospital(true);
     try {
       const formatted = formatPhoneNumber(hospitalPhone) || await getRequestingHospitalPhone();
-      const reqRef = request?.request_id || request?.id?.slice(0, 8) || "REQ";
       const dateStr = new Date().toLocaleDateString("en-GB");
-
-      const approvedLines = approvalResult.items
-        .filter((item) => !item.declined)
-        .map((item) => `${item.code || "NHIA"} - ${item.name}: ${itemQuantity(item)}`)
-        .join("\n");
-      const declinedLines = approvalResult.items
-        .filter((item) => item.declined)
-        .map((item) => `${item.code || "NHIA"} - ${item.name}${item.decline_reason ? ` (Reason: ${item.decline_reason})` : ""}`)
-        .join("\n");
-      const serviceLines = approvalResult.items.length
-        ? `Approved Services:\n${approvedLines || "None"}${
-            declinedLines ? `\n\nDeclined Services:\n${declinedLines}` : ""
-          }`
-        : `Approved Services:\n${approvalResult.treatment}`;
+      const isPartial = request?.status === "partially_approved";
+      const serviceLines = formatApprovalServices(approvalResult.items, approvalResult.treatment);
 
       const requester = request?.requesting_hospital_name || request?.hospital_name || approvalResult.hospitalName;
       const referralLine = editReferralHospitalName.trim()
         ? `\nRequest Raised By: ${requester}\nReferral To: ${editReferralHospitalName.trim()}\nClaim Rights: ${editReferralHospitalName.trim()} only`
         : "";
 
-      const approvalHeading = request?.status === "partially_approved"
+      const approvalHeading = isPartial
         ? "AUTHORIZATION PARTIALLY APPROVED"
         : "AUTHORIZATION APPROVED";
-      const msg = `${approvalHeading}\n\nPatient: ${approvalResult.patientName}\nPolicy No: ${approvalResult.policyNumber}\nAuth Code: ${approvalResult.authCode}\nHospital: ${approvalResult.hospitalName}${referralLine}\nDiagnosis: ${approvalResult.diagnosis}\n\n${serviceLines}\nDate: ${dateStr}\n\nPlease proceed only with the approved services listed above. Declined services must not be provided under this authorization. For clarification, please contact Ronsberger HMO before treatment.\n\nRonsberger HMO UI Desk`;
+      const msg = `${approvalHeading}\n\nPatient: ${approvalResult.patientName}\nPolicy No: ${approvalResult.policyNumber}\nAuth Code: ${approvalResult.authCode}\nHospital: ${approvalResult.hospitalName}${referralLine}\nDiagnosis: ${approvalResult.diagnosis}\n\n${serviceLines}\nDate: ${dateStr}\n\n${getApprovalClosing(isPartial)}\n\nRonsberger HMO UI Desk`;
 
       if (!formatted) {
         if (isWhatsAppRequest()) {
@@ -308,7 +318,6 @@ export const PostReviewTemplates = React.memo(function PostReviewTemplates({
 
   if (approvalResult) {
     const isPartiallyApproved = request?.status === "partially_approved";
-    const approvalHeading = isPartiallyApproved ? "AUTHORIZATION PARTIALLY APPROVED" : "AUTHORIZATION APPROVED";
     return (
       <div className="space-y-6 animate-in fade-in zoom-in-95 duration-300">
         <div className="text-center p-6 sm:p-8 bg-emerald-50/70 rounded-3xl border border-emerald-100 relative overflow-hidden shadow-xs">

@@ -141,6 +141,31 @@ describe("extractAuthFieldsFromRaw", () => {
     );
     expect(fields.patientPhone).toBe("+2348059822412");
   });
+
+  it("extracts phone numbers when the label has no colon", () => {
+    const fields = extractAuthFieldsFromRaw(
+      "Full Name: ADEOLU OYEBAM\nNHIS No: 7047541-1\nPHONE NUMBER 08037288223",
+    );
+    expect(fields.patientPhone).toBe("08037288223");
+  });
+
+  it("extracts phone punctuation and natural-language variants", () => {
+    expect(
+      extractAuthFieldsFromRaw("Patient's Phone Number: +234 803 728 8223")
+        .patientPhone,
+    ).toBe("+234 803 728 8223");
+    expect(
+      extractAuthFieldsFromRaw("The patient's phone number is 08037288223")
+        .patientPhone,
+    ).toBe("08037288223");
+    expect(
+      extractAuthFieldsFromRaw("Use 08037288223 as the patient's phone")
+        .patientPhone,
+    ).toBe("08037288223");
+    expect(extractAuthFieldsFromRaw("08037288223").patientPhone).toBe(
+      "08037288223",
+    );
+  });
 });
 
 describe("parsePolicyNumber", () => {
@@ -305,6 +330,26 @@ describe("brainGuard — deterministic intent precedence", () => {
       { active_intent: "INCOMPLETE_AUTHORIZATION" },
     );
     expect(out.intent).toBe("CONTINUE_AUTHORIZATION");
+  });
+
+  it("does not treat a phone-only reply as an authorization continuation", () => {
+    const out = brainGuard(
+      "PHONE NUMBER 08037288223",
+      baseAnalysis({ intent: "UNKNOWN" }),
+      { active_intent: "INCOMPLETE_AUTHORIZATION" },
+    );
+    expect(out.intent).not.toBe("CONTINUE_AUTHORIZATION");
+  });
+
+  it("classifies natural-language and bare phone replies as phone-only follow-ups", () => {
+    for (const text of [
+      "The patient's phone number is 08037288223",
+      "08037288223",
+    ]) {
+      expect(brainGuard(text, baseAnalysis(), {}).intent).toBe(
+        "PHONE_ONLY_FOLLOWUP",
+      );
+    }
   });
 
   it("strong authorization beats provider wording (structured data wins)", () => {

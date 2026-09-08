@@ -105,7 +105,7 @@ export function extractAuthFieldsFromRaw(
     ],
     [
       "patientPhone",
-      /^(?:\*?\s*(?:patient\s*)?(?:phone|mobile|telephone|tel)(?:\s*(?:no|number))?\s*\*?\s*:\s*)(.+)$/i,
+      /^(?:\*?\s*(?:patient(?:'s)?\s*)?(?:phone|mobile|telephone|tel)(?:\s*(?:no|number))?\s*\.?\s*\*?\s*(?::|-)?\s*)(.+)$/i,
     ],
   ];
   for (const line of text.split(/\r?\n/)) {
@@ -116,6 +116,23 @@ export function extractAuthFieldsFromRaw(
       if (m && !result[key]) result[key] = m[1].trim();
     }
   }
+  if (!result.patientPhone) {
+    const phonePatterns = [
+      /\b(?:patient(?:'s)?\s+)?phone(?:\s+number)?\s+is\s*[:\-]?\s*([+]?\d[\d\s().-]{8,}\d)/i,
+      /\b(?:here\s+is\s+)?the\s+patient(?:'s)?\s+phone(?:\s+number)?\s*[:\-]?\s*([+]?\d[\d\s().-]{8,}\d)/i,
+      /\b(?:mobile|telephone)\s+number\s+is\s*[:\-]?\s*([+]?\d[\d\s().-]{8,}\d)/i,
+      /\buse\s+([+]?\d[\d\s().-]{8,}\d)\s+as\s+the\s+patient(?:'s)?\s+phone/i,
+    ];
+    for (const pattern of phonePatterns) {
+      const match = text.match(pattern);
+      if (match?.[1]) {
+        result.patientPhone = match[1].trim();
+        break;
+      }
+    }
+  }
+  if (!result.patientPhone && /^\+?\d[\d\s().-]{8,}\d$/.test(text.trim()))
+    result.patientPhone = text.trim();
   const lower = text.toLowerCase();
   if (lower.includes("university health service") || lower.includes("jaja"))
     result.originatingHospital =
@@ -225,6 +242,22 @@ export function brainGuard(
 ): GeminiAnalysisResult {
   const t = text.trim(),
     out = { ...analysis };
+  const rawFields = extractAuthFieldsFromRaw(t);
+  const hasPhoneOnly = Boolean(
+    rawFields.patientPhone && !rawFields.patientName && !rawFields.policyNumber,
+  );
+  if (hasPhoneOnly && !hasStrongAuthIndicators(t)) {
+    out.intent = "PHONE_ONLY_FOLLOWUP";
+    out.patientPhone = rawFields.patientPhone;
+    out.missingInfo = [
+      "Patient Name",
+      "NHIA / Policy Number",
+      "Diagnosis",
+      "Requested Service/Procedure",
+      "Patient Phone",
+    ];
+    return out;
+  }
   const hasStatusWord =
     /\b(status|update|approval|approved|rejected|rejection|declined|pending|decision|progress)\b/i.test(
       t,
@@ -284,7 +317,7 @@ export function brainGuard(
     out.intent = hasStrongAuthIndicators(t)
       ? "NEW_AUTHORIZATION"
       : out.intent || "INCOMPLETE_AUTHORIZATION";
-    const raw = extractAuthFieldsFromRaw(t);
+    const raw = rawFields;
     out.patientName = out.patientName || raw.patientName;
     out.policyNumber = out.policyNumber || raw.policyNumber;
     out.diagnosis = out.diagnosis || raw.diagnosis;

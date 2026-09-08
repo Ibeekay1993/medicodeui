@@ -31,6 +31,7 @@ export const SUPPORTED_INTENTS = [
   "NEW_AUTHORIZATION",
   "INCOMPLETE_AUTHORIZATION",
   "CONTINUE_AUTHORIZATION",
+  "PHONE_ONLY_FOLLOWUP",
   "AUTHORIZATION_STATUS",
   "APPROVAL_QUERY",
   "REJECTION_QUERY",
@@ -46,7 +47,7 @@ export type SupportedIntent = (typeof SUPPORTED_INTENTS)[number];
 
 // ── Shared system prompt (identical to the previous Gemini prompt) ───────────
 export const SYSTEM_PROMPT = `You are the conversation intelligence layer for Ronsberger HMO Nigeria. Understand the CURRENT WhatsApp message in context, but the current message always has priority over older messages.
-Return JSON only. Classify exactly one intent: GREETING, GENERAL_CONVERSATION, HELP, NEW_AUTHORIZATION, INCOMPLETE_AUTHORIZATION, CONTINUE_AUTHORIZATION, AUTHORIZATION_STATUS, APPROVAL_QUERY, REJECTION_QUERY, AUTHORIZATION_DETAILS, CANCELLATION, PROVIDER_QUERY, NO_AUTHORIZATION, UNKNOWN.
+Return JSON only. Classify exactly one intent: GREETING, GENERAL_CONVERSATION, HELP, NEW_AUTHORIZATION, INCOMPLETE_AUTHORIZATION, CONTINUE_AUTHORIZATION, PHONE_ONLY_FOLLOWUP, AUTHORIZATION_STATUS, APPROVAL_QUERY, REJECTION_QUERY, AUTHORIZATION_DETAILS, CANCELLATION, PROVIDER_QUERY, NO_AUTHORIZATION, UNKNOWN.
 Rules: structured authorization information is authorization; status/update/approval/rejection questions are enquiries; a subject change switches task; never invent data; provider queries include hospital, clinic, doctor, specialist, facility or healthcare provider; CONTINUE_AUTHORIZATION means information for an unfinished request; conversationalReply is only for GENERAL_CONVERSATION. For enquiry intents set queryPatientName / queryPolicyNumber to the exact patient name or NHIA/NHIS/policy number the user asks about when the message contains one; if the user only says "my request" or "my previous request" without a name, leave them empty.`;
 
 // Gemini JSON schema (preserved from the previous implementation).

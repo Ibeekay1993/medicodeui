@@ -812,15 +812,14 @@ export function useClinicalActions({
   const copyApprovalMessage = () => {
     if (!approvalResult) return;
     const dateStr = new Date().toLocaleDateString("en-GB");
+    const isPartial = request.status === "partially_approved";
     const approvedLines = approvalResult.items
       .filter((item) => !item.declined)
-      .map((item) => `${item.code || "NHIA"} - ${item.name}: ${itemQuantity(item)} x ${formatNaira(
-        itemUnitPrice(item)
-      )} = ${formatNaira(itemTotal(item))}`)
+      .map((item) => `${item.code || "NHIA"} - ${item.name}: ${itemQuantity(item)}`)
       .join("\n");
     const declinedLines = approvalResult.items
       .filter((item) => item.declined)
-      .map((item) => `${item.code || "NHIA"} - ${item.name}${item.decline_reason ? ` (Reason: ${item.decline_reason})` : ""}`)
+      .map((item) => `~${item.code || "NHIA"} - ${item.name}: ${itemQuantity(item)}~${item.decline_reason ? ` (Reason: ${item.decline_reason})` : ""}`)
       .join("\n");
     const serviceLines = approvalResult.items.length
       ? `Approved Services:\n${approvedLines || "None"}${
@@ -835,9 +834,10 @@ export function useClinicalActions({
     const referralLine = editReferralHospitalName.trim()
       ? `\nRequest Raised By: ${requester}\nReferral To: ${editReferralHospitalName.trim()}\nClaim Rights: ${editReferralHospitalName.trim()} only`
       : "";
-    const msg = `${approvalHeading}\n\nPatient: ${approvalResult.patientName}\nPolicy No: ${approvalResult.policyNumber}\nAuth Code: ${approvalResult.authCode}\nHospital: ${approvalResult.hospitalName}${referralLine}\nDiagnosis: ${approvalResult.diagnosis}\n\n${serviceLines}\n\nTotal Approved: ${formatNaira(
-      approvalResult.totalAmount
-    )}\nDate: ${dateStr}\n\nPlease proceed only with the approved services listed above. Declined services must not be provided under this authorization. For clarification, please contact Ronsberger HMO before treatment.\n\nRonsberger HMO UI Desk`;
+    const closing = isPartial
+      ? "Please proceed only with the approved services listed above. Declined services must not be provided under this authorization. For clarification, please contact Ronsberger HMO before treatment."
+      : "Please proceed with the approved services listed above. For clarification, please contact Ronsberger HMO before treatment.";
+    const msg = `${approvalHeading}\n\nPatient: ${approvalResult.patientName}\nPolicy No: ${approvalResult.policyNumber}\nAuth Code: ${approvalResult.authCode}\nHospital: ${approvalResult.hospitalName}${referralLine}\nDiagnosis: ${approvalResult.diagnosis}\n\n${serviceLines}\nDate: ${dateStr}\n\n${closing}\n\nRonsberger HMO UI Desk`;
     navigator.clipboard.writeText(msg);
     toast({ title: "Copied! Ready to paste to WhatsApp" });
   };

@@ -87,6 +87,31 @@ function log(
     .then(() => {});
 }
 
+function normalizeDraftName(value: unknown) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .sort()
+    .join(" ");
+}
+
+function draftIdentityConflicts(
+  current: Record<string, string>,
+  incomingName: string | null,
+  incomingPolicy: string | null,
+) {
+  const currentName = normalizeDraftName(current.patientName);
+  const newName = normalizeDraftName(incomingName);
+  if (currentName && newName && currentName !== newName) return true;
+
+  const currentPolicy = parsePolicyNumber(String(current.policyNumber || "")).basePolicy;
+  const newPolicy = parsePolicyNumber(String(incomingPolicy || "")).basePolicy;
+  return Boolean(currentPolicy && newPolicy && currentPolicy !== newPolicy);
+}
+
 async function sendWhatsAppMessage(toPhone: string, text: string) {
   if (!EVOLUTION_API_URL || !EVOLUTION_API_KEY)
     throw new Error("Evolution creds missing");
@@ -442,6 +467,31 @@ async function processMessageBody(
       priority = 4;
       continue;
     }
+    const rawFields = extractAuthFieldsFromRaw(blockText);
+    const phoneOnlyFollowup =
+      intent === "PHONE_ONLY_FOLLOWUP" ||
+      (Boolean(rawFields.patientPhone) &&
+        !rawFields.patientName &&
+        !rawFields.policyNumber &&
+        (!rawFields.diagnosis || !rawFields.treatment) &&
+        (!rawFields.procedure || !rawFields.investigation || !rawFields.requestedService));
+    if (phoneOnlyFollowup) {
+      finalReply =
+        "Please resend the complete authorization request, including the patient name, NHIA / policy number, diagnosis, requested service, and patient phone number. This is required to safely match the information to the correct request.\n\n— Ronsberger HMO";
+      priority = Math.max(priority, 3);
+      continue;
+    }
+    if (
+      conversation?.active_intent === "INCOMPLETE_AUTHORIZATION" &&
+      rawFields.patientPhone &&
+      !rawFields.patientName &&
+      !rawFields.policyNumber
+    ) {
+      finalReply =
+        "To avoid mixing patient records, please resend the complete authorization request with the patient name, NHIA / policy number, diagnosis, requested service, and patient phone number.\n\n— Ronsberger HMO";
+      priority = Math.max(priority, 3);
+      continue;
+    }
     // ── PROVIDER QUERIES (deterministic directory lookup) ────────────────────
     // Phase 9: understand natural provider questions; look up the provider
     // directory when the message names a service/location, otherwise ask the
@@ -593,27 +643,12 @@ async function processMessageBody(
         "CONTINUE_AUTHORIZATION",
       ].includes(intent)
     ) {
-      const raw = extractAuthFieldsFromRaw(blockText),
+      const raw = rawFields,
         current = { ...pendingData },
         newName = analysis.patientName || raw.patientName,
         newPolicy = analysis.policyNumber || raw.policyNumber;
-      if (
-        (current.patientName || current.policyNumber) &&
-        (newName || newPolicy)
-      ) {
-        const sameName =
-            !!newName &&
-            !!current.patientName &&
-            newName.toLowerCase().trim() ===
-              String(current.patientName).toLowerCase().trim(),
-          samePolicy =
-            !!newPolicy &&
-            !!current.policyNumber &&
-            newPolicy.toLowerCase().trim() ===
-              String(current.policyNumber).toLowerCase().trim();
-        if (!sameName && !samePolicy)
-          Object.keys(current).forEach((k) => delete current[k]);
-      }
+      if (draftIdentityConflicts(current, newName, newPolicy))
+        Object.keys(current).forEach((k) => delete current[k]);
       const patientName = newName || current.patientName || null,
         policyNumber = newPolicy || current.policyNumber || null,
         patientPhone =
@@ -832,25 +867,33 @@ async function processNotifications(
         recipient = msgs?.[0]?.phone_number || note.phone_number,
         { data: auth } = await supabase
           .from("authorization_requests")
-          .select("patient_name,status,decision_reason,approved_items,treatment")
+          .select("patient_name,policy_number,authorization_code,hospital_name,claiming_hospital_name,diagnosis,status,decision_reason,approved_items,treatment,decided_at")
           .eq("id", note.authorization_request_id)
           .single();
       if (!recipient || !auth)
         throw new Error("notification target/request missing");
       let body = "";
-      if (note.notification_type === "APPROVAL")
-        body = `Authorization Update\n\n${auth.patient_name}'s medical authorization request has been approved.\n\n— Ronsberger HMO`;
-      else if (note.notification_type === "PARTIAL_APPROVAL") {
+      if (note.notification_type === "APPROVAL" || note.notification_type === "PARTIAL_APPROVAL") {
         const items = Array.isArray(auth.approved_items) ? auth.approved_items : [];
+        const isPartial = note.notification_type === "PARTIAL_APPROVAL";
         const approved = items
           .filter((item: any) => !item?.declined)
-          .map((item: any) => `• ${item?.name || item?.code || "Approved service"}`)
+          .map((item: any) => `${item?.code || "NHIA"} - ${item?.name || "Approved service"}: ${Number(item?.quantity || 1)}`)
           .join("\n") || `• ${auth.treatment || "See the authorization record"}`;
         const declined = items
           .filter((item: any) => item?.declined)
-          .map((item: any) => `• ${item?.name || item?.code || "Declined service"}${item?.decline_reason ? ` — ${item.decline_reason}` : ""}`)
+          .map((item: any) => {
+            const line = `${item?.code || "NHIA"} - ${item?.name || "Declined service"}: ${Number(item?.quantity || 1)}`;
+            return `~${line}~${item?.decline_reason ? ` (Reason: ${item.decline_reason})` : ""}`;
+          })
           .join("\n");
-        body = `Authorization Update\n\n${auth.patient_name}'s medical authorization request has been partially approved.\n\nApproved services:\n${approved}${declined ? `\n\nDeclined services:\n${declined}` : ""}\n\nPlease provide only the approved services. Declined services must not be provided under this authorization.\n\n— Ronsberger HMO`;
+        const date = auth.decided_at
+          ? new Date(auth.decided_at).toLocaleDateString("en-GB")
+          : new Date().toLocaleDateString("en-GB");
+        const closing = isPartial
+          ? "Please proceed only with the approved services listed above. Declined services must not be provided under this authorization. For clarification, please contact Ronsberger HMO before treatment."
+          : "Please proceed with the approved services listed above. For clarification, please contact Ronsberger HMO before treatment.";
+        body = `${isPartial ? "AUTHORIZATION PARTIALLY APPROVED" : "AUTHORIZATION APPROVED"}\n\nPatient: ${auth.patient_name}\nPolicy No: ${auth.policy_number || "N/A"}\nAuth Code: ${auth.authorization_code || "N/A"}\nHospital: ${auth.claiming_hospital_name || auth.hospital_name || "N/A"}\nDiagnosis: ${auth.diagnosis || "Not specified"}\n\nApproved Services:\n${approved}${declined ? `\n\nDeclined Services:\n${declined}` : ""}\nDate: ${date}\n\n${closing}\n\nRonsberger HMO UI Desk`;
       }
       else if (note.notification_type === "REJECTION")
         body = `Authorization Update\n\n${auth.patient_name}'s medical authorization request has not been approved.\n\nReason: ${auth.decision_reason || "Does not meet clinical policy guidelines"}\n\nIf you need clarification or would like to provide additional information, please reply to this message.\n\n— Ronsberger HMO`;
