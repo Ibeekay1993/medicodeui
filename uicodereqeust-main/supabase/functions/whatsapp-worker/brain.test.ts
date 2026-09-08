@@ -309,6 +309,23 @@ describe("brainGuard — deterministic intent precedence", () => {
     expect(out.policyNumber).toBe("2871250-1");
   });
 
+  it("never lets a status classification override a structured authorization", () => {
+    const out = brainGuard(
+      [
+        "Full Name: FOLASADE OMIDIJI-AKINWUMI",
+        "NHIS No: 2557218-2",
+        "Diagnosis: Hypertension",
+        "Consultation: Initial consultation",
+        "Drugs: Amlodipine Tablet",
+      ].join("\n"),
+      baseAnalysis({ intent: "AUTHORIZATION_STATUS" }),
+      {},
+    );
+    expect(out.intent).toBe("NEW_AUTHORIZATION");
+    expect(out.patientName).toBe("FOLASADE OMIDIJI-AKINWUMI");
+    expect(out.policyNumber).toBe("2557218-2");
+  });
+
   it("routes provider questions to PROVIDER_QUERY", () => {
     expect(
       brainGuard("I want to ask for a health provider", baseAnalysis(), {})

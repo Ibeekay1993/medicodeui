@@ -6,6 +6,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import {
   buildContext,
+  brainGuard,
   deriveProviderSearchTerm,
   deterministicFallbackAnalysis,
   extractAuthFieldsFromRaw,
@@ -308,12 +309,45 @@ async function findSenderRequests(
   const { data } = await supabase
     .from("authorization_requests")
     .select(
-      "id, request_id, patient_name, policy_number, status, decision_reason, diagnosis, treatment, hospital_name, created_at",
+      "id, request_id, patient_name, policy_number, status, decision_reason, diagnosis, treatment, hospital_name, claiming_hospital_name, authorization_code, approved_items, decided_at, created_at",
     )
     .in("id", ids)
     .order("created_at", { ascending: false })
     .limit(20);
   return data || [];
+}
+
+function formatDetailedDecisionMessage(
+  auth: any,
+  decision: "approved" | "partially_approved" | "rejected",
+): string {
+  if (decision === "rejected") {
+    return `AUTHORIZATION DECLINED\n\nPatient: ${auth.patient_name}\nPolicy No: ${auth.policy_number || "N/A"}\nHospital: ${auth.claiming_hospital_name || auth.hospital_name || "N/A"}\nDiagnosis: ${auth.diagnosis || "Not specified"}\nReason: ${auth.decision_reason || "Does not meet clinical policy guidelines"}\nDate: ${auth.decided_at ? new Date(auth.decided_at).toLocaleDateString("en-GB") : new Date().toLocaleDateString("en-GB")}\n\nPlease contact Ronsberger HMO for clarification before treatment.\n\nRonsberger HMO UI Desk`;
+  }
+
+  const items = Array.isArray(auth.approved_items) ? auth.approved_items : [];
+  const approved = items
+    .filter((item: any) => !item?.declined)
+    .map(
+      (item: any) =>
+        `${item?.code || "NHIA"} - ${item?.name || "Approved service"}: ${Number(item?.quantity || 1)}`,
+    )
+    .join("\n") || `• ${auth.treatment || "See the authorization record"}`;
+  const declined = items
+    .filter((item: any) => item?.declined)
+    .map((item: any) => {
+      const line = `${item?.code || "NHIA"} - ${item?.name || "Declined service"}: ${Number(item?.quantity || 1)}`;
+      return `~${line}~${item?.decline_reason ? ` (Reason: ${item.decline_reason})` : ""}`;
+    })
+    .join("\n");
+  const isPartial = decision === "partially_approved";
+  const date = auth.decided_at
+    ? new Date(auth.decided_at).toLocaleDateString("en-GB")
+    : new Date().toLocaleDateString("en-GB");
+  const closing = isPartial
+    ? "Please proceed only with the approved services listed above. Declined services must not be provided under this authorization. For clarification, please contact Ronsberger HMO before treatment."
+    : "Please proceed with the approved services listed above. For clarification, please contact Ronsberger HMO before treatment.";
+  return `${isPartial ? "AUTHORIZATION PARTIALLY APPROVED" : "AUTHORIZATION APPROVED"}\n\nPatient: ${auth.patient_name}\nPolicy No: ${auth.policy_number || "N/A"}\nAuth Code: ${auth.authorization_code || "N/A"}\nHospital: ${auth.claiming_hospital_name || auth.hospital_name || "N/A"}\nDiagnosis: ${auth.diagnosis || "Not specified"}\n\nApproved Services:\n${approved}${declined ? `\n\nDeclined Services:\n${declined}` : ""}\nDate: ${date}\n\n${closing}\n\nRonsberger HMO UI Desk`;
 }
 
 // ── Deterministic provider information lookup (get_provider_information) ─────
@@ -451,6 +485,7 @@ async function processMessageBody(
       log("brain", messageId, "error", { error: (e as Error).message });
       analysis = deterministicFallbackAnalysis(trimmed, conversation);
     }
+    analysis = brainGuard(trimmed, analysis, conversation);
     let intent = String(analysis.intent || "UNKNOWN").toUpperCase();
     if (analysis.isCancellationIntent) intent = "CANCELLATION";
     await updateConversation(supabase, row.phone_number, {
@@ -624,12 +659,14 @@ async function processMessageBody(
       let reply = "";
       if (intent === "AUTHORIZATION_DETAILS")
         reply = `Authorization Details\n\nPatient: ${r.patient_name}\nNHIA/NHIS: ${r.policy_number || "Not specified"}\nDiagnosis: ${r.diagnosis || "Not specified"}\nTreatment/Services: ${r.treatment || "Not specified"}\nHospital: ${r.hospital_name || "Not specified"}\nStatus: ${status.toUpperCase()}\n\n— Ronsberger HMO`;
-      else if (status === "approved")
-        reply = `Authorization Update\n\n${r.patient_name}'s medical authorization request has been APPROVED.\n\nYou may proceed according to the approved details.\n\n— Ronsberger HMO`;
+      else if (status === "approved" || status === "referral_approved")
+        reply = formatDetailedDecisionMessage(r, "approved");
+      else if (status === "partially_approved")
+        reply = formatDetailedDecisionMessage(r, "partially_approved");
       else if (status === "rejected")
-        reply = `Authorization Update\n\n${r.patient_name}'s medical authorization request was NOT APPROVED.\n\nReason:\n${r.decision_reason || "Does not meet clinical policy guidelines"}\n\nIf you need clarification, please reply to this message.\n\n— Ronsberger HMO`;
+        reply = formatDetailedDecisionMessage(r, "rejected");
       else
-        reply = `Authorization Update\n\n${r.patient_name}'s medical authorization request is currently ${status.toUpperCase()}.\n\nWe will notify you once a final decision is available.\n\n— Ronsberger HMO`;
+        reply = `AUTHORIZATION STATUS\n\nPatient: ${r.patient_name}\nPolicy No: ${r.policy_number || "N/A"}\nStatus: ${status.toUpperCase()}\n\nWe will notify you once a final decision is available.\n\nRonsberger HMO UI Desk`;
       if (priority < 2) {
         finalReply = reply;
         priority = 2;
@@ -872,32 +909,32 @@ async function processNotifications(
           .single();
       if (!recipient || !auth)
         throw new Error("notification target/request missing");
-      let body = "";
-      if (note.notification_type === "APPROVAL" || note.notification_type === "PARTIAL_APPROVAL") {
-        const items = Array.isArray(auth.approved_items) ? auth.approved_items : [];
-        const isPartial = note.notification_type === "PARTIAL_APPROVAL";
-        const approved = items
-          .filter((item: any) => !item?.declined)
-          .map((item: any) => `${item?.code || "NHIA"} - ${item?.name || "Approved service"}: ${Number(item?.quantity || 1)}`)
-          .join("\n") || `• ${auth.treatment || "See the authorization record"}`;
-        const declined = items
-          .filter((item: any) => item?.declined)
-          .map((item: any) => {
-            const line = `${item?.code || "NHIA"} - ${item?.name || "Declined service"}: ${Number(item?.quantity || 1)}`;
-            return `~${line}~${item?.decline_reason ? ` (Reason: ${item.decline_reason})` : ""}`;
+      const expectedStatus =
+        note.notification_type === "APPROVAL"
+          ? ["approved", "referral_approved"]
+          : note.notification_type === "PARTIAL_APPROVAL"
+            ? ["partially_approved"]
+            : note.notification_type === "REJECTION"
+              ? ["rejected"]
+              : [];
+      if (!expectedStatus.includes(String(auth.status || "").toLowerCase())) {
+        await supabase
+          .from("whatsapp_notifications")
+          .update({
+            status: "skipped",
+            last_error: `Stale notification ignored: request status is ${auth.status}`,
           })
-          .join("\n");
-        const date = auth.decided_at
-          ? new Date(auth.decided_at).toLocaleDateString("en-GB")
-          : new Date().toLocaleDateString("en-GB");
-        const closing = isPartial
-          ? "Please proceed only with the approved services listed above. Declined services must not be provided under this authorization. For clarification, please contact Ronsberger HMO before treatment."
-          : "Please proceed with the approved services listed above. For clarification, please contact Ronsberger HMO before treatment.";
-        body = `${isPartial ? "AUTHORIZATION PARTIALLY APPROVED" : "AUTHORIZATION APPROVED"}\n\nPatient: ${auth.patient_name}\nPolicy No: ${auth.policy_number || "N/A"}\nAuth Code: ${auth.authorization_code || "N/A"}\nHospital: ${auth.claiming_hospital_name || auth.hospital_name || "N/A"}\nDiagnosis: ${auth.diagnosis || "Not specified"}\n\nApproved Services:\n${approved}${declined ? `\n\nDeclined Services:\n${declined}` : ""}\nDate: ${date}\n\n${closing}\n\nRonsberger HMO UI Desk`;
+          .eq("id", note.id);
+        continue;
       }
-      else if (note.notification_type === "REJECTION")
-        body = `Authorization Update\n\n${auth.patient_name}'s medical authorization request has not been approved.\n\nReason: ${auth.decision_reason || "Does not meet clinical policy guidelines"}\n\nIf you need clarification or would like to provide additional information, please reply to this message.\n\n— Ronsberger HMO`;
-      else throw new Error("unknown notification type");
+      const body = formatDetailedDecisionMessage(
+        auth,
+        note.notification_type === "APPROVAL"
+          ? "approved"
+          : note.notification_type === "PARTIAL_APPROVAL"
+            ? "partially_approved"
+            : "rejected",
+      );
       await sendWhatsAppMessage(recipient, body);
       await supabase
         .from("whatsapp_notifications")
