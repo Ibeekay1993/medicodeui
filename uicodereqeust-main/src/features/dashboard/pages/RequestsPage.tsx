@@ -74,6 +74,9 @@ export default function RequestsPage() {
   const { data, isLoading, refetch: fetchRequests } = useQuery({
     queryKey: ["requests", currentPage, search, statusFilter, rowsPerPage, role],
     enabled: Boolean(role),
+    // Realtime normally refreshes this query immediately; polling is a bounded
+    // recovery path for missed websocket events or transient connections.
+    refetchInterval: 30 * 1000,
     queryFn: async () => {
       const from = (currentPage - 1) * rowsPerPage;
       const to = from + rowsPerPage - 1;

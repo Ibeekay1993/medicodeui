@@ -31,6 +31,7 @@ import { LiveChat } from "@/components/ui/LiveChat";
 import { NavItem } from "@/components/dashboard/NavItem";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { queryClient } from "@/providers/AppProviders";
 
 interface DashboardLayoutProps {
   children?: React.ReactNode;
@@ -146,6 +147,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         .channel("realtime-dashboard-auth-requests-insert")
         .on("postgres_changes", { event: "INSERT", schema: "public", table: "authorization_requests" }, (payload) => {
           const req = payload.new;
+          void queryClient.invalidateQueries({ queryKey: ["requests"] });
           playNotificationSound();
           toast({ title: "New Authorization Request", description: `${req.hospital_name || "A hospital"} submitted a request for ${req.patient_name || "a patient"}.` });
         })
