@@ -959,10 +959,10 @@ async function enqueueRecentDecisionNotifications(
   const cutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
   const { data: requests, error } = await supabase
     .from("authorization_requests")
-    .select("id,status")
+    .select("id,status,decided_at,decided_by,approved_by,authorization_code,decision_reason")
     .eq("source", "whatsapp")
     .in("status", ["approved", "partially_approved", "rejected"])
-    .gte("updated_at", cutoff)
+    .gte("decided_at", cutoff)
     .limit(WORKER_BATCH * 5);
   if (error) {
     log("notification_backfill", "worker", "error", { error: error.message });
@@ -970,6 +970,16 @@ async function enqueueRecentDecisionNotifications(
   }
 
   for (const request of requests || []) {
+    const isApprovedDecision =
+      ["approved", "partially_approved"].includes(String(request.status || "")) &&
+      request.approved_by &&
+      String(request.authorization_code || "").trim();
+    const isRejectedDecision =
+      request.status === "rejected" &&
+      request.decided_by &&
+      String(request.decision_reason || "").trim();
+    if (!request.decided_at || !request.decided_by || (!isApprovedDecision && !isRejectedDecision))
+      continue;
     const { data: existing } = await supabase
       .from("whatsapp_notifications")
       .select("id")
