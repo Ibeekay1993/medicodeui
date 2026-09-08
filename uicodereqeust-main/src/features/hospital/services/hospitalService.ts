@@ -297,29 +297,42 @@ export class HospitalService {
   }
 
   static async validatePolicyEmail(email: string, familyPolicy: string) {
-    const { data } = await (supabase.rpc as any)('validate_policy_email', {
+    const { data, error } = await (supabase.rpc as any)('validate_policy_email', {
       p_email: email,
       p_family_policy: familyPolicy
     });
+    if (error) throw error;
     return data;
   }
 
   static async registerPolicyEmail(email: string, familyPolicy: string) {
-    const { data: registryData } = await (supabase as any)
-      .from('policy_email_registry')
-      .select('id')
-      .eq('email', email)
-      .maybeSingle();
+    const { data, error } = await (supabase.rpc as any)('register_policy_email', {
+      p_email: email,
+      p_family_policy: familyPolicy,
+    });
+    if (error) throw error;
+    return data;
+  }
 
-    if (!registryData) {
-      await (supabase as any).from('policy_email_registry').insert({
-        email: email,
-        family_policy_number: familyPolicy,
-      }).maybeSingle();
-    }
+  static async registerPolicyPhone(phone: string, familyPolicy: string) {
+    const { data, error } = await (supabase.rpc as any)('register_policy_phone', {
+      p_phone: phone,
+      p_family_policy: familyPolicy,
+    });
+    if (error) throw error;
+    return data;
   }
 
   static async createAuthorizationRequest(payload: any) {
+    if (payload.policy_number && payload.patient_phone) {
+      const phoneResult = await this.registerPolicyPhone(
+        payload.patient_phone,
+        payload.policy_number,
+      );
+      if (!phoneResult?.allowed) {
+        throw new Error(phoneResult?.reason || "Patient phone number is blocked");
+      }
+    }
     const { data, error } = await supabase
       .from("authorization_requests")
       .insert(payload)

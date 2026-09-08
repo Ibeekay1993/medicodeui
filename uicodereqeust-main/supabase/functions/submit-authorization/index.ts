@@ -221,6 +221,25 @@ serve(async (req) => {
     : [];
   const patientId = sanitize(body.patient_id, 80) || null;
 
+  const phoneCheck = await supabase.rpc("register_policy_phone", {
+    p_phone: phoneNumber,
+    p_family_policy: policyNumber,
+  });
+  if (phoneCheck.error) {
+    console.error("submit-authorization: patient phone registry failed", phoneCheck.error.message);
+    return bad(500, "patient_phone_registry_failed");
+  }
+  if (!phoneCheck.data?.allowed) {
+    return new Response(JSON.stringify({
+      error: true,
+      code: "phone_family_conflict",
+      message: String(phoneCheck.data?.reason || "Request not submitted: this patient phone number is already registered for a different family policy. No authorization request has been created."),
+    }), {
+      status: 409,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
   const rawReferralHospitalName = sanitize(body.referral_hospital_name, 200);
   let referralHospitalId: string | null = null;
   let referralHospitalName: string | null = rawReferralHospitalName || null;

@@ -25,6 +25,7 @@ const NhisBeneficiaryUpdatePage = lazy(() => import("@/features/dashboard/pages/
 const HistoricalCodeImportPage = lazy(() => import("@/features/dashboard/pages/HistoricalCodeImportPage"));
 const AnnouncementsPage = lazy(() => import("@/features/dashboard/pages/AnnouncementsPage"));
 const SettingsPage = lazy(() => import("@/features/dashboard/pages/SettingsPage"));
+const LearningCentrePage = lazy(() => import("@/features/dashboard/pages/LearningCentrePage"));
 
 /** All routes available to the Admin role backoffice (/backoffice/admin/*) */
 export function AdminRoutes() {
@@ -62,6 +63,7 @@ export function AdminRoutes() {
       <Route path="historical-import" element={<HistoricalCodeImportPage />} />
       <Route path="announcements" element={<AnnouncementsPage />} />
       <Route path="settings" element={<SettingsPage />} />
+      <Route path="learning-centre" element={<LearningCentrePage />} />
     </Route>
   );
 }

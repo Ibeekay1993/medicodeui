@@ -402,32 +402,35 @@ export default function HospitalNewRequest() {
       const familyPolicy = selectedPatient.policy_number.split('-')[0];
       const diagnosisText = diagnoses.join("; ");
 
-      // Validate email against policy family registry if an email is provided
+      // Register contacts atomically against the canonical family policy.
       if (!noEmail && patientEmail.trim() && patientEmail.trim() !== "no-email@medicode.com") {
-        const { data: emailCheck } = await (supabase.rpc as any)('validate_policy_email', {
+        const { data: emailCheck, error: emailError } = await (supabase.rpc as any)('register_policy_email', {
           p_email: patientEmail.trim(),
           p_family_policy: familyPolicy
         });
 
+        if (emailError) throw emailError;
         if (emailCheck && !emailCheck.allowed) {
           toast({ variant: "destructive", title: "Email blocked", description: emailCheck.reason || "This email address is already associated with another policy family." });
           setIsSubmitting(false);
           return;
         }
 
-        // Register email in policy_email_registry
-        const { data: registryData } = await (supabase as any)
-          .from('policy_email_registry')
-          .select('id')
-          .eq('email', patientEmail.trim())
-          .maybeSingle();
+      }
 
-        if (!registryData) {
-          await (supabase as any).from('policy_email_registry').insert({
-            email: patientEmail.trim(),
-            family_policy_number: familyPolicy,
-          }).maybeSingle();
-        }
+      const { data: phoneCheck, error: phoneError } = await (supabase.rpc as any)('register_policy_phone', {
+        p_phone: phone,
+        p_family_policy: familyPolicy,
+      });
+      if (phoneError) throw phoneError;
+      if (!phoneCheck?.allowed) {
+        toast({
+          variant: "destructive",
+          title: "Phone number blocked",
+          description: phoneCheck?.reason || "Request not submitted: this patient phone number is already registered for a different family policy. No authorization request has been created.",
+        });
+        setIsSubmitting(false);
+        return;
       }
 
       // Resolve referral hospital ID if name is provided but ID is missing.
@@ -790,5 +793,3 @@ export default function HospitalNewRequest() {
     </div>
   );
 }
-
-

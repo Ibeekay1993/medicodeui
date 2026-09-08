@@ -178,6 +178,20 @@ async function postAuthorization(
       headers,
       body: JSON.stringify(payload),
     });
+    if (!res.ok) {
+      let failure: any = null;
+      try {
+        failure = await res.json();
+      } catch {
+        failure = null;
+      }
+      if (failure?.code === "phone_family_conflict") {
+        return {
+          error: "phone_family_conflict",
+          message: String(failure.message || "This phone number is already associated with another policy family."),
+        };
+      }
+    }
     if (res.ok) {
       const j = await res.json();
       if (j?.id)
@@ -214,6 +228,20 @@ async function postAuthorization(
   const normalizedPhoneNumber = phoneNumber
     ? normalizePhoneNumber(phoneNumber)
     : null;
+  const phoneCheck = await supabase.rpc("register_policy_phone", {
+    p_phone: normalizedPhoneNumber,
+    p_family_policy: policyNumber,
+  });
+  if (phoneCheck.error) throw phoneCheck.error;
+  if (!phoneCheck.data?.allowed) {
+    return {
+      error: "phone_family_conflict",
+      message: String(
+        phoneCheck.data?.reason ||
+          "Request not submitted: this patient phone number is already registered for a different family policy. No authorization request has been created.",
+      ),
+    };
+  }
   const { data: row, error } = await supabase
     .from("authorization_requests")
     .insert({
@@ -792,6 +820,21 @@ async function processMessageBody(
         missing_info: [],
         raw_message: blockText,
       });
+      if (result?.error === "phone_family_conflict") {
+        await updateConversation(supabase, row.phone_number, {
+          pending_data: {},
+          active_intent: "COMPLETED",
+        });
+        finalReply =
+          `⚠️ Request Not Submitted\n\n` +
+          `The patient phone number provided has already been registered for a different family policy and therefore cannot be used for two different family policies.\n\n` +
+          `Please check the patient's details and resubmit the request using the correct patient phone number.\n\n` +
+          `If the patient does not have access to that number, please provide another valid phone number belonging to the patient or the patient's family.\n\n` +
+          `If you believe the number has been incorrectly associated with another family, please contact Ronsberger HMO support for assistance.\n\n` +
+          `No authorization request has been created.\n\n— Ronsberger HMO`;
+        priority = Math.max(priority, 3);
+        continue;
+      }
       await supabase
         .from("whatsapp_messages")
         .update({
