@@ -67,7 +67,7 @@ export function normalizePolicyNumber(value: unknown) {
 
 export function normalizePolicyRoot(value: unknown) {
   const raw = String(value ?? "").trim();
-  const base = raw.replace(/[-_]\d+$/, "");
+  const base = raw.replace(/[-_]\d*$/, "");
   return normalizePolicyNumber(base);
 }
 
@@ -81,11 +81,22 @@ export function recordMatchesPolicy(record: any, policy: string) {
   if (!recordPolicy || !normalizedPolicy) return false;
   if (recordPolicy === normalizedPolicy) return true;
   if (recordRoot && policyRoot && recordRoot === policyRoot) return true;
-  return recordPolicy.startsWith(normalizedPolicy) || normalizedPolicy.startsWith(recordPolicy);
+  return false;
 }
 
 export function recordMatchesHistory(record: any, policy: string) {
   return policy ? recordMatchesPolicy(record, policy) : false;
+}
+
+export function normalizePatientNameForMatch(value: unknown) {
+  return cleanPatientName(String(value ?? ""))
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .sort()
+    .join(" ");
 }
 
 export function canDeleteRequestRecord(record: any) {

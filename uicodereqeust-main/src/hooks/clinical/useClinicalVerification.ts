@@ -4,6 +4,7 @@ import { loadIbadanWorkbookHistory } from "@/lib/ibadanWorkbook";
 import {
   normalizePolicyNumber,
   normalizePolicyRoot,
+  recordMatchesPolicy,
 } from "@/lib/clinicalUtils";
 
 export function useClinicalVerification(
@@ -34,16 +35,7 @@ export function useClinicalVerification(
       const workbookHistory = await loadIbadanWorkbookHistory(policy);
       const filteredHistory = workbookHistory
         .filter((record: any) => {
-          const recordPolicy = normalizePolicyNumber(record.policy_number);
-          const recordRoot = normalizePolicyRoot(recordPolicy);
-          const policyRoot = normalizePolicyRoot(policy);
-          const policyMatch = !!policy && (
-            recordPolicy === policy ||
-            (recordRoot && policyRoot && recordRoot === policyRoot) ||
-            recordPolicy.startsWith(policy) ||
-            policy.startsWith(recordPolicy)
-          );
-          return policyMatch;
+          return recordMatchesPolicy(record, policy);
         })
         .map((record: any) => ({
           id: record.id,
@@ -73,7 +65,7 @@ export function useClinicalVerification(
     setChecking(true);
     
     // Fire off Google Sheet History in parallel to avoid blocking the main DB checks
-    const sheetPromise = fetchGoogleSheetHistory();
+    void fetchGoogleSheetHistory();
 
     try {
       const policy = normalizePolicyNumber(request.policy_number);
@@ -168,18 +160,27 @@ export function useClinicalVerification(
 
       // 4. Local DB History 
       if (request.policy_number) {
-        const { data: history } = await supabase
+        const policyRoot = normalizePolicyRoot(policy);
+        let historyQuery = supabase
           .from("authorization_requests")
-          .select("*")
-          .eq("policy_number", request.policy_number)
+          .select("id, request_id, patient_name, policy_number, diagnosis, treatment, hospital_name, status, authorization_code, decision_reason, clinical_notes, decided_at, created_at, source")
           .eq("status", "approved")
           .neq("source", "sheet_history")
           .order("decided_at", { ascending: false })
-          .limit(5);
-        if (history) setLocalHistory(history);
+          .limit(100);
+        if (policyRoot) {
+          historyQuery = historyQuery.or(
+            `policy_number.eq.${policy},policy_number.ilike.${policyRoot}-%`,
+          );
+        }
+        const { data: history } = await historyQuery;
+        const matchingHistory = (history || []).filter((record: any) =>
+          recordMatchesPolicy(record, policy)
+        );
+        if (matchingHistory.length) setLocalHistory(matchingHistory);
 
-        if (history && history.length > 0) {
-          const latest = history[0];
+        if (matchingHistory.length > 0) {
+          const latest = matchingHistory[0];
           if (latest.decided_at) {
             const daysSince = Math.floor((Date.now() - new Date(latest.decided_at).getTime()) / (1000 * 60 * 60 * 24));
             if (daysSince < 30) {
@@ -197,8 +198,6 @@ export function useClinicalVerification(
       console.error("Verification error:", err);
     }
 
-    // Wait for the background history fetch to complete
-    await sheetPromise;
     setChecking(false);
   }, [request, fetchGoogleSheetHistory]);
 

@@ -64,6 +64,20 @@ export default function Login() {
   // Redirect on successful auth
   // ---------------------------------------------------------------------------
   useEffect(() => {
+    const hashParams = new URLSearchParams(
+      window.location.hash.startsWith("#") ? window.location.hash.slice(1) : window.location.hash,
+    );
+    const searchParams = new URLSearchParams(window.location.search);
+    const inviteType = hashParams.get("type") || searchParams.get("type") || "";
+    const hasInviteTokens =
+      Boolean(hashParams.get("access_token") && hashParams.get("refresh_token")) ||
+      Boolean(searchParams.get("access_token") && searchParams.get("refresh_token"));
+
+    if (["invite", "signup"].includes(inviteType) && hasInviteTokens) {
+      navigate("/register", { replace: true });
+      return;
+    }
+
     if (session && !loading && role && !showMfa) {
       if (typeof window !== "undefined") {
         window.sessionStorage.removeItem("ronsberger-intended-path");

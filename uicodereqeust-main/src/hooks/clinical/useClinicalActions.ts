@@ -15,6 +15,13 @@ import {
 } from "@/lib/clinicalUtils";
 import { normalizeHospitalName } from "@/lib/authorizations-helpers";
 
+function formatWhatsAppPhone(value: unknown): string {
+  const digits = String(value || "").replace(/\D/g, "");
+  if (digits.length === 11 && digits.startsWith("0")) return `234${digits.slice(1)}`;
+  if (digits.length === 10) return `234${digits}`;
+  return digits;
+}
+
 interface UseClinicalActionsProps {
   open: boolean;
   request: any;
@@ -459,6 +466,99 @@ export function useClinicalActions({
             diagnosis: editDiagnosis,
             treatment: editTreatment,
             reason: decisionReason || "Deferred for further review",
+          });
+        }
+
+        const patientWhatsApp = formatWhatsAppPhone(request.patient_phone);
+        if (patientWhatsApp) {
+          const patientLabel = cleanPatientName(request.patient_name);
+          const policyLabel = request.policy_number || "N/A";
+          const hospitalLabel = request.hospital_name || "the hospital";
+          const diagnosisLabel = editDiagnosis || "Not specified";
+          const whatsappStatus =
+            dbStatus === "rejected"
+              ? "DECLINED"
+              : dbStatus === "partially_approved"
+                ? "PARTIALLY APPROVED"
+                : "APPROVED";
+          const serviceText =
+            approvedItems.length > 0
+              ? approvedItems
+                  .filter((item) => !item.declined)
+                  .map((item) => `- ${itemQuantity(item)}x ${item.name}`)
+                  .join("\n")
+              : editTreatment || "Approved as prescribed";
+          const reasonText = decisionReason || "Please contact your hospital or Ronsberger HMO for more information.";
+          const message =
+            `Ronsberger HMO\n\n` +
+            `AUTHORIZATION ${whatsappStatus}\n\n` +
+            `Hello ${patientLabel},\n\n` +
+            `Your treatment request submitted through ${hospitalLabel} has been ${whatsappStatus.toLowerCase()}.\n\n` +
+            `Policy No: ${policyLabel}\nDiagnosis: ${diagnosisLabel}\n\n` +
+            (dbStatus === "rejected"
+              ? `Reason:\n${reasonText}\n`
+              : `Approved services:\n${serviceText}\n`) +
+            `\nPlease contact your hospital or Ronsberger HMO if you have any questions.`;
+
+          supabase.functions.invoke("send-whatsapp", {
+            body: { phone_number: patientWhatsApp, message },
+          }).then(({ data, error }) => {
+            if (error || !data?.success) {
+              console.error("Automatic decision WhatsApp failed:", error || data);
+              toast({
+                variant: "destructive",
+                title: "WhatsApp notification failed",
+                description: "The decision was saved, but the patient WhatsApp message was not delivered.",
+              });
+            }
+          }).catch((error) => {
+            console.error("Automatic decision WhatsApp error:", error);
+          });
+        }
+
+        const hospitalWhatsApp = await getRequestingHospitalPhone();
+        if (hospitalWhatsApp) {
+          // Keep the two decision notifications from arriving as a simultaneous burst.
+          await new Promise((resolve) => setTimeout(resolve, 30000));
+          const hospitalStatus =
+            dbStatus === "rejected"
+              ? "DECLINED"
+              : dbStatus === "partially_approved"
+                ? "PARTIALLY APPROVED"
+                : "APPROVED";
+          const hospitalItems = approvedItems.length
+            ? formatApprovalServices(approvedItems, approvedSummary || editTreatment)
+            : editTreatment || "No service details recorded";
+          const hospitalMessage =
+            `Ronsberger HMO\n\n` +
+            `AUTHORIZATION ${hospitalStatus}\n\n` +
+            `Patient: ${cleanPatientName(request.patient_name)}\n` +
+            `Policy No: ${request.policy_number || "N/A"}\n` +
+            `Auth Code: ${currentCode || request.authorization_code || "N/A"}\n` +
+            `Hospital: ${treatingHospitalName || request.hospital_name || "N/A"}\n` +
+            `Diagnosis: ${editDiagnosis || "Not specified"}\n\n` +
+            (dbStatus === "rejected"
+              ? `Reason for Decline:\n${decisionReason || "Not covered"}\n`
+              : `${hospitalItems}\n`) +
+            `\nDate: ${new Date().toLocaleDateString("en-GB")}\n\n` +
+            (dbStatus === "rejected"
+              ? "Please contact Ronsberger HMO for clarification before proceeding."
+              : getApprovalClosing(dbStatus === "partially_approved")) +
+            "\n\nRonsberger HMO UI Desk";
+
+          supabase.functions.invoke("send-whatsapp", {
+            body: { phone_number: hospitalWhatsApp, message: hospitalMessage },
+          }).then(({ data, error }) => {
+            if (error || !data?.success) {
+              console.error("Automatic hospital WhatsApp failed:", error || data);
+              toast({
+                variant: "destructive",
+                title: "Hospital WhatsApp notification failed",
+                description: "The decision was saved, but the verified hospital message was not delivered.",
+              });
+            }
+          }).catch((error) => {
+            console.error("Automatic hospital WhatsApp error:", error);
           });
         }
 

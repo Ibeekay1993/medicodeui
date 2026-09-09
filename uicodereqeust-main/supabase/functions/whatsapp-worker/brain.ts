@@ -45,8 +45,8 @@ export function splitPatientBlocks(text: string): string[] {
 // NHIA family policies are represented as `1639554`, `1639554-1`, `1639554-2`,
 // `1639554-3`. They all belong to the same BASE family policy (`1639554`); the
 // hyphen suffix identifies the family member's position within the family but
-// it must never gate whether a beneficiary can be found. Only the exact form
-// `digits-digits` is treated as a family policy.
+// it must never gate whether a beneficiary can be found. A trailing hyphen is
+// also treated as the base family form for tolerant intake parsing.
 export function parsePolicyNumber(policy: string): {
   submittedPolicy: string;
   basePolicy: string;
@@ -54,12 +54,12 @@ export function parsePolicyNumber(policy: string): {
   isFamilyPolicy: boolean;
 } {
   const normalized = String(policy ?? "").trim();
-  const familyMatch = normalized.match(/^(\d+)-(\d+)$/);
+  const familyMatch = normalized.match(/^(\d+)-(\d*)$/);
   if (familyMatch) {
     return {
       submittedPolicy: normalized,
       basePolicy: familyMatch[1],
-      memberSuffix: familyMatch[2],
+      memberSuffix: familyMatch[2] || null,
       isFamilyPolicy: true,
     };
   }
@@ -95,13 +95,13 @@ export function extractAuthFieldsFromRaw(
       "policyNumber",
       /^(?:\*?\s*(?:nhia\s*(?:no|number)?|nhis\s*(?:no|number)?|policy\s*(?:no|number)?)\s*\*?\s*:\s*)(.+)$/i,
     ],
-    ["diagnosis", /^(?:\*?\s*diagnosis\s*\*?\s*:\s*)(.+)$/i],
-    ["treatment", /^(?:\*?\s*(?:drugs?|treatment)\s*\*?\s*:\s*)(.+)$/i],
-    ["procedure", /^(?:\*?\s*procedures?\s*\*?\s*:\s*)(.+)$/i],
-    ["investigation", /^(?:\*?\s*investigations?\s*\*?\s*:\s*)(.+)$/i],
+    ["diagnosis", /^(?:\*?\s*diagnosis\s*\*?\s*(?::|-)?\s+)(.+)$/i],
+    ["treatment", /^(?:\*?\s*(?:drugs?|treatment)\s*\*?\s*(?::|-)?\s+)(.+)$/i],
+    ["procedure", /^(?:\*?\s*procedures?\s*\*?\s*(?::|-)?\s+)(.+)$/i],
+    ["investigation", /^(?:\*?\s*investigations?\s*\*?\s*(?::|-)?\s+)(.+)$/i],
     [
       "requestedService",
-      /^(?:\*?\s*(?:services?|consultation)\s*\*?\s*:\s*)(.+)$/i,
+      /^(?:\*?\s*(?:services?|consultation)\s*\*?\s*(?::|-)?\s+)(.+)$/i,
     ],
     [
       "patientPhone",
@@ -149,7 +149,8 @@ export const AUTH_HEADER_PATTERNS = [
 ];
 
 export function hasStrongAuthIndicators(text: string) {
-  return AUTH_HEADER_PATTERNS.filter((p) => p.test(text)).length >= 2;
+  const normalized = String(text || "").replace(/[*_~`]/g, "");
+  return AUTH_HEADER_PATTERNS.filter((p) => p.test(normalized)).length >= 2;
 }
 
 // ── Analysis contract (shared by every AI provider and the deterministic

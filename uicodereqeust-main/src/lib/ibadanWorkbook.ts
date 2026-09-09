@@ -31,7 +31,7 @@ const normalizeText = (value: unknown) =>
 
 const normalizePolicy = (value: unknown) => normalizeText(value).replace(/\s+/g, "");
 const normalizePolicyRoot = (value: unknown) =>
-  normalizePolicy(String(value ?? "").replace(/[-_]\d+$/, ""));
+  normalizePolicy(String(value ?? "").replace(/[-_]\d*$/, ""));
 
 const normalizeMatchText = (value: unknown) =>
   normalizeText(value)
@@ -104,7 +104,7 @@ function mapAuthorizationRow(row: any): IbadanWorkbookRecord {
   const authorization_code = normalizeText(row?.authorization_code || row?.code || row?.pre_authorisation_code || "");
   const diagnosis = normalizeText(row?.diagnosis || row?.diagnosis_services || "");
   const treatment = normalizeText(row?.treatment || row?.diagnosis_services || "");
-  const note = normalizeText(row?.note || row?.decision_reason || row?.clinical_notes || "");
+  const note = normalizeText(row?.decision_reason || row?.note || row?.clinical_notes || "");
   const status = normalizeStatus(row?.status || "", authorization_code);
   const hospital_name = normalizeText(row?.hospital_name || row?.provider || "");
   const requesting_officer = normalizeText(row?.requesting_officer || row?.submitted_by || row?.decided_by || "");
@@ -167,7 +167,7 @@ export async function loadIbadanWorkbookHistory(policyFilter?: string) {
         .select("*");
 
       if (policyRoot) {
-        query = query.or(`policy_number.eq.${policy},policy_number.ilike.${policyRoot}%`);
+        query = query.or(`policy_number.eq.${policy},policy_number.ilike.${policyRoot}-%`);
       } else {
         query = query.eq("policy_number", policy);
       }

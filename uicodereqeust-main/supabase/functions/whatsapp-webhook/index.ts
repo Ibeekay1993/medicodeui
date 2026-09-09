@@ -56,6 +56,24 @@ function jsonResponse(body: unknown, status = 200) {
 function unauthorized() { return jsonResponse({ error: "unauthorized" }, 401); }
 function badRequest(reason: string) { return jsonResponse({ error: reason }, 400); }
 
+function looksLikeAuthorizationMessage(text: string): boolean {
+  const normalized = String(text || "")
+    .replace(/[*_~`]/g, "")
+    .toLowerCase();
+  if (!normalized.trim()) return false;
+
+  const structuredFields = [
+    /\b(?:full\s*name|patient\s*name|name)\s*:?/i,
+    /\b(?:nhia|nhis|policy)\s*(?:no|number)?\s*:?/i,
+    /\bdiagnosis\s*:?/i,
+    /\b(?:drug|drugs|treatment|procedure|procedures|investigation|investigations|service|services)\s*:?/i,
+  ];
+  const structuredFieldCount = structuredFields.filter((pattern) => pattern.test(normalized)).length;
+  if (structuredFieldCount >= 2) return true;
+
+  return /\b(?:authorization|authorisation|preauth|pre-authorization|status|approval|approved|rejected|declined|nhia|nhis|policy number|patient name)\b/i.test(normalized);
+}
+
 // ── Group Message Detection ───────────────────────────────────────────────────
 // Returns true for ANY WhatsApp group event (including broadcasts).
 // Must be checked BEFORE any other processing so groups are completely silenced.
@@ -364,6 +382,16 @@ async function handleNonRegisteredUser(
   text: string,
   accessClass: AccessClass,
 ): Promise<void> {
+  // Do not resend the full welcome menu on every message. Explicit support,
+  // callback, FAQ, and registration requests below still receive replies.
+  const welcomeCutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const { count: recentMessageCount } = await supabase
+    .from("whatsapp_messages")
+    .select("id", { count: "exact", head: true })
+    .eq("phone_number", phoneNumber)
+    .gte("received_at", welcomeCutoff);
+  const alreadyWelcomedToday = (recentMessageCount || 0) > 1;
+
   // Determine if this user is in a potential provider context:
   // 1. Contact in registry was disabled or revoked
   // 2. Current message has provider phrasing
@@ -476,6 +504,7 @@ async function handleNonRegisteredUser(
   }
 
   if (intent === "POTENTIAL_PROVIDER") {
+    if (alreadyWelcomedToday) return;
     await sendWhatsApp(
       phoneNumber,
       "Welcome to Ronsberger HMO 👋\n\nWe support healthcare providers with medical authorization and HMO services.\n\nThis WhatsApp number is not currently registered for provider authorization, but we can still help you.\n\nWhat would you like to do?\n\n1️⃣ Provider Registration\n2️⃣ Chat with Customer Support\n3️⃣ Request a Phone Call\n4️⃣ Provider Information\n5️⃣ General HMO Question\n\nIf you're contacting us on behalf of a hospital or clinic, our support team can assist with registration.\n\n— Ronsberger HMO",
@@ -484,6 +513,7 @@ async function handleNonRegisteredUser(
   }
 
   // Default GREETING
+  if (alreadyWelcomedToday) return;
   if (isPotentialProvider) {
     await sendWhatsApp(
       phoneNumber,
@@ -567,6 +597,16 @@ serve(async (req) => {
   // ── STEP 2: RESOLVE ACCESS CLASS ─────────────────────────────────────────
   const { accessClass, authorized, hospitalId } = await resolveAccessClass(supabase, phoneNumber);
 
+  // Only active registered hospital numbers enter the database queue and
+  // authorization worker. General customer traffic must not create queue rows.
+  if (!authorized || accessClass !== "REGISTERED_HOSPITAL") {
+    return jsonResponse({ ok: true, access: accessClass, ignored: "unregistered_sender" });
+  }
+
+  if (!looksLikeAuthorizationMessage(text)) {
+    return jsonResponse({ ok: true, access: "registered_hospital", ignored: "non_authorization_message" });
+  }
+
   // ── STEP 3: STORE MESSAGE ─────────────────────────────────────────────────
   const insertRow: Record<string, unknown> = {
     message_id: evolutionMessageId,
@@ -574,7 +614,7 @@ serve(async (req) => {
     message_type: type,
     message_body: text || null,
     raw_message: { event: body.event, instance: body.instance, data, pushName },
-    status: authorized ? "queued" : "completed",
+    status: "queued",
     received_at: receivedAt,
     phone_number_id: instance || null,
   };
@@ -614,12 +654,5 @@ serve(async (req) => {
     return jsonResponse({ ok: true, access: "registered_hospital" });
   }
 
-  // GENERAL_CUSTOMER or DISABLED_OR_REVOKED — professional friendly experience
-  try {
-    await handleNonRegisteredUser(supabase, phoneNumber, pushName, text || "", accessClass);
-  } catch (e) {
-    console.error("evolution-webhook: non-registered handler threw", (e as Error).message);
-  }
-
-  return jsonResponse({ ok: true, access: accessClass.toLowerCase() });
+  return jsonResponse({ ok: true, access: "registered_hospital" });
 });

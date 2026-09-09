@@ -87,6 +87,14 @@ describe("hasStrongAuthIndicators", () => {
 });
 
 describe("extractAuthFieldsFromRaw", () => {
+  it("extracts diagnosis and procedures when labels omit colons", () => {
+    const fields = extractAuthFieldsFromRaw(
+      "Full Name: VICTORIA FOYE\nNHIS No: 3381755-1\nDiagnosis Presbyopia\nProcedures Initial consultation, Auto Refraction",
+    );
+    expect(fields.diagnosis).toBe("Presbyopia");
+    expect(fields.procedure).toContain("Initial consultation");
+  });
+
   it("extracts the hospital format including originating hospital", () => {
     const msg = [
       "Full Name: AKIN TEHINGBOLA",
@@ -184,6 +192,7 @@ describe("parsePolicyNumber", () => {
       memberSuffix: "1",
       isFamilyPolicy: true,
     });
+
     expect(parsePolicyNumber("1639554-2")).toMatchObject({
       submittedPolicy: "1639554-2",
       basePolicy: "1639554",
@@ -194,6 +203,14 @@ describe("parsePolicyNumber", () => {
       submittedPolicy: "1639554-3",
       basePolicy: "1639554",
       memberSuffix: "3",
+      isFamilyPolicy: true,
+    });
+  });
+
+  it("normalizes a trailing family hyphen to the base policy", () => {
+    expect(parsePolicyNumber("2173562-")).toMatchObject({
+      basePolicy: "2173562",
+      memberSuffix: null,
       isFamilyPolicy: true,
     });
   });
@@ -447,6 +464,21 @@ describe("classifyGeminiFailure", () => {
 });
 
 describe("deterministicFallbackAnalysis (Gemini unavailable)", () => {
+  it("classifies the hospital Markdown authorization format", () => {
+    const msg = [
+      "*Name* : Owadayo Christianah",
+      "*NHIA no*: 1640154",
+      "*Diagnosis:* Hypertension + DM",
+      "*Services:* FLP, HVS for m/c/s",
+      "*Phone number:* 08102394102",
+      "*From University Health Service UI*",
+    ].join("\n");
+    expect(hasStrongAuthIndicators(msg)).toBe(true);
+    expect(deterministicFallbackAnalysis(msg, {}).intent).toBe(
+      "NEW_AUTHORIZATION",
+    );
+  });
+
   it("preserves structured authorization intake without Gemini", () => {
     const msg = [
       "Full Name: Segun Akinoe",

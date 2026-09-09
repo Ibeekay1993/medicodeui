@@ -181,7 +181,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(nextSession.user);
     userIdRef.current = nextSession.user.id;
 
-    const { role: resolvedRole, fullName: resolvedFullName, hospitalId: resolvedHospitalId } = await resolveUserRole(nextSession.user);
+    const { role: resolvedRole, fullName: resolvedFullName, hospitalId: resolvedHospitalId } = await withAuthTimeout(resolveUserRole(nextSession.user)).catch((error) => {
+      console.error("AuthContext: role resolution timed out or failed", error);
+      const fallbackName = (nextSession.user.user_metadata as any)?.full_name || nextSession.user.email || null;
+      return { role: null, fullName: fallbackName, hospitalId: null };
+    });
 
     if (!mountedRef.current) return;
 

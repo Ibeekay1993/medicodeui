@@ -121,18 +121,4 @@ $$;
 REVOKE ALL ON FUNCTION public.run_learning_observation(interval) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.run_learning_observation(interval) TO service_role;
 
-DO $$
-BEGIN
-  CREATE EXTENSION IF NOT EXISTS pg_cron WITH SCHEMA extensions;
-  PERFORM cron.schedule(
-    'learning-centre-observation',
-    '15 * * * *',
-    $learning_job_sql$SELECT public.run_learning_observation(interval '24 hours');$learning_job_sql$
-  );
-EXCEPTION
-  WHEN duplicate_object THEN NULL;
-  WHEN OTHERS THEN
-    RAISE NOTICE 'Learning Centre cron scheduling skipped: %', SQLERRM;
-END $$;
-
 COMMIT;

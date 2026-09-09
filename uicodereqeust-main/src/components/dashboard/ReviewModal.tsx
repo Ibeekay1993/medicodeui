@@ -130,12 +130,16 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
   const requestPolicyNumber = String(request?.policy_number || "").trim();
 
   const formattedNotes = useMemo(() => {
-    if (!request?.clinical_notes || typeof request.clinical_notes !== "string") return null;
-    const trimmed = request.clinical_notes.trim();
+    const sourceNotes = request?.decision_reason || request?.clinical_notes;
+    if (!sourceNotes || typeof sourceNotes !== "string") return null;
+    const trimmed = sourceNotes.trim();
     if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
       try {
         const parsed = JSON.parse(trimmed);
         const parts: string[] = [];
+        if (parsed.review_decision || parsed.decision_reason) {
+          parts.push(parsed.review_decision || parsed.decision_reason);
+        }
         if (parsed.patient_id_free_text) parts.push(`Patient ID: ${parsed.patient_id_free_text}`);
         if (parsed.referral_to) parts.push(`Referral To: ${parsed.referral_to}`);
         if (parsed.notes) parts.push(parsed.notes);
@@ -145,7 +149,7 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
       }
     }
     return trimmed;
-  }, [request?.clinical_notes]);
+  }, [request?.clinical_notes, request?.decision_reason]);
 
   // 1b. Look up the patient's registered primary hospital from nhis_beneficiaries
   const [primaryHospital, setPrimaryHospital] = useState<{ hcp_name: string; hcp_code: string } | null>(null);
@@ -268,6 +272,20 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
       setEditTreatment(request.treatment || "");
     }
   }, [open, request]);
+
+  useEffect(() => {
+    if (!open || !request) return;
+    setActiveTab("verification");
+    setHistoryPage(1);
+    setShowStickyName(false);
+
+    const resetScroll = () => {
+      scrollContainerRef.current?.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    };
+    resetScroll();
+    const frame = requestAnimationFrame(resetScroll);
+    return () => cancelAnimationFrame(frame);
+  }, [open, request?.id]);
 
   // 3. Initialize manual/auto tariff search hook
   const tariffSearch = useTariffSearch(open, editTreatment, request, isParsedRequest && role !== "hospital");

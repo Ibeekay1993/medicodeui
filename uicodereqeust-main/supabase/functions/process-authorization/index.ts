@@ -74,16 +74,20 @@ async function findHospitalIdByName(supabase: ReturnType<typeof getServiceClient
  * Invoke a sibling edge function using the Supabase service URL + service key.
  * Uses fire-and-forget pattern (non-blocking).
  */
-async function invokeFunction(functionName: string, body: Record<string, unknown>): Promise<void> {
+async function invokeFunction(
+  functionName: string,
+  body: Record<string, unknown>,
+  authorizationHeader: string,
+): Promise<void> {
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
-  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  if (!supabaseUrl || !serviceKey) return;
+  if (!supabaseUrl || !authorizationHeader) return;
 
   try {
     await fetch(`${supabaseUrl}/functions/v1/${functionName}`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        "x-user-authorization": authorizationHeader,
         "Authorization": `Bearer ${serviceKey}`,
       },
       body: JSON.stringify(body),
@@ -98,6 +102,7 @@ serve(async (req) => {
 
   try {
     const { user } = await validateUser(req, ["utilization_manager", "admin"]);
+    const authorizationHeader = req.headers.get("Authorization") || "";
     const body = await req.json();
     const requestId = sanitizeString(body.request_id || body.auth_id || body.id, 120);
     const action = sanitizeString(body.action, 20).toLowerCase();
@@ -242,12 +247,12 @@ serve(async (req) => {
         // 1. Patient referral notification email
         void invokeFunction("send-referral-notification", {
           authorization_id: requestRow.id,
-        });
+        }, authorizationHeader);
       } else if (!finalReferredHospitalId && requestRow.patient_email) {
         // Standard approval email for non-referrals
         void invokeFunction("send-approval-email", {
           authorization_id: requestRow.id,
-        });
+        }, authorizationHeader);
       }
 
       // 2. Pre-generate PIN so it appears immediately in utilization_manager queue
@@ -258,7 +263,7 @@ serve(async (req) => {
         policy_number: requestRow.policy_number,
         hospital_id: finalReferredHospitalId || requestRow.hospital_id || requestRow.requesting_hospital_id,
         otp_type: "ARRIVAL"
-      });
+      }, authorizationHeader);
 
       return new Response(
         JSON.stringify({
@@ -291,7 +296,7 @@ serve(async (req) => {
     if (requestRow.patient_email) {
       void invokeFunction("send-rejection-email", {
         authorization_id: requestRow.id,
-      });
+      }, authorizationHeader);
     }
 
     return new Response(
@@ -305,4 +310,3 @@ serve(async (req) => {
     );
   }
 });
-

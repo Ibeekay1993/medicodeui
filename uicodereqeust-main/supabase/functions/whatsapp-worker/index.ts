@@ -42,6 +42,9 @@ const EVOLUTION_INSTANCE_NAME =
 const WORKER_SECRET = Deno.env.get("WHATSAPP_WORKER_SECRET") || "";
 const MAX_ATTEMPTS = Number(Deno.env.get("WHATSAPP_MAX_ATTEMPTS") || "5");
 const WORKER_BATCH = Number(Deno.env.get("WHATSAPP_WORKER_BATCH") || "10");
+const OUTBOUND_DELAY_MS = Number(Deno.env.get("WHATSAPP_OUTBOUND_DELAY_MS") || "3000");
+const UNREGISTERED_WINDOW_MS = 60_000;
+const UNREGISTERED_MAX_MESSAGES = 3;
 
 // AI provider failover config (Gemini → Groq → Modal → deterministic brain).
 // Values are read from environment at cold start; secrets are never logged.
@@ -68,6 +71,33 @@ function getServiceClient() {
     { auth: { persistSession: false } },
   );
 }
+const whatsappLogClient = getServiceClient();
+const queuedProcessingLogs: Array<{
+  message_id: string;
+  stage: string;
+  status: "ok" | "error" | "skipped";
+  detail: unknown;
+}> = [];
+let processingLogFlushTimer: number | null = null;
+
+function flushQueuedProcessingLogs() {
+  if (!queuedProcessingLogs.length) return;
+  const batch = queuedProcessingLogs.splice(0, queuedProcessingLogs.length);
+  processingLogFlushTimer = null;
+  whatsappLogClient
+    .from("whatsapp_processing_log")
+    .insert(
+      batch.map((entry) => ({
+        message_id: entry.message_id,
+        stage: entry.stage,
+        status: entry.status,
+        detail: entry.detail ?? null,
+      })),
+    )
+    .then(() => {})
+    .catch(() => {});
+}
+
 function log(
   stage: string,
   message_id: string,
@@ -82,10 +112,13 @@ function log(
       ...(detail && typeof detail === "object" ? detail : {}),
     }),
   );
-  getServiceClient()
-    .from("whatsapp_processing_log")
-    .insert({ message_id, stage, status, detail: detail ?? null })
-    .then(() => {});
+  queuedProcessingLogs.push({ message_id, stage, status, detail: detail ?? null });
+  if (processingLogFlushTimer === null) {
+    processingLogFlushTimer = setTimeout(() => flushQueuedProcessingLogs(), 5000);
+  }
+  if (queuedProcessingLogs.length >= 50) {
+    flushQueuedProcessingLogs();
+  }
 }
 
 function normalizeDraftName(value: unknown) {
@@ -116,6 +149,9 @@ function draftIdentityConflicts(
 async function sendWhatsAppMessage(toPhone: string, text: string) {
   if (!EVOLUTION_API_URL || !EVOLUTION_API_KEY)
     throw new Error("Evolution creds missing");
+  if (OUTBOUND_DELAY_MS > 0) {
+    await new Promise((resolve) => setTimeout(resolve, OUTBOUND_DELAY_MS));
+  }
   const url = `${EVOLUTION_API_URL.replace(/\/$/, "")}/message/sendText/${encodeURIComponent(EVOLUTION_INSTANCE_NAME)}`;
   const res = await fetch(url, {
     method: "POST",
@@ -216,15 +252,23 @@ async function postAuthorization(
         "UNIVERSITY OF IBADAN HEALTH SERVICES (JAJA HEALTH CLINIC)",
     ).trim(),
     phoneNumber = String(payload.phone_number || "").trim(),
-    whatsappMessageId = String(payload.whatsapp_message_id || "");
+    whatsappMessageId = String(payload.whatsapp_message_id || ""),
+    relatedRequestId = payload.related_request_id
+      ? String(payload.related_request_id)
+      : null,
+    duplicateStatus = payload.duplicate_status
+      ? String(payload.duplicate_status)
+      : "none";
   let hospitalId: string | null = null;
-  const { data: hosp } = await supabase
-    .from("hospitals")
-    .select("id")
-    .ilike("name", `%${hospitalName}%`)
-    .limit(1)
+  const { data: senderContact } = await supabase
+    .from("hospital_whatsapp_contacts")
+    .select("hospital_id")
+    .eq("phone_number", normalizePhoneNumber(String(payload.sender_phone || "")))
+    .eq("status", "active")
     .maybeSingle();
-  if (hosp?.id) hospitalId = hosp.id;
+  if (senderContact?.hospital_id) {
+    hospitalId = senderContact.hospital_id;
+  }
   const normalizedPhoneNumber = phoneNumber
     ? normalizePhoneNumber(phoneNumber)
     : null;
@@ -265,10 +309,14 @@ async function postAuthorization(
         source: "whatsapp",
         whatsapp_message_id: whatsappMessageId,
         captured_at: new Date().toISOString(),
+        related_request_id: relatedRequestId,
+        duplicate_status: duplicateStatus,
       }),
       whatsapp_raw_message: whatsappMessageId,
       status: "pending",
       submitted_by: null,
+      related_request_id: relatedRequestId,
+      duplicate_status: duplicateStatus,
     })
     .select("id, request_id, status")
     .single();
@@ -622,7 +670,7 @@ async function processMessageBody(
           "I can currently process medical authorization details sent as text. Please send the patient information as a text message.\n\n— Ronsberger HMO";
       else
         reply =
-          "Thank you for contacting Ronsberger HMO.\n\nIf you need to submit a patient authorization or check the status of a request, please tell me what you need help with.\n\n— Ronsberger HMO";
+          "Please send the patient details in this standard authorization format:\n\nFull Name\nNHIS/Policy number\nSex\nDate of birth\nPhone number\nConsultation\nDiagnosis\nProcedures/Treatment\nReferred to\nFrom University Health Service\n\nExample:\nFull Name: Jane Doe\nNHIS No: 1234567\nSex: Female\nDate of birth: 01 Jan 1990\nPhone no: +2348012345678\nConsultation: Initial consultation\nDiagnosis: Hypertension\nProcedures: Specialist Initial Consultation, Blood Pressure Review\nReferred to: UCH\nFrom University Health Service\n\n— Ronsberger HMO";
       if (priority < 1) {
         finalReply = reply;
         priority = 1;
@@ -781,29 +829,38 @@ async function processMessageBody(
         submittedPolicyBase = parsePolicyNumber(String(policyNumber || ""))
           .basePolicy.toLowerCase()
           .trim(),
-        duplicate = existing.find(
+        recentSamePatientPolicy = existing.filter(
           (r: any) =>
             r.created_at >= cutoff &&
             String(r.patient_name || "").toLowerCase() ===
               patientName!.toLowerCase() &&
             parsePolicyNumber(String(r.policy_number || "")).basePolicy
               .toLowerCase()
-              .trim() === submittedPolicyBase &&
-            String(r.diagnosis || "")
-              .toLowerCase()
-              .includes(diagnosis!.toLowerCase()) &&
-            String(r.treatment || "")
-              .toLowerCase()
-              .includes(String(service).toLowerCase()),
+              .trim() === submittedPolicyBase,
         );
-      if (duplicate) {
-        finalReply = `It looks like an authorization request for ${patientName} was recently submitted from this number. It is currently ${(duplicate.status || "pending").toUpperCase()}.\n\nIf this is a new request for the same patient, please reply with the updated clinical details.\n\n— Ronsberger HMO`;
+      const sameClinicalRequest = recentSamePatientPolicy.find((r: any) => {
+        const existingDiagnosis = String(r.diagnosis || "").toLowerCase();
+        const existingTreatment = String(r.treatment || "").toLowerCase();
+        const currentDiagnosis = String(diagnosis || "").toLowerCase();
+        const currentTreatment = String(service || "").toLowerCase();
+        return (
+          (!existingDiagnosis ||
+            existingDiagnosis.includes(currentDiagnosis) ||
+            currentDiagnosis.includes(existingDiagnosis)) &&
+          (!existingTreatment ||
+            existingTreatment.includes(currentTreatment) ||
+            currentTreatment.includes(existingTreatment))
+        );
+      });
+      if (sameClinicalRequest) {
+        finalReply = `This looks like a duplicate authorization for ${patientName}.\n\nWe have not created a second active authorization for the same patient and policy in the recent period.\n\nIf this is a different diagnosis or treatment, please send the updated clinical details and we will queue it as a new request for review.\n\n— Ronsberger HMO`;
         await updateConversation(supabase, row.phone_number, {
           pending_data: {},
         });
         priority = Math.max(priority, 3);
         continue;
       }
+      const relatedRequestId = recentSamePatientPolicy[0]?.id || null;
       const result = await postAuthorization(supabase, {
         source: "whatsapp",
         whatsapp_message_id: messageId,
@@ -814,11 +871,14 @@ async function processMessageBody(
         phone_number: patientPhone
           ? normalizePhoneNumber(patientPhone)
           : null,
+        sender_phone: row.phone_number,
         hospital_name: hospital,
         referral_hospital_name: referral,
         urgency_level: analysis.urgencyLevel ?? 3,
         missing_info: [],
         raw_message: blockText,
+        related_request_id: relatedRequestId,
+        duplicate_status: relatedRequestId ? "possible_revision" : "none",
       });
       if (result?.error === "phone_family_conflict") {
         await updateConversation(supabase, row.phone_number, {
@@ -849,7 +909,9 @@ async function processMessageBody(
         last_policy_number: policyNumber,
         active_authorization_id: result.id,
       });
-      finalReply = `Your medical authorization request for ${patientName} has been received successfully.\n\nOur team will review it and update you here once a decision is available.\n\n— Ronsberger HMO`;
+      finalReply = relatedRequestId
+        ? `Your updated medical authorization request for ${patientName} has been queued for review as a related request/revision.\n\nA prior authorization already exists for this patient and policy, and this new submission has been flagged for review instead of being silently merged.\n\nOur team will review it and update you here once a decision is available.\n\n— Ronsberger HMO`
+        : `Your medical authorization request for ${patientName} has been received successfully.\n\nOur team will review it and update you here once a decision is available.\n\n— Ronsberger HMO`;
       priority = Math.max(priority, 3);
       log("authorization", messageId, "ok", { request_id: result.request_id });
     }
@@ -887,6 +949,30 @@ async function processOne(
   // Defense-in-depth: Ensure the message sender is an active registered hospital contact
   const sender = await resolveHospitalSender(supabase, row.phone_number);
   if (!sender.authorized) {
+    if (sender.reason === "unregistered_sender") {
+      const cutoff = new Date(Date.now() - UNREGISTERED_WINDOW_MS).toISOString();
+      const { count } = await supabase
+        .from("whatsapp_messages")
+        .select("id", { count: "exact", head: true })
+        .eq("phone_number", row.phone_number)
+        .gte("received_at", cutoff);
+
+      if ((count || 0) > UNREGISTERED_MAX_MESSAGES) {
+        log("rate_limit", messageId, "skipped", {
+          reason: "unregistered_sender_rate_limit",
+          phone: row.phone_number ? String(row.phone_number).slice(-4) : "none",
+        });
+        await supabase
+          .from("whatsapp_messages")
+          .update({
+            status: "completed",
+            last_error: "Rate limited unregistered sender",
+            processed_at: new Date().toISOString(),
+          })
+          .eq("message_id", messageId);
+        return;
+      }
+    }
     log("auth_guard", messageId, "skipped", {
       reason: sender.reason,
       phone: row.phone_number ? String(row.phone_number).slice(-4) : "none",

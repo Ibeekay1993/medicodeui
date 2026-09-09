@@ -18,7 +18,7 @@ export function getServiceClient() {
 }
 
 export async function validateUser(req: Request, allowedRoles: string[]) {
-  const authHeader = req.headers.get("Authorization");
+  const authHeader = req.headers.get("x-user-authorization") || req.headers.get("Authorization");
   if (!authHeader) throw new Error("Unauthorized");
 
   const anonClient = createClient(

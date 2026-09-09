@@ -125,7 +125,8 @@ serve(async (req) => {
     }
 
     // 2. Generate the invite link via Supabase Admin API
-    const redirectTo = `${Deno.env.get("SITE_URL") || "https://medicodeui.web.app"}/register`;
+    const configuredSiteUrl = (Deno.env.get("SITE_URL") || "https://medicodeui.web.app").replace(/\/+$/, "");
+    const redirectTo = `${configuredSiteUrl.replace(/\/login$/, "")}/register`;
     const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
       type: "invite",
       email: normalizedEmail,

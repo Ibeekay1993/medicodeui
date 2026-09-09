@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { format } from "date-fns";
-import { cleanPatientName } from "@/lib/clinicalUtils";
+import { normalizePatientNameForMatch } from "@/lib/clinicalUtils";
 import { ChevronDown, ChevronUp } from "lucide-react";
 
 interface ClinicalHistoryProps {
@@ -28,7 +28,7 @@ const HistoryCard = ({ record }: { record: any }) => {
     statusClasses = "bg-amber-100 text-amber-700 border-amber-200";
   }
 
-  const note = record.note || record.clinical_notes || "";
+  const note = record.decision_reason || record.note || record.clinical_notes || "";
   const isLongNote = note.length > 80;
   const displayNote = showFullNote ? note : (isLongNote ? note.substring(0, 80) + "..." : note);
 
@@ -125,15 +125,11 @@ export function ClinicalHistory({
   const [includeDependents, setIncludeDependents] = useState(false);
 
   // Filter history based on includeDependents toggle
-  const currentPatientClean = cleanPatientName(requestPatientName || "");
+  const currentPatientClean = normalizePatientNameForMatch(requestPatientName || "");
   const filteredHistory = visibleHistory.filter((record) => {
     if (includeDependents) return true;
-    const recordPatientClean = cleanPatientName(record.patient_name || record.name || "");
-    return (
-      recordPatientClean === currentPatientClean ||
-      recordPatientClean.includes(currentPatientClean) ||
-      currentPatientClean.includes(recordPatientClean)
-    );
+    const recordPatientClean = normalizePatientNameForMatch(record.patient_name || record.name || "");
+    return recordPatientClean === currentPatientClean;
   });
 
   return (
@@ -155,7 +151,7 @@ export function ClinicalHistory({
           </div>
           <div className="flex items-center gap-2">
             <div className="bg-slate-50 px-2.5 py-1 rounded-full text-[10px] font-bold text-slate-500">
-              {visibleHistory.length || 5} RECORDS
+              {filteredHistory.length} RECORDS
             </div>
             <span className="text-slate-400">{expanded ? '▴' : '▾'}</span>
           </div>
@@ -216,4 +212,3 @@ export function ClinicalHistory({
     </div>
   );
 }
-

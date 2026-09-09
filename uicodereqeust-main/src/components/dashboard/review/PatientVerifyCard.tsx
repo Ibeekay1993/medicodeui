@@ -103,18 +103,18 @@ export function PatientVerifyCard({
         <div className="flex justify-between items-center mb-3">
           <div className="flex items-center gap-2">
             <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center text-[12px] font-bold ${
-              checking ? "border-slate-300 text-slate-400" :
+              checking || policyVerified === null ? "border-slate-300 text-slate-400" :
               policyVerified && patientMatchStatus === "exact" ? "border-green-500 text-green-500" :
               policyVerified && patientMatchStatus === "partial" ? "border-yellow-500 text-yellow-500" :
               policyVerified && patientMatchStatus === "none" ? "border-red-500 text-red-500" :
               "border-red-500 text-red-500"
             }`}>
-              {checking ? "◓" : policyVerified && patientMatchStatus === "exact" ? "✓" : "!"}
+              {checking || policyVerified === null ? "◓" : policyVerified && patientMatchStatus === "exact" ? "✓" : "!"}
             </div>
             <div>
               <div className="text-[13px] font-extrabold text-slate-800">NHIS Confirmation</div>
               <div className={`text-[11px] ${!policyVerified && !checking ? 'text-red-500 font-bold' : policyVerified && patientMatchStatus === 'none' ? 'text-red-500 font-bold' : 'text-slate-400'}`}>
-                {checking ? "Checking registry..." :
+                {checking || policyVerified === null ? "Checking registry..." :
                  policyVerified && patientMatchStatus === "exact" ? "Verified master records registry" :
                  policyVerified && patientMatchStatus === "partial" ? "Partial match in registry" :
                  policyVerified && patientMatchStatus === "none" ? "Policy found, patient name mismatch" :
