@@ -95,13 +95,13 @@ export function extractAuthFieldsFromRaw(
       "policyNumber",
       /^(?:\*?\s*(?:nhia\s*(?:no|number)?|nhis\s*(?:no|number)?|policy\s*(?:no|number)?)\s*\*?\s*:\s*)(.+)$/i,
     ],
-    ["diagnosis", /^(?:\*?\s*diagnosis\s*\*?\s*(?::|-)?\s+)(.+)$/i],
-    ["treatment", /^(?:\*?\s*(?:drugs?|treatment)\s*\*?\s*(?::|-)?\s+)(.+)$/i],
-    ["procedure", /^(?:\*?\s*procedures?\s*\*?\s*(?::|-)?\s+)(.+)$/i],
-    ["investigation", /^(?:\*?\s*investigations?\s*\*?\s*(?::|-)?\s+)(.+)$/i],
+    ["diagnosis", /^(?:\*?\s*diagnosis\s*\*?\s*(?:(?::|-)\s*|\s+))(.+)$/i],
+    ["treatment", /^(?:\*?\s*(?:drugs?|treatment)\s*\*?\s*(?:(?::|-)\s*|\s+))(.+)$/i],
+    ["procedure", /^(?:\*?\s*procedures?\s*\*?\s*(?:(?::|-)\s*|\s+))(.+)$/i],
+    ["investigation", /^(?:\*?\s*investigations?\s*\*?\s*(?:(?::|-)\s*|\s+))(.+)$/i],
     [
       "requestedService",
-      /^(?:\*?\s*(?:services?|consultation)\s*\*?\s*(?::|-)?\s+)(.+)$/i,
+      /^(?:\*?\s*(?:services?|consultation)\s*\*?\s*(?:(?::|-)\s*|\s+))(.+)$/i,
     ],
     [
       "patientPhone",
@@ -138,6 +138,24 @@ export function extractAuthFieldsFromRaw(
     result.originatingHospital =
       "UNIVERSITY OF IBADAN HEALTH SERVICES (JAJA HEALTH CLINIC)";
   return result;
+}
+
+export function combineRequestedServices(
+  treatment?: string | null,
+  procedure?: string | null,
+  investigation?: string | null,
+  requestedService?: string | null,
+): string | null {
+  const categories: Array<[string, string | null | undefined]> = [
+    ["Drugs/Treatment", treatment],
+    ["Procedures", procedure],
+    ["Investigations", investigation],
+    ["Services", requestedService],
+  ];
+  const values = categories
+    .filter(([, value]) => Boolean(value?.trim()))
+    .map(([label, value]) => `${label}: ${value!.trim()}`);
+  return values.length ? values.join("\n") : null;
 }
 
 // ── Strong authorization evidence ────────────────────────────────────────────

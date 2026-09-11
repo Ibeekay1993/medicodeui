@@ -51,6 +51,13 @@ function bad(status: number, message: string) {
   });
 }
 
+function ok(body: Record<string, unknown>) {
+  return new Response(JSON.stringify(body), {
+    status: 200,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
 function sanitize(value: unknown, max = 500): string {
   return String(value ?? "").trim().slice(0, max).replace(/[<>]/g, "");
 }
@@ -334,6 +341,7 @@ serve(async (req) => {
     urgency,
     source,
     clinical_notes: clinicalNotes,
+    whatsapp_message_id: whatsappMessageId,
     whatsapp_raw_message: whatsappMessageId,
     status: "pending",
     submitted_by: null,
@@ -345,6 +353,16 @@ serve(async (req) => {
     .select("id, request_id, status")
     .single();
 
+  if (insErr) {
+    const { data: existing } = whatsappMessageId
+      ? await supabase
+        .from("authorization_requests")
+        .select("id, request_id, status")
+        .eq("whatsapp_message_id", whatsappMessageId)
+        .maybeSingle()
+      : { data: null };
+    if (existing) return ok({ ok: true, id: existing.id, request_id: existing.request_id, status: existing.status });
+  }
   if (insErr || !row) {
     console.error("submit-authorization: insert failed", insErr);
     return bad(500, "insert_failed: " + (insErr?.message || "unknown"));

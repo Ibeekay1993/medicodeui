@@ -12,6 +12,7 @@ import {
   deriveProviderSearchTerm,
   deterministicFallbackAnalysis,
   extractAuthFieldsFromRaw,
+  combineRequestedServices,
   extractQueryPatientName,
   hasStrongAuthIndicators,
   isWhatsAppGroupMessage,
@@ -58,6 +59,33 @@ describe("splitPatientBlocks", () => {
   it("keeps a single-patient message as one block", () => {
     expect(splitPatientBlocks("Hello there")).toHaveLength(1);
   });
+
+  it("keeps mixed-completeness patient blocks independent", () => {
+    const blocks = splitPatientBlocks(
+      [
+        "Full Name: OGHENETEJIRI OLOMUKORO",
+        "NHIS No: 2852786-3",
+        "Diagnosis: Refractive Error",
+        "Procedures: Specialist Initial Consultation",
+        "Full Name: OMOLAYO MAFOLASERE",
+        "NHIS No: 1458975-2",
+        "Phone no: +2348059067464",
+        "Diagnosis: HTN",
+        "Drugs: Lisinopril Tablet · 10mg · Tablet x30, Amlodipine Tablet (Besylate) · 10mg · Tab. x30, Hydrochlorothiazide Tablet · 25mg · Tab. x30",
+      ].join("\n"),
+    );
+    expect(blocks).toHaveLength(2);
+    expect(extractAuthFieldsFromRaw(blocks[0]).patientPhone).toBeNull();
+    expect(extractAuthFieldsFromRaw(blocks[1])).toMatchObject({
+      patientName: "OMOLAYO MAFOLASERE",
+      policyNumber: "1458975-2",
+      patientPhone: "+2348059067464",
+      diagnosis: "HTN",
+    });
+    expect(extractAuthFieldsFromRaw(blocks[1]).treatment).toContain(
+      "Hydrochlorothiazide",
+    );
+  });
 });
 
 describe("hasStrongAuthIndicators", () => {
@@ -93,6 +121,15 @@ describe("extractAuthFieldsFromRaw", () => {
     );
     expect(fields.diagnosis).toBe("Presbyopia");
     expect(fields.procedure).toContain("Initial consultation");
+  });
+
+  it("accepts compact label separators used by hospital templates", () => {
+    const fields = extractAuthFieldsFromRaw(
+      "Name: Test User\nNHIA No: 123\nDiagnosis:HTN\nDrugs-Tab Amlodipine 10mg\nServices:Specialist consultation",
+    );
+    expect(fields.diagnosis).toBe("HTN");
+    expect(fields.treatment).toBe("Tab Amlodipine 10mg");
+    expect(fields.requestedService).toBe("Specialist consultation");
   });
 
   it("extracts the hospital format including originating hospital", () => {
@@ -172,6 +209,22 @@ describe("extractAuthFieldsFromRaw", () => {
     ).toBe("08037288223");
     expect(extractAuthFieldsFromRaw("08037288223").patientPhone).toBe(
       "08037288223",
+    );
+  });
+
+  it("preserves drugs, procedures, investigations, and services together", () => {
+    expect(
+      combineRequestedServices(
+        "Tab Amlodipine 10mg dly x1/12",
+        "Lumbar X-ray",
+        "FBC",
+        "Specialist consultation",
+      ),
+    ).toBe(
+      "Drugs/Treatment: Tab Amlodipine 10mg dly x1/12\n" +
+        "Procedures: Lumbar X-ray\n" +
+        "Investigations: FBC\n" +
+        "Services: Specialist consultation",
     );
   });
 });

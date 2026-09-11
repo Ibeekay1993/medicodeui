@@ -101,6 +101,7 @@ serve(async (req) => {
     raw_message: envelope,
     status: "queued",
     received_at: new Date().toISOString(),
+    status_updated_at: new Date().toISOString(),
     phone_number_id: instance,
   };
   // Only set media_url if the column exists; the original schema omitted it

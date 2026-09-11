@@ -616,6 +616,7 @@ serve(async (req) => {
     raw_message: { event: body.event, instance: body.instance, data, pushName },
     status: "queued",
     received_at: receivedAt,
+    status_updated_at: receivedAt,
     phone_number_id: instance || null,
   };
 

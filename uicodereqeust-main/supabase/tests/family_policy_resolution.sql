@@ -181,6 +181,9 @@ SELECT pg_temp.assert_resolution('A-sfx-2', 'PERSON C', '1639554-2',
                                  NULL, 'PERSON C', '1639554-2');
 SELECT pg_temp.assert_resolution('A-sfx-1', 'PERSON B', '1639554-1',
                                  NULL, 'PERSON B', '1639554-1');
+-- A bare family input also resolves a suffixed registry row by family base.
+SELECT pg_temp.assert_resolution('A-bare-dependent', 'PERSON C', '1639554',
+                                 NULL, 'PERSON C', '1639554-2');
 -- The principal with the bare policy still resolves.
 SELECT pg_temp.assert_resolution('A-principal', 'PERSON A', '1639554',
                                  NULL, 'PERSON A', '1639554');

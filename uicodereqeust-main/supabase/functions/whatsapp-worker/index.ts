@@ -10,6 +10,7 @@ import {
   deriveProviderSearchTerm,
   deterministicFallbackAnalysis,
   extractAuthFieldsFromRaw,
+  combineRequestedServices,
   hasStrongAuthIndicators,
   normalizePhoneNumber,
   parsePolicyNumber,
@@ -19,6 +20,14 @@ import {
   analyzeMessage,
   type GeminiAnalysisResult,
 } from "./providers.ts";
+import {
+  classifyRetryFailure,
+  getQueuePlan,
+  isOutboundAmbiguous,
+  isProcessingStale,
+  normalizeStatus,
+  shouldSendOutbound,
+} from "./queue-hardening.ts";
 import { ensureArrivalPin } from "../_shared/arrival-pin.ts";
 
 const corsHeaders = {
@@ -43,6 +52,7 @@ const WORKER_SECRET = Deno.env.get("WHATSAPP_WORKER_SECRET") || "";
 const MAX_ATTEMPTS = Number(Deno.env.get("WHATSAPP_MAX_ATTEMPTS") || "5");
 const WORKER_BATCH = Number(Deno.env.get("WHATSAPP_WORKER_BATCH") || "10");
 const OUTBOUND_DELAY_MS = Number(Deno.env.get("WHATSAPP_OUTBOUND_DELAY_MS") || "3000");
+const PROCESSING_LEASE_MS = Number(Deno.env.get("WHATSAPP_PROCESSING_LEASE_MS") || "300000");
 const UNREGISTERED_WINDOW_MS = 60_000;
 const UNREGISTERED_MAX_MESSAGES = 3;
 
@@ -121,6 +131,192 @@ function log(
   }
 }
 
+function getNowIso() {
+  return new Date().toISOString();
+}
+
+function getProcessingLeaseOwner() {
+  return `whatsapp-worker-${crypto.randomUUID()}`;
+}
+
+async function setMessageStatus(
+  supabase: ReturnType<typeof getServiceClient>,
+  messageId: string,
+  status: string,
+  updates: Record<string, unknown> = {},
+  owner?: string | null,
+) {
+  const next = {
+    ...updates,
+    status,
+    status_updated_at: getNowIso(),
+  };
+  if (status === "completed" || status === "failed") {
+    next.processed_at = next.status_updated_at;
+    next.processing_owner = null;
+    next.processing_lease_expires_at = null;
+    next.processing_heartbeat_at = null;
+  }
+  let query = supabase
+    .from("whatsapp_messages")
+    .update(next)
+    .eq("message_id", messageId);
+  if (owner) query = query.eq("processing_owner", owner);
+  const { data, error } = await query.select("message_id");
+  if (error) throw error;
+  if (owner && !data?.length) {
+    throw new Error("processing lease lost");
+  }
+  return next;
+}
+
+async function touchProcessingLease(
+  supabase: ReturnType<typeof getServiceClient>,
+  messageId: string,
+  owner: string,
+  leaseMs = PROCESSING_LEASE_MS,
+) {
+  const expiresAt = new Date(Date.now() + leaseMs).toISOString();
+  const { error } = await supabase
+    .from("whatsapp_messages")
+    .update({
+      processing_owner: owner,
+      processing_lease_expires_at: expiresAt,
+      processing_heartbeat_at: getNowIso(),
+      status_updated_at: getNowIso(),
+    })
+    .eq("message_id", messageId)
+    .eq("processing_owner", owner);
+  if (error) throw error;
+}
+
+async function recoverStaleProcessingRows(
+  supabase: ReturnType<typeof getServiceClient>,
+) {
+  const { data: rows, error } = await supabase
+    .from("whatsapp_messages")
+    .select("message_id, status, status_updated_at, received_at, created_at, last_error, processing_owner, processing_lease_expires_at, processing_heartbeat_at")
+    .eq("status", "processing")
+    .lt("processing_lease_expires_at", new Date().toISOString())
+    .limit(200);
+  if (error) {
+    log("stale_recovery", "worker", "error", { error: error.message });
+    return;
+  }
+  for (const row of rows || []) {
+    if (!isProcessingStale(row, 10)) continue;
+    const reason = row.last_error
+      ? String(row.last_error).slice(0, 500)
+      : "reset from stuck processing";
+    try {
+      const { data: reset } = await supabase
+        .from("whatsapp_messages")
+        .update({
+          status: "retry",
+          status_updated_at: getNowIso(),
+          next_attempt_at: new Date(Date.now() + 30_000).toISOString(),
+          last_error: reason,
+          processing_owner: null,
+          processing_lease_expires_at: null,
+          processing_heartbeat_at: null,
+        })
+        .eq("message_id", row.message_id)
+        .eq("status", "processing")
+        .select("message_id")
+        .maybeSingle();
+      if (!reset?.message_id) continue;
+      log("stale_recovery", row.message_id, "ok", {
+        reason: "processing_stale",
+        stale_since: row.status_updated_at || row.received_at || row.created_at,
+      });
+    } catch (error) {
+      log("stale_recovery", row.message_id, "error", {
+        error: (error as Error).message,
+      });
+    }
+  }
+}
+
+async function findExistingAuthorizationForMessage(
+  supabase: ReturnType<typeof getServiceClient>,
+  row: { message_id: string; authorization_request_id?: string | null; internal_request_id?: string | null },
+) {
+  const candidateIds = [
+    row.authorization_request_id,
+    row.internal_request_id,
+  ].filter((value): value is string => Boolean(value));
+
+  if (candidateIds.length) {
+    const { data } = await supabase
+      .from("authorization_requests")
+      .select(
+        "id, request_id, patient_name, policy_number, diagnosis, treatment, status, source, clinical_notes, whatsapp_message_id",
+      )
+      .in("id", candidateIds)
+      .limit(20);
+    if (data?.[0]) return data[0];
+  }
+
+  const messageId = String(row.message_id || "").trim();
+  if (messageId) {
+    const { data: directMatch } = await supabase
+      .from("authorization_requests")
+      .select(
+        "id, request_id, patient_name, policy_number, diagnosis, treatment, status, source, clinical_notes, whatsapp_message_id",
+      )
+      .eq("whatsapp_message_id", messageId)
+      .limit(20);
+    if (directMatch?.[0]) return directMatch[0];
+  }
+
+  const { data: recent } = await supabase
+    .from("authorization_requests")
+    .select(
+      "id, request_id, patient_name, policy_number, diagnosis, treatment, status, source, clinical_notes, whatsapp_message_id",
+    )
+    .eq("source", "whatsapp")
+    .order("created_at", { ascending: false })
+    .limit(200);
+
+  const matching = (recent || []).find((candidate: any) => {
+    const clinical = candidate.clinical_notes && typeof candidate.clinical_notes === "object"
+      ? candidate.clinical_notes
+      : {};
+    const exactMessageId = String(candidate.whatsapp_message_id || "");
+    const noteMessageId = String(clinical?.whatsapp_message_id || "");
+    return exactMessageId === String(row.message_id) || noteMessageId === String(row.message_id);
+  });
+
+  return matching || null;
+}
+
+async function resumeExistingAuthorization(
+  supabase: ReturnType<typeof getServiceClient>,
+  row: {
+    message_id: string;
+    phone_number: string;
+    authorization_request_id?: string | null;
+    internal_request_id?: string | null;
+  },
+  owner?: string | null,
+) {
+  const existing = await findExistingAuthorizationForMessage(supabase, row);
+  if (!existing) return null;
+  let query = supabase
+    .from("whatsapp_messages")
+    .update({
+      authorization_request_id: existing.id,
+      internal_request_id: existing.id,
+      status: "authorization_created",
+      status_updated_at: getNowIso(),
+      last_error: null,
+    })
+    .eq("message_id", row.message_id);
+  if (owner) query = query.eq("processing_owner", owner);
+  await query;
+  return existing;
+}
+
 function normalizeDraftName(value: unknown) {
   return String(value || "")
     .toLowerCase()
@@ -162,6 +358,161 @@ async function sendWhatsAppMessage(toPhone: string, text: string) {
   if (!res.ok)
     throw new Error(`Evolution send ${res.status}: ${body.slice(0, 200)}`);
   return body;
+}
+
+async function getOutboundLedger(
+  supabase: ReturnType<typeof getServiceClient>,
+  messageId: string,
+) {
+  const { data, error } = await supabase
+    .from("whatsapp_outbound_ledger")
+    .select(    "id, message_id, status, outbound_state, provider_message_id, authorization_request_id, sent_at, attempt_count, lease_owner, lease_expires_at, last_error, operation_key, destination_phone, content_hash")
+    .eq("message_id", messageId)
+    .maybeSingle();
+  if (error && !String(error.message || "").includes("does not exist")) {
+    log("outbound_ledger", messageId, "error", { error: error.message });
+  }
+  return data || null;
+}
+
+async function saveOutboundLedger(
+  supabase: ReturnType<typeof getServiceClient>,
+  messageId: string,
+  authorizationRequestId: string | null,
+  status: "pending" | "sent" | "failed" | "retrying" | "ambiguous",
+  extra: Record<string, unknown> = {},
+) {
+  const payload: Record<string, unknown> = {
+    message_id: messageId,
+    authorization_request_id: authorizationRequestId || null,
+    status,
+    outbound_state: extra.outbound_state || (status === "sent" ? "sent" : status === "failed" ? "send_failed" : status === "retrying" ? "retry_pending" : "not_started"),
+    updated_at: new Date().toISOString(),
+    attempt_count: Number(extra.attempt_count ?? 0),
+    ...extra,
+  };
+  if (status === "sent") payload.sent_at = payload.sent_at || new Date().toISOString();
+  if (payload.outbound_state === "send_in_progress") {
+    payload.lease_expires_at = payload.lease_expires_at || new Date(Date.now() + 120_000).toISOString();
+  } else {
+    payload.lease_expires_at = null;
+  }
+  const { error } = await supabase
+    .from("whatsapp_outbound_ledger")
+    .upsert(payload, { onConflict: "message_id" });
+  if (error) throw error;
+  return payload;
+}
+
+async function sendOutboundReply(
+  supabase: ReturnType<typeof getServiceClient>,
+  toPhone: string,
+  text: string,
+  messageId: string,
+  authorizationRequestId?: string | null,
+) {
+  const ledger = await getOutboundLedger(supabase, messageId);
+  if (ledger && isOutboundAmbiguous(ledger.outbound_state, ledger.lease_expires_at)) {
+    if (ledger.outbound_state !== "ambiguous") {
+      await saveOutboundLedger(supabase, messageId, authorizationRequestId || null, "retrying", {
+        outbound_state: "ambiguous",
+        attempt_count: Number(ledger.attempt_count || 0),
+        last_error: "Outbound lease expired; provider delivery cannot be reconciled safely",
+        lease_expires_at: null,
+      });
+    }
+    return { skipped: true, ambiguous: true, providerMessageId: ledger.provider_message_id || null };
+  }
+  if (ledger && !shouldSendOutbound(ledger.outbound_state, ledger.lease_expires_at)) {
+    return { skipped: true, ambiguous: false, providerMessageId: ledger.provider_message_id || null };
+  }
+  const attemptNumber = Number(ledger?.attempt_count || 0) + 1;
+  const contentHash = Array.from(
+    new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text))),
+  ).map((byte) => byte.toString(16).padStart(2, "0")).join("");
+  const leaseOwner = `outbound-${crypto.randomUUID()}`;
+  const { data: claimed, error: claimError } = await supabase.rpc(
+    "claim_whatsapp_outbound_operation",
+    {
+      p_message_id: messageId,
+      p_authorization_request_id: authorizationRequestId || null,
+      p_operation_key: "authorization_response",
+      p_destination_phone: toPhone,
+      p_content_hash: contentHash,
+      p_lease_owner: leaseOwner,
+      p_lease_seconds: 120,
+    },
+  );
+  if (claimError) throw claimError;
+  if (!claimed) {
+    return { skipped: true, ambiguous: true, providerMessageId: ledger?.provider_message_id || null };
+  }
+
+  let providerMessageId: unknown;
+  try {
+    providerMessageId = await sendWhatsAppMessage(toPhone, text);
+  } catch (error) {
+    const msg = (error as Error).message || "unknown";
+    const { error: updateError } = await supabase
+      .from("whatsapp_outbound_ledger")
+      .update({
+      outbound_state: "send_failed",
+      status: "failed",
+      attempt_count: attemptNumber,
+      last_error: msg.slice(0, 500),
+      lease_expires_at: null,
+      lease_owner: null,
+      updated_at: new Date().toISOString(),
+      })
+      .eq("message_id", messageId)
+      .eq("lease_owner", leaseOwner);
+    if (updateError) throw updateError;
+    throw error;
+  }
+
+  try {
+    const { error: updateError } = await supabase
+      .from("whatsapp_outbound_ledger")
+      .update({
+      outbound_state: "sent",
+      status: "sent",
+      provider_message_id: typeof providerMessageId === "string" ? providerMessageId.slice(0, 200) : null,
+      sent_at: new Date().toISOString(),
+      attempt_count: attemptNumber,
+      last_error: null,
+      lease_expires_at: null,
+      lease_owner: null,
+      updated_at: new Date().toISOString(),
+      })
+      .eq("message_id", messageId)
+      .eq("lease_owner", leaseOwner);
+    if (updateError) throw updateError;
+    return { skipped: false, ambiguous: false, providerMessageId: providerMessageId || null };
+  } catch (error) {
+    const msg = (error as Error).message || "provider succeeded but result persistence failed";
+    try {
+      await supabase
+        .from("whatsapp_outbound_ledger")
+        .update({
+        status: "retrying",
+        outbound_state: "ambiguous",
+        provider_message_id: typeof providerMessageId === "string" ? providerMessageId.slice(0, 200) : null,
+        attempt_count: attemptNumber,
+        last_error: `Evolution accepted the message but persistence failed: ${msg.slice(0, 400)}`,
+        lease_expires_at: null,
+        lease_owner: null,
+        updated_at: new Date().toISOString(),
+        })
+        .eq("message_id", messageId)
+        .eq("lease_owner", leaseOwner);
+    } catch (ambiguityError) {
+      log("outbound_ledger", messageId, "error", {
+        error: (ambiguityError as Error).message,
+        provider_result: "accepted",
+      });
+    }
+    return { skipped: true, ambiguous: true, providerMessageId: providerMessageId || null };
+  }
 }
 
 async function resolveHospitalSender(
@@ -221,10 +572,43 @@ async function postAuthorization(
       } catch {
         failure = null;
       }
-      if (failure?.code === "phone_family_conflict") {
+      const failureMessage = String(
+        failure?.code || failure?.message || "",
+      ).toLowerCase();
+      if (
+        failureMessage === "phone_family_conflict" ||
+        failure?.message === "phone_family_conflict"
+      ) {
         return {
           error: "phone_family_conflict",
-          message: String(failure.message || "This phone number is already associated with another policy family."),
+          message: String(
+            failure?.message ||
+              "This phone number is already associated with another policy family.",
+          ),
+        };
+      }
+      if (
+        failureMessage === "beneficiary_mismatch" ||
+        failure?.message === "beneficiary_mismatch"
+      ) {
+        return {
+          error: "beneficiary_mismatch",
+          message: String(
+            failure?.message ||
+              "The patient name does not match the NHIS beneficiary record for this policy family.",
+          ),
+        };
+      }
+      if (
+        failureMessage === "beneficiary_ambiguous" ||
+        failure?.message === "beneficiary_ambiguous"
+      ) {
+        return {
+          error: "beneficiary_ambiguous",
+          message: String(
+            failure?.message ||
+              "More than one NHIS beneficiary matches this patient name and policy family.",
+          ),
         };
       }
     }
@@ -286,6 +670,28 @@ async function postAuthorization(
       ),
     };
   }
+  const existingAuth = whatsappMessageId
+    ? await findExistingAuthorizationForMessage(supabase, { message_id: whatsappMessageId })
+    : null;
+  if (existingAuth) {
+    if (whatsappMessageId) {
+      await supabase
+        .from("whatsapp_messages")
+        .update({
+          authorization_request_id: existingAuth.id,
+          internal_request_id: existingAuth.id,
+          status: "authorization_created",
+          status_updated_at: getNowIso(),
+          last_error: null,
+        })
+        .eq("message_id", whatsappMessageId);
+    }
+    return {
+      id: String(existingAuth.id),
+      request_id: existingAuth.request_id ? String(existingAuth.request_id) : undefined,
+      status: existingAuth.status ? String(existingAuth.status) : undefined,
+    };
+  }
   const { data: row, error } = await supabase
     .from("authorization_requests")
     .insert({
@@ -312,6 +718,7 @@ async function postAuthorization(
         related_request_id: relatedRequestId,
         duplicate_status: duplicateStatus,
       }),
+      whatsapp_message_id: whatsappMessageId || null,
       whatsapp_raw_message: whatsappMessageId,
       status: "pending",
       submitted_by: null,
@@ -320,6 +727,16 @@ async function postAuthorization(
     })
     .select("id, request_id, status")
     .single();
+  if (error) {
+    const { data: existing } = whatsappMessageId
+      ? await supabase
+        .from("authorization_requests")
+        .select("id, request_id, status")
+        .eq("whatsapp_message_id", whatsappMessageId)
+        .maybeSingle()
+      : { data: null };
+    if (existing) return { id: existing.id, request_id: existing.request_id, status: existing.status };
+  }
   if (error || !row)
     throw new Error(
       `Direct DB fallback failed: ${error?.message || "unknown"}`,
@@ -458,6 +875,8 @@ async function processMessageBody(
     phone_number: string;
     message_type: string;
     message_body: string | null;
+    authorization_request_id?: string | null;
+    internal_request_id?: string | null;
   },
 ) {
   const messageId = row.message_id,
@@ -478,6 +897,7 @@ async function processMessageBody(
   const context = buildContext(conversation, (history || []).reverse());
   let finalReply: string | null = null,
     priority = 0;
+  const patientReplies: string[] = [];
   // Duplicate-call guard: Evolution re-delivery can repeat an identical block
   // inside one payload. Memoize analyses per normalized block so each distinct
   // block costs exactly one Gemini call (cross-invocation duplicates are
@@ -728,7 +1148,10 @@ async function processMessageBody(
       const r: any = candidates[0];
       await supabase
         .from("whatsapp_messages")
-        .update({ authorization_request_id: r.id })
+        .update({
+          authorization_request_id: r.id,
+          status_updated_at: getNowIso(),
+        })
         .eq("message_id", messageId);
       // Privacy: no internal database UUIDs or REQ- identifiers are exposed in customer WhatsApp messages.
       const status = String(r.status || "pending").toLowerCase();
@@ -792,7 +1215,12 @@ async function processMessageBody(
           "UNIVERSITY OF IBADAN HEALTH SERVICES (JAJA HEALTH CLINIC)",
         referral =
           analysis.referralHospital || current.referralHospital || null,
-        service = treatment || procedure || investigation || requestedService,
+        service = combineRequestedServices(
+          treatment,
+          procedure,
+          investigation,
+          requestedService,
+        ),
         missing: string[] = [];
       if (!patientName) missing.push("Patient Name");
       if (!policyNumber) missing.push("NHIA / Policy Number");
@@ -816,6 +1244,7 @@ async function processMessageBody(
           active_intent: "INCOMPLETE_AUTHORIZATION",
         });
         finalReply = `I have started your authorization request${patientName ? ` for ${patientName}` : ""}, but I still need:\n\n${missing.map((x) => `• ${x}`).join("\n")}\n\nPlease resend the full authorization request, including the missing details above, so we can complete it.\n\n— Ronsberger HMO`;
+        patientReplies.push(finalReply);
         priority = Math.max(priority, 3);
         continue;
       }
@@ -854,6 +1283,7 @@ async function processMessageBody(
       });
       if (sameClinicalRequest) {
         finalReply = `This looks like a duplicate authorization for ${patientName}.\n\nWe have not created a second active authorization for the same patient and policy in the recent period.\n\nIf this is a different diagnosis or treatment, please send the updated clinical details and we will queue it as a new request for review.\n\n— Ronsberger HMO`;
+        patientReplies.push(finalReply);
         await updateConversation(supabase, row.phone_number, {
           pending_data: {},
         });
@@ -892,6 +1322,57 @@ async function processMessageBody(
           `If the patient does not have access to that number, please provide another valid phone number belonging to the patient or the patient's family.\n\n` +
           `If you believe the number has been incorrectly associated with another family, please contact Ronsberger HMO support for assistance.\n\n` +
           `No authorization request has been created.\n\n— Ronsberger HMO`;
+        patientReplies.push(finalReply);
+        priority = Math.max(priority, 3);
+        continue;
+      }
+      if (result?.error === "beneficiary_mismatch") {
+        await updateConversation(supabase, row.phone_number, {
+          pending_data: {
+            patientName,
+            policyNumber,
+            patientPhone,
+            diagnosis,
+            treatment: service,
+            procedure,
+            investigation,
+            requestedService,
+            originatingHospital: hospital,
+            referralHospital: referral,
+          },
+          active_intent: "INCOMPLETE_AUTHORIZATION",
+        });
+        finalReply =
+          `⚠️ NHIS/POLICY MATCH FAILED\n\n` +
+          `The policy number belongs to the same family group, but the patient name supplied does not match the registered NHIS beneficiary record.\n\n` +
+          `Please resend the exact patient name as it appears on the NHIS record, or confirm the correct policy number before submitting again.\n\n` +
+          `No authorization request has been created.\n\n— Ronsberger HMO`;
+        patientReplies.push(finalReply);
+        priority = Math.max(priority, 3);
+        continue;
+      }
+      if (result?.error === "beneficiary_ambiguous") {
+        await updateConversation(supabase, row.phone_number, {
+          pending_data: {
+            patientName,
+            policyNumber,
+            patientPhone,
+            diagnosis,
+            treatment: service,
+            procedure,
+            investigation,
+            requestedService,
+            originatingHospital: hospital,
+            referralHospital: referral,
+          },
+          active_intent: "INCOMPLETE_AUTHORIZATION",
+        });
+        finalReply =
+          `⚠️ NHIS MATCH IS AMBIGUOUS\n\n` +
+          `The policy number and patient name could match more than one beneficiary in the NHIS record.\n\n` +
+          `Please send the exact full patient name and confirm the correct family policy before trying again.\n\n` +
+          `No authorization request has been created.\n\n— Ronsberger HMO`;
+        patientReplies.push(finalReply);
         priority = Math.max(priority, 3);
         continue;
       }
@@ -900,6 +1381,8 @@ async function processMessageBody(
         .update({
           authorization_request_id: result.id,
           internal_request_id: result.id,
+          status: "authorization_created",
+          status_updated_at: getNowIso(),
         })
         .eq("message_id", messageId);
       await updateConversation(supabase, row.phone_number, {
@@ -912,11 +1395,24 @@ async function processMessageBody(
       finalReply = relatedRequestId
         ? `Your updated medical authorization request for ${patientName} has been queued for review as a related request/revision.\n\nA prior authorization already exists for this patient and policy, and this new submission has been flagged for review instead of being silently merged.\n\nOur team will review it and update you here once a decision is available.\n\n— Ronsberger HMO`
         : `Your medical authorization request for ${patientName} has been received successfully.\n\nOur team will review it and update you here once a decision is available.\n\n— Ronsberger HMO`;
+      patientReplies.push(finalReply);
       priority = Math.max(priority, 3);
       log("authorization", messageId, "ok", { request_id: result.request_id });
     }
   }
-  if (finalReply) await sendWhatsAppMessage(row.phone_number, finalReply);
+  if (finalReply) {
+    const reply =
+      blocks.length > 1 && patientReplies.length > 1
+        ? patientReplies.join("\n\n────────────────\n\n")
+        : finalReply;
+    await sendOutboundReply(
+      supabase,
+      row.phone_number,
+      reply,
+      row.message_id,
+      row.authorization_request_id || null,
+    );
+  }
 }
 async function processOne(
   supabase: ReturnType<typeof getServiceClient>,
@@ -925,7 +1421,7 @@ async function processOne(
   const { data: row, error } = await supabase
     .from("whatsapp_messages")
     .select(
-      "id, message_id, phone_number, message_type, message_body, attempts, status, raw_message",
+      "id, message_id, phone_number, message_type, message_body, attempts, status, raw_message, authorization_request_id, internal_request_id, status_updated_at, received_at, created_at, last_error",
     )
     .eq("message_id", messageId)
     .maybeSingle();
@@ -933,16 +1429,71 @@ async function processOne(
     log("load", messageId, "error", { error: error?.message });
     return;
   }
-  if (row.status === "completed" || row.status === "processing") return;
+  const currentStatus = normalizeStatus(row.status);
+  if (["completed", "failed"].includes(currentStatus)) return;
+
+  const leaseOwner = getProcessingLeaseOwner();
   const { data: claimed, error: claimError } = await supabase
     .from("whatsapp_messages")
-    .update({ status: "processing", attempts: (row.attempts || 0) + 1 })
+    .update({
+      status: "processing",
+      status_updated_at: getNowIso(),
+      processing_owner: leaseOwner,
+      processing_lease_expires_at: new Date(Date.now() + PROCESSING_LEASE_MS).toISOString(),
+      processing_heartbeat_at: getNowIso(),
+      attempts: (row.attempts || 0) + 1,
+      next_attempt_at: getNowIso(),
+    })
     .eq("message_id", messageId)
-    .in("status", ["queued", "retry"])
+    .in("status", ["queued", "retry", "received"])
     .select("message_id");
   if (claimError || !claimed?.length) {
     if (claimError)
       log("claim", messageId, "error", { error: claimError.message });
+    return;
+  }
+
+  await touchProcessingLease(supabase, messageId, leaseOwner, PROCESSING_LEASE_MS);
+
+  const existingAuthorization = await resumeExistingAuthorization(supabase, row as any, leaseOwner);
+  if (existingAuthorization) {
+    const ledger = await getOutboundLedger(supabase, messageId);
+    if (ledger?.status === "sent") {
+      await setMessageStatus(supabase, messageId, "completed", {
+        authorization_request_id: existingAuthorization.id,
+        internal_request_id: existingAuthorization.id,
+        last_error: null,
+        template_sent_at: getNowIso(),
+      }, leaseOwner);
+      return;
+    }
+    const finalReply = `Your medical authorization request for ${String(existingAuthorization.patient_name || "patient")} has been received successfully.\n\nOur team will review it and update you here once a decision is available.\n\n— Ronsberger HMO`;
+    await setMessageStatus(supabase, messageId, "response_pending", {
+      authorization_request_id: existingAuthorization.id,
+      internal_request_id: existingAuthorization.id,
+      last_error: null,
+    }, leaseOwner);
+    const outbound = await sendOutboundReply(
+      supabase,
+      row.phone_number,
+      finalReply,
+      messageId,
+      existingAuthorization.id,
+    );
+    if (outbound.ambiguous) return;
+    await setMessageStatus(supabase, messageId, "response_sent", {
+      authorization_request_id: existingAuthorization.id,
+      internal_request_id: existingAuthorization.id,
+      last_error: null,
+      template_sent_at: getNowIso(),
+    }, leaseOwner);
+    await setMessageStatus(supabase, messageId, "completed", {
+      authorization_request_id: existingAuthorization.id,
+      internal_request_id: existingAuthorization.id,
+      last_error: null,
+      processed_at: getNowIso(),
+      template_sent_at: getNowIso(),
+    }, leaseOwner);
     return;
   }
 
@@ -962,14 +1513,10 @@ async function processOne(
           reason: "unregistered_sender_rate_limit",
           phone: row.phone_number ? String(row.phone_number).slice(-4) : "none",
         });
-        await supabase
-          .from("whatsapp_messages")
-          .update({
-            status: "completed",
-            last_error: "Rate limited unregistered sender",
-            processed_at: new Date().toISOString(),
-          })
-          .eq("message_id", messageId);
+        await setMessageStatus(supabase, messageId, "failed", {
+          last_error: "Rate limited unregistered sender",
+          next_attempt_at: null,
+        }, leaseOwner);
         return;
       }
     }
@@ -977,39 +1524,54 @@ async function processOne(
       reason: sender.reason,
       phone: row.phone_number ? String(row.phone_number).slice(-4) : "none",
     });
-    await supabase
-      .from("whatsapp_messages")
-      .update({
-        status: "completed",
-        last_error: `Dropped by auth guard: ${sender.reason}`,
-        processed_at: new Date().toISOString(),
-      })
-      .eq("message_id", messageId);
+    await setMessageStatus(supabase, messageId, "failed", {
+      last_error: `Dropped by auth guard: ${sender.reason}`,
+      next_attempt_at: null,
+    }, leaseOwner);
     return;
   }
 
   try {
-    await processMessageBody(supabase, row);
-    await supabase
-      .from("whatsapp_messages")
-      .update({
-        status: "completed",
-        last_error: null,
-        processed_at: new Date().toISOString(),
-        template_sent_at: new Date().toISOString(),
-      })
-      .eq("message_id", messageId);
+    await touchProcessingLease(supabase, messageId, leaseOwner, PROCESSING_LEASE_MS);
+    await processMessageBody(supabase, {
+      ...row,
+      authorization_request_id: row.authorization_request_id || null,
+      internal_request_id: row.internal_request_id || null,
+    });
+    const outboundLedger = await getOutboundLedger(supabase, messageId);
+    if (outboundLedger?.outbound_state === "ambiguous") {
+      await setMessageStatus(supabase, messageId, "response_pending", {
+        last_error: "Outbound delivery is ambiguous and requires controlled reconciliation",
+      }, leaseOwner);
+      return;
+    }
+    await setMessageStatus(supabase, messageId, "completed", {
+      last_error: null,
+      processed_at: getNowIso(),
+      template_sent_at: getNowIso(),
+    }, leaseOwner);
   } catch (e) {
     const msg = (e as Error).message || "unknown";
     log("process", messageId, "error", { error: msg });
-    await supabase
-      .from("whatsapp_messages")
-      .update({
-        status: "retry",
-        next_attempt_at: new Date(Date.now() + 30000).toISOString(),
+    const classification = classifyRetryFailure(msg);
+    if (classification.kind === "failed") {
+      await setMessageStatus(supabase, messageId, "failed", {
         last_error: msg.slice(0, 500),
-      })
-      .eq("message_id", messageId);
+        next_attempt_at: null,
+      }, leaseOwner);
+      return;
+    }
+    if (Number(row.attempts || 0) + 1 >= MAX_ATTEMPTS) {
+      await setMessageStatus(supabase, messageId, "failed", {
+        last_error: `Maximum retry attempts reached: ${msg.slice(0, 400)}`,
+        next_attempt_at: null,
+      }, leaseOwner);
+      return;
+    }
+    await setMessageStatus(supabase, messageId, "retry", {
+      next_attempt_at: new Date(Date.now() + classification.delayMs).toISOString(),
+      last_error: msg.slice(0, 500),
+    }, leaseOwner);
   }
 }
 async function processNotifications(
@@ -1138,17 +1700,19 @@ async function enqueueRecentDecisionNotifications(
 }
 
 async function pollAndProcess(supabase: ReturnType<typeof getServiceClient>) {
-  const now = new Date().toISOString();
+  await recoverStaleProcessingRows(supabase);
+  const now = new Date();
   const { data: rows } = await supabase
     .from("whatsapp_messages")
-    .select("message_id,status,next_attempt_at")
-    .or("status.eq.queued,status.eq.retry")
-    .or(`next_attempt_at.is.null,next_attempt_at.lte.${now}`)
+    .select("message_id,status,received_at,next_attempt_at")
+    .in("status", ["received", "queued", "retry"])
     .order("received_at", { ascending: true })
-    .limit(WORKER_BATCH);
+    .limit(WORKER_BATCH * 3);
+
+  const queuePlan = getQueuePlan(rows || [], WORKER_BATCH, now);
   await enqueueRecentDecisionNotifications(supabase);
   await processNotifications(supabase);
-  for (const r of rows || []) await processOne(supabase, r.message_id);
+  for (const r of queuePlan) await processOne(supabase, r.message_id);
 }
 serve(async (req) => {
   if (req.method === "OPTIONS")
