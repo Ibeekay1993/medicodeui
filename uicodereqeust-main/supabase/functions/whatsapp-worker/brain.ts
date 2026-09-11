@@ -337,14 +337,17 @@ export function brainGuard(
       ? "NEW_AUTHORIZATION"
       : out.intent || "INCOMPLETE_AUTHORIZATION";
     const raw = rawFields;
-    out.patientName = out.patientName || raw.patientName;
-    out.policyNumber = out.policyNumber || raw.policyNumber;
-    out.diagnosis = out.diagnosis || raw.diagnosis;
-    out.treatment = out.treatment || raw.treatment;
-    out.procedure = out.procedure || raw.procedure;
-    out.investigation = out.investigation || raw.investigation;
-    out.requestedService = out.requestedService || raw.requestedService;
-    out.patientPhone = out.patientPhone || raw.patientPhone;
+    // Explicit template labels are authoritative. AI remains useful for
+    // natural-language messages, but must not replace a value extracted from
+    // a labeled field such as "Diagnosis:" or "Services:".
+    out.patientName = raw.patientName || out.patientName;
+    out.policyNumber = raw.policyNumber || out.policyNumber;
+    out.diagnosis = raw.diagnosis || out.diagnosis;
+    out.treatment = raw.treatment || out.treatment;
+    out.procedure = raw.procedure || out.procedure;
+    out.investigation = raw.investigation || out.investigation;
+    out.requestedService = raw.requestedService || out.requestedService;
+    out.patientPhone = raw.patientPhone || out.patientPhone;
     out.originatingHospital =
       out.originatingHospital || raw.originatingHospital;
   }

@@ -1181,31 +1181,31 @@ async function processMessageBody(
     ) {
       const raw = rawFields,
         current = { ...pendingData },
-        newName = analysis.patientName || raw.patientName,
-        newPolicy = analysis.policyNumber || raw.policyNumber;
+        newName = raw.patientName || analysis.patientName,
+        newPolicy = raw.policyNumber || analysis.policyNumber;
       if (draftIdentityConflicts(current, newName, newPolicy))
         Object.keys(current).forEach((k) => delete current[k]);
       const patientName = newName || current.patientName || null,
         policyNumber = newPolicy || current.policyNumber || null,
         patientPhone =
-          analysis.patientPhone ||
           raw.patientPhone ||
+          analysis.patientPhone ||
           current.patientPhone ||
           null,
         diagnosis =
-          analysis.diagnosis || raw.diagnosis || current.diagnosis || null,
+          raw.diagnosis || analysis.diagnosis || current.diagnosis || null,
         treatment =
-          analysis.treatment || raw.treatment || current.treatment || null,
+          raw.treatment || analysis.treatment || current.treatment || null,
         procedure =
-          analysis.procedure || raw.procedure || current.procedure || null,
+          raw.procedure || analysis.procedure || current.procedure || null,
         investigation =
-          analysis.investigation ||
           raw.investigation ||
+          analysis.investigation ||
           current.investigation ||
           null,
         requestedService =
-          analysis.requestedService ||
           raw.requestedService ||
+          analysis.requestedService ||
           current.requestedService ||
           null,
         hospital =

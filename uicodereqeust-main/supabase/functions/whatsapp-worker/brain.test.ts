@@ -187,6 +187,37 @@ describe("extractAuthFieldsFromRaw", () => {
     expect(fields.patientPhone).toBe("+2348059822412");
   });
 
+  it("keeps labeled diagnosis and services authoritative over AI values", () => {
+    const raw = extractAuthFieldsFromRaw(
+      [
+        "Name : Ogundokun Peace",
+        "NHIA no: 2871051",
+        "Diagnosis: missing tooth since childhood, specialist braces / teeth alignment care at uch",
+        "Services: consultation",
+        "Phone no: 08051637066",
+      ].join("\n"),
+    );
+    const guarded = brainGuard(
+      [
+        "Name : Ogundokun Peace",
+        "NHIA no: 2871051",
+        "Diagnosis: missing tooth since childhood, specialist braces / teeth alignment care at uch",
+        "Services: consultation",
+        "Phone no: 08051637066",
+      ].join("\n"),
+      baseAnalysis({
+        intent: "NEW_AUTHORIZATION",
+        diagnosis: "wrong AI diagnosis",
+        requestedService: null,
+      }),
+      {},
+    );
+    expect(raw.diagnosis).toContain("missing tooth since childhood");
+    expect(raw.requestedService).toBe("consultation");
+    expect(guarded.diagnosis).toBe(raw.diagnosis);
+    expect(guarded.requestedService).toBe("consultation");
+  });
+
   it("extracts phone numbers when the label has no colon", () => {
     const fields = extractAuthFieldsFromRaw(
       "Full Name: ADEOLU OYEBAM\nNHIS No: 7047541-1\nPHONE NUMBER 08037288223",
