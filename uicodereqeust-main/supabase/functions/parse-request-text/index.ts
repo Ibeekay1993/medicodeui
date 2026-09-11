@@ -85,6 +85,26 @@ const SPECIALIST_REVIEW_TERMS = [
   "consultant review",
 ];
 
+const SERVICE_ALIASES: Record<string, string[]> = {
+  "specialist initial consultation": [
+    "Specialist Initial Consultation",
+  ],
+  "initial consultation": [
+    "Specialist Initial Consultation",
+  ],
+  "specialist consultation": [
+    "Specialist Initial Consultation",
+    "Specialist Review / Consultation",
+  ],
+  consultation: [
+    "Specialist Review / Consultation",
+    "Specialist Initial Consultation",
+  ],
+  "specialist review": ["Specialist Review"],
+  "follow up": ["Specialist Review"],
+  "follow-up": ["Specialist Review"],
+};
+
 const BRAND_ALIASES: Record<string, string> = {
   ADVIL: "Ibuprofen",
   MOTRIN: "Ibuprofen",
@@ -233,9 +253,10 @@ function splitTerms(text: string) {
   const strippedText = stripFieldLabels(text);
   const normalized = normalizeClinicalText(strippedText);
 
-  // Step 1: Split by newlines, then by common punctuation and conjunctions
+  // Step 1: Split by newlines and explicit list separators. Keep conjunctions
+  // inside catalog names such as "frame and lens" and "Scaling & Polishing".
   const parts = normalized
-    .split(/\r?\n|[+,&;|]|\band\b|\bthen\b|\bwith\b|\bplus\b/gi)
+    .split(/\r?\n|[,;|]/)
     .map((part) => part.trim())
     .filter((part) => part.length > 1);
 
@@ -305,6 +326,13 @@ function extractDoseMultiplier(term: string) {
   const dose = term.match(/\b(?:take\s*)?(\d+(?:\.\d+)?)\s*(?:tabs?|tablets?|caps?|capsules?)\b/i);
   const parsed = dose ? Number(dose[1]) : 1;
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 1;
+}
+
+function extractExplicitQuantity(term: string) {
+  const match = term.match(/(?:^|\s)(?:x|×|\*)\s*(\d+)\b/i);
+  if (!match) return null;
+  const quantity = Number(match[1]);
+  return Number.isFinite(quantity) && quantity > 0 ? Math.floor(quantity) : null;
 }
 
 function normalizeStrength(value: string) {
@@ -408,8 +436,23 @@ function inputSuggestsCombination(term: string) {
   // Remove fractions like 1/12, 1/7, 1/52 which are common for durations
   const cleanTerm = term.replace(/\d+\/\d+/g, "").toLowerCase();
   // Check for combination indicators
-  return /(\+| plus | combo | combination |\bco-)/i.test(cleanTerm) || 
+  return /(\+|&| plus | combo | combination |\bco-)/i.test(cleanTerm) ||
          (/\//.test(cleanTerm) && !/\d\/\d/.test(term));
+}
+
+function normalizeComparableText(value: string) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
+    .replace(/\s+/g, " ");
+}
+
+function serviceAliasNames(term: string) {
+  const normalized = normalizeComparableText(term);
+  return Object.entries(SERVICE_ALIASES)
+    .filter(([phrase]) => normalized.includes(phrase))
+    .flatMap(([, names]) => names);
 }
 
 function extractSearchWords(term: string) {
@@ -434,9 +477,45 @@ function extractSearchWords(term: string) {
     .slice(0, 20);
 }
 
+function isDrugItem(item: Record<string, unknown>) {
+  return String(item.category || "").toLowerCase() === "drug";
+}
+
+function isServiceItem(item: Record<string, unknown>) {
+  return ["procedure", "service", "investigation"].includes(
+    String(item.category || "").toLowerCase(),
+  );
+}
+
+function isDrugRequest(term: string) {
+  return Boolean(
+    normalizeStrength(term) ||
+      extractDosageForm(term) ||
+      /\b(?:tab|tablet|cap|capsule|syrup|suspension|injection|cream|ointment|drop|inhaler)\b/i.test(
+        term,
+      ),
+  );
+}
+
+function isSafeDrugCandidate(item: Record<string, unknown>, term: string) {
+  if (!isDrugItem(item)) return false;
+  const requestedStrength = normalizeStrength(term);
+  const itemStrength = normalizeStrength(String(item.name || ""));
+  if (requestedStrength && itemStrength !== requestedStrength) return false;
+  if (isCombinationItem(item) && !inputSuggestsCombination(term)) return false;
+
+  const requestedWords = extractSearchWords(term).filter(
+    (word) => !/^\d/.test(word) && word.length > 3,
+  );
+  const candidateText = normalizeDrugToken(String(item.name || ""));
+  return requestedWords.some((word) => candidateText.includes(word.toUpperCase()));
+}
+
 function rankItem(item: Record<string, unknown>, term: string, expandedNames: string[]) {
   const haystack = `${item.name || ""} ${item.code || ""}`.toLowerCase();
   const lowerTerm = term.toLowerCase();
+  const comparableTerm = normalizeComparableText(term);
+  const comparableName = normalizeComparableText(String(item.name || ""));
   const words = extractSearchWords(term);
   const strength = normalizeStrength(term);
   const itemStrength = normalizeStrength(String(item.name || ""));
@@ -457,6 +536,14 @@ function rankItem(item: Record<string, unknown>, term: string, expandedNames: st
   if (dosageForm && !itemHasForm(item, dosageForm)) score -= 8;
   
   const isDrug = String(item.category || "").toLowerCase() === "drug";
+  const isService = ["procedure", "service", "investigation"].includes(
+    String(item.category || "").toLowerCase(),
+  );
+  const serviceTerms = serviceAliasNames(term);
+  if (serviceTerms.length && isService) score += 80;
+  if (serviceTerms.some((name) => comparableName === normalizeComparableText(name)))
+    score += 250;
+  if (comparableTerm && comparableName === comparableTerm) score += 300;
   
   // CRITICAL: Heavily penalize combination drugs if the input term is a single drug
   if (isCombinationItem(item) && isDrug && !inputSuggestsCombination(term)) {
@@ -493,6 +580,7 @@ async function findBestItem(supabase: SupabaseClient, term: string) {
   if (SPECIALIST_REVIEW_TERMS.some((phrase) => lowerTerm.includes(phrase))) {
     expandedNames.push("Specialist Review");
   }
+  expandedNames.push(...serviceAliasNames(term));
 
   const brandAliases = expandBrandAliases(term);
   const directSearches = [
@@ -557,6 +645,11 @@ async function findBestItem(supabase: SupabaseClient, term: string) {
   }
 
   const candidates = Array.from(seen.values())
+    .filter((item) => {
+      if (serviceAliasNames(term).length) return isServiceItem(item);
+      if (isDrugRequest(term)) return isSafeDrugCandidate(item, term);
+      return true;
+    })
     .map((item) => ({ item, score: rankItem(item, term, expandedNames) }))
     .filter((entry) => entry.score > 0)
     .sort((left, right) => right.score - left.score);
@@ -603,9 +696,11 @@ serve(async (req) => {
       const doseMultiplier = extractDoseMultiplier(term);
       const unitPrice = Number(item.amount || 0);
       const isDrug = String(item.category || "").toLowerCase() === "drug";
-      const quantity = isDrug
-        ? Math.max(1, Math.ceil(frequency.multiplier * duration.days * doseMultiplier))
-        : 1;
+      const explicitQuantity = extractExplicitQuantity(term);
+      const quantity = explicitQuantity ??
+        (isDrug
+          ? Math.max(1, Math.ceil(frequency.multiplier * duration.days * doseMultiplier))
+          : 1);
       const amount = unitPrice * quantity;
 
       seen.add(item.code);
