@@ -1,4 +1,15 @@
-export type RequestStatus = "pending" | "approved" | "rejected" | "deferred";
+export type RequestStatus =
+  | "pending"
+  | "pending_referral"
+  | "pending_authorization"
+  | "approved"
+  | "partially_approved"
+  | "referral_approved"
+  | "referral_accepted"
+  | "rejected"
+  | "referral_declined"
+  | "referral_expired"
+  | "deferred";
 
 export interface ReportStats {
   totalCodes: number;
@@ -53,12 +64,38 @@ export interface PreAuthRecord {
   status: RequestStatus;
   requested_amount: number;
   approved_amount: number;
+  approved_items?: unknown[];
   rejected_amount: number;
   rejection_reason: string;
   decision_reason: string;
   decided_at?: string;
   clinician?: string;
   is_historical?: boolean;
+}
+
+export function calculateApprovedAmount(record: {
+  approved_items?: unknown;
+  approved_tariff_amount?: unknown;
+  approved_amount?: unknown;
+}): number {
+  if (Array.isArray(record.approved_items) && record.approved_items.length > 0) {
+    return record.approved_items.reduce((sum, item) => {
+      if (!item || typeof item !== "object") {
+        return sum;
+      }
+      const declined = (item as { declined?: unknown }).declined;
+      if (declined === true || declined === 1 || declined === "true") return sum;
+
+      const value = (item as { amount?: unknown; total?: unknown; price?: unknown }).amount
+        ?? (item as { total?: unknown }).total
+        ?? (item as { price?: unknown }).price;
+      const amount = Number(value);
+      return sum + (Number.isFinite(amount) ? amount : 0);
+    }, 0);
+  }
+
+  const storedAmount = Number(record.approved_tariff_amount ?? record.approved_amount);
+  return Number.isFinite(storedAmount) ? storedAmount : 0;
 }
 
 export interface FilterState {
@@ -90,6 +127,7 @@ export const preAuthStatusFilterMap: Record<string, string[]> = {
   pending_referral: ["pending_referral"],
   referral_approved: ["referral_approved"],
   referral_accepted: ["referral_accepted"],
+  partially_approved: ["partially_approved"],
   pending_authorization: ["pending_authorization"],
   approved: ["approved"],
   rejected: ["rejected"],
@@ -230,12 +268,12 @@ export function calculateHospitalPerformance(
     perf.totalCodes++;
     perf.requestedAmount += Number(record.requested_amount) || 0;
 
-    if (record.status === "approved") {
+    if (["approved", "partially_approved", "referral_approved", "referral_accepted"].includes(record.status)) {
       perf.approvedCodes++;
       perf.approvedAmount += Number(record.approved_amount) || 0;
     } else if (record.status === "rejected") {
       perf.rejectedCodes++;
-    } else if (record.status === "pending") {
+    } else if (["pending", "pending_referral", "pending_authorization"].includes(record.status)) {
       perf.pendingCodes++;
     }
 

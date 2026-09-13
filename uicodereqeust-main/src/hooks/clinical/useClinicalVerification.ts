@@ -164,10 +164,9 @@ export function useClinicalVerification(
         let historyQuery = supabase
           .from("authorization_requests")
           .select("id, request_id, patient_name, policy_number, diagnosis, treatment, hospital_name, status, authorization_code, decision_reason, clinical_notes, decided_at, created_at, source")
-          .eq("status", "approved")
+          .in("status", ["approved", "partially_approved"])
           .neq("source", "sheet_history")
-          .order("decided_at", { ascending: false })
-          .limit(100);
+          .order("decided_at", { ascending: false });
         if (policyRoot) {
           historyQuery = historyQuery.or(
             `policy_number.eq.${policy},policy_number.ilike.${policyRoot}-%`,
@@ -177,7 +176,7 @@ export function useClinicalVerification(
         const matchingHistory = (history || []).filter((record: any) =>
           recordMatchesPolicy(record, policy)
         );
-        if (matchingHistory.length) setLocalHistory(matchingHistory);
+        setLocalHistory(matchingHistory);
 
         if (matchingHistory.length > 0) {
           const latest = matchingHistory[0];

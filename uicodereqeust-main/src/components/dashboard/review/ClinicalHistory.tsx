@@ -15,7 +15,7 @@ interface ClinicalHistoryProps {
 const HistoryCard = ({ record }: { record: any }) => {
   const [showFullNote, setShowFullNote] = useState(false);
   
-  const status = (record.status || "APPROVED").toLowerCase();
+  const status = String(record.status || "").toLowerCase();
   let statusClasses = "bg-slate-100 text-slate-600 border-slate-200";
   let cardBorderClasses = "border-slate-200/80";
 
@@ -40,7 +40,7 @@ const HistoryCard = ({ record }: { record: any }) => {
             <div className="flex items-center gap-1.5">
               <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Date</div>
               <div className="text-[11px] sm:text-[12px] font-extrabold text-slate-900">
-                {record.date ? format(new Date(record.date), "dd/MM/yyyy") : "02/07/2026"}
+                {record.date ? format(new Date(record.date), "dd/MM/yyyy") : "Date unavailable"}
               </div>
             </div>
             {(record.patient_name || record.name) && (
@@ -70,18 +70,18 @@ const HistoryCard = ({ record }: { record: any }) => {
           )}
         </div>
         <div className={`px-2.5 py-1 rounded-full text-[9px] font-extrabold uppercase tracking-widest border w-fit shrink-0 shadow-sm ${statusClasses}`}>
-          {record.status || "APPROVED"}
+          {record.status || "Not recorded"}
         </div>
       </div>
       
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div className="bg-white p-2.5 rounded-lg border border-slate-100 shadow-sm">
           <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1">Diagnosis</div>
-          <div className="text-[12px] sm:text-[13px] font-extrabold text-slate-900 leading-snug">{record.diagnosis || "Malaria"}</div>
+          <div className="text-[12px] sm:text-[13px] font-extrabold text-slate-900 leading-snug">{record.diagnosis || "Not recorded"}</div>
         </div>
         <div className="bg-white p-2.5 rounded-lg border border-slate-100 shadow-sm">
           <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1">Treatment & Quantity</div>
-          <div className="text-[12px] sm:text-[13px] font-extrabold text-slate-900 leading-snug">{record.treatment || "Artemether/Lumefantrine"}</div>
+          <div className="text-[12px] sm:text-[13px] font-extrabold text-slate-900 leading-snug">{record.treatment || "Not recorded"}</div>
         </div>
       </div>
 
@@ -196,14 +196,9 @@ export function ClinicalHistory({
                   <HistoryCard key={i} record={record} />
                 ))
               ) : (
-                <HistoryCard record={{
-                  date: new Date().toISOString(),
-                  patient_name: requestPatientName,
-                  authorization_code: "N/A",
-                  status: "APPROVED",
-                  diagnosis: "No history found",
-                  treatment: "No previous records"
-                }} />
+                <div className="rounded-xl border border-dashed border-slate-200 p-4 text-center text-[12px] font-semibold text-slate-500">
+                  No matching authorization history found.
+                </div>
               )}
             </div>
           </div>

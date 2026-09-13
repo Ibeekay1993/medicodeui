@@ -21,7 +21,8 @@ import {
   formatPercent,
   buildDateFilter,
   groupByDate,
-  calculateHospitalPerformance
+  calculateHospitalPerformance,
+  calculateApprovedAmount
 } from "@/lib/reports-helpers";
 
 import ReportFilters from "@/components/reports/ReportFilters";
@@ -54,7 +55,9 @@ export default function ReportsPage() {
   const [showHospitalPerformance, setShowHospitalPerformance] = useState(true);
 
   const calculateStats = useCallback((data: PreAuthRecord[]): ReportStats => {
-    const approved = data.filter((r) => ["approved", "referral_approved", "referral_accepted"].includes(r.status));
+    const approved = data.filter((r) =>
+      ["approved", "partially_approved", "referral_approved", "referral_accepted"].includes(r.status),
+    );
     const pending = data.filter((r) => ["pending", "pending_referral", "pending_authorization"].includes(r.status));
     const rejected = data.filter((r) => ["rejected", "referral_declined", "referral_expired"].includes(r.status));
 
@@ -148,51 +151,6 @@ export default function ReportsPage() {
         }
       }
 
-      if (!mappedStatuses || mappedStatuses.length === 0 || mappedStatuses.includes("approved")) {
-        page = 0;
-        hasMore = true;
-        while (hasMore) {
-          let q = supabase.from("historical_codes").select("*").eq("record_type", "authorization").order("created_at", { ascending: false });
-          
-          if (filters.hospitalFilter !== "all") {
-            const hospitalName = hospitals.find((h) => h.id === filters.hospitalFilter)?.name || filters.hospitalFilter;
-            q = q.ilike("hospital_name", `%${hospitalName}%`);
-          }
-          if (dateRange.from) q = q.gte("legacy_creation_date", dateRange.from.toISOString().split("T")[0]);
-          if (dateRange.to) q = q.lte("legacy_creation_date", dateRange.to.toISOString().split("T")[0]);
-
-          q = q.range(page * pageSize, (page + 1) * pageSize - 1);
-
-          const { data, error } = await q;
-          if (error) {
-            console.error("Error fetching historical codes:", error);
-            break;
-          }
-
-          if (data && data.length > 0) {
-            const mappedHistorical = data.map((h: any) => ({
-              ...h,
-              status: "approved",
-              request_id: h.original_code,
-              phone: h.raw_data?.patient_phone || "",
-              email: h.raw_data?.patient_email || "",
-              diagnosis: h.raw_data?.diagnosis || "",
-              treatment: h.raw_data?.treatment || "",
-              requesting_hospital: h.hospital_name,
-              total_amount: h.raw_data?.requested_amount || 0,
-              approved_amount: h.raw_data?.approved_amount || 0,
-              created_at: h.legacy_creation_date ? new Date(h.legacy_creation_date).toISOString() : h.created_at,
-              decided_at: h.legacy_creation_date ? new Date(h.legacy_creation_date).toISOString() : h.created_at,
-            }));
-            allData = [...allData, ...mappedHistorical];
-            page++;
-            hasMore = data.length === pageSize;
-          } else {
-            hasMore = false;
-          }
-        }
-      }
-
       const mappedRecords: PreAuthRecord[] = (allData || []).map((item: any) => ({
         id: item.id,
         created_at: item.created_at,
@@ -206,10 +164,11 @@ export default function ReportsPage() {
         requesting_hospital: item.requesting_hospital || item.requesting_hospital_name || item.hospital_name || "",
         hospital_id: item.requesting_hospital_id || item.hospital_id,
         source: item.source || "Manual",
-        authorization_code: item.authorization_code || "",
+        authorization_code: item.authorization_code ?? "",
         status: item.status as RequestStatus,
         requested_amount: item.total_amount || item.requested_amount || 0,
-        approved_amount: item.approved_tariff_amount || item.approved_amount || 0,
+        approved_amount: calculateApprovedAmount(item),
+        approved_items: Array.isArray(item.approved_items) ? item.approved_items : undefined,
         rejected_amount: item.rejected_amount || 0,
         rejection_reason: item.rejection_reason || item.decision_reason || "",
         decision_reason: item.decision_reason || "",

@@ -324,19 +324,24 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
     const combined = [...verification.sheetHistory, ...verification.localHistory].filter((record) =>
       recordMatchesHistory(record, targetPolicy)
     );
-    return combined.filter((record, index, arr) => {
-      const key = `${record?.request_id || ""}|${record?.authorization_code || ""}|${
-        record?.date || record?.created_at || ""
-      }|${record?.patient_name || ""}`;
-      return (
-        index ===
-        arr.findIndex(
-          (item) =>
-            `${item?.request_id || ""}|${item?.authorization_code || ""}|${
-              item?.date || item?.created_at || ""
-            }|${item?.patient_name || ""}` === key
-        )
-      );
+    const seen = new Set<string>();
+    return combined.filter((record) => {
+      const stableId = record?.id || record?.request_id || record?.authorization_code;
+      const fallbackKey = [
+        record?.date || record?.created_at || "",
+        record?.patient_name || "",
+        record?.policy_number || "",
+        record?.diagnosis || "",
+        record?.treatment || "",
+      ].join("|");
+      const key = stableId ? `stable:${stableId}` : fallbackKey;
+
+      // Keep records without identity fields rather than collapsing unrelated
+      // rows into one placeholder entry.
+      if (!key.replace(/\|/g, "")) return true;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
     });
   }, [verification.sheetHistory, verification.localHistory, targetPolicy]);
 
