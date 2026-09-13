@@ -10,7 +10,6 @@ import { useDebounce } from "@/hooks/use-debounce";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import {
-  getApprovedItems,
   claimOwnerNameFor,
   canSubmitClaimFor,
   isClaimLockedAfterTransfer,
@@ -133,42 +132,14 @@ export default function HospitalAuthorizations() {
     setIsSubmitting(true);
 
     try {
-      const approvedItems = getApprovedItems(selectedRequest);
-      const { data: claimData, error: createError } = await supabase.from("hospital_claims" as any).insert({
-        hospital_id: hospital.id,
-        hospital_name: hospital.name,
-        request_id: selectedRequest.id,
-        claim_number: `CLM-${selectedRequest.authorization_code || Math.random().toString(36).substr(2, 9).toUpperCase()}`,
-        auth_code: selectedRequest.authorization_code,
-        patient_name: selectedRequest.patient_name,
-        policy_number: selectedRequest.policy_number,
-        diagnosis: selectedRequest.diagnosis || "Not Specified",
-        approved_for: selectedRequest.treatment || "N/A",
-        status: "draft",
-        total_amount: selectedRequest.total_amount || 0,
-        original_amount: selectedRequest.total_amount || 0,
-        approved_amount: selectedRequest.total_amount || 0,
-        notes: `Automated claim submission for auth ${selectedRequest.authorization_code}`,
-        approved_items: approvedItems,
-        line_items: approvedItems,
-        requesting_hospital_id: selectedRequest.requesting_hospital_id || selectedRequest.hospital_id || null,
-        requesting_hospital_name: selectedRequest.requesting_hospital_name || selectedRequest.hospital_name || null,
-        referring_hospital_id: selectedRequest.referring_hospital_id || selectedRequest.hospital_id || null,
-        referring_hospital_name: selectedRequest.referring_hospital_name || selectedRequest.hospital_name || null,
-        referred_hospital_id: selectedRequest.referred_hospital_id || null,
-        referred_hospital_name: selectedRequest.referred_hospital_name || null,
-        claiming_hospital_id: hospital.id,
-        claiming_hospital_name: hospital.name,
-        created_by: user.id
-      }).select().single();
-
-      if (createError) throw createError;
-
-      const { error: updateError } = await supabase.rpc("rpc_submit_hospital_claim" as any, {
-        p_claim_id: (claimData as any).id,
+      const { data: claimData, error: createError } = await supabase.functions.invoke("submit-claim", {
+        body: { auth_id: selectedRequest.id },
       });
 
-      if (updateError) throw updateError;
+      if (createError) throw createError;
+      if (!claimData?.success) {
+        throw new Error(claimData?.message || "Claim submission failed");
+      }
 
       toast({ title: "Claim Submitted", description: "Your reimbursement request has been logged successfully." });
       setIsReviewing(false);
@@ -426,4 +397,3 @@ export default function HospitalAuthorizations() {
     </div>
   );
 }
-

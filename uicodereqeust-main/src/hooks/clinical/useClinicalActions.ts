@@ -516,52 +516,6 @@ export function useClinicalActions({
           });
         }
 
-        const hospitalWhatsApp = await getRequestingHospitalPhone();
-        if (hospitalWhatsApp) {
-          // Keep the two decision notifications from arriving as a simultaneous burst.
-          await new Promise((resolve) => setTimeout(resolve, 30000));
-          const hospitalStatus =
-            dbStatus === "rejected"
-              ? "DECLINED"
-              : dbStatus === "partially_approved"
-                ? "PARTIALLY APPROVED"
-                : "APPROVED";
-          const hospitalItems = approvedItems.length
-            ? formatApprovalServices(approvedItems, approvedSummary || editTreatment)
-            : editTreatment || "No service details recorded";
-          const hospitalMessage =
-            `Ronsberger HMO\n\n` +
-            `AUTHORIZATION ${hospitalStatus}\n\n` +
-            `Patient: ${cleanPatientName(request.patient_name)}\n` +
-            `Policy No: ${request.policy_number || "N/A"}\n` +
-            `Auth Code: ${currentCode || request.authorization_code || "N/A"}\n` +
-            `Hospital: ${treatingHospitalName || request.hospital_name || "N/A"}\n` +
-            `Diagnosis: ${editDiagnosis || "Not specified"}\n\n` +
-            (dbStatus === "rejected"
-              ? `Reason for Decline:\n${decisionReason || "Not covered"}\n`
-              : `${hospitalItems}\n`) +
-            `\nDate: ${new Date().toLocaleDateString("en-GB")}\n\n` +
-            (dbStatus === "rejected"
-              ? "Please contact Ronsberger HMO for clarification before proceeding."
-              : getApprovalClosing(dbStatus === "partially_approved")) +
-            "\n\nRonsberger HMO UI Desk";
-
-          supabase.functions.invoke("send-whatsapp", {
-            body: { phone_number: hospitalWhatsApp, message: hospitalMessage },
-          }).then(({ data, error }) => {
-            if (error || !data?.success) {
-              console.error("Automatic hospital WhatsApp failed:", error || data);
-              toast({
-                variant: "destructive",
-                title: "Hospital WhatsApp notification failed",
-                description: "The decision was saved, but the verified hospital message was not delivered.",
-              });
-            }
-          }).catch((error) => {
-            console.error("Automatic hospital WhatsApp error:", error);
-          });
-        }
-
         // Send approval email to patient (standard treatment approval)
         if ((targetStatus === "approved" || targetStatus === "partially_approved" || dbStatus === "partially_approved") && request.patient_email && !request.patient_email.startsWith("no-email")) {
           supabase.functions
