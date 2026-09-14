@@ -61,9 +61,15 @@ export default function ReportsPage() {
     const pending = data.filter((r) => ["pending", "pending_referral", "pending_authorization"].includes(r.status));
     const rejected = data.filter((r) => ["rejected", "referral_declined", "referral_expired"].includes(r.status));
 
-    const totalRequested = data.reduce((sum, r) => sum + (Number(r.requested_amount) || 0), 0);
+    const totalRequested = data.reduce(
+      (sum, r) => r.requested_amount == null ? sum : sum + Number(r.requested_amount),
+      0,
+    );
     const totalApproved = approved.reduce((sum, r) => sum + (Number(r.approved_amount) || 0), 0);
-    const totalPending = pending.reduce((sum, r) => sum + (Number(r.requested_amount) || 0), 0);
+    const totalPending = pending.reduce(
+      (sum, r) => r.requested_amount == null ? sum : sum + Number(r.requested_amount),
+      0,
+    );
     
     // For rejected amount, we should consider records where requested > approved, or explicit rejected_amount
     const totalRejected = data.reduce((sum, r) => {
@@ -282,7 +288,8 @@ export default function ReportsPage() {
         { width: 35 }, { width: 25 }, { width: 45 }
       ];
 
-      ws1.addRow(["EXECUTIVE ANALYTICS DASHBOARD"]).font = { size: 16, bold: true, color: { argb: theme.primary } };
+      ws1.addRow(["PRE-AUTHORIZATION AND APPROVED SERVICES REPORT"]).font = { size: 16, bold: true, color: { argb: theme.primary } };
+      ws1.addRow(["Operational reconciliation report - not a final payment advice. Payable amounts require finalized claim adjudication."]).font = { italic: true, color: { argb: "FF666666" } };
       ws1.addRow([]);
       
       const kpiHeader = ws1.addRow(["EXECUTIVE KPI SUMMARY", "", ""]);
@@ -319,7 +326,7 @@ export default function ReportsPage() {
       finSubHeader.font = { bold: true };
       finSubHeader.border = { bottom: { style: 'thin', color: { argb: 'FFCCCCCC' } } };
 
-      pushKPI("Total Requested Amount", stats.requestedAmount, "NGN amounts", true);
+      pushKPI("Total Requested Amount", stats.requestedAmount, "Authoritative requested totals only; legacy unavailable values excluded", true);
       pushKPI("Total Approved Amount", stats.approvedAmount, "NGN amounts", true, false, theme.success);
       pushKPI("Total Rejected Amount", stats.rejectedAmount, "NGN amounts", true, false, theme.danger);
       pushKPI("Approval Rate", stats.approvalRate, "Approved / Total Volume", false, true);
@@ -581,7 +588,7 @@ export default function ReportsPage() {
             </div>
             <div>
               <h2 className="text-lg font-black text-slate-900 tracking-tight">Analytics Dashboard</h2>
-              <p className="text-xs font-semibold text-slate-400">Deep dive into financial and operational metrics</p>
+              <p className="text-xs font-semibold text-slate-400">Authorization reconciliation metrics; not a final payment advice</p>
             </div>
           </div>
         </div>
