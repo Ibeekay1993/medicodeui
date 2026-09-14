@@ -354,6 +354,12 @@ function normalizeClinicalRequest(value: unknown) {
     .join(" ");
 }
 
+function requiresAuthorizationPersistence(extracted: unknown) {
+  if (!extracted || typeof extracted !== "object") return false;
+  const intent = String((extracted as { intent?: unknown }).intent || "").toUpperCase();
+  return intent === "NEW_AUTHORIZATION" || intent === "AUTHORIZATION_REQUEST";
+}
+
 async function sendWhatsAppMessage(toPhone: string, text: string) {
   if (!EVOLUTION_API_URL || !EVOLUTION_API_KEY)
     throw new Error("Evolution creds missing");
@@ -1550,6 +1556,19 @@ async function processOne(
       authorization_request_id: row.authorization_request_id || null,
       internal_request_id: row.internal_request_id || null,
     });
+    const { data: processedMessage } = await supabase
+      .from("whatsapp_messages")
+      .select("authorization_request_id, extracted")
+      .eq("message_id", messageId)
+      .maybeSingle();
+    if (
+      requiresAuthorizationPersistence(processedMessage?.extracted) &&
+      !processedMessage?.authorization_request_id
+    ) {
+      throw new Error(
+        "Authorization intake completed without a persisted authorization request",
+      );
+    }
     const outboundLedger = await getOutboundLedger(supabase, messageId);
     if (outboundLedger?.outbound_state === "ambiguous") {
       await setMessageStatus(supabase, messageId, "response_pending", {
