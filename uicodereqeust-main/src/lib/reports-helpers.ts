@@ -62,7 +62,7 @@ export interface PreAuthRecord {
   source: string;
   authorization_code: string;
   status: RequestStatus;
-  requested_amount: number;
+  requested_amount: number | null;
   approved_amount: number;
   approved_items?: unknown[];
   rejected_amount: number;
@@ -228,7 +228,8 @@ export function groupByDate(
 
     // Calculate rejected amount mathematically if not pending
     if (record.status !== "pending" && record.status !== "pending_referral" && record.status !== "pending_authorization") {
-      const req = Number(record.requested_amount) || 0;
+      if (record.requested_amount == null) continue;
+      const req = Number(record.requested_amount);
       const app = Number(record.approved_amount) || 0;
       const rejEx = Number(record.rejected_amount) || 0;
       if (rejEx > 0) {
@@ -266,7 +267,9 @@ export function calculateHospitalPerformance(
 
     const perf = groups.get(hospital)!;
     perf.totalCodes++;
-    perf.requestedAmount += Number(record.requested_amount) || 0;
+    if (record.requested_amount != null) {
+      perf.requestedAmount += Number(record.requested_amount);
+    }
 
     if (["approved", "partially_approved", "referral_approved", "referral_accepted"].includes(record.status)) {
       perf.approvedCodes++;
@@ -278,7 +281,8 @@ export function calculateHospitalPerformance(
     }
 
     if (record.status !== "pending" && record.status !== "pending_referral" && record.status !== "pending_authorization") {
-      const req = Number(record.requested_amount) || 0;
+      if (record.requested_amount == null) continue;
+      const req = Number(record.requested_amount);
       const app = Number(record.approved_amount) || 0;
       const rejEx = Number(record.rejected_amount) || 0;
       if (rejEx > 0) {

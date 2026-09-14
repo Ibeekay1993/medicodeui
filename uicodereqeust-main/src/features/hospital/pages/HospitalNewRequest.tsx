@@ -477,6 +477,7 @@ export default function HospitalNewRequest() {
           approved_items: approvedPayload,
           source: "hospital_portal",
           doctor_report_url: doctorReportPath,
+          requested_amount: total,
           total_amount: total,
           status: initialStatus,
         })

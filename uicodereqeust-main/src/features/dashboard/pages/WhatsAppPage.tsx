@@ -287,6 +287,12 @@ export default function WhatsAppPage() {
           patient_phone: parsedData.patient_phone || null,
           clinical_notes: parsedData.clinical_notes || null,
           approved_items: parsedData.approved_items || [],
+          requested_amount: Array.isArray(parsedData.approved_items) && parsedData.approved_items.length > 0
+            ? parsedData.approved_items.reduce((sum: number, item: any) => {
+              const amount = Number(item?.amount ?? (Number(item?.unit_price || 0) * Number(item?.quantity || 1)));
+              return sum + (Number.isFinite(amount) && amount >= 0 ? amount : 0);
+            }, 0)
+            : null,
           whatsapp_raw_message: rawText,
           status: "pending",
           source: "whatsapp_parser",
@@ -487,5 +493,3 @@ export default function WhatsAppPage() {
     </div>
   );
 }
-
-

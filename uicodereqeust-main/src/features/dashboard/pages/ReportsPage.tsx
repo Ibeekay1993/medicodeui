@@ -70,7 +70,8 @@ export default function ReportsPage() {
       if (["pending", "pending_referral", "pending_authorization"].includes(r.status?.toLowerCase() || "")) {
         return sum;
       }
-      const req = Number(r.requested_amount) || 0;
+      if (r.requested_amount == null) return sum;
+      const req = Number(r.requested_amount);
       const app = Number(r.approved_amount) || 0;
       const rejExplicit = Number(r.rejected_amount) || 0;
       if (rejExplicit > 0) return sum + rejExplicit;
@@ -166,7 +167,7 @@ export default function ReportsPage() {
         source: item.source || "Manual",
         authorization_code: item.authorization_code ?? "",
         status: item.status as RequestStatus,
-        requested_amount: item.total_amount || item.requested_amount || 0,
+        requested_amount: item.requested_amount == null ? null : Number(item.requested_amount),
         approved_amount: calculateApprovedAmount(item),
         approved_items: Array.isArray(item.approved_items) ? item.approved_items : undefined,
         rejected_amount: item.rejected_amount || 0,
@@ -500,7 +501,7 @@ export default function ReportsPage() {
           policy: r.policy_number,
           diagnosis: r.diagnosis,
           treatment: r.treatment,
-          reqAmt: r.requested_amount || 0,
+          reqAmt: r.requested_amount ?? "",
           appAmt: r.approved_amount || 0,
           rejAmt: r.rejected_amount || 0,
           authCode: r.authorization_code,

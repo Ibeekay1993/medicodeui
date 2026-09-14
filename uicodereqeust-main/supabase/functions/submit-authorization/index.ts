@@ -320,6 +320,13 @@ serve(async (req) => {
     captured_at: new Date().toISOString(),
   });
 
+  const requestedAmount = detectedItems.length > 0
+    ? detectedItems.reduce((sum, item) => {
+      const amount = Number(item.amount ?? (Number(item.unit_price || 0) * Number(item.quantity || 1)));
+      return sum + (Number.isFinite(amount) && amount >= 0 ? amount : 0);
+    }, 0)
+    : null;
+
   const insertPayload: Record<string, unknown> = {
     patient_name: patientName,
     policy_number: policyNumber,
@@ -337,6 +344,7 @@ serve(async (req) => {
     claiming_hospital_id: referralHospitalId || hospitalId,
     claiming_hospital_name: referralHospitalName || hospitalName,
     approved_items: detectedItems,
+    requested_amount: requestedAmount,
     doctor_name: "WhatsApp automated intake",
     urgency,
     source,
