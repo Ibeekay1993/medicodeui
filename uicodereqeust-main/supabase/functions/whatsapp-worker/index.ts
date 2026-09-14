@@ -342,6 +342,18 @@ function draftIdentityConflicts(
   return Boolean(currentPolicy && newPolicy && currentPolicy !== newPolicy);
 }
 
+function normalizeClinicalRequest(value: unknown) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/\b(of|for)\s+[a-z0-9-]+\b/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .sort()
+    .join(" ");
+}
+
 async function sendWhatsAppMessage(toPhone: string, text: string) {
   if (!EVOLUTION_API_URL || !EVOLUTION_API_KEY)
     throw new Error("Evolution creds missing");
@@ -1268,10 +1280,10 @@ async function processMessageBody(
               .trim() === submittedPolicyBase,
         );
       const sameClinicalRequest = recentSamePatientPolicy.find((r: any) => {
-        const existingDiagnosis = String(r.diagnosis || "").toLowerCase();
-        const existingTreatment = String(r.treatment || "").toLowerCase();
-        const currentDiagnosis = String(diagnosis || "").toLowerCase();
-        const currentTreatment = String(service || "").toLowerCase();
+        const existingDiagnosis = normalizeClinicalRequest(r.diagnosis);
+        const existingTreatment = normalizeClinicalRequest(r.treatment);
+        const currentDiagnosis = normalizeClinicalRequest(diagnosis);
+        const currentTreatment = normalizeClinicalRequest(service);
         return (
           (!existingDiagnosis ||
             existingDiagnosis.includes(currentDiagnosis) ||
