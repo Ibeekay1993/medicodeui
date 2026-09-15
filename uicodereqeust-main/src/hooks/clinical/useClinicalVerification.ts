@@ -8,6 +8,7 @@ import {
 } from "@/lib/clinicalUtils";
 
 const VERIFICATION_TIMEOUT_MS = 12_000;
+const VERIFICATION_RETRY_DELAY_MS = 350;
 
 async function withVerificationTimeout<T>(operation: Promise<T>, label: string): Promise<T> {
   let timeoutId: ReturnType<typeof setTimeout> | undefined;
@@ -22,6 +23,25 @@ async function withVerificationTimeout<T>(operation: Promise<T>, label: string):
     return await Promise.race([operation, timeout]);
   } finally {
     if (timeoutId) clearTimeout(timeoutId);
+  }
+
+  async function withVerificationRetry<T>(
+    operationFactory: () => Promise<T>,
+    label: string,
+    attempts = 2,
+  ): Promise<T> {
+    let lastError: unknown;
+    for (let attempt = 1; attempt <= attempts; attempt += 1) {
+      try {
+        return await withVerificationTimeout(operationFactory(), label);
+      } catch (error) {
+        lastError = error;
+        if (attempt < attempts) {
+          await new Promise((resolve) => setTimeout(resolve, VERIFICATION_RETRY_DELAY_MS));
+        }
+      }
+    }
+    throw lastError instanceof Error ? lastError : new Error(`${label} failed`);
   }
 }
 
@@ -41,6 +61,7 @@ export function useClinicalVerification(
   const [localHistory, setLocalHistory] = useState<any[]>([]);
   const [sheetHistory, setSheetHistory] = useState<any[]>([]);
   const [familyMembers, setFamilyMembers] = useState<any[]>([]);
+  const lastAutoRunKeyRef = useRef<string | null>(null);
 
 
 
@@ -151,19 +172,28 @@ export function useClinicalVerification(
       // resolver. This supports both suffixed and base-only registry records.
       if (policy || patientName) {
         if (policy) {
-          const { data, error } = await withVerificationTimeout(
-            (supabase as any).rpc("resolve_nhis_family_members", { _policy: request.policy_number }),
+          const { data, error } = await withVerificationRetry(
+            () => (supabase as any).rpc("resolve_nhis_family_members", { _policy: policy }),
             "NHIS family registry lookup",
           );
-          if (error) throw error;
+          if (error) {
+            console.error("NHIS family registry RPC error:", {
+              code: error.code,
+              message: error.message,
+              details: error.details,
+              hint: error.hint,
+              policy,
+            });
+            throw error;
+          }
           matchedRows = data || [];
         }
         
         hasPolicyMatch = matchedRows.length > 0;
 
         if (!hasPolicyMatch && patientName) {
-          const { data } = await withVerificationTimeout(
-            supabase.from("nhis_beneficiaries")
+          const { data } = await withVerificationRetry(
+            () => supabase.from("nhis_beneficiaries")
                 .select("id, full_name, surname, first_name, policy_number")
               .or(`full_name.ilike.%${patientName}%,surname.ilike.%${patientName}%,first_name.ilike.%${patientName}%`)
               .limit(50),
@@ -264,6 +294,14 @@ export function useClinicalVerification(
 
   useEffect(() => {
     if (open && request) {
+      const runKey = [
+        request.id || "",
+        request.policy_number || "",
+        request.patient_name || "",
+      ].join("|");
+      if (lastAutoRunKeyRef.current === runKey) return;
+      lastAutoRunKeyRef.current = runKey;
+
       setNhisVerified(null);
       setPolicyVerified(null);
       setPatientVerified(null);
@@ -276,6 +314,8 @@ export function useClinicalVerification(
       setVerificationError(null);
 
       void runVerificationSuite();
+    } else if (!open) {
+      lastAutoRunKeyRef.current = null;
     }
   }, [open, request?.id, request?.policy_number, request?.patient_name, runVerificationSuite]);
 
