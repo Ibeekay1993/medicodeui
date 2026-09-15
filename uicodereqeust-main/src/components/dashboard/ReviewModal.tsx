@@ -609,6 +609,8 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
                   matchedMemberId={verification.matchedMemberId}
                   policyVerified={verification.policyVerified}
                   nhisVerified={verification.nhisVerified}
+                  verificationError={verification.verificationError}
+                  onRetryVerification={() => void verification.runVerificationSuite()}
                   familyMembers={verification.familyMembers}
                   earlyRefill={verification.earlyRefill}
                   requestPatientName={requestPatientName}

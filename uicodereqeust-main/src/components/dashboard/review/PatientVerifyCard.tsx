@@ -6,10 +6,12 @@ import { cleanPatientName } from "@/lib/clinicalUtils";
 interface PatientVerifyCardProps {
   request: any;
   checking: boolean;
-  patientMatchStatus: 'checking' | 'matched' | 'mismatch' | 'not_found' | 'error';
+  patientMatchStatus: 'checking' | 'matched' | 'mismatch' | 'not_found' | 'error' | 'exact' | 'partial' | 'none' | null;
   matchedMemberId: string | null;
-  policyVerified: boolean;
-  nhisVerified: boolean;
+  policyVerified: boolean | null;
+  nhisVerified: boolean | null;
+  verificationError?: string | null;
+  onRetryVerification?: () => void;
   familyMembers: any[];
   earlyRefill: { isEarly: boolean; daysSinceLast: number | null; lastApprovalDate: string | null };
   requestPatientName: string;
@@ -28,6 +30,8 @@ export function PatientVerifyCard({
   matchedMemberId,
   policyVerified,
   nhisVerified,
+  verificationError = null,
+  onRetryVerification,
   familyMembers,
   earlyRefill,
   requestPatientName,
@@ -104,22 +108,34 @@ export function PatientVerifyCard({
           <div className="flex items-center gap-2">
             <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center text-[12px] font-bold ${
               checking || policyVerified === null ? "border-slate-300 text-slate-400" :
+              verificationError ? "border-amber-500 text-amber-500" :
               policyVerified && patientMatchStatus === "exact" ? "border-green-500 text-green-500" :
               policyVerified && patientMatchStatus === "partial" ? "border-yellow-500 text-yellow-500" :
               policyVerified && patientMatchStatus === "none" ? "border-red-500 text-red-500" :
               "border-red-500 text-red-500"
             }`}>
-              {checking || policyVerified === null ? "◓" : policyVerified && patientMatchStatus === "exact" ? "✓" : "!"}
+              {checking || policyVerified === null ? "◓" : verificationError ? "!" : policyVerified && patientMatchStatus === "exact" ? "✓" : "!"}
             </div>
             <div>
               <div className="text-[13px] font-extrabold text-slate-800">NHIS Confirmation</div>
               <div className={`text-[11px] ${!policyVerified && !checking ? 'text-red-500 font-bold' : policyVerified && patientMatchStatus === 'none' ? 'text-red-500 font-bold' : 'text-slate-400'}`}>
-                {checking || policyVerified === null ? "Checking registry..." :
+                {checking ? "Checking registry..." :
+                 verificationError ? verificationError :
+                 policyVerified === null ? "Verification unavailable" :
                  policyVerified && patientMatchStatus === "exact" ? "Verified master records registry" :
                  policyVerified && patientMatchStatus === "partial" ? "Partial match in registry" :
                  policyVerified && patientMatchStatus === "none" ? "Policy found, patient name mismatch" :
                  "Not found in registry"}
               </div>
+              {verificationError && onRetryVerification && (
+                <button
+                  type="button"
+                  onClick={onRetryVerification}
+                  className="mt-1 text-[11px] font-bold text-amber-700 underline underline-offset-2 hover:text-amber-900"
+                >
+                  Retry registry check
+                </button>
+              )}
             </div>
           </div>
           <div 
@@ -132,16 +148,16 @@ export function PatientVerifyCard({
 
         {showFamily && (
           <div className="mt-3 border-t border-slate-100 pt-3 animate-in fade-in duration-200">
-            <div className={`flex items-start gap-2 p-3 rounded-xl mb-2 border ${policyVerified ? (patientMatchStatus === 'none' ? 'bg-amber-50 border-amber-100' : 'bg-slate-50 border-slate-100') : 'bg-red-50 border-red-100'}`}>
+            <div className={`flex items-start gap-2 p-3 rounded-xl mb-2 border ${verificationError ? 'bg-amber-50 border-amber-100' : policyVerified ? (patientMatchStatus === 'none' ? 'bg-amber-50 border-amber-100' : 'bg-slate-50 border-slate-100') : 'bg-red-50 border-red-100'}`}>
               <div className={`text-[16px] mt-0.5 ${policyVerified ? (patientMatchStatus === 'none' ? 'text-amber-500' : 'text-green-500') : 'text-red-500'}`}>
-                {policyVerified ? (patientMatchStatus === 'none' ? "!" : "✓") : "✗"}
+                {verificationError ? "!" : policyVerified ? (patientMatchStatus === 'none' ? "!" : "✓") : "✗"}
               </div>
               <div>
                 <strong className={`text-[12px] sm:text-[13px] block ${policyVerified ? (patientMatchStatus === 'none' ? 'text-amber-800' : 'text-slate-800') : 'text-red-800'}`}>
-                  {policyVerified ? "Policy number matched:" : "Policy number NOT found:"}
+                  {verificationError ? "Registry verification unavailable:" : policyVerified ? "Policy number matched:" : "Policy number NOT found:"}
                 </strong>
                 <p className={`text-[11px] sm:text-[12px] mt-0.5 ${policyVerified ? (patientMatchStatus === 'none' ? 'text-amber-700' : 'text-slate-500') : 'text-red-600'}`}>
-                  {policyVerified ? "Exact policy found in monthly NHIS Accredited List." : "This policy number is not in the active NHIS registry."}
+                  {verificationError ? "The registry check did not complete. Please retry before treating this as not found." : policyVerified ? "Exact policy found in monthly NHIS Accredited List." : "This policy number is not in the active NHIS registry."}
                 </p>
               </div>
             </div>

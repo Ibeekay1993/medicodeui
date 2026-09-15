@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { loadIbadanWorkbookHistory } from "@/lib/ibadanWorkbook";
 import {
@@ -12,6 +12,8 @@ export function useClinicalVerification(
   request: any
 ) {
   const [checking, setChecking] = useState(false);
+  const [verificationError, setVerificationError] = useState<string | null>(null);
+  const runIdRef = useRef(0);
   const [nhisVerified, setNhisVerified] = useState<boolean | null>(null);
   const [policyVerified, setPolicyVerified] = useState<boolean | null>(null);
   const [patientVerified, setPatientVerified] = useState<boolean | null>(null);
@@ -62,7 +64,9 @@ export function useClinicalVerification(
   }, [request]);
 
   const runVerificationSuite = useCallback(async () => {
+    const runId = ++runIdRef.current;
     setChecking(true);
+    setVerificationError(null);
     
     // Fire off Google Sheet History in parallel to avoid blocking the main DB checks
     void fetchGoogleSheetHistory();
@@ -131,6 +135,7 @@ export function useClinicalVerification(
         }
       }
 
+      if (runId !== runIdRef.current) return;
       setMatchedMemberId(bestMatchMemberId);
       setPatientMatchStatus(matchStatus);
       setPolicyVerified(hasPolicyMatch);
@@ -138,11 +143,13 @@ export function useClinicalVerification(
       
       // 3. Fallback logic for patients table
       if (matchedRows.length > 0) {
+        if (runId !== runIdRef.current) return;
         setPatientVerified(true);
         setFamilyMembers(matchedRows);
       } else if (request.policy_number) {
         const { data: patients } = await supabase.from("patients").select("*").eq("policy_number", request.policy_number);
         if (patients && patients.length > 0) {
+          if (runId !== runIdRef.current) return;
           setPatientVerified(true);
           setFamilyMembers(patients);
           const principal = patients.find((p: any) => p.role === "PRINCIPAL") || patients[0];
@@ -150,10 +157,12 @@ export function useClinicalVerification(
             setPatientVerified(false);
           }
         } else {
+          if (runId !== runIdRef.current) return;
           setPatientVerified(false);
           setFamilyMembers([]);
         }
       } else {
+         if (runId !== runIdRef.current) return;
          setPatientVerified(false);
          setFamilyMembers([]);
       }
@@ -176,6 +185,7 @@ export function useClinicalVerification(
         const matchingHistory = (history || []).filter((record: any) =>
           recordMatchesPolicy(record, policy)
         );
+        if (runId !== runIdRef.current) return;
         setLocalHistory(matchingHistory);
 
         if (matchingHistory.length > 0) {
@@ -195,9 +205,20 @@ export function useClinicalVerification(
 
     } catch (err) {
       console.error("Verification error:", err);
+      if (runId === runIdRef.current) {
+        setVerificationError("NHIS registry verification could not be completed. Please retry.");
+        setNhisVerified(null);
+        setPolicyVerified(null);
+        setPatientVerified(null);
+        setPatientMatchStatus(null);
+        setMatchedMemberId(null);
+        setFamilyMembers([]);
+      }
+    } finally {
+      if (runId === runIdRef.current) {
+        setChecking(false);
+      }
     }
-
-    setChecking(false);
   }, [request, fetchGoogleSheetHistory]);
 
   useEffect(() => {
@@ -211,13 +232,15 @@ export function useClinicalVerification(
       setLocalHistory([]);
       setSheetHistory([]);
       setFamilyMembers([]);
+      setVerificationError(null);
 
       void runVerificationSuite();
     }
-  }, [open, request?.id]);
+  }, [open, request?.id, request?.policy_number, request?.patient_name, runVerificationSuite]);
 
   return {
     checking,
+    verificationError,
     nhisVerified,
     policyVerified,
     patientVerified,
