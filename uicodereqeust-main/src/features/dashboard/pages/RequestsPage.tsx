@@ -33,7 +33,7 @@ import { useTabVisibilityRefresh } from "@/hooks/use-tab-visibility-refresh";
 import { prefetchClinicalFamilyPolicy } from "@/hooks/clinical/useClinicalVerification";
 
 export default function RequestsPage() {
-  const { role, user } = useAuth();
+  const { role, user, loading: authLoading, session } = useAuth();
   const isClaimsRole = role === "claims";
   
   const queryClient = useQueryClient();
@@ -137,10 +137,12 @@ export default function RequestsPage() {
     // Warm the shared family-policy cache while the queue is visible. The
     // review modal can then render the authoritative result without issuing a
     // second registry request.
+    if (authLoading || !session) return;
+
     queuedRequests.forEach((request) => {
-      prefetchClinicalFamilyPolicy(request.policy_number);
+      prefetchClinicalFamilyPolicy(request.policy_number, !authLoading && Boolean(session));
     });
-  }, [requests]);
+  }, [requests, authLoading, session]);
 
   useTabVisibilityRefresh(() => fetchRequests());
 

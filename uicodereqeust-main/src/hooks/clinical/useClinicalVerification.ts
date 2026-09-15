@@ -49,9 +49,9 @@ async function withVerificationRetry<T>(
     throw lastError instanceof Error ? lastError : new Error(`${label} failed`);
 }
 
-export function prefetchClinicalFamilyPolicy(policyNumber: unknown): void {
+export function prefetchClinicalFamilyPolicy(policyNumber: unknown, authReady = true): void {
   const policy = normalizePolicyNumber(policyNumber);
-  if (!policy) return;
+  if (!policy || !authReady) return;
 
   const cached = familyLookupCache.get(policy);
   if (cached && cached.expiresAt > Date.now()) return;
