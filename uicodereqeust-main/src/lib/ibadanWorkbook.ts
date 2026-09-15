@@ -98,7 +98,7 @@ const isHeaderLikeRow = (row: {
 };
 
 function mapAuthorizationRow(row: any): IbadanWorkbookRecord {
-  const date = normalizeText(row?.date || row?.created_at || "");
+  const date = normalizeText(row?.date || row?.decided_at || row?.created_at || "");
   const patient_name = normalizeText(row?.patient_name || row?.enrollee_name || "");
   const policy_number = normalizePolicy(row?.policy_number || "");
   const authorization_code = normalizeText(row?.authorization_code || row?.code || row?.pre_authorisation_code || "");
@@ -164,10 +164,12 @@ export async function loadIbadanWorkbookHistory(policyFilter?: string) {
 
       let query = supabase
         .from("authorization_requests")
-        .select("id, request_id, date, created_at, updated_at, decided_at, hospital_name, patient_name, policy_number, authorization_code, diagnosis, treatment, requesting_officer, submitted_by, decided_by, note, decision_reason, clinical_notes, status, source");
+        .select("id, request_id, created_at, updated_at, decided_at, hospital_name, patient_name, policy_number, authorization_code, diagnosis, treatment, requesting_officer, submitted_by, decided_by, note, decision_reason, clinical_notes, status, source");
 
       if (policyRoot) {
-        query = query.or(`policy_number.eq.${policy},policy_number.ilike.${policyRoot}-%`);
+        query = query.or(
+          `policy_number.eq.${policy},policy_number.eq.${policyRoot},policy_number.ilike.${policyRoot}-%`,
+        );
       } else {
         query = query.eq("policy_number", policy);
       }
