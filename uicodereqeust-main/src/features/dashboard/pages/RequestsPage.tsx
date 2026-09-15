@@ -1,5 +1,6 @@
 import { useEffect, useState, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 import { useAuth } from "@/contexts/AuthContext";
@@ -37,6 +38,7 @@ export default function RequestsPage() {
   const isClaimsRole = role === "claims";
   
   const queryClient = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [search, setSearch] = useState(() => sessionStorage.getItem("req_search") || "");
   const [selectedRequest, setSelectedRequest] = useState<any | null>(null);
   const [statusFilter, setStatusFilter] = useState(() => sessionStorage.getItem("req_status_filter") || "action_required");
@@ -128,6 +130,35 @@ export default function RequestsPage() {
   }, [data?.rows, statusFilter]);
   const totalCount = data?.count || 0;
   const approverNames = data?.approverNames || {};
+  const reviewRequestId = searchParams.get("review");
+
+  useEffect(() => {
+    if (!reviewRequestId) {
+      setSelectedRequest(null);
+      return;
+    }
+
+    const requestFromUrl = requests.find((request) => request.id === reviewRequestId);
+    if (requestFromUrl && selectedRequest?.id !== requestFromUrl.id) {
+      setSelectedRequest(requestFromUrl);
+    }
+  }, [reviewRequestId, requests, selectedRequest?.id]);
+
+  const openReview = (request: any) => {
+    setSelectedRequest(request);
+    setSearchParams((current) => {
+      current.set("review", request.id);
+      return current;
+    }, { replace: true });
+  };
+
+  const closeReview = () => {
+    setSelectedRequest(null);
+    setSearchParams((current) => {
+      current.delete("review");
+      return current;
+    }, { replace: true });
+  };
 
   useEffect(() => {
     const queuedRequests = requests
@@ -344,7 +375,7 @@ export default function RequestsPage() {
           otpValues={otpValues}
           otpLoading={otpLoading}
           otpVerifiedStatus={otpVerifiedStatus}
-          onSelectRequest={setSelectedRequest}
+          onSelectRequest={openReview}
           onDeleteRequest={setDeleteTarget}
           setOtpVerifiedStatus={setOtpVerifiedStatus}
           isLoading={isLoading}
@@ -369,7 +400,7 @@ export default function RequestsPage() {
       <ReviewModal 
         request={selectedRequest} 
         open={!!selectedRequest} 
-        onClose={() => setSelectedRequest(null)} 
+        onClose={closeReview}
         onUpdated={() => fetchRequests(currentPage)} 
         otpValue={selectedRequest ? otpValues[selectedRequest.id] : undefined}
       />
