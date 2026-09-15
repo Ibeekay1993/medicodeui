@@ -7,6 +7,22 @@ import { useAuth } from "@/contexts/AuthContext";
 import { RequestList } from "@/components/dashboard/requests/RequestList";
 
 type RequestRow = Database["public"]["Tables"]["authorization_requests"]["Row"];
+const REVIEW_REQUEST_STORAGE_KEY = "req_review_snapshot";
+
+function readReviewSnapshot(reviewId: string | null): RequestRow | null {
+  if (!reviewId) return null;
+  const stored = sessionStorage.getItem(REVIEW_REQUEST_STORAGE_KEY);
+  if (!stored) return null;
+
+  try {
+    const snapshot = JSON.parse(stored) as RequestRow;
+    return snapshot?.id === reviewId ? snapshot : null;
+  } catch {
+    sessionStorage.removeItem(REVIEW_REQUEST_STORAGE_KEY);
+    return null;
+  }
+}
+
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -40,7 +56,9 @@ export default function RequestsPage() {
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const [search, setSearch] = useState(() => sessionStorage.getItem("req_search") || "");
-  const [selectedRequest, setSelectedRequest] = useState<any | null>(null);
+  const [selectedRequest, setSelectedRequest] = useState<any | null>(() =>
+    readReviewSnapshot(new URLSearchParams(window.location.search).get("review")),
+  );
   const [statusFilter, setStatusFilter] = useState(() => sessionStorage.getItem("req_status_filter") || "action_required");
   const [dateFilter, _setDateFilter] = useState(() => sessionStorage.getItem("req_date_filter") || "all");
   const [currentPage, setCurrentPage] = useState(() => {
@@ -135,17 +153,20 @@ export default function RequestsPage() {
   useEffect(() => {
     if (!reviewRequestId) {
       setSelectedRequest(null);
+      sessionStorage.removeItem(REVIEW_REQUEST_STORAGE_KEY);
       return;
     }
 
     const requestFromUrl = requests.find((request) => request.id === reviewRequestId);
-    if (requestFromUrl && selectedRequest?.id !== requestFromUrl.id) {
+    if (requestFromUrl && selectedRequest !== requestFromUrl) {
       setSelectedRequest(requestFromUrl);
+      sessionStorage.setItem(REVIEW_REQUEST_STORAGE_KEY, JSON.stringify(requestFromUrl));
     }
   }, [reviewRequestId, requests, selectedRequest?.id]);
 
   const openReview = (request: any) => {
     setSelectedRequest(request);
+    sessionStorage.setItem(REVIEW_REQUEST_STORAGE_KEY, JSON.stringify(request));
     setSearchParams((current) => {
       current.set("review", request.id);
       return current;
@@ -154,6 +175,7 @@ export default function RequestsPage() {
 
   const closeReview = () => {
     setSelectedRequest(null);
+    sessionStorage.removeItem(REVIEW_REQUEST_STORAGE_KEY);
     setSearchParams((current) => {
       current.delete("review");
       return current;
