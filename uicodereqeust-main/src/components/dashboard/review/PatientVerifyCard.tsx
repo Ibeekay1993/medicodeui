@@ -118,7 +118,7 @@ export function PatientVerifyCard({
             </div>
             <div>
               <div className="text-[13px] font-extrabold text-slate-800">NHIS Confirmation</div>
-              <div className={`text-[11px] ${!policyVerified && !checking ? 'text-red-500 font-bold' : policyVerified && patientMatchStatus === 'none' ? 'text-red-500 font-bold' : 'text-slate-400'}`}>
+              <div className={`text-[11px] ${verificationError ? 'text-amber-600 font-bold' : !policyVerified && !checking ? 'text-red-500 font-bold' : policyVerified && patientMatchStatus === 'none' ? 'text-red-500 font-bold' : 'text-slate-400'}`}>
                 {checking ? "Checking registry..." :
                  verificationError ? verificationError :
                  policyVerified === null ? "Verification unavailable" :
@@ -149,7 +149,7 @@ export function PatientVerifyCard({
         {showFamily && (
           <div className="mt-3 border-t border-slate-100 pt-3 animate-in fade-in duration-200">
             <div className={`flex items-start gap-2 p-3 rounded-xl mb-2 border ${verificationError ? 'bg-amber-50 border-amber-100' : policyVerified ? (patientMatchStatus === 'none' ? 'bg-amber-50 border-amber-100' : 'bg-slate-50 border-slate-100') : 'bg-red-50 border-red-100'}`}>
-              <div className={`text-[16px] mt-0.5 ${policyVerified ? (patientMatchStatus === 'none' ? 'text-amber-500' : 'text-green-500') : 'text-red-500'}`}>
+              <div className={`text-[16px] mt-0.5 ${verificationError ? 'text-amber-500' : policyVerified ? (patientMatchStatus === 'none' ? 'text-amber-500' : 'text-green-500') : 'text-red-500'}`}>
                 {verificationError ? "!" : policyVerified ? (patientMatchStatus === 'none' ? "!" : "✓") : "✗"}
               </div>
               <div>

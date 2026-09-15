@@ -7,6 +7,24 @@ import {
   recordMatchesPolicy,
 } from "@/lib/clinicalUtils";
 
+const VERIFICATION_TIMEOUT_MS = 12_000;
+
+async function withVerificationTimeout<T>(operation: Promise<T>, label: string): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(
+      () => reject(new Error(`${label} timed out after ${VERIFICATION_TIMEOUT_MS / 1000} seconds`)),
+      VERIFICATION_TIMEOUT_MS,
+    );
+  });
+
+  try {
+    return await Promise.race([operation, timeout]);
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
+  }
+}
+
 export function useClinicalVerification(
   open: boolean,
   request: any
@@ -26,15 +44,18 @@ export function useClinicalVerification(
 
 
 
-  const fetchGoogleSheetHistory = useCallback(async () => {
+  const fetchGoogleSheetHistory = useCallback(async (runId: number) => {
     try {
       if (!request.policy_number) {
-        setSheetHistory([]);
+        if (runId === runIdRef.current) setSheetHistory([]);
         return;
       }
 
       const policy = normalizePolicyNumber(request.policy_number);
-      const workbookHistory = await loadIbadanWorkbookHistory(policy);
+      const workbookHistory = await withVerificationTimeout(
+        loadIbadanWorkbookHistory(policy),
+        "Historical workbook lookup",
+      );
       const filteredHistory = workbookHistory
         .filter((record: any) => {
           return recordMatchesPolicy(record, policy);
@@ -54,10 +75,10 @@ export function useClinicalVerification(
         }));
 
       if (filteredHistory.length > 0) {
-        setSheetHistory(filteredHistory);
+        if (runId === runIdRef.current) setSheetHistory(filteredHistory);
         return;
       }
-      setSheetHistory([]);
+      if (runId === runIdRef.current) setSheetHistory([]);
     } catch (err) {
       console.error("Workbook history error:", err);
     }
@@ -69,7 +90,7 @@ export function useClinicalVerification(
     setVerificationError(null);
     
     // Fire off Google Sheet History in parallel to avoid blocking the main DB checks
-    void fetchGoogleSheetHistory();
+    void fetchGoogleSheetHistory(runId);
 
     try {
       const policy = normalizePolicyNumber(request.policy_number);
@@ -82,8 +103,10 @@ export function useClinicalVerification(
       // resolver. This supports both suffixed and base-only registry records.
       if (policy || patientName) {
         if (policy) {
-          const { data, error } = await (supabase as any)
-            .rpc("resolve_nhis_family_members", { _policy: request.policy_number });
+          const { data, error } = await withVerificationTimeout(
+            (supabase as any).rpc("resolve_nhis_family_members", { _policy: request.policy_number }),
+            "NHIS family registry lookup",
+          );
           if (error) throw error;
           matchedRows = data || [];
         }
@@ -91,10 +114,13 @@ export function useClinicalVerification(
         hasPolicyMatch = matchedRows.length > 0;
 
         if (!hasPolicyMatch && patientName) {
-          const { data } = await supabase.from("nhis_beneficiaries")
-            .select("*")
-            .or(`full_name.ilike.%${patientName}%,surname.ilike.%${patientName}%,first_name.ilike.%${patientName}%`)
-            .limit(50);
+          const { data } = await withVerificationTimeout(
+            supabase.from("nhis_beneficiaries")
+              .select("*")
+              .or(`full_name.ilike.%${patientName}%,surname.ilike.%${patientName}%,first_name.ilike.%${patientName}%`)
+              .limit(50),
+            "NHIS name lookup",
+          );
           matchedRows = data || [];
         }
         
@@ -147,7 +173,10 @@ export function useClinicalVerification(
         setPatientVerified(true);
         setFamilyMembers(matchedRows);
       } else if (request.policy_number) {
-        const { data: patients } = await supabase.from("patients").select("*").eq("policy_number", request.policy_number);
+        const { data: patients } = await withVerificationTimeout(
+          supabase.from("patients").select("*").eq("policy_number", request.policy_number),
+          "Patient registry fallback lookup",
+        );
         if (patients && patients.length > 0) {
           if (runId !== runIdRef.current) return;
           setPatientVerified(true);
@@ -181,7 +210,10 @@ export function useClinicalVerification(
             `policy_number.eq.${policy},policy_number.ilike.${policyRoot}-%`,
           );
         }
-        const { data: history } = await historyQuery;
+        const { data: history } = await withVerificationTimeout(
+          historyQuery,
+          "Authorization history lookup",
+        );
         const matchingHistory = (history || []).filter((record: any) =>
           recordMatchesPolicy(record, policy)
         );
