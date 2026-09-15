@@ -128,6 +128,7 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
   const isParsedRequest = ["whatsapp_parser", "whatsapp"].includes(request?.source);
   const requestPatientName = cleanPatientName(request?.patient_name || "");
   const requestPolicyNumber = String(request?.policy_number || "").trim();
+  const verification = useClinicalVerification(open, request);
 
   const formattedNotes = useMemo(() => {
     const sourceNotes = request?.decision_reason || request?.clinical_notes;
@@ -158,43 +159,46 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
   useEffect(() => {
     if (!open || !requestPolicyNumber) {
       setPrimaryHospital(null);
+      setPrimaryHospitalLoading(false);
       return;
     }
+    if (verification.checking) {
+      setPrimaryHospitalLoading(true);
+      return;
+    }
+
     let cancelled = false;
-    setPrimaryHospitalLoading(true);
-    // Use the same family-policy resolver as patient verification so a
-    // suffixed request policy can still find the principal's hospital.
-    (supabase as any)
-      .rpc("resolve_nhis_family_members", { _policy: requestPolicyNumber })
-      .then(async ({ data, error }: { data: any[] | null; error: unknown }) => {
-        if (error) {
-          console.error("Primary hospital family lookup error:", error);
-          if (!cancelled) {
-            setPrimaryHospital(null);
-            setPrimaryHospitalLoading(false);
-          }
-          return;
-        }
-        const principal = (data || []).find((member) =>
-          ["PRINCIPAL", "MEMBER"].includes(String(member.member_type || "").toUpperCase())
-        );
-        if (!cancelled) {
-          let hcp_name = principal?.hcp_name || "";
-          const hcp_code = principal?.hcp_code || "";
-          
-          if (hcp_code) {
-            const { data: hospData } = await supabase.from("hospitals").select("name").eq("code", hcp_code).maybeSingle();
-            if (hospData?.name) {
-              hcp_name = hospData.name;
-            }
-          }
-          
-          setPrimaryHospital(principal ? { hcp_name, hcp_code } : null);
-          setPrimaryHospitalLoading(false);
-        }
-      });
+    const principal = verification.familyMembers.find((member: any) =>
+      ["PRINCIPAL", "MEMBER"].includes(String(member.member_type || "").toUpperCase())
+    );
+    const hcpCode = principal?.hcp_code || "";
+    setPrimaryHospitalLoading(Boolean(principal));
+
+    if (!principal) {
+      setPrimaryHospital(null);
+      setPrimaryHospitalLoading(false);
+      return;
+    }
+
+    const loadHospitalName = async () => {
+      let hcpName = principal.hcp_name || "";
+      if (hcpCode) {
+        const { data: hospData } = await supabase
+          .from("hospitals")
+          .select("name")
+          .eq("code", hcpCode)
+          .maybeSingle();
+        if (hospData?.name) hcpName = hospData.name;
+      }
+      if (!cancelled) {
+        setPrimaryHospital({ hcp_name: hcpName, hcp_code: hcpCode });
+        setPrimaryHospitalLoading(false);
+      }
+    };
+
+    void loadHospitalName();
     return () => { cancelled = true; };
-  }, [open, requestPolicyNumber]);
+  }, [open, requestPolicyNumber, verification.checking, verification.familyMembers]);
 
   // 1c. Look up the requesting hospital's hcp_code from the hospitals table
   const [requestingHospitalCode, setRequestingHospitalCode] = useState<string | null>(null);
@@ -313,9 +317,6 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
       }, 50);
     }
   }, [actions.approvalResult, actions.declineResult]);
-
-  // 4. Initialize verification validation hook
-  const verification = useClinicalVerification(open, request);
 
   // 5. Build combined history records
   const targetPolicy = useMemo(() => normalizePolicyNumber(request?.policy_number), [request]);
