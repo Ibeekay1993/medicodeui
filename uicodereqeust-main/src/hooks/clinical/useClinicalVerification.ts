@@ -9,6 +9,8 @@ import {
 
 const VERIFICATION_TIMEOUT_MS = 12_000;
 const VERIFICATION_RETRY_DELAY_MS = 350;
+const FAMILY_LOOKUP_CACHE_TTL_MS = 60_000;
+const familyLookupCache = new Map<string, { expiresAt: number; promise: Promise<any[]> }>();
 
 async function withVerificationTimeout<T>(operation: Promise<T>, label: string): Promise<T> {
   let timeoutId: ReturnType<typeof setTimeout> | undefined;
@@ -25,7 +27,9 @@ async function withVerificationTimeout<T>(operation: Promise<T>, label: string):
     if (timeoutId) clearTimeout(timeoutId);
   }
 
-  async function withVerificationRetry<T>(
+}
+
+async function withVerificationRetry<T>(
     operationFactory: () => Promise<T>,
     label: string,
     attempts = 2,
@@ -39,10 +43,38 @@ async function withVerificationTimeout<T>(operation: Promise<T>, label: string):
         if (attempt < attempts) {
           await new Promise((resolve) => setTimeout(resolve, VERIFICATION_RETRY_DELAY_MS));
         }
+
       }
     }
     throw lastError instanceof Error ? lastError : new Error(`${label} failed`);
-  }
+}
+
+export function prefetchClinicalFamilyPolicy(policyNumber: unknown): void {
+  const policy = normalizePolicyNumber(policyNumber);
+  if (!policy) return;
+
+  const cached = familyLookupCache.get(policy);
+  if (cached && cached.expiresAt > Date.now()) return;
+
+  const promise = withVerificationRetry(
+    async () => {
+      const result = await (supabase as any).rpc("resolve_nhis_family_members", { _policy: policy });
+      if (result.error) throw result.error;
+      return result.data || [];
+    },
+    "NHIS family registry lookup",
+  ).catch((error) => {
+    familyLookupCache.delete(policy);
+    throw error;
+  });
+  // Background warmups must not create unhandled promise rejections. The
+  // cached promise still rejects for a foreground verifier to surface.
+  void promise.catch(() => undefined);
+
+  familyLookupCache.set(policy, {
+    expiresAt: Date.now() + FAMILY_LOOKUP_CACHE_TTL_MS,
+    promise,
+  });
 }
 
 export function useClinicalVerification(
@@ -173,15 +205,12 @@ export function useClinicalVerification(
       // resolver. This supports both suffixed and base-only registry records.
       if (policy || patientName) {
         if (policy) {
-          const { data, error } = await withVerificationRetry(
-            async () => {
-              const result = await (supabase as any).rpc("resolve_nhis_family_members", { _policy: policy });
-              if (result.error) throw result.error;
-              return result;
-            },
-            "NHIS family registry lookup",
-          );
-          matchedRows = data || [];
+          const cachedLookup = familyLookupCache.get(policy);
+          if (cachedLookup && cachedLookup.expiresAt <= Date.now()) {
+            familyLookupCache.delete(policy);
+          }
+          if (!familyLookupCache.has(policy)) prefetchClinicalFamilyPolicy(policy);
+          matchedRows = await familyLookupCache.get(policy)!.promise;
         }
         
         hasPolicyMatch = matchedRows.length > 0;

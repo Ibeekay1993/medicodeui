@@ -30,6 +30,7 @@ import { useToast } from "@/hooks/use-toast";
 import { getErrorMessage } from "@/lib/errors";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useTabVisibilityRefresh } from "@/hooks/use-tab-visibility-refresh";
+import { prefetchClinicalFamilyPolicy } from "@/hooks/clinical/useClinicalVerification";
 
 export default function RequestsPage() {
   const { role, user } = useAuth();
@@ -127,6 +128,19 @@ export default function RequestsPage() {
   }, [data?.rows, statusFilter]);
   const totalCount = data?.count || 0;
   const approverNames = data?.approverNames || {};
+
+  useEffect(() => {
+    const queuedRequests = requests
+      .filter((request) => ["pending", "pending_referral", "pending_authorization", "info_provided"].includes(request.status))
+      .slice(0, 10);
+
+    // Warm the shared family-policy cache while the queue is visible. The
+    // review modal can then render the authoritative result without issuing a
+    // second registry request.
+    queuedRequests.forEach((request) => {
+      prefetchClinicalFamilyPolicy(request.policy_number);
+    });
+  }, [requests]);
 
   useTabVisibilityRefresh(() => fetchRequests());
 
