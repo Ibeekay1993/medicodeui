@@ -84,6 +84,52 @@ export function useClinicalVerification(
     }
   }, [request]);
 
+  const fetchLocalHistory = useCallback(async (runId: number) => {
+    if (!request.policy_number) return;
+
+    try {
+      const policy = normalizePolicyNumber(request.policy_number);
+      const policyRoot = normalizePolicyRoot(policy);
+      let historyQuery = supabase
+        .from("authorization_requests")
+        .select("id, request_id, patient_name, policy_number, diagnosis, treatment, hospital_name, status, authorization_code, decision_reason, clinical_notes, decided_at, created_at, source")
+        .in("status", ["approved", "partially_approved"])
+        .neq("source", "sheet_history")
+        .order("decided_at", { ascending: false });
+      if (policyRoot) {
+        historyQuery = historyQuery.or(
+          `policy_number.eq.${policy},policy_number.ilike.${policyRoot}-%`,
+        );
+      }
+
+      const { data: history } = await withVerificationTimeout(
+        historyQuery,
+        "Authorization history lookup",
+      );
+      const matchingHistory = (history || []).filter((record: any) =>
+        recordMatchesPolicy(record, policy)
+      );
+      if (runId !== runIdRef.current) return;
+      setLocalHistory(matchingHistory);
+
+      const latest = matchingHistory[0];
+      if (latest?.decided_at) {
+        const daysSince = Math.floor((Date.now() - new Date(latest.decided_at).getTime()) / (1000 * 60 * 60 * 24));
+        setEarlyRefill(
+          daysSince < 30
+            ? { isEarly: true, daysSince, lastDate: latest.decided_at }
+            : null,
+        );
+      } else {
+        setEarlyRefill(null);
+      }
+    } catch (err) {
+      // History is secondary enrichment; do not turn a valid registry result into
+      // a verification error when this separate query is slow or unavailable.
+      console.error("Authorization history error:", err);
+    }
+  }, [request]);
+
   const runVerificationSuite = useCallback(async () => {
     const runId = ++runIdRef.current;
     setChecking(true);
@@ -91,6 +137,8 @@ export function useClinicalVerification(
     
     // Fire off Google Sheet History in parallel to avoid blocking the main DB checks
     void fetchGoogleSheetHistory(runId);
+    // History is useful context but must not delay the authoritative registry result.
+    void fetchLocalHistory(runId);
 
     try {
       const policy = normalizePolicyNumber(request.policy_number);
@@ -116,7 +164,7 @@ export function useClinicalVerification(
         if (!hasPolicyMatch && patientName) {
           const { data } = await withVerificationTimeout(
             supabase.from("nhis_beneficiaries")
-              .select("*")
+                .select("id, full_name, surname, first_name, policy_number")
               .or(`full_name.ilike.%${patientName}%,surname.ilike.%${patientName}%,first_name.ilike.%${patientName}%`)
               .limit(50),
             "NHIS name lookup",
@@ -174,7 +222,7 @@ export function useClinicalVerification(
         setFamilyMembers(matchedRows);
       } else if (request.policy_number) {
         const { data: patients } = await withVerificationTimeout(
-          supabase.from("patients").select("*").eq("policy_number", request.policy_number),
+          supabase.from("patients").select("id, policy_number, role, expiry_date, full_name, first_name, surname").eq("policy_number", request.policy_number),
           "Patient registry fallback lookup",
         );
         if (patients && patients.length > 0) {
@@ -196,45 +244,6 @@ export function useClinicalVerification(
          setFamilyMembers([]);
       }
 
-      // 4. Local DB History 
-      if (request.policy_number) {
-        const policyRoot = normalizePolicyRoot(policy);
-        let historyQuery = supabase
-          .from("authorization_requests")
-          .select("id, request_id, patient_name, policy_number, diagnosis, treatment, hospital_name, status, authorization_code, decision_reason, clinical_notes, decided_at, created_at, source")
-          .in("status", ["approved", "partially_approved"])
-          .neq("source", "sheet_history")
-          .order("decided_at", { ascending: false });
-        if (policyRoot) {
-          historyQuery = historyQuery.or(
-            `policy_number.eq.${policy},policy_number.ilike.${policyRoot}-%`,
-          );
-        }
-        const { data: history } = await withVerificationTimeout(
-          historyQuery,
-          "Authorization history lookup",
-        );
-        const matchingHistory = (history || []).filter((record: any) =>
-          recordMatchesPolicy(record, policy)
-        );
-        if (runId !== runIdRef.current) return;
-        setLocalHistory(matchingHistory);
-
-        if (matchingHistory.length > 0) {
-          const latest = matchingHistory[0];
-          if (latest.decided_at) {
-            const daysSince = Math.floor((Date.now() - new Date(latest.decided_at).getTime()) / (1000 * 60 * 60 * 24));
-            if (daysSince < 30) {
-              setEarlyRefill({ isEarly: true, daysSince, lastDate: latest.decided_at });
-            } else {
-              setEarlyRefill(null);
-            }
-          }
-        } else {
-          setEarlyRefill(null);
-        }
-      }
-
     } catch (err) {
       console.error("Verification error:", err);
       if (runId === runIdRef.current) {
@@ -251,7 +260,7 @@ export function useClinicalVerification(
         setChecking(false);
       }
     }
-  }, [request, fetchGoogleSheetHistory]);
+  }, [request, fetchGoogleSheetHistory, fetchLocalHistory]);
 
   useEffect(() => {
     if (open && request) {

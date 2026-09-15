@@ -164,7 +164,7 @@ export async function loadIbadanWorkbookHistory(policyFilter?: string) {
 
       let query = supabase
         .from("authorization_requests")
-        .select("*");
+        .select("id, request_id, date, created_at, updated_at, decided_at, hospital_name, patient_name, policy_number, authorization_code, diagnosis, treatment, requesting_officer, submitted_by, decided_by, note, decision_reason, clinical_notes, status, source");
 
       if (policyRoot) {
         query = query.or(`policy_number.eq.${policy},policy_number.ilike.${policyRoot}-%`);
