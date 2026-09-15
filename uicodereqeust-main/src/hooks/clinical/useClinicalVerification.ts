@@ -168,7 +168,7 @@ export function useClinicalVerification(
       const policyRoot = normalizePolicyRoot(policy);
       let historyQuery = supabase
         .from("authorization_requests")
-        .select("id, request_id, patient_name, policy_number, diagnosis, treatment, hospital_name, status, authorization_code, decision_reason, clinical_notes, decided_at, created_at, source")
+        .select("id, request_id, patient_name, policy_number, diagnosis, treatment, hospital_name, status, authorization_code, decision_reason, clinical_notes, date, decided_at, created_at, source")
         .in("status", ["approved", "partially_approved"])
         .neq("source", "sheet_history")
         .order("decided_at", { ascending: false });
@@ -182,9 +182,12 @@ export function useClinicalVerification(
         historyQuery,
         "Authorization history lookup",
       );
-      const matchingHistory = (history || []).filter((record: any) =>
-        recordMatchesPolicy(record, policy)
-      );
+      const matchingHistory = (history || [])
+        .filter((record: any) => recordMatchesPolicy(record, policy))
+        .map((record: any) => ({
+          ...record,
+          date: record.date || record.decided_at || record.created_at || null,
+        }));
       if (runId !== runIdRef.current) return;
       setLocalHistory(matchingHistory);
 

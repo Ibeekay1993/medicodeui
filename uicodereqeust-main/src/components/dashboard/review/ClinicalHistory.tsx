@@ -14,6 +14,11 @@ interface ClinicalHistoryProps {
 
 const HistoryCard = ({ record }: { record: any }) => {
   const [showFullNote, setShowFullNote] = useState(false);
+  const recordDate = record.date || record.decided_at || record.created_at;
+  const parsedDate = recordDate ? new Date(recordDate) : null;
+  const formattedDate = parsedDate && !Number.isNaN(parsedDate.getTime())
+    ? format(parsedDate, "dd/MM/yyyy")
+    : "Date unavailable";
   
   const status = String(record.status || "").toLowerCase();
   let statusClasses = "bg-slate-100 text-slate-600 border-slate-200";
@@ -40,7 +45,7 @@ const HistoryCard = ({ record }: { record: any }) => {
             <div className="flex items-center gap-1.5">
               <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Date</div>
               <div className="text-[11px] sm:text-[12px] font-extrabold text-slate-900">
-                {record.date ? format(new Date(record.date), "dd/MM/yyyy") : "Date unavailable"}
+                {formattedDate}
               </div>
             </div>
             {(record.patient_name || record.name) && (

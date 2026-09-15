@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from "react";
+import React, { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { cn } from "@/lib/utils";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -59,6 +59,14 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
   const [showStickyName, setShowStickyName] = useState(false);
   const [isResending, setIsResending] = useState(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  const resetModalScroll = useCallback(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+    container.scrollTop = 0;
+    container.scrollLeft = 0;
+    setShowStickyName(false);
+  }, []);
 
   const handleResendOtp = async () => {
     if (!request) return;
@@ -283,13 +291,10 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
     setHistoryPage(1);
     setShowStickyName(false);
 
-    const resetScroll = () => {
-      scrollContainerRef.current?.scrollTo({ top: 0, left: 0, behavior: "auto" });
-    };
-    resetScroll();
-    const frame = requestAnimationFrame(resetScroll);
+    resetModalScroll();
+    const frame = requestAnimationFrame(resetModalScroll);
     return () => cancelAnimationFrame(frame);
-  }, [open, request?.id]);
+  }, [open, request?.id, resetModalScroll]);
 
   // 3. Initialize manual/auto tariff search hook
   const tariffSearch = useTariffSearch(open, editTreatment, request, isParsedRequest && role !== "hospital");
@@ -356,7 +361,11 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
         className="w-[94vw] max-w-[94vw] sm:max-w-3xl md:max-w-5xl lg:max-w-6xl max-h-[92dvh] rounded-[1.5rem] sm:rounded-[2rem] border-0 bg-white/95 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-white to-slate-50/50 backdrop-blur-2xl selection:bg-slate-200 p-0 shadow-[0_8px_40px_rgb(0,0,0,0.08)] ring-1 ring-slate-200 overflow-y-auto overflow-x-hidden min-w-0 [&_*]:min-w-0 [&>button.absolute.right-4]:hidden"
         ref={scrollContainerRef}
         onScroll={(e) => setShowStickyName((e.target as HTMLElement).scrollTop > 60)}
-        onOpenAutoFocus={(e) => e.preventDefault()}
+        onOpenAutoFocus={(e) => {
+          e.preventDefault();
+          resetModalScroll();
+          requestAnimationFrame(resetModalScroll);
+        }}
       >
         <div className="sticky top-0 z-[100] w-full h-0 pointer-events-none">
           <div 
