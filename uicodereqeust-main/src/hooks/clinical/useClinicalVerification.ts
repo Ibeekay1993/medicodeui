@@ -49,13 +49,7 @@ async function withVerificationRetry<T>(
     throw lastError instanceof Error ? lastError : new Error(`${label} failed`);
 }
 
-export function prefetchClinicalFamilyPolicy(policyNumber: unknown, authReady = true): void {
-  const policy = normalizePolicyNumber(policyNumber);
-  if (!policy || !authReady) return;
-
-  const cached = familyLookupCache.get(policy);
-  if (cached && cached.expiresAt > Date.now()) return;
-
+function createFamilyLookup(policy: string): Promise<any[]> {
   const promise = withVerificationRetry(
     async () => {
       const result = await (supabase as any).rpc("resolve_nhis_family_members", { _policy: policy });
@@ -63,18 +57,46 @@ export function prefetchClinicalFamilyPolicy(policyNumber: unknown, authReady = 
       return result.data || [];
     },
     "NHIS family registry lookup",
-  ).catch((error) => {
-    familyLookupCache.delete(policy);
-    throw error;
-  });
-  // Background warmups must not create unhandled promise rejections. The
-  // cached promise still rejects for a foreground verifier to surface.
-  void promise.catch(() => undefined);
+  );
 
   familyLookupCache.set(policy, {
     expiresAt: Date.now() + FAMILY_LOOKUP_CACHE_TTL_MS,
     promise,
   });
+
+  void promise.catch(() => {
+    const cached = familyLookupCache.get(policy);
+    if (cached?.promise === promise) familyLookupCache.delete(policy);
+  });
+
+  return promise;
+}
+
+async function getFamilyLookup(policy: string): Promise<any[]> {
+  const cached = familyLookupCache.get(policy);
+  if (cached && cached.expiresAt > Date.now()) {
+    try {
+      return await cached.promise;
+    } catch {
+      if (familyLookupCache.get(policy)?.promise === cached.promise) {
+        familyLookupCache.delete(policy);
+      }
+    }
+  } else if (cached) {
+    familyLookupCache.delete(policy);
+  }
+
+  return createFamilyLookup(policy);
+}
+
+export function prefetchClinicalFamilyPolicy(policyNumber: unknown, authReady = true): Promise<any[]> {
+  const policy = normalizePolicyNumber(policyNumber);
+  if (!policy || !authReady) return Promise.resolve([]);
+
+  const cached = familyLookupCache.get(policy);
+  if (cached && cached.expiresAt > Date.now()) return cached.promise;
+  if (cached) familyLookupCache.delete(policy);
+  return createFamilyLookup(policy);
 }
 
 export function useClinicalVerification(
@@ -205,12 +227,7 @@ export function useClinicalVerification(
       // resolver. This supports both suffixed and base-only registry records.
       if (policy || patientName) {
         if (policy) {
-          const cachedLookup = familyLookupCache.get(policy);
-          if (cachedLookup && cachedLookup.expiresAt <= Date.now()) {
-            familyLookupCache.delete(policy);
-          }
-          if (!familyLookupCache.has(policy)) prefetchClinicalFamilyPolicy(policy);
-          matchedRows = await familyLookupCache.get(policy)!.promise;
+          matchedRows = await getFamilyLookup(policy);
         }
         
         hasPolicyMatch = matchedRows.length > 0;

@@ -132,16 +132,30 @@ export default function RequestsPage() {
   useEffect(() => {
     const queuedRequests = requests
       .filter((request) => ["pending", "pending_referral", "pending_authorization", "info_provided"].includes(request.status))
-      .slice(0, 10);
+      .slice(0, 6);
 
     // Warm the shared family-policy cache while the queue is visible. The
     // review modal can then render the authoritative result without issuing a
     // second registry request.
     if (authLoading || !session) return;
 
-    queuedRequests.forEach((request) => {
-      prefetchClinicalFamilyPolicy(request.policy_number, !authLoading && Boolean(session));
-    });
+    const warmQueue = async () => {
+      for (let index = 0; index < queuedRequests.length; index += 2) {
+        await Promise.all(
+          queuedRequests
+            .slice(index, index + 2)
+            .map((request) =>
+              prefetchClinicalFamilyPolicy(request.policy_number, !authLoading && Boolean(session))
+                .catch((error) => {
+                  console.warn("NHIS preload deferred until review:", error);
+                  return [];
+                }),
+            ),
+        );
+      }
+    };
+
+    void warmQueue();
   }, [requests, authLoading, session]);
 
   useTabVisibilityRefresh(() => fetchRequests());
