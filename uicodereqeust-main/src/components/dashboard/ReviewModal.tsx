@@ -53,7 +53,7 @@ interface ReviewModalProps {
 }
 
 export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: ReviewModalProps) {
-  const { role } = useAuth();
+  const { role, loading: authLoading, session } = useAuth();
   const [historyPage, setHistoryPage] = useState(1);
   const [activeTab, setActiveTab] = useState("verification");
   const [showStickyName, setShowStickyName] = useState(false);
@@ -128,7 +128,7 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
   const isParsedRequest = ["whatsapp_parser", "whatsapp"].includes(request?.source);
   const requestPatientName = cleanPatientName(request?.patient_name || "");
   const requestPolicyNumber = String(request?.policy_number || "").trim();
-  const verification = useClinicalVerification(open, request);
+  const verification = useClinicalVerification(open, request, !authLoading && Boolean(session));
 
   const formattedNotes = useMemo(() => {
     const sourceNotes = request?.decision_reason || request?.clinical_notes;

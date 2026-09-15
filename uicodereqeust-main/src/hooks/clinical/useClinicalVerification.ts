@@ -47,7 +47,8 @@ async function withVerificationTimeout<T>(operation: Promise<T>, label: string):
 
 export function useClinicalVerification(
   open: boolean,
-  request: any
+  request: any,
+  authReady = true,
 ) {
   const [checking, setChecking] = useState(false);
   const [verificationError, setVerificationError] = useState<string | null>(null);
@@ -173,19 +174,13 @@ export function useClinicalVerification(
       if (policy || patientName) {
         if (policy) {
           const { data, error } = await withVerificationRetry(
-            () => (supabase as any).rpc("resolve_nhis_family_members", { _policy: policy }),
+            async () => {
+              const result = await (supabase as any).rpc("resolve_nhis_family_members", { _policy: policy });
+              if (result.error) throw result.error;
+              return result;
+            },
             "NHIS family registry lookup",
           );
-          if (error) {
-            console.error("NHIS family registry RPC error:", {
-              code: error.code,
-              message: error.message,
-              details: error.details,
-              hint: error.hint,
-              policy,
-            });
-            throw error;
-          }
           matchedRows = data || [];
         }
         
@@ -275,7 +270,11 @@ export function useClinicalVerification(
       }
 
     } catch (err) {
-      console.error("Verification error:", err);
+      console.error("Verification error:", {
+        error: err,
+        policy: normalizePolicyNumber(request.policy_number),
+        patientName: String(request.patient_name || "").trim(),
+      });
       if (runId === runIdRef.current) {
         setVerificationError("NHIS registry verification could not be completed. Please retry.");
         setNhisVerified(null);
@@ -293,7 +292,7 @@ export function useClinicalVerification(
   }, [request, fetchGoogleSheetHistory, fetchLocalHistory]);
 
   useEffect(() => {
-    if (open && request) {
+    if (open && request && authReady) {
       const runKey = [
         request.id || "",
         request.policy_number || "",
@@ -317,7 +316,7 @@ export function useClinicalVerification(
     } else if (!open) {
       lastAutoRunKeyRef.current = null;
     }
-  }, [open, request?.id, request?.policy_number, request?.patient_name, runVerificationSuite]);
+  }, [open, request?.id, request?.policy_number, request?.patient_name, authReady, runVerificationSuite]);
 
   return {
     checking,
