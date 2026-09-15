@@ -10,6 +10,7 @@ interface ClinicalHistoryProps {
   setHistoryPage: (page: number) => void;
   requestPatientName: string;
   requestPolicyNumber: string;
+  historyLoading: boolean;
 }
 
 const HistoryCard = ({ record }: { record: any }) => {
@@ -125,6 +126,7 @@ export function ClinicalHistory({
   setHistoryPage,
   requestPatientName,
   requestPolicyNumber,
+  historyLoading,
 }: ClinicalHistoryProps) {
   const [expanded, setExpanded] = useState(true);
   const [includeDependents, setIncludeDependents] = useState(false);
@@ -156,7 +158,7 @@ export function ClinicalHistory({
           </div>
           <div className="flex items-center gap-2">
             <div className="bg-slate-50 px-2.5 py-1 rounded-full text-[10px] font-bold text-slate-500">
-              {filteredHistory.length} RECORDS
+              {historyLoading ? "LOADING..." : `${filteredHistory.length} RECORDS`}
             </div>
             <span className="text-slate-400">{expanded ? '▴' : '▾'}</span>
           </div>
@@ -196,7 +198,11 @@ export function ClinicalHistory({
             </div>
 
             <div className="max-h-[350px] overflow-y-auto pr-1">
-              {filteredHistory.length > 0 ? (
+              {historyLoading ? (
+                <div className="rounded-xl border border-dashed border-slate-200 p-4 text-center text-[12px] font-semibold text-slate-500">
+                  Loading authorization history...
+                </div>
+              ) : filteredHistory.length > 0 ? (
                 filteredHistory.map((record, i) => (
                   <HistoryCard key={i} record={record} />
                 ))

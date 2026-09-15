@@ -115,6 +115,7 @@ export function useClinicalVerification(
   const [earlyRefill, setEarlyRefill] = useState<{ isEarly: boolean; daysSince: number; lastDate: string } | null>(null);
   const [localHistory, setLocalHistory] = useState<any[]>([]);
   const [sheetHistory, setSheetHistory] = useState<any[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
   const [familyMembers, setFamilyMembers] = useState<any[]>([]);
   const lastAutoRunKeyRef = useRef<string | null>(null);
 
@@ -212,12 +213,18 @@ export function useClinicalVerification(
   const runVerificationSuite = useCallback(async () => {
     const runId = ++runIdRef.current;
     setChecking(true);
+    setHistoryLoading(true);
     setVerificationError(null);
     
     // Fire off Google Sheet History in parallel to avoid blocking the main DB checks
-    void fetchGoogleSheetHistory(runId);
+    const historyLoads = [
+      fetchGoogleSheetHistory(runId),
+      fetchLocalHistory(runId),
+    ];
+    void Promise.allSettled(historyLoads).then(() => {
+      if (runId === runIdRef.current) setHistoryLoading(false);
+    });
     // History is useful context but must not delay the authoritative registry result.
-    void fetchLocalHistory(runId);
 
     try {
       const policy = normalizePolicyNumber(request.policy_number);
@@ -379,6 +386,7 @@ export function useClinicalVerification(
     localHistory,
     sheetHistory,
     familyMembers,
+    historyLoading,
     runVerificationSuite,
   };
 }

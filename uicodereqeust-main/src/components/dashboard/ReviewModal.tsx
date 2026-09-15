@@ -640,6 +640,7 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
                   setHistoryPage={setHistoryPage}
                   requestPatientName={requestPatientName}
                   requestPolicyNumber={requestPolicyNumber}
+                  historyLoading={verification.historyLoading}
                 />
 
                 {/* Tab 1 footer: Close + Next */}
