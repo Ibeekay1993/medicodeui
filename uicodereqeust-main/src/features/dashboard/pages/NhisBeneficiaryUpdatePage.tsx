@@ -65,6 +65,9 @@ function canReplace(summary: NhisValidationSummary | null) {
   return Boolean(
     summary &&
       summary.totalRecords > 0 &&
+      summary.expectedTotal !== null &&
+      summary.expectedTotal === summary.totalRecords &&
+      summary.skippedRows.length === 0 &&
       summary.duplicateRecords === 0 &&
       summary.missingFields === 0 &&
       summary.invalidDates === 0,
@@ -431,15 +434,15 @@ export default function NhisBeneficiaryUpdatePage() {
                 </div>
                 {changePercent >= 0.1 && (
                   <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs font-bold text-amber-800">
-                    Large monthly movement detected. Review the preview before replacing the live list. This warning does not block replacement when validation is clean.
+                    Large monthly movement detected. Review the preview before replacing the live list.
                   </div>
                 )}
                 {summary.warnings.map((warning) => (
                   <div key={warning} className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs font-bold text-amber-800">{warning}</div>
                 ))}
-                {summary.warnings.length > 0 && validationOk && (
-                  <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs font-bold text-emerald-800">
-                    Warning noted. Replacement is still allowed because there are no duplicate records, missing fields, or invalid dates.
+                {!validationOk && (
+                  <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs font-bold text-rose-800">
+                    Replacement is blocked until the PDF total matches the extracted row count and every row is parsed without validation errors.
                   </div>
                 )}
                 <div className="grid grid-cols-2 gap-2">
@@ -466,7 +469,7 @@ export default function NhisBeneficiaryUpdatePage() {
                     Replace Existing List
                   </Button>
                   <p className="text-center text-xs font-bold uppercase tracking-widest text-slate-400">
-                    Old monthly list is deleted after replacement. No backup file or old beneficiary dataset is retained.
+                    Replacement is blocked if the PDF total is missing or any beneficiary row is skipped. The previous list is still replaced after validation passes.
                   </p>
                 </div>
               </>

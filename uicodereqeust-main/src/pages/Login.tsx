@@ -310,22 +310,11 @@ export default function Login() {
         }
       }
       
-      let dbAttempts = 1;
-      let dbStatus = "active";
-      // Only record failed attempts when the PASSWORD itself was wrong
-      if (!authenticationSucceeded && !isTransientAuthError(err)) {
-        try {
-          const { data: rpcData, error: rpcErr } = await withAuthTimeout(
-            (supabase.rpc as any)("record_failed_login", { p_email: email }),
-          );
-          if (!rpcErr && rpcData && typeof rpcData === "object") {
-            dbAttempts = (rpcData as any).failed_attempts || 1;
-            dbStatus = (rpcData as any).status || "active";
-          }
-        } catch (rpcEx) {
-          console.error("Failed to record login attempt in DB:", rpcEx);
-        }
-      }
+      // Keep failed-attempt throttling in this browser and rely on Supabase
+      // Auth's server-side rate limits. An unauthenticated, email-based RPC
+      // allowed anyone to revoke another user's account by submitting guesses.
+      const dbAttempts = 1;
+      const dbStatus = "active";
 
       // When auth succeeded but role loading failed — don't increment counter, just show retry
       if (authenticationSucceeded) {

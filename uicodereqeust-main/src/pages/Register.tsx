@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { createClient } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -108,7 +109,18 @@ export default function Register() {
         const userEmail = userData.user.email || null;
 
         // Step 6: Verify Invitation Status from DB
-        const { data: inviteStatusData, error: statusError } = await (supabase as any).rpc("check_invite_status", {
+        // Verify invite metadata using the invite's own access token. The regular
+        // app client is intentionally signed out here, so its anon key must not
+        // be allowed to query another user's invitation status.
+        const inviteClient = createClient(
+          import.meta.env.VITE_SUPABASE_URL,
+          import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          {
+            auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+            global: { headers: { Authorization: `Bearer ${accessToken}` } },
+          }
+        );
+        const { data: inviteStatusData, error: statusError } = await (inviteClient as any).rpc("check_invite_status", {
           p_user_id: userId,
         });
 
