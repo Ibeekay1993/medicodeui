@@ -20,6 +20,7 @@ export function RootRedirect() {
   const roleRoutes: Record<string, string> = {
     admin: "/backoffice/admin",
     utilization_manager: "/backoffice/utilization-manager",
+    utilization_manager_lead: "/backoffice/utilization-manager",
     hospital: "/dashboard",
     claims: "/backoffice/claims",
     finance: "/backoffice/finance",

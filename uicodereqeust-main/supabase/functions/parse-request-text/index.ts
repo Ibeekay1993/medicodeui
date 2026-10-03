@@ -661,7 +661,7 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
-    await validateUser(req, ["utilization_manager", "admin", "hospital", "claims"]);
+    await validateUser(req, ["utilization_manager", "utilization_manager_lead", "admin", "hospital", "claims"]);
     const { text } = await req.json();
     if (!text) throw new Error("Text required");
 

@@ -50,7 +50,7 @@ export default function RequestsPage() {
   const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [deleteReason, setDeleteReason] = useState("");
-  const [_deleteProcessing, setDeleteProcessing] = useState(false);
+  const [deleteProcessing, setDeleteProcessing] = useState(false);
   const [otpValues, setOtpValues] = useState<Record<string, string>>({});
   const [otpLoading, setOtpLoading] = useState<Record<string, boolean>>({});
   const [otpVerifiedStatus, setOtpVerifiedStatus] = useState<Record<string, boolean>>({});
@@ -265,7 +265,7 @@ export default function RequestsPage() {
   // — in that scenario the bulk OTP effect never ran because requests[] was empty.
   useEffect(() => {
     if (!selectedRequest?.id) return;
-    if (role !== "utilization_manager" && role !== "admin" && role !== "hospital") return;
+    if (role !== "utilization_manager" && role !== "utilization_manager_lead" && role !== "admin" && role !== "hospital") return;
     // Skip if already fetched
     if (fetchedOtpIdsRef.current.has(selectedRequest.id)) return;
 
@@ -276,7 +276,7 @@ export default function RequestsPage() {
       if (!error && data) {
         const otpRow = Array.isArray(data) ? data[0] : data;
         if (otpRow) {
-          if (role === "utilization_manager" || role === "admin") {
+          if (role === "utilization_manager" || role === "utilization_manager_lead" || role === "admin") {
             if (otpRow.otp_value) {
               setOtpValues(prev => ({ ...prev, [id]: otpRow.otp_value }));
               if (otpRow.verified || !!otpRow.consumed_at) {
@@ -307,7 +307,7 @@ export default function RequestsPage() {
       if (fetchedOtpIdsRef.current.has(r.id)) return false;
       if (otpLoading[r.id]) return false;
 
-      if (role === "utilization_manager" || role === "admin") {
+      if (role === "utilization_manager" || role === "utilization_manager_lead" || role === "admin") {
         return ["pending", "pending_referral", "pending_authorization", "info_provided", "approved", "referral_approved", "referral_accepted"].includes(r.status);
       }
       if (role === "hospital") {
@@ -327,7 +327,7 @@ export default function RequestsPage() {
       setOtpLoading(prev => ({ ...prev, ...updates }));
 
       try {
-        if (role === "utilization_manager" || role === "admin") {
+        if (role === "utilization_manager" || role === "utilization_manager_lead" || role === "admin") {
           const ids = requestsToFetch.map(r => r.id);
           const { data, error } = await supabase.rpc("get_otp_values_batch" as any, {
             p_request_ids: ids,
@@ -358,7 +358,7 @@ export default function RequestsPage() {
               if (!error && data) {
                 const otpRow = Array.isArray(data) ? data[0] : data;
                 if (otpRow) {
-                  if (role === "utilization_manager" || role === "admin") {
+                  if (role === "utilization_manager" || role === "utilization_manager_lead" || role === "admin") {
                     if (otpRow.otp_value) {
                       setOtpValues(prev => ({ ...prev, [r.id]: otpRow.otp_value }));
                       if (otpRow.verified || !!otpRow.consumed_at) {
@@ -392,40 +392,27 @@ export default function RequestsPage() {
 
   const executeDelete = async () => {
     if (!deleteTarget || deleteConfirmText.trim() !== "DELETE") return;
-    if (role !== "admin" && !deleteReason.trim()) {
+    if (!deleteReason.trim()) {
       toast({ variant: "destructive", title: "Reason required", description: "Enter the reason for requesting deletion." });
       return;
     }
     setDeleteProcessing(true);
-
-
-    if (role === "admin") {
-      const { data, error } = await supabase.rpc("permanently_delete_authorization" as any, { _request_id: deleteTarget.id });
-      setDeleteProcessing(false);
-      if (error) {
-       toast({ variant: "destructive", title: "Delete failed", description: error.message });
-      } else {
-       queryClient.invalidateQueries({ queryKey: ["requests"] });
-       toast({ title: "Permanently Deleted", description: `${(data as any)?.deleted_claims || 0} related claim record(s) removed.` });
-       setDeleteTarget(null);
-       setDeleteConfirmText("");
-       setDeleteReason("");
-      }
-    } else {
+    try {
       const { error } = await (supabase as any).rpc("rpc_request_deletion_approval", {
         p_request_id: deleteTarget.id,
         p_reason: deleteReason.trim(),
       });
+      if (error) throw error;
+
+      queryClient.invalidateQueries({ queryKey: ["requests"] });
+      toast({ title: "Awaiting Review", description: "The deletion request was sent to a Utilization Manager Lead or Super Admin." });
+      setDeleteTarget(null);
+      setDeleteConfirmText("");
+      setDeleteReason("");
+    } catch (error: any) {
+      toast({ variant: "destructive", title: "Delete request failed", description: error?.message || "Unable to submit the deletion request." });
+    } finally {
       setDeleteProcessing(false);
-      if (error) {
-        toast({ variant: "destructive", title: "Delete request failed", description: error.message });
-      } else {
-        queryClient.invalidateQueries({ queryKey: ["requests"] });
-        toast({ title: "Awaiting Admin Approval", description: "Your delete request has been sent to admin for final review." });
-        setDeleteTarget(null);
-        setDeleteConfirmText("");
-        setDeleteReason("");
-      }
     }
   };
 
@@ -513,15 +500,13 @@ export default function RequestsPage() {
 
       <AlertDialog open={!!deleteTarget} onOpenChange={open => !open && setDeleteTarget(null)}>
         <AlertDialogContent className="rounded-2xl">
-          <AlertDialogHeader><AlertDialogTitle>{role === "admin" ? "Delete Record?" : "Request Record Deletion?"}</AlertDialogTitle><AlertDialogDescription>{role === "admin" ? "This action is immutable." : "This will send the request to admin for final deletion approval."} Type <span className="font-black">DELETE</span>.</AlertDialogDescription></AlertDialogHeader>
+          <AlertDialogHeader><AlertDialogTitle>Request Record Deletion?</AlertDialogTitle><AlertDialogDescription>This will send the request to a Utilization Manager Lead or Super Admin for review. Type <span className="font-black">DELETE</span> to continue.</AlertDialogDescription></AlertDialogHeader>
           <Input value={deleteConfirmText} onChange={e => setDeleteConfirmText(e.target.value)} placeholder="DELETE" className="h-10 rounded-xl" />
-          {role !== "admin" && (
-            <div className="space-y-1">
-              <Label className="text-xs font-black uppercase tracking-widest text-slate-500">Reason for delete request</Label>
-              <Input value={deleteReason} onChange={e => setDeleteReason(e.target.value)} placeholder="Explain why this should be deleted..." className="h-10 rounded-xl" />
-            </div>
-          )}
-          <AlertDialogFooter><AlertDialogCancel className="rounded-xl">Cancel</AlertDialogCancel><AlertDialogAction disabled={deleteConfirmText !== "DELETE"} onClick={executeDelete} className="rounded-xl bg-rose-600">Delete</AlertDialogAction></AlertDialogFooter>
+          <div className="space-y-1">
+            <Label className="text-xs font-black uppercase tracking-widest text-slate-500">Reason for deletion request</Label>
+            <Input value={deleteReason} onChange={e => setDeleteReason(e.target.value)} placeholder="Explain why this should be deleted..." className="h-10 rounded-xl" />
+          </div>
+          <AlertDialogFooter><AlertDialogCancel className="rounded-xl">Cancel</AlertDialogCancel><AlertDialogAction disabled={deleteConfirmText !== "DELETE" || !deleteReason.trim() || deleteProcessing} onClick={executeDelete} className="rounded-xl bg-rose-600">{deleteProcessing ? "Submitting…" : "Submit Request"}</AlertDialogAction></AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
     </div>

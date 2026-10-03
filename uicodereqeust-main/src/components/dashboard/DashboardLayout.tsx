@@ -98,7 +98,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         if (!latestByConversation.has(msg.conversation_id)) latestByConversation.set(msg.conversation_id, msg);
       });
 
-      const staffRoles = ["admin", "utilization_manager", "claims", "finance"];
+      const staffRoles = ["admin", "utilization_manager", "utilization_manager_lead", "claims", "finance"];
       const needsAttentionStatuses = ["new", "open", "reopened", "waiting_internal_action", "pending"];
       const hospitalWaitingStatuses = ["pending_customer_response", "open", "reopened"];
       const count = (conversations || []).filter((conversation: any) => {
@@ -139,7 +139,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       });
     }
 
-    if (role === "admin" || role === "utilization_manager") {
+    if (role === "admin" || role === "utilization_manager" || role === "utilization_manager_lead") {
       dashChannel.on("postgres_changes", { event: "INSERT", schema: "public", table: "authorization_requests" }, (payload) => {
         const req = payload.new as any;
         void queryClient.invalidateQueries({ queryKey: ["requests"] });
@@ -199,7 +199,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       { name: "Dashboard", href: basePath, icon: Activity },
       { name: "New Request", href: "/dashboard/new-request", icon: Zap, hidden: r !== "hospital" },
       { name: "Authorizations", href: r === "hospital" ? `${basePath}/authorizations` : `${basePath}/requests`, icon: ShieldCheck },
-      { name: "Claims Queue", href: `${basePath}/claims`, icon: Banknote, hidden: r === "utilization_manager" },
+      { name: "Claims Queue", href: `${basePath}/claims`, icon: Banknote, hidden: r === "utilization_manager" || r === "utilization_manager_lead" },
       { name: "Payments", href: `/backoffice/admin/payments/awaiting`, icon: Banknote, hidden: r !== "admin" },
       { name: "Messages", href: `${basePath}/messages`, icon: MessageSquare, badge: actionableMessages },
       
@@ -215,8 +215,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       
       { name: "Audit Feed", href: `${basePath}/audit`, icon: Activity, hidden: r !== "admin" },
       { name: "Announcements", href: `${basePath}/announcements`, icon: Megaphone, hidden: r !== "admin" },
-      { name: "Delete Requests", href: `${basePath}/delete-requests`, icon: Trash2, hidden: r !== "admin" },
-      { name: "NHIS Update", href: `${basePath}/nhis-update`, icon: FileSpreadsheet, hidden: r !== "admin" },
+      { name: "Delete Requests", href: `${basePath}/delete-requests`, icon: Trash2, hidden: r !== "admin" && r !== "utilization_manager_lead" },
+      { name: "NHIS Update", href: `${basePath}/nhis-update`, icon: FileSpreadsheet, hidden: r !== "admin" && r !== "utilization_manager_lead" },
       { name: "Historical Import", href: `${basePath}/historical-import`, icon: FileSpreadsheet, hidden: r !== "admin" },
       { name: "Settings", href: `${basePath}/settings`, icon: Settings },
     ].filter(item => !item.hidden);
@@ -335,10 +335,10 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     if (path.startsWith("/backoffice/admin/users")) {
       return { title: "User Management", description: "Manage user access, roles, and profile requests" };
     }
-    if (path.startsWith("/backoffice/admin/delete-requests")) {
+    if (path.includes("/delete-requests")) {
       return { title: "Delete Requests", description: "Review and authorize record deletion requests" };
     }
-    if (path.startsWith("/backoffice/admin/nhis-update")) {
+    if (path.includes("/nhis-update")) {
       return { title: "Monthly Beneficiary Replacement", description: "NHIS beneficiary update and replacement management" };
     }
     if (path.startsWith("/backoffice/admin/historical-import")) {
@@ -363,6 +363,12 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     }
     if (path.startsWith("/backoffice/utilization-manager/reports")) {
       return { title: "Pre-Auth Analytics", description: "Clinical authorization trends, hospital performance & daily KPIs" };
+    }
+    if (path.startsWith("/backoffice/utilization-manager/delete-requests")) {
+      return { title: "Deletion Requests", description: "Review requests to remove authorization records" };
+    }
+    if (path.startsWith("/backoffice/utilization-manager/nhis-update")) {
+      return { title: "NHIS Beneficiary Update", description: "Validate and replace the beneficiary list" };
     }
     if (path.startsWith("/backoffice/utilization-manager/settings")) {
       return { title: "Settings", description: "Manage security policies & account details" };

@@ -26,7 +26,7 @@ import {
   getExistingSubscription,
 } from "@/lib/pushNotifications";
 
-const PUSH_ELIGIBLE_ROLES = ["admin", "utilization_manager"];
+const PUSH_ELIGIBLE_ROLES = ["admin", "utilization_manager", "utilization_manager_lead"];
 
 export function PushNotificationPrompt() {
   const { user, role } = useAuth();

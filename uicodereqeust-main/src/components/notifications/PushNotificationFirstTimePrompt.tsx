@@ -19,7 +19,7 @@ import {
   hasOptedOutOfPush,
 } from "@/lib/pushNotifications";
 
-const STAFF_ROLES = new Set(["admin", "utilization_manager", "claims", "finance"]);
+const STAFF_ROLES = new Set(["admin", "utilization_manager", "utilization_manager_lead", "claims", "finance"]);
 
 export function PushNotificationFirstTimePrompt() {
   const { user, role } = useAuth();

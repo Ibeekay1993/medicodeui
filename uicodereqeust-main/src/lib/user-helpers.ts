@@ -2,6 +2,7 @@ export const availableRoles = [
   { value: "admin", label: "Super Admin" },
   { value: "hospital", label: "Hospital Admin" },
   { value: "utilization_manager", label: "Utilization Manager" },
+  { value: "utilization_manager_lead", label: "Utilization Manager Lead" },
   { value: "claims", label: "Claims Auditor" },
   { value: "finance", label: "Finance Officer" },
 ];
@@ -39,6 +40,7 @@ export const roleClass = (role: string) => {
     case "admin":
       return "border-slate-300 bg-slate-100 text-slate-700";
     case "utilization_manager":
+    case "utilization_manager_lead":
       return "border-[#5DCAA5] bg-[#E1F5EE] text-[#93c34b]";
     case "hospital":
       return "border-blue-200 bg-blue-50 text-blue-700";

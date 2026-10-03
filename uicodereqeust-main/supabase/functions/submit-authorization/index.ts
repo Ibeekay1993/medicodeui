@@ -403,12 +403,13 @@ serve(async (req) => {
           "x-worker-secret": WORKER_SHARED_SECRET,
         },
         body: JSON.stringify({
-          target_roles: ["admin", "utilization_manager"],
+          target_roles: ["admin", "utilization_manager", "utilization_manager_lead"],
           title: "New WhatsApp Authorization Request",
           body: `A new pending request from ${hospitalName || "a hospital"} is ready for review.`,
           url_by_role: {
             admin: "/backoffice/admin/requests",
             utilization_manager: "/backoffice/utilization-manager/requests",
+            utilization_manager_lead: "/backoffice/utilization-manager/requests",
           },
           tag: `auth-request-${row.id}`,
         }),

@@ -52,7 +52,7 @@ export default function SupportMessagesPage() {
   
   
   const defaultRightOpen = (role === "claims" || role === "admin") && !isHospital;
-  const isInternal = ["admin", "utilization_manager", "claims"].includes(role || "");
+  const isInternal = ["admin", "utilization_manager", "utilization_manager_lead", "claims"].includes(role || "");
 
   // 1. Fetch conversations from Supabase
   const loadConversations = useCallback(async (showSpinner = false) => {
@@ -86,7 +86,7 @@ export default function SupportMessagesPage() {
       } else {
         if (role === "claims") {
           q = q.eq("department", "Claims");
-        } else if (role === "utilization_manager") {
+        } else if (role === "utilization_manager" || role === "utilization_manager_lead") {
           q = q.in("department", ["Authorization", "General Support", "WhatsApp Support", "Clinical Support"]);
         }
       }
@@ -124,7 +124,7 @@ export default function SupportMessagesPage() {
     const { data } = await supabase
       .from("user_roles")
       .select("user_id, full_name, role")
-      .in("role", ["utilization_manager", "claims", "admin"])
+      .in("role", ["utilization_manager", "utilization_manager_lead", "claims", "admin"])
       .order("role");
     setAgents(data || []);
   }, [isInternal]);
@@ -338,7 +338,7 @@ useEffect(() => {
 
       const route = conversationRoute(item, user?.id, authRequests, claims);
 
-      if (role === "utilization_manager" && !route.isNurse) return false;
+      if ((role === "utilization_manager" || role === "utilization_manager_lead") && !route.isNurse) return false;
       if (role === "claims" && !route.isClaims) return false;
 
       if (categoryFilter === "request_support") {

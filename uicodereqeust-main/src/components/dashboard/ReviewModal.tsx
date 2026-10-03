@@ -774,11 +774,11 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
                         </p>
                         <p className="font-medium text-slate-500 text-[11px] mt-0.5">
                           This authorization has been decided and is locked for clinical data integrity.
-                          {role === "admin" ? " As an Admin, you can unlock this record to permit amendments or re-decision." : " Only an Administrator can unlock this record."}
+                          {role === "admin" || role === "utilization_manager_lead" ? " A Utilization Manager Lead or Super Admin can unlock this record for revision." : " A Utilization Manager Lead must unlock this record before it can be revised."}
                         </p>
                       </div>
                     </div>
-                    {role === "admin" && (
+                    {(role === "admin" || role === "utilization_manager_lead") && (
                       <Button
                         type="button"
                         size="sm"
@@ -809,7 +809,7 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
                         </p>
                       </div>
                     </div>
-                    {role === "admin" && (
+                    {(role === "admin" || role === "utilization_manager_lead") && (
                       <Button
                         type="button"
                         variant="outline"
@@ -1092,7 +1092,7 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
                     </Button>
 
                     {isLocked ? (
-                      role === "admin" && (
+                      (role === "admin" || role === "utilization_manager_lead") && (
                         <Button
                           onClick={actions.handleUnlockRecord}
                           disabled={actions.unlockLoading}
@@ -1140,9 +1140,9 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
       >
         <AlertDialogContent className="rounded-2xl border-slate-200">
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Request</AlertDialogTitle>
+            <AlertDialogTitle>Request Deletion</AlertDialogTitle>
             <AlertDialogDescription>
-              This action is permanent and cannot be undone. Type{" "}
+              This sends the authorization to the Utilization Manager Lead for review. It will only be permanently deleted after approval. Type{" "}
               <span className="font-black text-slate-900">DELETE</span> to continue.
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -1162,7 +1162,7 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
               onClick={actions.handleDeleteRequest}
               className="rounded-xl bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white font-bold"
             >
-              {actions.processing ? "Deleting..." : "Delete"}
+              {actions.processing ? "Submitting..." : "Submit Request"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

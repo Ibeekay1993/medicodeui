@@ -9,6 +9,8 @@ const SupportMessagesPage = lazy(() => import("@/features/dashboard/pages/Suppor
 const WhatsAppPage = lazy(() => import("@/features/dashboard/pages/WhatsAppPage"));
 const ReportsPage = lazy(() => import("@/features/dashboard/pages/ReportsPage"));
 const SettingsPage = lazy(() => import("@/features/dashboard/pages/SettingsPage"));
+const DeleteRequestsPage = lazy(() => import("@/features/dashboard/pages/DeleteRequestsPage"));
+const NhisBeneficiaryUpdatePage = lazy(() => import("@/features/dashboard/pages/NhisBeneficiaryUpdatePage"));
 
 /** All routes available to the Utilization Manager role (/backoffice/utilization-manager/*) */
 export function UtilizationRoutes() {
@@ -17,7 +19,7 @@ export function UtilizationRoutes() {
       path="/backoffice/utilization-manager"
       element={
         <ProtectedRoute
-          allowedRoles={["utilization_manager"]}
+          allowedRoles={["utilization_manager", "utilization_manager_lead"]}
           loginPath="/login"
           fallbackPath="/unauthorized"
         >
@@ -31,6 +33,16 @@ export function UtilizationRoutes() {
       <Route path="whatsapp" element={<WhatsAppPage />} />
       <Route path="reports" element={<ReportsPage />} />
       <Route path="settings" element={<SettingsPage />} />
+      <Route path="delete-requests" element={
+        <ProtectedRoute allowedRoles={["utilization_manager_lead"]} loginPath="/login" fallbackPath="/unauthorized">
+          <DeleteRequestsPage />
+        </ProtectedRoute>
+      } />
+      <Route path="nhis-update" element={
+        <ProtectedRoute allowedRoles={["utilization_manager_lead"]} loginPath="/login" fallbackPath="/unauthorized">
+          <NhisBeneficiaryUpdatePage />
+        </ProtectedRoute>
+      } />
     </Route>
   );
 }

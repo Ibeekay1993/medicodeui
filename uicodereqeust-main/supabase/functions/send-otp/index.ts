@@ -41,7 +41,7 @@ serve(async (req) => {
   }
 
   try {
-    const { user } = await validateUser(req, ["utilization_manager", "admin", "hospital", "claims"]);
+    const { user } = await validateUser(req, ["utilization_manager", "utilization_manager_lead", "admin", "hospital", "claims"]);
     const supabase = getServiceClient();
 
     // patient_email can be empty/missing for whatsapp parser requests

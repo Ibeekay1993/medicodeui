@@ -22,6 +22,7 @@ const sessionStartStorageKey = "ronsberger-session-started-at";
 const sessionInactivityTimeoutByRole: Partial<Record<AppRole, number>> = {
   admin: 5 * 60 * 60 * 1000, // 5 hours
   utilization_manager: 5 * 60 * 60 * 1000, // 5 hours
+  utilization_manager_lead: 5 * 60 * 60 * 1000, // 5 hours
   hospital: 2 * 60 * 60 * 1000, // 2 hours
   claims: 5 * 60 * 60 * 1000, // 5 hours
   finance: 5 * 60 * 60 * 1000, // 5 hours

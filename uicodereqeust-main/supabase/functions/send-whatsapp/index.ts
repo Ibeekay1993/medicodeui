@@ -83,7 +83,7 @@ serve(async (req) => {
   let isAuthorized = authedByApiKey || authedByWorkerSecret;
   if (!isAuthorized && req.headers.get("Authorization")) {
     try {
-      await validateUser(req, ["utilization_manager", "admin", "claims", "doctor", "nurse", "medical_officer"]);
+      await validateUser(req, ["utilization_manager", "utilization_manager_lead", "admin", "claims", "doctor", "nurse", "medical_officer"]);
       isAuthorized = true;
     } catch {
       isAuthorized = false;

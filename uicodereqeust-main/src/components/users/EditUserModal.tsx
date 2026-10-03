@@ -108,30 +108,11 @@ export function EditUserModal({
       onOpenChange(false);
       onSuccess();
     } catch (e: any) {
-      const { error } = await supabase
-        .from("user_roles")
-        .update({
-          full_name: editForm.full_name,
-          email: editForm.email,
-          phone: editForm.phone,
-          role: editForm.role as any,
-          hospital_id: editForm.hospital_id || null,
-        })
-        .eq("id", user.id);
-      if (error) {
-        toast({
-          variant: "destructive",
-          title: "Update Failed",
-          description: e.message || error.message,
-        });
-      } else {
-        toast({
-          title: "User Updated",
-          description: "Name and role saved. Email changes require the admin function.",
-        });
-        onOpenChange(false);
-        onSuccess();
-      }
+      toast({
+        variant: "destructive",
+        title: "Update Failed",
+        description: e?.message || "The admin user service could not update this account.",
+      });
     } finally {
       setIsSaving(false);
     }

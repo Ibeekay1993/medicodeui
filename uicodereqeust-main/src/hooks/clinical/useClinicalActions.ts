@@ -1089,11 +1089,14 @@ export function useClinicalActions({
     setProcessingAction("delete");
     setProcessing(true);
     try {
-      const { error } = await supabase.from("authorization_requests").delete().eq("id", request.id);
+      const { error } = await supabase.rpc("rpc_request_deletion_approval" as any, {
+        p_request_id: request.id,
+        p_reason: `Deletion requested from authorization review by ${nurseDisplayName}.`,
+      });
       if (error) throw error;
 
       localStorage.removeItem(`review_draft_${request.id}`);
-      toast({ title: "Deleted", description: "Request removed from the list." });
+      toast({ title: "Deletion Requested", description: "The request was sent to the Utilization Manager Lead for review." });
       setDeleteConfirmOpen(false);
       setDeleteConfirmText("");
       onUpdated();
@@ -1180,37 +1183,27 @@ export function useClinicalActions({
   const [unlockLoading, setUnlockLoading] = useState(false);
 
   const handleUnlockRecord = async () => {
-    if (role !== "admin") {
+    if (role !== "admin" && role !== "utilization_manager_lead") {
       toast({
         variant: "destructive",
-        title: "Admin Only",
-        description: "Only administrators can unlock decided records for revision.",
+        title: "Access Denied",
+        description: "A Utilization Manager Lead or Super Admin is required to unlock decided records.",
       });
       return;
     }
     if (!request?.id) return;
     setUnlockLoading(true);
     try {
-      const { error } = await supabase
-        .from("authorization_requests")
-        .update({ is_unlocked: true } as any)
-        .eq("id", request.id);
+      const { error } = await supabase.rpc("rpc_set_authorization_lock" as any, {
+        p_request_id: request.id,
+        p_is_unlocked: true,
+      });
 
       if (error) throw error;
 
-      await supabase.from("authorization_logs").insert({
-        request_id: request.id,
-        action: "UNLOCK_RECORD_FOR_REVISION",
-        performed_by: user?.id,
-        details: {
-          unlocked_by: nurseDisplayName,
-          unlocked_at: new Date().toISOString(),
-        },
-      } as any);
-
       toast({
         title: "Record Unlocked",
-        description: "This authorization is now unlocked. You or other roles can edit and re-decide.",
+        description: "This authorization is unlocked for revision. Clinical staff can now update the decision.",
       });
 
       onUpdated();
@@ -1227,14 +1220,14 @@ export function useClinicalActions({
   };
 
   const handleLockRecord = async () => {
-    if (role !== "admin") return;
+    if (role !== "admin" && role !== "utilization_manager_lead") return;
     if (!request?.id) return;
     setUnlockLoading(true);
     try {
-      const { error } = await supabase
-        .from("authorization_requests")
-        .update({ is_unlocked: false } as any)
-        .eq("id", request.id);
+      const { error } = await supabase.rpc("rpc_set_authorization_lock" as any, {
+        p_request_id: request.id,
+        p_is_unlocked: false,
+      });
 
       if (error) throw error;
 

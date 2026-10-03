@@ -194,12 +194,13 @@ export async function notifyPendingAuthorizationRequest(input: {
       : "hospital portal";
     const { error } = await supabase.functions.invoke("send-push-notification", {
       body: {
-        target_roles: ["admin", "utilization_manager", "claims", "finance"],
+        target_roles: ["admin", "utilization_manager", "utilization_manager_lead", "claims", "finance"],
         title: "New Pending Authorization Request",
         body: `A new request from ${input.hospitalName || "a hospital"} via ${sourceLabel} is ready for review.`,
         url_by_role: {
           admin: "/backoffice/admin/requests",
           utilization_manager: "/backoffice/utilization-manager/requests",
+          utilization_manager_lead: "/backoffice/utilization-manager/requests",
           claims: "/backoffice/claims",
           finance: "/backoffice/finance",
         },

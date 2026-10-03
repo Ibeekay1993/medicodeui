@@ -84,7 +84,7 @@ export default function DeleteRequestsPage() {
     valueAtRisk: rows.reduce((sum, row) => sum + Number(row.total_amount || 0), 0),
   }), [rows]);
 
-  if (role !== "admin") {
+  if (role !== "admin" && role !== "utilization_manager_lead") {
     return (
       <div className="flex h-[400px] flex-col items-center justify-center space-y-4">
         <ShieldAlert className="h-12 w-12 text-rose-500" />
