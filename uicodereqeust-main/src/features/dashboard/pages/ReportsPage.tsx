@@ -273,13 +273,74 @@ export default function ReportsPage() {
         size: 12,
       };
 
-      const currencyFormat = '"₦"#,##0';
+      const currencyFormat = '"₦"#,##0.00';
       const percentFormat = '0.0"%"';
+      let paymentAdviceRowCount = 0;
 
       if (mode === "payment_advice") {
-        const approvedRecords = records
-          .filter((r) => isApprovedStatus(r.status))
-          .sort((a, b) => (a.requesting_hospital || "").localeCompare(b.requesting_hospital || "") || new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+        // Payment periods are based on decision/approval date, while the
+        // analytics dashboard's date filter intentionally measures requests
+        // by creation date. Query the payment schedule on its own date axis.
+        const dateRange = buildDateFilter(filters.dateFilter, filters.startDate, filters.endDate);
+        const hospitalId = filters.hospitalFilter === "all" ? null : filters.hospitalFilter;
+        let approvedRows: any[] = [];
+        let page = 0;
+        const pageSize = 1000;
+        while (true) {
+          let query = supabase
+            .from("authorization_requests")
+            .select("*")
+            .in("status", ["approved", "partially_approved", "referral_approved", "referral_accepted", "authorization_approved"])
+            .order("decided_at", { ascending: true })
+            .order("id", { ascending: true })
+            .range(page * pageSize, (page + 1) * pageSize - 1);
+          if (dateRange.from) query = query.gte("decided_at", dateRange.from.toISOString());
+          if (dateRange.to) query = query.lte("decided_at", dateRange.to.toISOString());
+          if (hospitalId) {
+            query = query.or([
+              `claiming_hospital_id.eq.${hospitalId}`,
+              `referred_hospital_id.eq.${hospitalId}`,
+              `requesting_hospital_id.eq.${hospitalId}`,
+              `hospital_id.eq.${hospitalId}`,
+            ].join(","));
+          }
+          const { data, error } = await query;
+          if (error) throw error;
+          if (!data?.length) break;
+          approvedRows = approvedRows.concat(data);
+          if (data.length < pageSize) break;
+          page += 1;
+        }
+        const approvedRecords = approvedRows
+          .map((item: any) => ({
+            id: item.id,
+            created_at: item.created_at,
+            request_id: item.request_id || "",
+            patient_name: item.patient_name || "",
+            patient_phone: item.patient_phone || item.phone || item.phone_number || "",
+            patient_email: item.patient_email || item.email || "",
+            policy_number: item.policy_number || "",
+            diagnosis: item.diagnosis || "",
+            treatment: item.treatment || "",
+            requesting_hospital: item.claiming_hospital_name || item.referred_hospital_name || item.requesting_hospital_name || item.hospital_name || "",
+            hospital_id: item.claiming_hospital_id || item.referred_hospital_id || item.requesting_hospital_id || item.hospital_id,
+            source: item.source || "Manual",
+            authorization_code: item.authorization_code || "",
+            status: item.status as RequestStatus,
+            approved_amount: calculateApprovedAmount(item),
+            approved_items: Array.isArray(item.approved_items) ? item.approved_items : [],
+            source_total_amount: Number(item.total_amount) || 0,
+            rejection_reason: item.rejection_reason || "",
+            decision_reason: item.decision_reason || "",
+            decided_at: item.decided_at || undefined,
+            decided_by: item.decided_by,
+            approved_by: item.approved_by,
+            treatment_submitted_at: item.treatment_submitted_at,
+            urgency: item.urgency,
+            clinician: item.authorized_by_name || "",
+          } as PreAuthRecord & { source_total_amount: number }))
+          .sort((a, b) => (a.requesting_hospital || "").localeCompare(b.requesting_hospital || "") || new Date(a.decided_at || a.created_at).getTime() - new Date(b.decided_at || b.created_at).getTime());
+        paymentAdviceRowCount = approvedRecords.length;
 
         if (approvedRecords.length === 0) {
           toast.warning("No approved requests found in the current filter scope to generate Payment Advice.");
@@ -301,7 +362,7 @@ export default function ReportsPage() {
           { header: "Enrollee / Patient", key: "patient", width: 25 },
           { header: "Policy Number", key: "policy", width: 20 },
           { header: "Diagnosis", key: "diagnosis", width: 30 },
-          { header: "Approved Treatment / Services", key: "treatment", width: 35 },
+          { header: "Approved NHIA Items (Code × Qty)", key: "treatment", width: 45 },
           { header: "Approved Amount (₦)", key: "appAmt", width: 24 },
           { header: "Authorized By", key: "clinician", width: 22 },
         ];
@@ -313,20 +374,24 @@ export default function ReportsPage() {
           fgColor: { argb: "FF065F46" },
         };
 
-        let totalPayable = 0;
+        let totalPayableCents = 0;
         approvedRecords.forEach((r, idx) => {
-          const amt = r.approved_amount || 0;
-          totalPayable += amt;
+          const amt = Number(r.approved_amount) || 0;
+          totalPayableCents += Math.round(amt * 100);
+          const approvedItems = (r.approved_items || []).filter((item: any) => item && !item.declined);
+          const itemSummary = approvedItems.length
+            ? approvedItems.map((item: any) => `${item.code || ""} ${item.name || ""} × ${Number(item.quantity || 1)} — ₦${Number(item.amount ?? (Number(item.unit_price || item.price || 0) * Number(item.quantity || 1))).toLocaleString("en-NG", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`).join("; ")
+            : (r.treatment || "Approved item details unavailable");
           wsPA.addRow({
             sn: idx + 1,
-            date: r.decided_at ? new Date(r.decided_at).toLocaleDateString("en-GB") : (r.created_at ? new Date(r.created_at).toLocaleDateString("en-GB") : ""),
+            date: r.decided_at ? new Date(r.decided_at).toLocaleDateString("en-GB") : "MISSING DECISION DATE",
             hospital: r.requesting_hospital,
             authCode: r.authorization_code,
             reqId: r.request_id,
             patient: r.patient_name,
             policy: r.policy_number,
             diagnosis: r.diagnosis,
-            treatment: r.treatment,
+            treatment: itemSummary,
             appAmt: amt,
             clinician: r.clinician || "",
           });
@@ -344,7 +409,7 @@ export default function ReportsPage() {
           policy: "",
           diagnosis: "",
           treatment: `${approvedRecords.length} Authorizations`,
-          appAmt: totalPayable,
+          appAmt: totalPayableCents / 100,
           clinician: "",
         });
         totalRow.font = { bold: true, size: 12, color: { argb: "FF065F46" } };
@@ -354,6 +419,51 @@ export default function ReportsPage() {
           fgColor: { argb: "FFD1FAE5" },
         };
         totalRow.getCell("appAmt").numFmt = currencyFormat;
+
+        const reconciliation = workbook.addWorksheet("Payment Advice Checks");
+        reconciliation.columns = [
+          { header: "Request ID", key: "requestId", width: 22 },
+          { header: "Authorization Code", key: "authCode", width: 22 },
+          { header: "Approved Amount (Schedule)", key: "scheduleAmount", width: 26 },
+          { header: "Stored Approved Total", key: "storedAmount", width: 24 },
+          { header: "Difference", key: "difference", width: 18 },
+          { header: "Data Quality Issues", key: "issues", width: 60 },
+        ];
+        reconciliation.getRow(1).font = headerFont;
+        reconciliation.getRow(1).fill = headerFill;
+        for (const r of approvedRecords) {
+          const issues = [
+            !r.requesting_hospital && "Missing provider",
+            !r.authorization_code && "Missing authorization code",
+            !r.request_id && "Missing request ID",
+            !r.patient_name && "Missing patient name",
+            !r.policy_number && "Missing policy number",
+            !r.diagnosis && "Missing diagnosis",
+            !(r.approved_items || []).some((item: any) => item && !item.declined) && "Missing approved item details",
+            !r.decided_at && "Missing decision date",
+          ].filter(Boolean);
+          const difference = Number(r.approved_amount) - r.source_total_amount;
+          if (Math.abs(difference) >= 0.01) issues.push("Approved item sum differs from stored approved total");
+          if (!issues.length) continue;
+          reconciliation.addRow({
+            requestId: r.request_id,
+            authCode: r.authorization_code,
+            scheduleAmount: r.approved_amount,
+            storedAmount: r.source_total_amount,
+            difference,
+            issues: issues.join("; "),
+          });
+        }
+        for (const column of ["scheduleAmount", "storedAmount", "difference"]) {
+          reconciliation.getColumn(column).numFmt = currencyFormat;
+        }
+        if (reconciliation.rowCount === 1) {
+          reconciliation.addRow({ issues: "No missing payment fields or amount differences found." });
+        }
+        reconciliation.autoFilter = {
+          from: { row: 1, column: 1 },
+          to: { row: reconciliation.rowCount, column: 6 },
+        };
 
         wsPA.autoFilter = {
           from: { row: 1, column: 1 },
@@ -608,7 +718,7 @@ export default function ReportsPage() {
       const buffer = await workbook.xlsx.writeBuffer();
       const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
       const filename = mode === "payment_advice"
-        ? `Payment_Advice_Schedule_${selectedHospital}_${new Date().toISOString().split("T")[0]}.xlsx`
+          ? `Payment_Advice_Schedule_${selectedHospital}_${filters.dateFilter}_${new Date().toISOString().split("T")[0]}.xlsx`
         : mode === "full" 
         ? `PreAuth_Executive_Dashboard_${selectedHospital}_${new Date().toISOString().split("T")[0]}.xlsx`
         : `PreAuth_Detailed_Data_${selectedHospital}_${new Date().toISOString().split("T")[0]}.xlsx`;
@@ -617,7 +727,7 @@ export default function ReportsPage() {
 
       toast.success(
         mode === "payment_advice"
-          ? `Exported Payment Advice Schedule (${records.filter((r) => isApprovedStatus(r.status)).length} approved claims)`
+          ? `Exported Payment Advice Schedule (${paymentAdviceRowCount} approved claims, filtered by approval date)`
           : `Exported ${records.length} records (${mode === "full" ? "Premium Executive Dashboard" : "Detailed Data"})`
       );
     } catch (error) {

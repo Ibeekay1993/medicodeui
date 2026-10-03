@@ -84,7 +84,7 @@ export function calculateApprovedAmount(record: {
   total_amount?: unknown;
 }): number {
   if (Array.isArray(record.approved_items) && record.approved_items.length > 0) {
-    const calculated = record.approved_items.reduce((sum, item) => {
+    const calculatedCents = record.approved_items.reduce((sum, item) => {
       if (!item || typeof item !== "object" || Boolean((item as { declined?: unknown }).declined)) {
         return sum;
       }
@@ -98,24 +98,26 @@ export function calculateApprovedAmount(record: {
       };
 
       const value = rawItem.amount ?? rawItem.total;
-      if (value !== undefined && value !== null && !isNaN(Number(value))) {
-        return sum + Number(value);
+      if (value !== undefined && value !== null && Number.isFinite(Number(value))) {
+        return sum + Math.round(Number(value) * 100);
       }
       const unit = Number(rawItem.unit_price ?? rawItem.price ?? 0);
-      const qty = Math.max(1, Number(rawItem.quantity ?? 1));
-      if (Number.isFinite(unit) && unit > 0) {
-        return sum + (unit * qty);
+      const qty = Number(rawItem.quantity ?? 1);
+      if (Number.isFinite(unit) && unit > 0 && Number.isFinite(qty) && qty > 0) {
+        return sum + Math.round(unit * qty * 100);
       }
       return sum;
     }, 0);
 
-    if (calculated > 0) return calculated;
+    // An explicit approved cart is authoritative, including a zero total when
+    // every item was declined. Never substitute a stale request/tariff amount.
+    return calculatedCents / 100;
   }
 
   const storedAmount = Number(
-    record.approved_tariff_amount ??
-    record.approved_amount ??
-    (isApprovedStatus(String(record.status || "")) ? record.total_amount : 0)
+    isApprovedStatus(String(record.status || ""))
+      ? (record.total_amount ?? record.approved_amount ?? record.approved_tariff_amount ?? 0)
+      : 0
   );
   return Number.isFinite(storedAmount) ? storedAmount : 0;
 }
