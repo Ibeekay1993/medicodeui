@@ -34,9 +34,10 @@ import StatusDistributionChart from "@/components/reports/StatusDistributionChar
 
 import MonthlyTrendChart from "@/components/reports/MonthlyTrendChart";
 import HospitalPerformanceTable from "@/components/reports/HospitalPerformanceTable";
+import UtilizationSlaAnalysis from "@/components/reports/UtilizationSlaAnalysis";
 
 export default function ReportsPage() {
-  const { role } = useAuth();
+  const { role, user } = useAuth();
   const normalizedRole = role?.toLowerCase();
 
   const [hospitals, setHospitals] = useState<{ id: string; name: string; code?: string }[]>([]);
@@ -56,6 +57,7 @@ export default function ReportsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
   const [showHospitalPerformance, setShowHospitalPerformance] = useState(true);
+  const [utilizationManagerNames, setUtilizationManagerNames] = useState<Record<string, string>>({});
 
   const calculateStats = useCallback((data: PreAuthRecord[]): ReportStats => {
     const approved = data.filter((r) => isApprovedStatus(r.status));
@@ -153,8 +155,28 @@ export default function ReportsPage() {
         rejection_reason: item.rejection_reason || item.decision_reason || "",
         decision_reason: item.decision_reason || "",
         decided_at: item.decided_at,
-        clinician: item.authorized_by_name || item.decided_by,
+        decided_by: item.decided_by,
+        approved_by: item.approved_by,
+        treatment_submitted_at: item.treatment_submitted_at,
+        urgency: item.urgency,
+        clinician: item.authorized_by_name || undefined,
+        is_historical: Boolean(item.is_historical),
       }));
+
+      const managerIds = Array.from(new Set(
+        mappedRecords.flatMap((record) => [record.approved_by, record.decided_by]).filter((id): id is string => Boolean(id)),
+      ));
+      setUtilizationManagerNames({});
+      if (managerIds.length) {
+        const { data: managers, error: managersError } = await supabase.rpc("rpc_get_utilization_manager_directory", { _user_ids: managerIds });
+        if (managersError) {
+          console.warn("Could not load utilization manager names for SLA report", managersError);
+        } else {
+          setUtilizationManagerNames(Object.fromEntries((managers || []).map((manager) => [manager.user_id, manager.full_name])));
+        }
+      } else {
+        setUtilizationManagerNames({});
+      }
 
       const validRecords = mappedRecords.filter((r) => r.status !== "deferred");
       setRecords(validRecords);
@@ -635,6 +657,17 @@ export default function ReportsPage() {
       <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 delay-200 fill-mode-both">
         <KPIStatsGrid stats={stats} isLoading={isLoading} />
       </div>
+
+      {(normalizedRole === "admin" || normalizedRole === "utilization_manager" || normalizedRole === "utilization_manager_lead") && (
+        <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 delay-250 fill-mode-both">
+          <UtilizationSlaAnalysis
+            records={records}
+            managerNames={utilizationManagerNames}
+            viewerId={user?.id}
+            canSeeTeamPerformance={normalizedRole === "admin" || normalizedRole === "utilization_manager_lead"}
+          />
+        </div>
+      )}
 
       {/* Analytics Dashboard */}
       <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-300 fill-mode-both">

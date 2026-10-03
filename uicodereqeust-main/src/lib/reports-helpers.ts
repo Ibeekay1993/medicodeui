@@ -50,6 +50,10 @@ export interface PreAuthRecord {
   rejection_reason: string;
   decision_reason: string;
   decided_at?: string;
+  decided_by?: string | null;
+  approved_by?: string | null;
+  treatment_submitted_at?: string | null;
+  urgency?: string | null;
   clinician?: string;
   is_historical?: boolean;
 }

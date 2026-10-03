@@ -2622,6 +2622,10 @@ export type Database = {
     }
     Functions: {
       actor_snapshot: { Args: { _user_id: string }; Returns: Json }
+      rpc_get_utilization_manager_directory: {
+        Args: { _user_ids: string[] }
+        Returns: { full_name: string; user_id: string }[]
+      }
       admin_get_users_mfa_status: {
         Args: never
         Returns: {
