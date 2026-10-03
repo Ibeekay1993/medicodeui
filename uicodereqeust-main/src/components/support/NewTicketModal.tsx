@@ -428,7 +428,7 @@ export function NewTicketModal({
               <Textarea
                 value={newTicket.message}
                 onChange={(e) => setNewTicket({ ...newTicket, message: e.target.value })}
-                placeholder="Formulate dispute context or Routines inquiry..."
+                placeholder="Describe the issue, question, or information you need."
                 className="min-h-24 rounded-xl border-slate-200 text-xs font-semibold focus-visible:ring-indigo-500/20 bg-slate-50/50 resize-none shadow-inner"
               />
             </div>

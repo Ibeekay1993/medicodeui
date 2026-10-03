@@ -20,6 +20,14 @@ interface AuthRequest {
   total_amount?: number;
 }
 
+function constantTimeEqual(a: string, b: string): boolean {
+  let difference = a.length ^ b.length;
+  for (let index = 0; index < Math.min(a.length, b.length); index += 1) {
+    difference |= a.charCodeAt(index) ^ b.charCodeAt(index);
+  }
+  return difference === 0;
+}
+
 serve(async (req) => {
   // Handle CORS OPTIONS preflight request
   if (req.method === "OPTIONS") {
@@ -29,11 +37,11 @@ serve(async (req) => {
   try {
     // Validate request: Must be either an admin user or authorized via CRON_SECRET header
     const cronSecretHeader = req.headers.get("X-Cron-Secret");
-    const cronSecretEnv = Deno.env.get("DAILY_REPORT_CRON_SECRET") || "3e8f8a8b-6c7b-4c5b-9d8e-7f6e5d4c3b2a";
+    const cronSecretEnv = Deno.env.get("DAILY_REPORT_CRON_SECRET") || "";
 
     let isAuthorized = false;
 
-    if (cronSecretHeader && cronSecretHeader === cronSecretEnv) {
+    if (cronSecretHeader && cronSecretEnv && constantTimeEqual(cronSecretHeader, cronSecretEnv)) {
       isAuthorized = true;
     } else {
       try {

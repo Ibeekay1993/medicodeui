@@ -2,15 +2,44 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 
 export const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
 const WASENDER_API_URL = Deno.env.get("WASENDER_API_URL") || "https://wasenderapi.com/api/send-message";
 const WASENDER_API_KEY = Deno.env.get("WASENDER_API_KEY") || "";
 
+function constantTimeEqual(a: string, b: string): boolean {
+  let difference = a.length ^ b.length;
+  for (let index = 0; index < Math.min(a.length, b.length); index += 1) {
+    difference |= a.charCodeAt(index) ^ b.charCodeAt(index);
+  }
+  return difference === 0;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
+  }
+
+  if (req.method !== "POST") {
+    return new Response(JSON.stringify({ error: "Method not allowed" }), {
+      status: 405,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  // This endpoint sends a patient PIN and is only called from the trusted
+  // send-approval-email Edge Function using its service-role client. Requiring
+  // that credential prevents any signed-in user from messaging arbitrary
+  // phone numbers or choosing an OTP themselves.
+  const expectedServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+  const bearerToken = (req.headers.get("authorization") || "").replace(/^Bearer\s+/i, "");
+  if (!expectedServiceKey || !constantTimeEqual(bearerToken, expectedServiceKey)) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 
   try {
