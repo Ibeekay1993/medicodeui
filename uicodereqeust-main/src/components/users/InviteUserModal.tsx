@@ -11,6 +11,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -44,6 +45,7 @@ export function InviteUserModal({
     phone: "",
     role: "utilization_manager",
     hospital_id: "",
+    is_team_lead: false,
   });
   const [isInviting, setIsInviting] = useState(false);
   const [inviteHospitalSearch, setInviteHospitalSearch] = useState("");
@@ -67,7 +69,7 @@ export function InviteUserModal({
     if (!isOpen) {
       setInviteHospitalSearch("");
       setInviteDropdownOpen(false);
-      setNewUser({ email: "", fullName: "", phone: "", role: "utilization_manager", hospital_id: "" });
+      setNewUser({ email: "", fullName: "", phone: "", role: "utilization_manager", hospital_id: "", is_team_lead: false });
     }
   }, [isOpen]);
 
@@ -98,6 +100,7 @@ export function InviteUserModal({
           phone: newUser.phone.trim() || null,
           role: newUser.role,
           hospital_id: newUser.hospital_id || null,
+          is_team_lead: newUser.is_team_lead,
         },
       });
       if (error) throw error;
@@ -150,9 +153,9 @@ export function InviteUserModal({
           />
           <Select
             value={newUser.role}
-            onValueChange={(v) => setNewUser({ ...newUser, role: v })}
+            onValueChange={(v) => setNewUser({ ...newUser, role: v, is_team_lead: ["hospital", "claims", "finance"].includes(v) ? newUser.is_team_lead : false })}
           >
-            <SelectTrigger className="h-10 rounded-lg">
+            <SelectTrigger aria-label="System role" className="h-10 rounded-lg">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -163,6 +166,25 @@ export function InviteUserModal({
               ))}
             </SelectContent>
           </Select>
+          {newUser.role === "utilization_manager_lead" && (
+            <p className="-mt-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs leading-relaxed text-emerald-900">
+              This assigns the Utilization team lead. Only this person, alongside Super Admins, can unlock records, resolve deletion requests, and replace NHIS lists. Regular Utilization Managers do not get these permissions.
+            </p>
+          )}
+          {["hospital", "claims", "finance"].includes(newUser.role) && (
+            <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-slate-200 px-3 py-3">
+              <Checkbox
+                checked={newUser.is_team_lead}
+                onCheckedChange={(checked) => setNewUser({ ...newUser, is_team_lead: checked === true })}
+                aria-label="Assign as team lead"
+                className="mt-0.5"
+              />
+              <span className="min-w-0">
+                <span className="block text-sm font-medium text-slate-800">Assign as team lead</span>
+                <span className="mt-0.5 block text-xs leading-relaxed text-slate-500">Marks this person as the lead for their team. Team leads keep their existing role permissions; only the Utilization Manager Lead receives the additional authorization controls.</span>
+              </span>
+            </label>
+          )}
           {newUser.role === "hospital" && (
             <div ref={inviteHospitalRef} className="relative">
               <div className="relative">

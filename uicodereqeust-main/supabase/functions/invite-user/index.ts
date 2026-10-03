@@ -7,6 +7,7 @@ interface InvitePayload {
   role?: string;
   phone?: string | null;
   hospital_id?: string | null;
+  is_team_lead?: boolean;
 }
 
 serve(async (req) => {
@@ -38,9 +39,9 @@ serve(async (req) => {
     adminUser = validated.user;
 
     payload = await req.json();
-    const { email, fullName, role, phone = null, hospital_id = null } = payload;
+    const { email, fullName, role, phone = null, hospital_id = null, is_team_lead = false } = payload;
     const normalizedEmail = String(email || "").trim().toLowerCase();
-    const allowedRoles = ["admin", "hospital", "utilization_manager", "claims", "finance"];
+    const allowedRoles = ["admin", "hospital", "utilization_manager", "utilization_manager_lead", "claims", "finance"];
 
     if (!normalizedEmail || !fullName || !role) {
       throw new Error("Missing required fields: email, fullName, role");
@@ -51,8 +52,21 @@ serve(async (req) => {
     if (!allowedRoles.includes(role)) {
       throw new Error("Invalid role selected.");
     }
+    if (typeof is_team_lead !== "boolean" || (is_team_lead && !["hospital", "claims", "finance"].includes(role))) {
+      throw new Error("This team lead assignment is not available for the selected role.");
+    }
 
     const supabase = getServiceClient();
+    if (is_team_lead) {
+      const { data: currentLead, error: leadLookupError } = await supabase
+        .from("user_roles")
+        .select("id")
+        .eq("role", role)
+        .eq("is_team_lead", true)
+        .maybeSingle();
+      if (leadLookupError) throw leadLookupError;
+      if (currentLead) throw new Error("A lead is already assigned to this team. Update the current lead first.");
+    }
 
     // ── Rate Limiting: max 2 invites per email within 15 minutes ────────
     const RATE_LIMIT_MAX = 2;
@@ -263,6 +277,7 @@ serve(async (req) => {
     const { error: roleError } = await supabase.from("user_roles").upsert([{
       user_id: inviteData.user.id,
       role: role,
+      is_team_lead,
       full_name: fullName,
       email: normalizedEmail,
       phone,

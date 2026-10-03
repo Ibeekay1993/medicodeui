@@ -26,8 +26,12 @@ export const accessStatus = (user: any) => {
   return "active";
 };
 
-export const roleLabel = (value?: string | null) =>
-  availableRoles.find((role) => role.value === value)?.label || (!value ? "Unassigned" : "Phased out");
+export const roleLabel = (value?: string | null, isTeamLead = false) => {
+  if (isTeamLead && value === "hospital") return "Hospital Admin Lead";
+  if (isTeamLead && value === "claims") return "Claims Lead";
+  if (isTeamLead && value === "finance") return "Finance Lead";
+  return availableRoles.find((role) => role.value === value)?.label || (!value ? "Unassigned" : "Phased out");
+};
 
 export const statusClass = (status: string) => {
   if (status === "revoked") return "border-[#F09595] bg-[#FCEBEB] text-[#A32D2E]";

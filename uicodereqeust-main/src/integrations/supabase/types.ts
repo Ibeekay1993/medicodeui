@@ -2253,6 +2253,7 @@ export type Database = {
           hospital_id: string | null
           id: string
           invite_status: string
+          is_team_lead: boolean
           last_sign_in: string | null
           onboarding_completed: boolean
           onboarding_completed_at: string | null
@@ -2270,6 +2271,7 @@ export type Database = {
           hospital_id?: string | null
           id?: string
           invite_status?: string
+          is_team_lead?: boolean
           last_sign_in?: string | null
           onboarding_completed?: boolean
           onboarding_completed_at?: string | null
@@ -2287,6 +2289,7 @@ export type Database = {
           hospital_id?: string | null
           id?: string
           invite_status?: string
+          is_team_lead?: boolean
           last_sign_in?: string | null
           onboarding_completed?: boolean
           onboarding_completed_at?: string | null

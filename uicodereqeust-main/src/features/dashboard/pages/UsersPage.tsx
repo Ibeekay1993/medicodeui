@@ -93,6 +93,7 @@ export default function UsersPage() {
           id,
           user_id,
           role,
+          is_team_lead,
           full_name,
           email,
           phone,
@@ -126,6 +127,7 @@ export default function UsersPage() {
         id: ur.id,
         user_id: ur.user_id,
         role: ur.role,
+        is_team_lead: Boolean(ur.is_team_lead),
         full_name: ur.full_name || "Unnamed User",
         email: ur.email || "",
         phone: ur.phone || "",
@@ -211,7 +213,7 @@ export default function UsersPage() {
 
   const filtered = useMemo(() => users.filter((item) => {
     const hospitalName = item.hospital_name || hospitals.find((hospital) => hospital.id === item.hospital_id)?.name || "";
-    const haystack = [item.full_name, item.email, item.phone, roleLabel(item.role), hospitalName, accessStatus(item)].join(" ").toLowerCase();
+    const haystack = [item.full_name, item.email, item.phone, roleLabel(item.role, item.is_team_lead), hospitalName, accessStatus(item)].join(" ").toLowerCase();
     const matchesSearch = haystack.includes(search.toLowerCase());
     const matchesRole = roleFilter === "all" || item.role === roleFilter;
     return matchesSearch && matchesRole;
@@ -395,7 +397,7 @@ export default function UsersPage() {
                           {item.phone && <div className="text-slate-400 text-xs mt-0.5 leading-tight">{item.phone}</div>}
                         </td>
                         <td className="px-4 py-2.5">
-                          <span className="inline-flex max-w-full whitespace-normal break-words rounded-md bg-slate-100 px-2 py-1 text-xs font-medium leading-tight text-slate-700">{roleLabel(item.role)}</span>
+                          <span className="inline-flex max-w-full whitespace-normal break-words rounded-md bg-slate-100 px-2 py-1 text-xs font-medium leading-tight text-slate-700">{roleLabel(item.role, item.is_team_lead)}</span>
                         </td>
                         <td className="px-4 py-2.5 break-words whitespace-normal leading-snug">
                           <div className="font-medium text-slate-700 text-xs">{linkedHospital}</div>
@@ -501,7 +503,7 @@ export default function UsersPage() {
                       </DropdownMenu>
                     </div>
                     <div className="mt-3 flex flex-wrap items-center gap-2">
-                      <span className="inline-flex max-w-full whitespace-normal break-words rounded-md bg-slate-100 px-2 py-1 text-xs font-medium leading-tight text-slate-700">{roleLabel(item.role)}</span>
+                      <span className="inline-flex max-w-full whitespace-normal break-words rounded-md bg-slate-100 px-2 py-1 text-xs font-medium leading-tight text-slate-700">{roleLabel(item.role, item.is_team_lead)}</span>
                       <span className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 px-2 py-1 text-xs font-medium text-slate-600">
                         <span className={cn("h-1.5 w-1.5 rounded-full", status === "active" ? "bg-emerald-500" : status === "onboarding" ? "bg-amber-500" : "bg-rose-500")} />
                         {status.charAt(0).toUpperCase() + status.slice(1)}

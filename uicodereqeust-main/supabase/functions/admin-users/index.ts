@@ -11,6 +11,7 @@ interface AdminActionBody {
   role?: string;
   hospital_id?: string | null;
   access_status?: string;
+  is_team_lead?: boolean;
 }
 
 interface UserRoleRow {
@@ -23,6 +24,7 @@ interface UserRoleRow {
   hospital_id?: string | null;
   access_status?: string;
   updated_at?: string | null;
+  is_team_lead?: boolean;
 }
 
 interface AuthUserItem {
@@ -55,6 +57,7 @@ interface CombinedUser {
   id?: string;
   user_id?: string | null;
   role?: string;
+  is_team_lead?: boolean;
   full_name?: string;
   access_status?: string;
   email?: string;
@@ -148,7 +151,7 @@ serve(async (req) => {
 
       const { data: roles, error: rolesError } = await supabase
         .from("user_roles")
-        .select("id, user_id, role, full_name, email, phone, hospital_id, access_status, updated_at")
+        .select("id, user_id, role, is_team_lead, full_name, email, phone, hospital_id, access_status, updated_at")
         .order("role");
       if (rolesError) throw rolesError;
 
@@ -228,6 +231,7 @@ serve(async (req) => {
           id: r?.id || authId,
           user_id: r?.user_id || authId || null,
           role: r?.role || roleFallback,
+          is_team_lead: Boolean(r?.is_team_lead),
           full_name: effectiveFullName,
           access_status: r?.access_status || "active",
           email: effectiveEmail,
@@ -471,10 +475,26 @@ serve(async (req) => {
     };
 
     if (req.method === "PATCH" && action === "update") {
-      const { user_id, full_name, email, phone, role, hospital_id, access_status } = body;
+      const { user_id, full_name, email, phone, role, hospital_id, access_status, is_team_lead } = body;
       if (!user_id) throw new Error("user_id is required");
       const allowedRoles = ["admin", "hospital", "utilization_manager", "utilization_manager_lead", "claims", "finance"];
       if (role !== undefined && !allowedRoles.includes(role)) throw new Error("Invalid role selected");
+      if (is_team_lead !== undefined && typeof is_team_lead !== "boolean") throw new Error("Team lead assignment must be true or false");
+      const effectiveRole = role ?? (await supabase.from("user_roles").select("role").eq("user_id", user_id).maybeSingle()).data?.role;
+      if (is_team_lead && !["hospital", "claims", "finance"].includes(effectiveRole || "")) {
+        throw new Error("Only Hospital, Claims, and Finance teams can use this team lead designation.");
+      }
+      if (is_team_lead) {
+        const { data: currentLead, error: leadLookupError } = await supabase
+          .from("user_roles")
+          .select("id")
+          .eq("role", effectiveRole!)
+          .eq("is_team_lead", true)
+          .neq("user_id", user_id)
+          .maybeSingle();
+        if (leadLookupError) throw leadLookupError;
+        if (currentLead) throw new Error("A lead is already assigned to this team. Update the current lead first.");
+      }
 
       const { data: userData, error: getUserErr } = await supabase.auth.admin.getUserById(user_id);
       if (getUserErr || !userData?.user) {
@@ -526,6 +546,8 @@ serve(async (req) => {
       if (email !== undefined) updates.email = email;
       if (phone !== undefined) updates.phone = phone;
       if (role !== undefined) updates.role = role;
+      if (is_team_lead !== undefined) updates.is_team_lead = is_team_lead;
+      else if (role !== undefined && !["hospital", "claims", "finance"].includes(role)) updates.is_team_lead = false;
       if (hospital_id !== undefined) updates.hospital_id = hospital_id || null;
       if (access_status !== undefined) updates.access_status = access_status;
 

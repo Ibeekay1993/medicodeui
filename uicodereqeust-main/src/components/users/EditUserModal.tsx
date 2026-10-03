@@ -11,6 +11,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -46,6 +47,7 @@ export function EditUserModal({
     phone: "",
     role: "",
     hospital_id: "",
+    is_team_lead: false,
   });
   const [isSaving, setIsSaving] = useState(false);
   const [editHospitalSearch, setEditHospitalSearch] = useState("");
@@ -73,6 +75,7 @@ export function EditUserModal({
         phone: user.phone || "",
         role: user.role || "utilization_manager",
         hospital_id: user.hospital_id || "",
+        is_team_lead: Boolean(user.is_team_lead),
       });
       const matched = hospitals.find((h) => h.id === user.hospital_id);
       setEditHospitalSearch(matched ? (matched.code ? `${matched.name} - ${matched.code}` : matched.name) : "");
@@ -83,6 +86,7 @@ export function EditUserModal({
         phone: "",
         role: "utilization_manager",
         hospital_id: "",
+        is_team_lead: false,
       });
       setEditHospitalSearch("");
       setEditDropdownOpen(false);
@@ -108,10 +112,13 @@ export function EditUserModal({
       onOpenChange(false);
       onSuccess();
     } catch (e: any) {
+      const message = String(e?.message || "");
       toast({
         variant: "destructive",
         title: "Update Failed",
-        description: e?.message || "The admin user service could not update this account.",
+        description: /user_roles_one_lead_per_team_idx|duplicate key/i.test(message)
+          ? "A lead is already assigned to this team. Update or remove the current lead first."
+          : message || "The admin user service could not update this account.",
       });
     } finally {
       setIsSaving(false);
@@ -151,9 +158,9 @@ export function EditUserModal({
           />
           <Select
             value={editForm.role}
-            onValueChange={(v) => setEditForm({ ...editForm, role: v })}
+            onValueChange={(v) => setEditForm({ ...editForm, role: v, is_team_lead: ["hospital", "claims", "finance"].includes(v) ? editForm.is_team_lead : false })}
           >
-            <SelectTrigger className="h-10 rounded-lg">
+            <SelectTrigger aria-label="System role" className="h-10 rounded-lg">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -164,6 +171,25 @@ export function EditUserModal({
               ))}
             </SelectContent>
           </Select>
+          {editForm.role === "utilization_manager_lead" && (
+            <p className="-mt-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs leading-relaxed text-emerald-900">
+              This assigns the Utilization team lead. Only this person, alongside Super Admins, can unlock records, resolve deletion requests, and replace NHIS lists. Regular Utilization Managers do not get these permissions.
+            </p>
+          )}
+          {["hospital", "claims", "finance"].includes(editForm.role) && (
+            <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-slate-200 px-3 py-3">
+              <Checkbox
+                checked={editForm.is_team_lead}
+                onCheckedChange={(checked) => setEditForm({ ...editForm, is_team_lead: checked === true })}
+                aria-label="Assign as team lead"
+                className="mt-0.5"
+              />
+              <span className="min-w-0">
+                <span className="block text-sm font-medium text-slate-800">Assign as team lead</span>
+                <span className="mt-0.5 block text-xs leading-relaxed text-slate-500">Marks this person as the lead for their team. Team leads keep their existing role permissions; only the Utilization Manager Lead receives the additional authorization controls.</span>
+              </span>
+            </label>
+          )}
           {editForm.role === "hospital" && (
             <div ref={editHospitalRef} className="relative">
               <div className="relative">
