@@ -6,7 +6,7 @@
    - skipWaiting + clients.claim for seamless version transitions
    ===================================================================== */
 
-const SW_VERSION = "ronsberger-sw-v2";
+const SW_VERSION = "ronsberger-sw-v3";
 const STATIC_CACHE = SW_VERSION + "-static";
 const RUNTIME_CACHE = SW_VERSION + "-runtime";
 

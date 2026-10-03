@@ -42,48 +42,50 @@ export default function PushNotificationSettingsCard() {
   const handleToggle = async (checked: boolean) => {
     if (!user?.id) return;
     setIsLoading(true);
+    try {
+      const res = checked
+        ? await subscribeToPushNotifications(user.id)
+        : await unsubscribeFromPushNotifications(user.id);
 
-    if (checked) {
-      const res = await subscribeToPushNotifications(user.id);
-      setIsLoading(false);
-      if (res.success) {
-        setIsSubscribed(true);
-        setPermission("granted");
+      if (!res.success) {
         toast({
-          title: "Push Notifications Enabled ✨",
-          description: "You will receive instant alerts on your phone even when Chrome is closed.",
-        });
-      } else {
-        toast({
-          title: "Failed to Enable Notifications",
-          description: res.error || "Please allow notifications in your browser settings.",
+          title: checked ? "Failed to Enable Notifications" : "Failed to Disable Notifications",
+          description: res.error || "Please check your browser notification settings and try again.",
           variant: "destructive",
         });
         setPermission(getNotificationPermission());
+        return;
       }
-    } else {
-      const res = await unsubscribeFromPushNotifications(user.id);
+
+      setIsSubscribed(checked);
+      if (checked) setPermission("granted");
+      toast({
+        title: checked ? "Push Notifications Enabled" : "Push Notifications Disabled",
+        description: checked
+          ? "This device can now receive request alerts."
+          : "Background alerts have been turned off for this device.",
+      });
+    } catch (error: unknown) {
+      toast({
+        title: checked ? "Failed to Enable Notifications" : "Failed to Disable Notifications",
+        description: error instanceof Error ? error.message : "Something stopped notification setup. Try again.",
+        variant: "destructive",
+      });
+      setPermission(getNotificationPermission());
+    } finally {
       setIsLoading(false);
-      if (res.success) {
-        setIsSubscribed(false);
-        toast({
-          title: "Push Notifications Disabled",
-          description: "Background alerts have been turned off. You can reactivate anytime.",
-        });
-      } else {
-        toast({
-          title: "Failed to Disable Notifications",
-          description: res.error,
-          variant: "destructive",
-        });
-      }
     }
   };
 
   const handleTestNotification = async () => {
     if (!isSupported || !("serviceWorker" in navigator)) return;
     try {
-      const reg = await navigator.serviceWorker.ready;
+      const reg = await Promise.race([
+        navigator.serviceWorker.ready,
+        new Promise<ServiceWorkerRegistration>((_, reject) =>
+          window.setTimeout(() => reject(new Error("The notification service is still starting. Reload the page and try again.")), 15_000),
+        ),
+      ]);
       reg.showNotification("Ronsberger HMO Alert 🔔", {
         body: "Push notifications are working properly on your device!",
         icon: "/icon-192.png",
@@ -94,10 +96,10 @@ export default function PushNotificationSettingsCard() {
         title: "Test Alert Dispatched",
         description: "A test notification was triggered on this device.",
       });
-    } catch {
+    } catch (error: unknown) {
       toast({
         title: "Test Failed",
-        description: "Please check that browser notifications are allowed.",
+        description: error instanceof Error ? error.message : "Please check that browser notifications are allowed.",
         variant: "destructive",
       });
     }

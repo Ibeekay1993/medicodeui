@@ -68,8 +68,12 @@
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', function () {
-          navigator.serviceWorker.register('/sw.js', { scope: '/' })
+          navigator.serviceWorker.register('/sw.js', { scope: '/', updateViaCache: 'none' })
             .then(function (registration) {
+              // Check for an updated app shell when an installed portal is reopened.
+              registration.update().catch(function (err) {
+                console.warn('Service worker update check failed:', err);
+              });
               // Listen for a new service worker waiting to activate
               registration.addEventListener('updatefound', function () {
                 var newWorker = registration.installing;

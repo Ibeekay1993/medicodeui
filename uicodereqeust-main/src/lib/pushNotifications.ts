@@ -16,6 +16,16 @@ const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY as string;
 const VAPID_KEY_STORAGE = "ronsberger_push_vapid_public_key";
 const PUSH_OPT_OUT_PREFIX = "ronsberger_push_opt_out:";
 
+function withTimeout<T>(promise: PromiseLike<T>, timeoutMs: number, message: string): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout>;
+  return Promise.race([
+    Promise.resolve(promise),
+    new Promise<T>((_, reject) => {
+      timeoutId = setTimeout(() => reject(new Error(message)), timeoutMs);
+    }),
+  ]).finally(() => clearTimeout(timeoutId));
+}
+
 export function hasOptedOutOfPush(userId: string): boolean {
   return localStorage.getItem(`${PUSH_OPT_OUT_PREFIX}${userId}`) === "true";
 }
@@ -68,7 +78,11 @@ export async function subscribeToPushNotifications(userId: string): Promise<{
   // 1. Request browser permission
   let permission: NotificationPermission;
   try {
-    permission = await Notification.requestPermission();
+    permission = await withTimeout(
+      Notification.requestPermission(),
+      60_000,
+      "The browser permission prompt did not finish. Please allow notifications and try again.",
+    );
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Could not request notification permission";
     return { success: false, error: msg };
@@ -80,7 +94,11 @@ export async function subscribeToPushNotifications(userId: string): Promise<{
   // 2. Get the active service worker registration
   let registration: ServiceWorkerRegistration;
   try {
-    registration = await navigator.serviceWorker.ready;
+    registration = await withTimeout(
+      navigator.serviceWorker.ready,
+      15_000,
+      "The portal notification service is still starting. Reload the page and try again.",
+    );
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Service worker is not ready";
     return { success: false, error: msg };
@@ -90,7 +108,11 @@ export async function subscribeToPushNotifications(userId: string): Promise<{
   // currently configured VAPID key after a key change.
   let subscription: PushSubscription;
   try {
-    const existing = await registration.pushManager.getSubscription();
+    const existing = await withTimeout(
+      registration.pushManager.getSubscription(),
+      15_000,
+      "The browser took too long to check this device's notification setup.",
+    );
     const configuredKey = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
     const existingKey = existing?.options.applicationServerKey;
     const existingKeyMatches = existingKey
@@ -98,12 +120,15 @@ export async function subscribeToPushNotifications(userId: string): Promise<{
         new Uint8Array(existingKey).every((byte, index) => byte === configuredKey[index])
       : localStorage.getItem(VAPID_KEY_STORAGE) === VAPID_PUBLIC_KEY;
 
-    if (existing && !existingKeyMatches) await existing.unsubscribe();
+    if (existing && !existingKeyMatches) {
+      const removed = await withTimeout(existing.unsubscribe(), 15_000, "The old notification subscription could not be replaced.");
+      if (!removed) throw new Error("The old notification subscription could not be replaced. Turn notifications off in browser settings, then try again.");
+    }
     subscription = (existing && existingKeyMatches ? existing : null) ??
-      await registration.pushManager.subscribe({
+      await withTimeout(registration.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: configuredKey,
-      });
+      }), 20_000, "The browser did not finish creating a notification subscription. Check browser notification permissions and try again.");
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Unknown push subscribe error";
     return { success: false, error: msg };
@@ -115,19 +140,29 @@ export async function subscribeToPushNotifications(userId: string): Promise<{
   const auth = subJson.keys?.auth ?? "";
 
   // 5. Store in Supabase push_subscriptions table
-  const { error: dbErr } = await (supabase as any)
-    .from("push_subscriptions")
-    .upsert(
-      {
-        user_id: userId,
-        endpoint: subscription.endpoint,
-        p256dh,
-        auth,
-        user_agent: navigator.userAgent.slice(0, 255),
-        last_used_at: new Date().toISOString(),
-      },
-      { onConflict: "endpoint" }
+  let dbErr: { message: string } | null = null;
+  try {
+    const { error } = await withTimeout(
+      (supabase as any)
+        .from("push_subscriptions")
+        .upsert(
+          {
+            user_id: userId,
+            endpoint: subscription.endpoint,
+            p256dh,
+            auth,
+            user_agent: navigator.userAgent.slice(0, 255),
+            last_used_at: new Date().toISOString(),
+          },
+          { onConflict: "endpoint" },
+        ),
+      15_000,
+      "Could not save this device's notification subscription. Check your connection and try again.",
     );
+    dbErr = error;
+  } catch (err: unknown) {
+    return { success: false, error: err instanceof Error ? err.message : "Could not save this device's notification subscription." };
+  }
 
   if (dbErr) {
     return { success: false, error: dbErr.message };
@@ -151,7 +186,7 @@ export async function unsubscribeFromPushNotifications(userId: string): Promise<
   if (!isPushNotificationSupported()) return { success: true };
 
   try {
-    const registration = await navigator.serviceWorker.ready;
+    const registration = await withTimeout(navigator.serviceWorker.ready, 15_000, "The notification service is still starting. Reload the page and try again.");
     const sub = await registration.pushManager.getSubscription();
     if (sub) {
       await sub.unsubscribe();
