@@ -20,6 +20,7 @@ export default function HospitalPerformanceTable({ data }: HospitalPerformanceTa
               <th className="text-left py-4 px-6 text-[10px] font-black uppercase tracking-widest text-slate-400">Hospital</th>
               <th className="text-right py-4 px-6 text-[10px] font-black uppercase tracking-widest text-slate-400">Total Codes</th>
               <th className="text-right py-4 px-6 text-[10px] font-black uppercase tracking-widest text-slate-400">Approved</th>
+              <th className="text-right py-4 px-6 text-[10px] font-black uppercase tracking-widest text-slate-400">Pending</th>
               <th className="text-right py-4 px-6 text-[10px] font-black uppercase tracking-widest text-slate-400">Rejected</th>
               <th className="text-right py-4 px-6 text-[10px] font-black uppercase tracking-widest text-slate-400">Approved Value</th>
               <th className="text-right py-4 px-6 text-[10px] font-black uppercase tracking-widest text-slate-400">Approval Rate</th>
@@ -40,6 +41,11 @@ export default function HospitalPerformanceTable({ data }: HospitalPerformanceTa
                 <td className="py-4 px-6 text-right">
                   <span className="bg-slate-50 text-emerald-700 border border-slate-200 text-xs font-bold px-2 py-0.5 rounded-md">
                     {hosp.approvedCodes}
+                  </span>
+                </td>
+                <td className="py-4 px-6 text-right">
+                  <span className="bg-slate-50 text-amber-700 border border-slate-200 text-xs font-bold px-2 py-0.5 rounded-md">
+                    {hosp.pendingCodes}
                   </span>
                 </td>
                 <td className="py-4 px-6 text-right">
@@ -66,7 +72,7 @@ export default function HospitalPerformanceTable({ data }: HospitalPerformanceTa
             ))}
             {data.length === 0 && (
               <tr>
-                <td colSpan={6} className="py-12 text-center text-xs font-semibold text-slate-400">
+                <td colSpan={7} className="py-12 text-center text-xs font-semibold text-slate-400">
                   No hospital performance data available.
                 </td>
               </tr>

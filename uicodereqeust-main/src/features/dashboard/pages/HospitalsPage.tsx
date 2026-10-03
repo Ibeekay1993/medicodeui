@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { useHospitalsPaged, useHospitalUsers, useCreateHospital, useUpdateHospital, useToggleHospitalActive, useDeleteHospital, useLinkUserToHospital } from "../hooks/useHospitalsAdmin";
+import { useHospitalsPaged, useHospitalUsers, useCreateHospital, useUpdateHospital, useToggleHospitalActive, useToggleHospitalsActive, useDeleteHospital, useLinkUserToHospital } from "../hooks/useHospitalsAdmin";
 import type { Database } from "@/integrations/supabase/types";
 
 type HospitalRow = Database["public"]["Tables"]["hospitals"]["Row"];
@@ -88,6 +88,7 @@ export default function HospitalsPage() {
   const { mutateAsync: createHospital } = useCreateHospital();
   const { mutateAsync: updateHospital } = useUpdateHospital();
   const { mutateAsync: toggleHospitalActive } = useToggleHospitalActive();
+  const { mutateAsync: toggleHospitalsActive } = useToggleHospitalsActive();
   const { mutateAsync: deleteHospitalAction } = useDeleteHospital();
   const { mutateAsync: linkUser } = useLinkUserToHospital();
 
@@ -153,8 +154,10 @@ export default function HospitalsPage() {
   const setHospitalActive = async (hospitalIds: string[], active: boolean) => {
     if (role !== "admin") return;
     if (hospitalIds.length === 0) return;
-    for (const id of hospitalIds) {
-      await toggleHospitalActive({ id, isActive: active });
+    if (hospitalIds.length === 1) {
+      await toggleHospitalActive({ id: hospitalIds[0], isActive: active });
+    } else {
+      await toggleHospitalsActive({ ids: hospitalIds, isActive: active });
     }
     setSelectedIds([]);
   };

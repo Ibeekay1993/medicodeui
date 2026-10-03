@@ -5,14 +5,58 @@ export const normalizeHospitalName = (value?: string | null) =>
     .replace(/[^a-z0-9]+/g, " ")
     .replace(/\s+/g, " ");
 
-export const hospitalNameCanReceiveReferral = (ownerName?: string | null, currentName?: string | null) => {
-  const owner = normalizeHospitalName(ownerName);
-  const current = normalizeHospitalName(currentName);
-  if (!owner || !current) return false;
-  if (owner === current) return true;
-  if (owner.includes(current) || current.includes(owner)) return true;
-  if ((owner.includes("uch") && current.includes("universitycollegehospital")) || (current.includes("uch") && owner.includes("universitycollegehospital"))) return true;
+/**
+ * Canonicalizes Nigerian hospital names and common acronyms so that
+ * aliases like "UNIVERSITY HEALTH SERVICE UI (UHS)" and
+ * "UNIVERSITY OF IBADAN HEALTH SERVICES (JAJA HEALTH CLINIC)"
+ * resolve to the identical canonical hospital entity.
+ */
+export const canonicalizeHospitalName = (name?: string | null): string => {
+  if (!name) return "";
+  const s = String(name).toLowerCase().replace(/[^a-z0-9]+/g, " ").replace(/\s+/g, " ").trim();
+
+  // University of Ibadan Health Services (Jaja Clinic / UI / UHS)
+  const hasJaja = s.includes("jaja");
+  const hasUI = /\bui\b/.test(s) || s.includes("ibadan");
+  const hasUHS = /\buhs\b/.test(s) || (s.includes("university") && s.includes("health"));
+  if (hasJaja || (hasUI && (hasUHS || s.includes("health") || s.includes("clinic") || s.includes("service")))) {
+    return "university of ibadan health services jaja clinic";
+  }
+
+  // University College Hospital (UCH)
+  if (/\buch\b/.test(s) || (s.includes("university") && s.includes("college") && s.includes("hospital"))) {
+    return "university college hospital";
+  }
+
+  // Obafemi Awolowo University Teaching Hospital (OAUTHC)
+  if (/\boauthc\b/.test(s) || (s.includes("obafemi") && s.includes("awolowo"))) {
+    return "obafemi awolowo university teaching hospitals complex";
+  }
+
+  // Lagos University Teaching Hospital (LUTH)
+  if (/\bluth\b/.test(s) || (s.includes("lagos") && s.includes("university") && s.includes("teaching"))) {
+    return "lagos university teaching hospital";
+  }
+
+  return s;
+};
+
+export const areHospitalNamesMatching = (name1?: string | null, name2?: string | null): boolean => {
+  if (!name1 || !name2) return false;
+  const canon1 = canonicalizeHospitalName(name1);
+  const canon2 = canonicalizeHospitalName(name2);
+  if (canon1 && canon2 && canon1 === canon2) return true;
+
+  const norm1 = normalizeHospitalName(name1);
+  const norm2 = normalizeHospitalName(name2);
+  if (norm1 === norm2) return true;
+  if (norm1.includes(norm2) || norm2.includes(norm1)) return true;
+
   return false;
+};
+
+export const hospitalNameCanReceiveReferral = (ownerName?: string | null, currentName?: string | null) => {
+  return areHospitalNamesMatching(ownerName, currentName);
 };
 
 export const getApprovedItems = (request: any) => {
@@ -117,6 +161,26 @@ export const claimStatusClass = (status?: string | null) => {
   return "border-amber-200 text-amber-700 bg-amber-50";
 };
 
-export const rejectionReason = (request: any) => String(request?.decision_reason || request?.rejection_reason || request?.clinical_notes || "").trim();
+function parseNoteText(value: unknown): string {
+  if (!value || typeof value !== "string") return "";
+  const t = value.trim();
+  if (t.startsWith("{") && t.endsWith("}")) {
+    try {
+      const p = JSON.parse(t);
+      const parts: string[] = [];
+      if (p.review_decision) parts.push(p.review_decision);
+      else if (p.decision_reason) parts.push(p.decision_reason);
+      if (p.notes) parts.push(p.notes);
+      return parts.join(" • ");
+    } catch { return t; }
+  }
+  return t;
+}
+
+export const rejectionReason = (request: any) =>
+  parseNoteText(request?.decision_reason) ||
+  parseNoteText(request?.rejection_reason) ||
+  parseNoteText(request?.clinical_notes) ||
+  "";
 
 export const isRejected = (request: any) => ["rejected", "declined", "denied"].includes(String(request?.status || "").toLowerCase());

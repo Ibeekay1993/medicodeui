@@ -28,14 +28,8 @@ export default function KPIStatsGrid({ stats, isLoading }: KPIStatsGridProps) {
         { label: "Rejected", value: stats.rejectedCodes.toLocaleString(), icon: AlertTriangle, color: "text-rose-600", bg: "bg-slate-50", gradient: "group-hover:bg-slate-100" },
       ],
       [
-        { label: "Requested Amount", value: formatNaira(stats.requestedAmount), icon: DollarSign, color: "text-blue-600", bg: "bg-slate-50", gradient: "group-hover:bg-slate-100" },
-        { label: "Approved Amount", value: formatNaira(stats.approvedAmount), icon: DollarSign, color: "text-emerald-600", bg: "bg-slate-50", gradient: "group-hover:bg-slate-100" },
-        { label: "Rejected Amount", value: formatNaira(stats.rejectedAmount), icon: DollarSign, color: "text-rose-600", bg: "bg-slate-50", gradient: "group-hover:bg-slate-100" },
-        { label: "Pending Amount", value: formatNaira(stats.pendingAmount), icon: DollarSign, color: "text-amber-600", bg: "bg-slate-50", gradient: "group-hover:bg-slate-100" },
-      ],
-      [
+        { label: "Total Approved Value", value: formatNaira(stats.approvedAmount), icon: DollarSign, color: "text-emerald-600", bg: "bg-slate-50", gradient: "group-hover:bg-slate-100" },
         { label: "Approval Rate", value: formatPercent(stats.approvalRate), icon: TrendingUp, color: "text-emerald-600", bg: "bg-slate-50", gradient: "group-hover:bg-slate-100" },
-        { label: "Rejection Rate", value: formatPercent(stats.rejectionRate), icon: TrendingUp, color: "text-rose-600", bg: "bg-slate-50", gradient: "group-hover:bg-slate-100" },
         { label: "Avg Processing", value: `${stats.avgProcessingTime.toFixed(1)} hrs`, icon: Clock, color: "text-indigo-600", bg: "bg-slate-50", gradient: "group-hover:bg-slate-100" },
         { label: "Daily Volume", value: `${stats.dailyVolume.toFixed(0)}/day`, icon: Activity, color: "text-violet-600", bg: "bg-slate-50", gradient: "group-hover:bg-slate-100" },
       ],

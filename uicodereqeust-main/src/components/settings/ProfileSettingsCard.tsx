@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { AlertTriangle } from "lucide-react";
+import { User, AlertTriangle, Edit3, Check, X, Shield, Mail } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -124,81 +124,107 @@ export default function ProfileSettingsCard({
   };
 
   return (
-    <Card className="rounded-xl border-slate-100 bg-white shadow-sm overflow-hidden">
-      <CardHeader className="px-4 py-2.5 border-b border-slate-50 bg-slate-50/50 flex flex-row items-center justify-between">
-        <CardTitle className="text-xs font-black uppercase tracking-widest text-slate-400">
-          Account &amp; Security
-        </CardTitle>
-        {pendingRequest ? (
-          <span className="text-[7.5px] font-black uppercase text-amber-600 bg-amber-50 px-2 py-0.5 rounded-lg animate-pulse">
-            Awaiting Name Approval
-          </span>
-        ) : !editingName ? (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setEditingName(true)}
-            className="h-6 text-xs font-black uppercase tracking-widest text-emerald-600"
-          >
-            Edit Name
-          </Button>
-        ) : (
-          <div className="flex gap-1">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setEditingName(false)}
-              className="h-6 text-xs font-black uppercase tracking-widest text-slate-400"
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleUpdateProfile}
-              disabled={isSaving}
-              className="h-6 text-xs font-black uppercase tracking-widest text-blue-600"
-            >
-              {isSaving ? "Saving..." : "Save"}
-            </Button>
+    <Card className="rounded-2xl border border-slate-200/80 bg-white shadow-sm overflow-hidden transition-all">
+      <CardHeader className="p-4 sm:p-5 border-b border-slate-100 bg-slate-50/50">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-50 text-brand-700 shrink-0">
+              <User className="h-5 w-5" />
+            </div>
+            <div>
+              <CardTitle className="text-sm sm:text-base font-bold text-slate-900 leading-tight">
+                Account &amp; Security Profile
+              </CardTitle>
+              <CardDescription className="text-xs text-slate-500 mt-0.5">
+                Your authenticated user identity and system privileges
+              </CardDescription>
+            </div>
           </div>
-        )}
+          <div>
+            {pendingRequest ? (
+              <span className="text-[10px] font-bold uppercase text-amber-700 bg-amber-50 border border-amber-200 px-2 py-1 rounded-lg animate-pulse">
+                Pending Approval
+              </span>
+            ) : !editingName ? (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setEditingName(true)}
+                className="h-8 text-xs font-semibold text-brand-700 border-brand-200 hover:bg-brand-50 gap-1"
+              >
+                <Edit3 className="h-3.5 w-3.5" />
+                <span>Edit Name</span>
+              </Button>
+            ) : (
+              <div className="flex gap-1.5">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setEditingName(false)}
+                  className="h-8 px-2 text-xs text-slate-500 hover:text-slate-800"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={handleUpdateProfile}
+                  disabled={isSaving}
+                  className="h-8 px-3 text-xs bg-brand-700 hover:bg-brand-800 text-white font-semibold gap-1"
+                >
+                  {isSaving ? "Saving…" : <><Check className="h-3.5 w-3.5" /> Save</>}
+                </Button>
+              </div>
+            )}
+          </div>
+        </div>
       </CardHeader>
-      <CardContent className="p-4 space-y-3">
+
+      <CardContent className="p-4 sm:p-5 space-y-4">
         {pendingRequest && (
-          <div className="px-3 py-2 bg-amber-50/70 border border-amber-100 rounded-lg flex items-center gap-2">
-            <AlertTriangle className="h-3.5 w-3.5 text-amber-500 shrink-0 animate-pulse" />
-            <p className="text-xs font-semibold text-amber-700 leading-snug">
-              Name change to <span className="font-black">"{pendingRequest.requested_name}"</span> is pending admin
-              approval.
+          <div className="p-3 bg-amber-50 border border-amber-200/80 rounded-xl flex items-center gap-2.5">
+            <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 animate-pulse" />
+            <p className="text-xs font-medium text-amber-800 leading-relaxed">
+              Name change to <strong className="font-bold text-amber-900">"{pendingRequest.requested_name}"</strong> is currently pending administrative approval.
             </p>
           </div>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <div className="space-y-1">
-            <Label className="text-xs font-black uppercase text-slate-400">Full Name</Label>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+          <div className="space-y-1.5">
+            <Label className="text-xs font-semibold text-slate-500">Full Name</Label>
             <Input
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               readOnly={!editingName || !!pendingRequest}
               className={cn(
-                "h-8 rounded-lg text-xs font-bold transition-all",
-                editingName && !pendingRequest ? "bg-white border-slate-200 ring-2 ring-emerald-500/20" : "bg-slate-50 border-none"
+                "h-10 rounded-xl text-xs sm:text-sm font-semibold transition-all",
+                editingName && !pendingRequest
+                  ? "bg-white border-brand-500 ring-2 ring-brand-500/20 shadow-sm"
+                  : "bg-slate-50 border-slate-200/80 text-slate-900"
               )}
             />
           </div>
-          <div className="space-y-1">
-            <Label className="text-xs font-black uppercase text-slate-400">Role</Label>
+
+          <div className="space-y-1.5">
+            <Label className="text-xs font-semibold text-slate-500 flex items-center gap-1">
+              <Shield className="h-3.5 w-3.5 text-slate-400" /> Assigned Role
+            </Label>
             <Input
               value={role || ""}
               readOnly
-              className="h-8 rounded-lg bg-slate-50 border-none text-xs font-bold uppercase"
+              className="h-10 rounded-xl bg-slate-50 border-slate-200/80 text-xs sm:text-sm font-semibold uppercase text-slate-700"
             />
           </div>
-          <div className="space-y-1">
-            <Label className="text-xs font-black uppercase text-slate-400">System Email</Label>
-            <Input value={user?.email || ""} readOnly className="h-8 rounded-lg bg-slate-50 border-none text-xs font-bold" />
+
+          <div className="space-y-1.5">
+            <Label className="text-xs font-semibold text-slate-500 flex items-center gap-1">
+              <Mail className="h-3.5 w-3.5 text-slate-400" /> System Email
+            </Label>
+            <Input
+              value={user?.email || ""}
+              readOnly
+              className="h-10 rounded-xl bg-slate-50 border-slate-200/80 text-xs sm:text-sm font-medium text-slate-700 truncate"
+            />
           </div>
         </div>
       </CardContent>

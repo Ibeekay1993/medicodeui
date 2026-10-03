@@ -72,9 +72,8 @@ export default function DashboardHome() {
 
   const fetchStats = useCallback(async (force = false) => {
     const now = Date.now();
-    const THROTTLE_MS = 30000;
+    const THROTTLE_MS = 60000;
     if (!force && now - lastFetchedRef.current < THROTTLE_MS) {
-      console.log("DashboardHome: fetchStats throttled to prevent spam");
       return;
     }
     lastFetchedRef.current = now;
@@ -91,14 +90,17 @@ export default function DashboardHome() {
             .from("hospital_claims" as any)
             .select("status,payment_status,contest_deadline,approved_amount,total_amount")
             .in("status", ["approved", "partially_approved"])
-            .is("payment_batch_id", null),
+            .is("payment_batch_id", null)
+            .limit(1000),
           supabase
             .from("hospital_claims" as any)
             .select("approved_amount,total_amount")
-            .eq("status", "paid"),
+            .eq("status", "paid")
+            .limit(1000),
           supabase
             .from("payment_batches" as any)
             .select("status,total_amount")
+            .limit(500)
         ]);
 
         const awaitingRows = awaitingClaimsRes.data || [];
@@ -263,13 +265,13 @@ export default function DashboardHome() {
         console.warn("get_dashboard_stats RPC failed or not found, falling back to legacy queries:", rpcError);
         if (isClaimsRole) {
           const [allClaims, approvedClaims, rejectedClaims, pendingClaims, hospitalsRes, usersRes, historicalClaims] = await Promise.all([
-            supabase.from("hospital_claims" as any).select("*", { count: "estimated", head: true }),
-            supabase.from("hospital_claims" as any).select("*", { count: "estimated", head: true }).eq("status", "approved"),
-            supabase.from("hospital_claims" as any).select("*", { count: "estimated", head: true }).eq("status", "rejected"),
-            supabase.from("hospital_claims" as any).select("*", { count: "estimated", head: true }).or("status.eq.submitted,status.eq.pending"),
-            supabase.from("hospitals").select("*", { count: "estimated", head: true }),
-            supabase.from("user_roles").select("id", { count: "estimated", head: true }),
-            supabase.from("historical_codes" as any).select("*", { count: "estimated", head: true }).eq("record_type", "claim"),
+            supabase.from("hospital_claims" as any).select("id", { count: "exact", head: true }),
+            supabase.from("hospital_claims" as any).select("id", { count: "exact", head: true }).eq("status", "approved"),
+            supabase.from("hospital_claims" as any).select("id", { count: "exact", head: true }).eq("status", "rejected"),
+            supabase.from("hospital_claims" as any).select("id", { count: "exact", head: true }).or("status.eq.submitted,status.eq.pending"),
+            supabase.from("hospitals").select("id", { count: "exact", head: true }),
+            supabase.from("user_roles").select("id", { count: "exact", head: true }),
+            supabase.from("historical_codes" as any).select("id", { count: "exact", head: true }).eq("record_type", "claim"),
           ]);
           setStats({
             total: (allClaims.count || 0) + (historicalClaims.count || 0),
@@ -294,15 +296,15 @@ export default function DashboardHome() {
           setClaimChartData(claimRows);
         } else {
           const [totalRes, approvedRes, rejectedRes, pendingRes, hospitalsRes, usersRes, authChartRes, claimChartRes2, historicalAuths] = await Promise.all([
-            supabase.from("authorization_requests").select("*", { count: "estimated", head: true }),
-            supabase.from("authorization_requests").select("*", { count: "estimated", head: true }).eq("status", "approved"),
-            supabase.from("authorization_requests").select("*", { count: "estimated", head: true }).eq("status", "rejected"),
-            supabase.from("authorization_requests").select("*", { count: "estimated", head: true }).eq("status", "pending"),
-            supabase.from("hospitals").select("*", { count: "estimated", head: true }),
-            supabase.from("user_roles").select("id", { count: "estimated", head: true }),
+            supabase.from("authorization_requests").select("id", { count: "exact", head: true }),
+            supabase.from("authorization_requests").select("id", { count: "exact", head: true }).eq("status", "approved"),
+            supabase.from("authorization_requests").select("id", { count: "exact", head: true }).eq("status", "rejected"),
+            supabase.from("authorization_requests").select("id", { count: "exact", head: true }).eq("status", "pending"),
+            supabase.from("hospitals").select("id", { count: "exact", head: true }),
+            supabase.from("user_roles").select("id", { count: "exact", head: true }),
             supabase.rpc("dashboard_live_activity_7d" as any),
             supabase.rpc("dashboard_claims_activity_7d" as any),
-            supabase.from("historical_codes" as any).select("*", { count: "estimated", head: true }).eq("record_type", "authorization"),
+            supabase.from("historical_codes" as any).select("id", { count: "exact", head: true }).eq("record_type", "authorization"),
           ]);
           setStats({
             total: (totalRes.count || 0) + (historicalAuths.count || 0),
@@ -339,7 +341,8 @@ export default function DashboardHome() {
           if (role === "admin") {
             const { data: claimsData, error: claimsError } = await (supabase as any)
               .from("hospital_claims")
-              .select("status,total_amount,approved_amount,declined_amount");
+              .select("status,total_amount,approved_amount,declined_amount")
+              .limit(1000);
             if (!claimsError) {
               const rows = claimsData || [];
               const statusOf = (row: any) => String(row.status || "").toLowerCase();

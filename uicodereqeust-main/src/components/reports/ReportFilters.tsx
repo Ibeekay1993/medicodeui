@@ -1,4 +1,4 @@
-import { Loader2, Download, Calendar, Activity, Filter, Building2, Check, ChevronsUpDown, FileSpreadsheet, FileBarChart2 } from "lucide-react";
+import { Loader2, Download, Calendar, Activity, Filter, Building2, Check, ChevronsUpDown, FileSpreadsheet, FileBarChart2, Receipt } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -14,7 +14,7 @@ interface ReportFiltersProps {
   onChange: (patch: Partial<FilterState>) => void;
   hospitals: { id: string; name: string }[];
   loadingHospitals: boolean;
-  onExport: (mode: "detailed" | "full") => void;
+  onExport: (mode: "detailed" | "full" | "payment_advice") => void;
   isExporting: boolean;
 }
 
@@ -141,6 +141,8 @@ export default function ReportFilters({
             <SelectItem value="today" className="text-xs font-bold cursor-pointer rounded-lg">Today</SelectItem>
             <SelectItem value="7days" className="text-xs font-bold cursor-pointer rounded-lg">Last 7 Days</SelectItem>
             <SelectItem value="30days" className="text-xs font-bold cursor-pointer rounded-lg">Last 30 Days</SelectItem>
+            <SelectItem value="this_month" className="text-xs font-bold cursor-pointer rounded-lg">This Month</SelectItem>
+            <SelectItem value="last_month" className="text-xs font-bold cursor-pointer rounded-lg">Last Month</SelectItem>
             <SelectItem value="custom" className="text-xs font-bold cursor-pointer rounded-lg">Custom Range</SelectItem>
           </SelectContent>
         </Select>
@@ -183,14 +185,24 @@ export default function ReportFilters({
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-64 rounded-xl shadow-2xl border-slate-100 p-2">
             <DropdownMenuLabel className="text-xs font-bold text-slate-500 uppercase tracking-wider px-2">Export Options</DropdownMenuLabel>
-            <DropdownMenuSeparator className="bg-slate-100 my-2" />
             <DropdownMenuItem 
-              onClick={() => onExport("full")}
-              className="flex flex-col items-start gap-1 p-3 cursor-pointer rounded-lg focus:bg-emerald-50 group transition-colors"
+              onClick={() => onExport("payment_advice")}
+              className="flex flex-col items-start gap-1 p-3 cursor-pointer rounded-lg bg-emerald-50/70 focus:bg-emerald-100/90 group transition-colors border border-emerald-200/60 mb-1"
             >
               <div className="flex items-center gap-2">
-                <FileBarChart2 className="h-4 w-4 text-emerald-600" />
-                <span className="text-sm font-bold text-slate-800 group-hover:text-emerald-700">Premium Dashboard</span>
+                <Receipt className="h-4 w-4 text-emerald-700" />
+                <span className="text-sm font-bold text-emerald-950 group-hover:text-emerald-800">Payment Advice Schedule</span>
+              </div>
+              <p className="text-[11px] text-emerald-700 font-medium">Approved claims only with provider totals for payment</p>
+            </DropdownMenuItem>
+
+            <DropdownMenuItem 
+              onClick={() => onExport("full")}
+              className="flex flex-col items-start gap-1 p-3 cursor-pointer rounded-lg focus:bg-slate-50 group transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                <FileBarChart2 className="h-4 w-4 text-slate-700" />
+                <span className="text-sm font-bold text-slate-800 group-hover:text-slate-900">Premium Dashboard</span>
               </div>
               <p className="text-[11px] text-slate-500 font-medium">Full 5-sheet interactive executive analysis</p>
             </DropdownMenuItem>

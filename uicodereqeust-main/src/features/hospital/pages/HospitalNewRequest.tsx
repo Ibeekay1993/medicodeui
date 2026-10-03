@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import { useAuth } from "@/contexts/AuthContext";
+import { notifyPendingAuthorizationRequest } from "@/lib/pushNotifications";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -523,6 +524,13 @@ export default function HospitalNewRequest() {
           }
         }).catch(err => console.error("Failed to send submission notification", err));
       }
+
+      // Best-effort Web Push to the approver team; avoid patient details in lock-screen text.
+      void notifyPendingAuthorizationRequest({
+        requestId: insertedRequest.id,
+        hospitalName: hospital?.name,
+        source: "hospital_portal",
+      });
 
       // Send the request PIN to the patient email for referrals.
       try {

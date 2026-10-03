@@ -20,14 +20,14 @@ const resetSubmitStorageKey = "ronsberger-reset-submitting";
 const lastActivityStorageKey = "ronsberger-last-activity-at";
 const sessionStartStorageKey = "ronsberger-session-started-at";
 const sessionInactivityTimeoutByRole: Partial<Record<AppRole, number>> = {
-  admin: 60 * 60 * 1000,
-  utilization_manager: 60 * 60 * 1000,
-  hospital: 60 * 60 * 1000,
-  claims: 60 * 60 * 1000,
-  finance: 60 * 60 * 1000,
+  admin: 5 * 60 * 60 * 1000, // 5 hours
+  utilization_manager: 5 * 60 * 60 * 1000, // 5 hours
+  hospital: 2 * 60 * 60 * 1000, // 2 hours
+  claims: 5 * 60 * 60 * 1000, // 5 hours
+  finance: 5 * 60 * 60 * 1000, // 5 hours
 };
-const defaultSessionInactivityTimeout = 60 * 60 * 1000;
-const maxSessionLifetime = 4 * 60 * 60 * 1000;
+const defaultSessionInactivityTimeout = 2 * 60 * 60 * 1000;
+const maxSessionLifetime = 10 * 60 * 60 * 1000; // 10 hours max continuous session lifetime
 const AUTH_REQUEST_TIMEOUT_MS = 15_000;
 
 function withAuthTimeout<T>(promise: Promise<T>): Promise<T> {
@@ -92,6 +92,12 @@ function resolveUserRole(user: User): Promise<{ role: AppRole | null; fullName: 
 
       if (userRoleError) throw userRoleError;
       if (userRoleRow?.role) {
+        // Touch last_sign_in timestamp asynchronously
+        void supabase
+          .from("user_roles")
+          .update({ last_sign_in: new Date().toISOString() } as any)
+          .eq("user_id", user.id);
+
         return {
           role: userRoleRow.role as AppRole,
           fullName: (userRoleRow.full_name as string) || fallbackName,

@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { format } from "date-fns";
 import { normalizePatientNameForMatch } from "@/lib/clinicalUtils";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronDown, ChevronUp, Loader2 } from "lucide-react";
 
 interface ClinicalHistoryProps {
   request: any;
@@ -10,6 +10,7 @@ interface ClinicalHistoryProps {
   setHistoryPage: (page: number) => void;
   requestPatientName: string;
   requestPolicyNumber: string;
+  checking?: boolean;
 }
 
 const HistoryCard = ({ record }: { record: any }) => {
@@ -28,9 +29,38 @@ const HistoryCard = ({ record }: { record: any }) => {
     statusClasses = "bg-amber-100 text-amber-700 border-amber-200";
   }
 
-  const note = record.decision_reason || record.note || record.clinical_notes || "";
+  // Parse JSON blobs from WhatsApp-sourced clinical_notes
+  function parseNote(value: unknown): string {
+    if (!value || typeof value !== "string") return "";
+    const t = value.trim();
+    if (t.startsWith("{") && t.endsWith("}")) {
+      try {
+        const p = JSON.parse(t);
+        const parts: string[] = [];
+        if (p.review_decision) parts.push(p.review_decision);
+        else if (p.decision_reason) parts.push(p.decision_reason);
+        if (p.notes) parts.push(p.notes);
+        return parts.join(" • ");
+      } catch { return t; }
+    }
+    return t;
+  }
+
+  const note = parseNote(record.decision_reason) || parseNote(record.note) || parseNote(record.clinical_notes) || "";
   const isLongNote = note.length > 80;
   const displayNote = showFullNote ? note : (isLongNote ? note.substring(0, 80) + "..." : note);
+
+  // Unified date extraction — handles ISO timestamps and pre-formatted date strings
+  const rawDate = record.date || record.decided_at || record.created_at;
+  let displayDate = "Date unavailable";
+  if (rawDate) {
+    if (typeof rawDate === "string" && /^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}$/.test(rawDate.trim())) {
+      displayDate = rawDate.trim();
+    } else {
+      const parsedDate = new Date(rawDate);
+      displayDate = !isNaN(parsedDate.getTime()) ? format(parsedDate, "dd/MM/yyyy") : String(rawDate);
+    }
+  }
 
   return (
     <div className={`rounded-xl p-3.5 border ${cardBorderClasses} shadow-sm transition-all mb-3 bg-slate-50`}>
@@ -40,7 +70,7 @@ const HistoryCard = ({ record }: { record: any }) => {
             <div className="flex items-center gap-1.5">
               <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Date</div>
               <div className="text-[11px] sm:text-[12px] font-extrabold text-slate-900">
-                {record.date ? format(new Date(record.date), "dd/MM/yyyy") : "02/07/2026"}
+                {displayDate}
               </div>
             </div>
             {(record.patient_name || record.name) && (
@@ -69,19 +99,27 @@ const HistoryCard = ({ record }: { record: any }) => {
             </div>
           )}
         </div>
-        <div className={`px-2.5 py-1 rounded-full text-[9px] font-extrabold uppercase tracking-widest border w-fit shrink-0 shadow-sm ${statusClasses}`}>
-          {record.status || "APPROVED"}
+        <div className="flex flex-col items-end gap-1.5 shrink-0">
+          <div className={`px-2.5 py-1 rounded-full text-[9px] font-extrabold uppercase tracking-widest border w-fit shadow-sm ${statusClasses}`}>
+            {record.status || "APPROVED"}
+          </div>
+          {/* Historical badge for legacy imported records; live records need no duplicate badge */}
+          {(record.is_historical || record.source === "sheet_history" || record.source === "historical") && (
+            <div className="px-2 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-widest bg-indigo-50 text-indigo-700 border border-indigo-200 w-fit">
+              Historical
+            </div>
+          )}
         </div>
       </div>
       
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div className="bg-white p-2.5 rounded-lg border border-slate-100 shadow-sm">
           <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1">Diagnosis</div>
-          <div className="text-[12px] sm:text-[13px] font-extrabold text-slate-900 leading-snug">{record.diagnosis || "Malaria"}</div>
+          <div className="text-[12px] sm:text-[13px] font-extrabold text-slate-900 leading-snug">{record.diagnosis || "Not recorded"}</div>
         </div>
         <div className="bg-white p-2.5 rounded-lg border border-slate-100 shadow-sm">
           <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1">Treatment & Quantity</div>
-          <div className="text-[12px] sm:text-[13px] font-extrabold text-slate-900 leading-snug">{record.treatment || "Artemether/Lumefantrine"}</div>
+          <div className="text-[12px] sm:text-[13px] font-extrabold text-slate-900 leading-snug">{record.treatment || "Not recorded"}</div>
         </div>
       </div>
 
@@ -120,16 +158,25 @@ export function ClinicalHistory({
   setHistoryPage,
   requestPatientName,
   requestPolicyNumber,
+  checking = false,
 }: ClinicalHistoryProps) {
   const [expanded, setExpanded] = useState(true);
-  const [includeDependents, setIncludeDependents] = useState(false);
+  const [includeDependents, setIncludeDependents] = useState(true);
 
   // Filter history based on includeDependents toggle
   const currentPatientClean = normalizePatientNameForMatch(requestPatientName || "");
+  const currentPatientWords = currentPatientClean.split(/\s+/).filter(Boolean);
+
   const filteredHistory = visibleHistory.filter((record) => {
     if (includeDependents) return true;
     const recordPatientClean = normalizePatientNameForMatch(record.patient_name || record.name || "");
-    return recordPatientClean === currentPatientClean;
+    if (!recordPatientClean || !currentPatientClean) return true;
+    if (recordPatientClean === currentPatientClean) return true;
+    if (recordPatientClean.includes(currentPatientClean) || currentPatientClean.includes(recordPatientClean)) return true;
+    
+    const recordWords = recordPatientClean.split(/\s+/).filter(Boolean);
+    const commonWords = currentPatientWords.filter(w => recordWords.includes(w));
+    return commonWords.length >= Math.min(2, Math.max(1, currentPatientWords.length));
   });
 
   return (
@@ -146,12 +193,19 @@ export function ClinicalHistory({
           <div className="flex items-center gap-2">
             <div className="text-[16px]">🕒</div>
             <div className="text-[12px] sm:text-[13px] font-extrabold text-slate-800">
-              PATIENT HISTORY (WORKBOOK)
+              PATIENT AUTHORIZATION HISTORY
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <div className="bg-slate-50 px-2.5 py-1 rounded-full text-[10px] font-bold text-slate-500">
-              {filteredHistory.length} RECORDS
+            <div className="bg-slate-50 px-2.5 py-1 rounded-full text-[10px] font-bold text-slate-500 flex items-center gap-1.5">
+              {checking ? (
+                <>
+                  <Loader2 className="w-3 h-3 animate-spin text-slate-400" />
+                  <span>SEARCHING...</span>
+                </>
+              ) : (
+                <span>{filteredHistory.length} RECORDS</span>
+              )}
             </div>
             <span className="text-slate-400">{expanded ? '▴' : '▾'}</span>
           </div>
@@ -191,19 +245,20 @@ export function ClinicalHistory({
             </div>
 
             <div className="max-h-[350px] overflow-y-auto pr-1">
-              {filteredHistory.length > 0 ? (
+              {checking ? (
+                <div className="rounded-xl border border-dashed border-slate-200 p-6 text-center bg-slate-50/50 animate-pulse">
+                  <Loader2 className="w-5 h-5 animate-spin text-emerald-600 mx-auto mb-2" />
+                  <p className="text-[12px] font-bold text-slate-700">Checking patient clinical records...</p>
+                  <p className="text-[10px] text-slate-400 mt-0.5">Searching authorization registry for policy and family history</p>
+                </div>
+              ) : filteredHistory.length > 0 ? (
                 filteredHistory.map((record, i) => (
                   <HistoryCard key={i} record={record} />
                 ))
               ) : (
-                <HistoryCard record={{
-                  date: new Date().toISOString(),
-                  patient_name: requestPatientName,
-                  authorization_code: "N/A",
-                  status: "APPROVED",
-                  diagnosis: "No history found",
-                  treatment: "No previous records"
-                }} />
+                <div className="rounded-xl border border-dashed border-slate-200 p-4 text-center text-[12px] font-semibold text-slate-500">
+                  No matching authorization history found.
+                </div>
               )}
             </div>
           </div>

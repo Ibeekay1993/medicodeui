@@ -407,7 +407,7 @@ export default function UsersPage() {
                             <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", status === "active" ? "bg-emerald-500" : status === "onboarding" ? "bg-amber-500" : "bg-rose-500")} />
                             <span className="text-xs font-medium text-slate-700">{status.charAt(0).toUpperCase() + status.slice(1)}</span>
                           </div>
-                          <div className="text-xs text-slate-400 mt-1 pl-3">Active: {prettyDate(item.last_sign_in)}</div>
+                          <div className="text-xs text-slate-400 mt-1 pl-3">Active: {prettyDate(item.last_sign_in || (status === "active" ? item.updated_at : null))}</div>
                         </td>
                         <td className="px-4 py-2.5 text-right">
                           <DropdownMenu>
@@ -470,7 +470,7 @@ export default function UsersPage() {
                         {item.phone && <p>{item.phone}</p>}
                         <p className="truncate text-xs text-slate-400">{linkedHospital}</p>
                       </div>
-                      <div className="text-xs text-slate-400 mt-1.5">Active: {prettyDate(item.last_sign_in)}</div>
+                      <div className="text-xs text-slate-400 mt-1.5">Active: {prettyDate(item.last_sign_in || (status === "active" ? item.updated_at : null))}</div>
                     </div>
 
                     {/* Right absolute badges and dropdown */}

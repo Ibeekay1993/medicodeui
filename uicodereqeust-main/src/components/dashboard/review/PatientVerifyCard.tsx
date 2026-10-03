@@ -103,22 +103,23 @@ export function PatientVerifyCard({
         <div className="flex justify-between items-center mb-3">
           <div className="flex items-center gap-2">
             <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center text-[12px] font-bold ${
-              checking || policyVerified === null ? "border-slate-300 text-slate-400" :
-              policyVerified && patientMatchStatus === "exact" ? "border-green-500 text-green-500" :
+              checking ? "border-slate-300 text-slate-400 animate-pulse" :
+              policyVerified && (patientMatchStatus === "exact" || (patientMatchStatus as string) === "matched") ? "border-green-500 text-green-500" :
               policyVerified && patientMatchStatus === "partial" ? "border-yellow-500 text-yellow-500" :
-              policyVerified && patientMatchStatus === "none" ? "border-red-500 text-red-500" :
-              "border-red-500 text-red-500"
+              policyVerified ? "border-amber-500 text-amber-500" :
+              "border-slate-300 text-slate-400"
             }`}>
-              {checking || policyVerified === null ? "◓" : policyVerified && patientMatchStatus === "exact" ? "✓" : "!"}
+              {checking ? "◓" : policyVerified && (patientMatchStatus === "exact" || (patientMatchStatus as string) === "matched") ? "✓" : policyVerified ? "!" : "–"}
             </div>
             <div>
               <div className="text-[13px] font-extrabold text-slate-800">NHIS Confirmation</div>
-              <div className={`text-[11px] ${!policyVerified && !checking ? 'text-red-500 font-bold' : policyVerified && patientMatchStatus === 'none' ? 'text-red-500 font-bold' : 'text-slate-400'}`}>
-                {checking || policyVerified === null ? "Checking registry..." :
-                 policyVerified && patientMatchStatus === "exact" ? "Verified master records registry" :
+              <div className={`text-[11px] ${!policyVerified && !checking ? 'text-slate-500 font-medium' : policyVerified && (patientMatchStatus === 'none' || (patientMatchStatus as string) === 'mismatch') ? 'text-amber-600 font-bold' : policyVerified ? 'text-green-600 font-semibold' : 'text-slate-400'}`}>
+                {checking ? "Checking registry..." :
+                 policyVerified && (patientMatchStatus === "exact" || (patientMatchStatus as string) === "matched") ? "Verified master records registry" :
                  policyVerified && patientMatchStatus === "partial" ? "Partial match in registry" :
-                 policyVerified && patientMatchStatus === "none" ? "Policy found, patient name mismatch" :
-                 "Not found in registry"}
+                 policyVerified && (patientMatchStatus === "none" || (patientMatchStatus as string) === "mismatch") ? "Policy found, patient name mismatch" :
+                 policyVerified ? "Verified master records registry" :
+                 "Not found in active registry"}
               </div>
             </div>
           </div>

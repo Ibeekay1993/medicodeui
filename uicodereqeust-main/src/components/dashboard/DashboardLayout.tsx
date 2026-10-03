@@ -32,6 +32,7 @@ import { NavItem } from "@/components/dashboard/NavItem";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { queryClient } from "@/providers/AppProviders";
+import { SidebarInstallButton } from "@/components/pwa/InstallAppPrompt";
 
 interface DashboardLayoutProps {
   children?: React.ReactNode;
@@ -70,8 +71,6 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         console.warn("AudioContext chime failed:", e);
       }
     };
-
-    const channels: any[] = [];
 
     const refreshActionableMessages = async () => {
       const { data: conversations } = await supabase
@@ -128,99 +127,39 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
     refreshActionableMessages();
 
+    const dashChannel = supabase.channel(`dashboard-events-${user.id}`);
+
     if (role === "admin") {
-      const nameChannel = supabase
-        .channel("realtime-dashboard-name-requests")
-        .on("postgres_changes", { event: "INSERT", schema: "public", table: "profile_name_update_requests" }, (payload) => {
-          const req = payload.new;
-          if (req.status === "pending") {
-            playNotificationSound();
-            toast({ title: "Profile Name Approval Request", description: `"${req.current_name}" is requesting display name update to "${req.requested_name}".` });
-          }
-        })
-        .subscribe();
-      channels.push(nameChannel);
+      dashChannel.on("postgres_changes", { event: "INSERT", schema: "public", table: "profile_name_update_requests" }, (payload) => {
+        const req = payload.new as any;
+        if (req?.status === "pending") {
+          playNotificationSound();
+          toast({ title: "Profile Name Approval Request", description: `"${req.current_name}" is requesting display name update to "${req.requested_name}".` });
+        }
+      });
     }
 
     if (role === "admin" || role === "utilization_manager") {
-      const authInsertChannel = supabase
-        .channel("realtime-dashboard-auth-requests-insert")
-        .on("postgres_changes", { event: "INSERT", schema: "public", table: "authorization_requests" }, (payload) => {
-          const req = payload.new;
-          void queryClient.invalidateQueries({ queryKey: ["requests"] });
-          playNotificationSound();
-          toast({ title: "New Authorization Request", description: `${req.hospital_name || "A hospital"} submitted a request for ${req.patient_name || "a patient"}.` });
-        })
-        .subscribe();
-      channels.push(authInsertChannel);
+      dashChannel.on("postgres_changes", { event: "INSERT", schema: "public", table: "authorization_requests" }, (payload) => {
+        const req = payload.new as any;
+        void queryClient.invalidateQueries({ queryKey: ["requests"] });
+        playNotificationSound();
+        toast({ title: "New Authorization Request", description: `${req?.hospital_name || "A hospital"} submitted a request for ${req?.patient_name || "a patient"}.` });
+      });
     } else if (role === "hospital") {
-      const authUpdateChannel = supabase
-        .channel("realtime-dashboard-auth-requests-update")
-        .on("postgres_changes", { event: "UPDATE", schema: "public", table: "authorization_requests" }, (payload) => {
-          const req = payload.new;
-          if (payload.old && payload.old.status !== req.status) {
-            playNotificationSound();
-            toast({ title: "Authorization Request Updated", description: `Your request for ${req.patient_name} has been ${(req.status || "").toUpperCase()}.` });
-          }
-        })
-        .subscribe();
-      channels.push(authUpdateChannel);
-    }
-
-    const chatAlertChannel = supabase
-      .channel("realtime-dashboard-support-chat-alerts")
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "support_messages" }, (payload) => {
-        const msg = payload.new;
-        if (msg.sender_id === user.id) return;
-        const currentRole = role as string;
-        const senderIsHospital = msg.sender_role === "hospital";
-        const userIsStaff = ["admin", "utilization_manager", "claims", "finance"].includes(currentRole);
-        const userIsHospital = currentRole === "hospital";
-        if ((userIsStaff && senderIsHospital) || (userIsHospital && ["admin", "utilization_manager", "claims", "finance"].includes(msg.sender_role || ""))) {
-          refreshActionableMessages();
+      dashChannel.on("postgres_changes", { event: "UPDATE", schema: "public", table: "authorization_requests" }, (payload) => {
+        const req = payload.new as any;
+        if (payload.old && (payload.old as any).status !== req?.status) {
           playNotificationSound();
-          toast({ title: `Support Message from ${msg.sender_name || "Support"}`, description: msg.body.length > 55 ? `${msg.body.substring(0, 55)}...` : msg.body });
+          toast({ title: "Authorization Request Updated", description: `Your request for ${req?.patient_name} has been ${(req?.status || "").toUpperCase()}.` });
         }
-      })
-      .subscribe();
-    channels.push(chatAlertChannel);
-
-    const conversationAlertChannel = supabase
-      .channel("realtime-dashboard-support-conversation-actions")
-      .on("postgres_changes", { event: "*", schema: "public", table: "support_conversations" }, () => {
-        refreshActionableMessages();
-      })
-      .subscribe();
-    channels.push(conversationAlertChannel);
-
-    if (role === "utilization_manager") {
-      const utilizationManagerRequestSupportChannel = supabase
-        .channel("realtime-dashboard-utilization-manager-request-support-alerts")
-        .on("postgres_changes", { event: "INSERT", schema: "public", table: "support_conversations" }, (payload) => {
-          const conversation = payload.new as any;
-          if (conversation.ticket_type === "request_support" && conversation.assigned_to === user.id) {
-            refreshActionableMessages();
-            playNotificationSound();
-            toast({ title: "Request Support Ticket", description: `New request support ticket assigned: ${conversation.request_reference || conversation.subject}` });
-          }
-        })
-        .on("postgres_changes", { event: "UPDATE", schema: "public", table: "support_conversations" }, (payload) => {
-          const conversation = payload.new as any;
-          const previous = payload.old as any;
-          const assignedToMeNow = conversation.assigned_to === user.id;
-          const wasNotAssignedToMe = !previous || previous.assigned_to !== user.id;
-          if (conversation.ticket_type === "request_support" && assignedToMeNow && wasNotAssignedToMe) {
-            refreshActionableMessages();
-            playNotificationSound();
-            toast({ title: "Request Support Ticket Assigned", description: `Request ${conversation.request_reference || conversation.subject} was assigned to you.` });
-          }
-        })
-        .subscribe();
-      channels.push(utilizationManagerRequestSupportChannel);
+      });
     }
+
+    dashChannel.subscribe();
 
     return () => {
-      channels.forEach((ch) => supabase.removeChannel(ch));
+      supabase.removeChannel(dashChannel);
     };
   }, [user?.id, role, toast]);
 
@@ -487,6 +426,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         </nav>
 
         <div className="p-4 mt-auto border-t border-white/5">
+          {isSidebarExpanded && <SidebarInstallButton />}
           <button onClick={handleSignOut} aria-label="Sign out"
             className={cn("w-full flex items-center gap-3 px-4 py-3 text-rose-400 hover:bg-rose-400/10 rounded-xl transition-all text-left", !isSidebarExpanded && "justify-center")}>
             <LogOut className="h-4 w-4 shrink-0" />
@@ -597,9 +537,10 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             ))}
           </div>
 
-          <div className="p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] border-t border-white/5 mt-auto">
+          <div className="p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] border-t border-white/5 mt-auto space-y-2">
+            <SidebarInstallButton />
             <SheetClose asChild>
-              <button onClick={handleSignOut} className="w-full flex items-center gap-4 px-4 py-4 text-rose-400 hover:bg-rose-400/5 rounded-xl text-sm font-medium transition-all">
+              <button onClick={handleSignOut} className="w-full flex items-center gap-4 px-4 py-3 text-rose-400 hover:bg-rose-400/5 rounded-xl text-sm font-medium transition-all">
                 <LogOut className="h-4 w-4" />
                 Logout
               </button>

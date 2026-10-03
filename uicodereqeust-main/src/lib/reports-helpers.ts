@@ -5,10 +5,7 @@ export interface ReportStats {
   approvedCodes: number;
   pendingCodes: number;
   rejectedCodes: number;
-  requestedAmount: number;
   approvedAmount: number;
-  pendingAmount: number;
-  rejectedAmount: number;
   approvalRate: number;
   rejectionRate: number;
   avgProcessingTime: number;
@@ -21,9 +18,7 @@ export interface HospitalPerformance {
   approvedCodes: number;
   rejectedCodes: number;
   pendingCodes: number;
-  requestedAmount: number;
   approvedAmount: number;
-  rejectedAmount: number;
   approvalRate: number;
 }
 
@@ -33,7 +28,6 @@ export interface TrendPoint {
   rejected: number;
   pending: number;
   approvedAmount: number;
-  rejectedAmount: number;
 }
 
 export interface PreAuthRecord {
@@ -51,14 +45,75 @@ export interface PreAuthRecord {
   source: string;
   authorization_code: string;
   status: RequestStatus;
-  requested_amount: number;
   approved_amount: number;
-  rejected_amount: number;
+  approved_items?: unknown[];
   rejection_reason: string;
   decision_reason: string;
   decided_at?: string;
   clinician?: string;
   is_historical?: boolean;
+}
+
+export function isApprovedStatus(status: string | null | undefined): boolean {
+  if (!status) return false;
+  const s = status.toLowerCase();
+  return ["approved", "partially_approved", "referral_approved", "referral_accepted", "authorization_approved"].includes(s);
+}
+
+export function isRejectedStatus(status: string | null | undefined): boolean {
+  if (!status) return false;
+  const s = status.toLowerCase();
+  return ["rejected", "referral_declined", "referral_expired"].includes(s);
+}
+
+export function isPendingStatus(status: string | null | undefined): boolean {
+  if (!status) return false;
+  const s = status.toLowerCase();
+  return ["pending", "pending_referral", "pending_authorization"].includes(s);
+}
+
+export function calculateApprovedAmount(record: {
+  status?: unknown;
+  approved_items?: unknown;
+  approved_tariff_amount?: unknown;
+  approved_amount?: unknown;
+  total_amount?: unknown;
+}): number {
+  if (Array.isArray(record.approved_items) && record.approved_items.length > 0) {
+    const calculated = record.approved_items.reduce((sum, item) => {
+      if (!item || typeof item !== "object" || Boolean((item as { declined?: unknown }).declined)) {
+        return sum;
+      }
+
+      const rawItem = item as {
+        amount?: unknown;
+        total?: unknown;
+        price?: unknown;
+        unit_price?: unknown;
+        quantity?: unknown;
+      };
+
+      const value = rawItem.amount ?? rawItem.total;
+      if (value !== undefined && value !== null && !isNaN(Number(value))) {
+        return sum + Number(value);
+      }
+      const unit = Number(rawItem.unit_price ?? rawItem.price ?? 0);
+      const qty = Math.max(1, Number(rawItem.quantity ?? 1));
+      if (Number.isFinite(unit) && unit > 0) {
+        return sum + (unit * qty);
+      }
+      return sum;
+    }, 0);
+
+    if (calculated > 0) return calculated;
+  }
+
+  const storedAmount = Number(
+    record.approved_tariff_amount ??
+    record.approved_amount ??
+    (isApprovedStatus(String(record.status || "")) ? record.total_amount : 0)
+  );
+  return Number.isFinite(storedAmount) ? storedAmount : 0;
 }
 
 export interface FilterState {
@@ -74,10 +129,7 @@ export const defaultStats: ReportStats = {
   approvedCodes: 0,
   pendingCodes: 0,
   rejectedCodes: 0,
-  requestedAmount: 0,
   approvedAmount: 0,
-  pendingAmount: 0,
-  rejectedAmount: 0,
   approvalRate: 0,
   rejectionRate: 0,
   avgProcessingTime: 0,
@@ -86,13 +138,13 @@ export const defaultStats: ReportStats = {
 
 export const preAuthStatusFilterMap: Record<string, string[]> = {
   all: [],
-  pending: ["pending"],
+  pending: ["pending", "pending_referral", "pending_authorization"],
   pending_referral: ["pending_referral"],
   referral_approved: ["referral_approved"],
   referral_accepted: ["referral_accepted"],
   pending_authorization: ["pending_authorization"],
-  approved: ["approved"],
-  rejected: ["rejected"],
+  approved: ["approved", "partially_approved", "referral_approved", "referral_accepted", "authorization_approved"],
+  rejected: ["rejected", "referral_declined", "referral_expired"],
   referral_declined: ["referral_declined"],
   referral_expired: ["referral_expired"],
 };
@@ -138,10 +190,21 @@ export function buildDateFilter(
       return { from: fromDate, to: today };
     case "7days":
       fromDate.setDate(today.getDate() - 7);
+      fromDate.setHours(0, 0, 0, 0);
       return { from: fromDate, to: today };
     case "30days":
       fromDate.setDate(today.getDate() - 30);
+      fromDate.setHours(0, 0, 0, 0);
       return { from: fromDate, to: today };
+    case "this_month": {
+      const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1, 0, 0, 0, 0);
+      return { from: startOfMonth, to: today };
+    }
+    case "last_month": {
+      const startOfLastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1, 0, 0, 0, 0);
+      const endOfLastMonth = new Date(today.getFullYear(), today.getMonth(), 0, 23, 59, 59, 999);
+      return { from: startOfLastMonth, to: endOfLastMonth };
+    }
     default:
       return {};
   }
@@ -174,30 +237,17 @@ export function groupByDate(
         rejected: 0,
         pending: 0,
         approvedAmount: 0,
-        rejectedAmount: 0,
       });
     }
 
     const point = groups.get(key)!;
-    if (record.status === "approved") {
+    if (isApprovedStatus(record.status)) {
       point.approved++;
       point.approvedAmount += Number(record.approved_amount) || 0;
-    } else if (record.status === "rejected") {
+    } else if (isRejectedStatus(record.status)) {
       point.rejected++;
-    } else if (record.status === "pending") {
+    } else if (isPendingStatus(record.status)) {
       point.pending++;
-    }
-
-    // Calculate rejected amount mathematically if not pending
-    if (record.status !== "pending" && record.status !== "pending_referral" && record.status !== "pending_authorization") {
-      const req = Number(record.requested_amount) || 0;
-      const app = Number(record.approved_amount) || 0;
-      const rejEx = Number(record.rejected_amount) || 0;
-      if (rejEx > 0) {
-        point.rejectedAmount += rejEx;
-      } else {
-        point.rejectedAmount += Math.max(0, req - app);
-      }
     }
   }
 
@@ -219,35 +269,21 @@ export function calculateHospitalPerformance(
         approvedCodes: 0,
         rejectedCodes: 0,
         pendingCodes: 0,
-        requestedAmount: 0,
         approvedAmount: 0,
-        rejectedAmount: 0,
         approvalRate: 0,
       });
     }
 
     const perf = groups.get(hospital)!;
     perf.totalCodes++;
-    perf.requestedAmount += Number(record.requested_amount) || 0;
 
-    if (record.status === "approved") {
+    if (isApprovedStatus(record.status)) {
       perf.approvedCodes++;
       perf.approvedAmount += Number(record.approved_amount) || 0;
-    } else if (record.status === "rejected") {
+    } else if (isRejectedStatus(record.status)) {
       perf.rejectedCodes++;
-    } else if (record.status === "pending") {
+    } else if (isPendingStatus(record.status)) {
       perf.pendingCodes++;
-    }
-
-    if (record.status !== "pending" && record.status !== "pending_referral" && record.status !== "pending_authorization") {
-      const req = Number(record.requested_amount) || 0;
-      const app = Number(record.approved_amount) || 0;
-      const rejEx = Number(record.rejected_amount) || 0;
-      if (rejEx > 0) {
-        perf.rejectedAmount += rejEx;
-      } else {
-        perf.rejectedAmount += Math.max(0, req - app);
-      }
     }
   }
 

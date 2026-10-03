@@ -40,3 +40,8 @@ entrypoint = "./functions/send-submission-notification/index.ts"
 enabled = true
 verify_jwt = false
 entrypoint = "./functions/send-referral-notification/index.ts"
+
+[functions.send-push-notification]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/send-push-notification/index.ts"

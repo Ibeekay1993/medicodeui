@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { notifyPendingAuthorizationRequest } from "@/lib/pushNotifications";
 import { Hospital, AuthorizationRequest, HospitalClaim } from "../types";
 
 export class HospitalService {
@@ -59,14 +60,10 @@ export class HospitalService {
       fuzzyQuery.push(`hospital_name.ilike.%University Health%`);
     }
 
-    let allData: any[] = [];
-    let page = 0;
-    let hasMore = true;
-
-    while (hasMore) {
-      const { data, error } = await supabase
+    const [authRes, claimsRes] = await Promise.all([
+      supabase
         .from("authorization_requests")
-        .select("*")
+        .select("id, status, total_amount, referred_hospital_id, hospital_id")
         .or([
           `hospital_id.eq.${hosp.id}`,
           `requesting_hospital_id.eq.${hosp.id}`,
@@ -76,47 +73,22 @@ export class HospitalService {
           ...fuzzyQuery,
         ].join(","))
         .order("created_at", { ascending: false })
-        .range(page * 1000, (page + 1) * 1000 - 1);
-        
-      if (error) throw error;
-      if (data && data.length > 0) {
-        allData = [...allData, ...data];
-        page++;
-        hasMore = data.length === 1000;
-      } else {
-        hasMore = false;
-      }
-    }
-
-    let allClaims: any[] = [];
-    let claimPage = 0;
-    let claimHasMore = true;
-    const claimQuery = [`hospital_id.eq.${hosp.id}`, `hospital_name.ilike.%${safeName}%`];
-    if (safeCode.trim()) claimQuery.push(`hospital_name.ilike.%${safeCode}%`);
-    if (isUHS) {
-      claimQuery.push(`hospital_name.ilike.%UHS%`);
-      claimQuery.push(`hospital_name.ilike.%U.H.S%`);
-      claimQuery.push(`hospital_name.ilike.%University Health%`);
-    }
-
-    while (claimHasMore) {
-      const { data: claimsData, error: claimsError } = await supabase
+        .limit(2000),
+      supabase
         .from("hospital_claims" as any)
-        .select("*")
+        .select("id, status, approved_amount, total_amount, contest_deadline, claim_number, patient_name")
         .or(claimQuery.join(","))
-        .range(claimPage * 1000, (claimPage + 1) * 1000 - 1);
-        
-      if (claimsError) throw claimsError;
-      if (claimsData && claimsData.length > 0) {
-        allClaims = [...allClaims, ...claimsData];
-        claimPage++;
-        claimHasMore = claimsData.length === 1000;
-      } else {
-        claimHasMore = false;
-      }
-    }
+        .order("created_at", { ascending: false })
+        .limit(2000),
+    ]);
 
-    return { authorizations: allData, claims: allClaims };
+    if (authRes.error) throw authRes.error;
+    if (claimsRes.error) throw claimsRes.error;
+
+    return { 
+      authorizations: authRes.data || [], 
+      claims: claimsRes.data || [] 
+    };
   }
 
   static async getAnnouncements() {
@@ -156,7 +128,7 @@ export class HospitalService {
 
     let query = supabase
       .from("authorization_requests")
-      .select("*", { count: "estimated" })
+      .select("*", { count: "exact" })
       .eq("is_historical", false)
       .or(idQuery.join(","));
 
@@ -230,30 +202,9 @@ export class HospitalService {
       orQuery.push(`hospital_name.ilike.%University Health%`);
     }
 
-    let statsData: any[] = [];
-    let statsPage = 0;
-    let statsHasMore = true;
-    
-    while (statsHasMore) {
-      const { data, error } = await supabase
-        .from("hospital_claims" as any)
-        .select("status, total_amount")
-        .or(orQuery.join(","))
-        .range(statsPage * 1000, (statsPage + 1) * 1000 - 1);
-        
-      if (error) throw error;
-      if (data && data.length > 0) {
-        statsData = [...statsData, ...data];
-        statsPage++;
-        statsHasMore = data.length === 1000;
-      } else {
-        statsHasMore = false;
-      }
-    }
-
     let query: any = supabase
       .from("hospital_claims" as any)
-      .select("*", { count: "estimated" })
+      .select("*", { count: "exact" })
       .or(orQuery.join(","));
 
     if (searchTerm.trim()) {
@@ -264,13 +215,25 @@ export class HospitalService {
     const from = (page - 1) * pageSize;
     const to = from + pageSize - 1;
 
-    const { data: pageData, count, error: pageError } = await query
-      .order("created_at", { ascending: false })
-      .range(from, to);
+    const [pageRes, statsRes] = await Promise.all([
+      query
+        .order("created_at", { ascending: false })
+        .range(from, to),
+      supabase
+        .from("hospital_claims" as any)
+        .select("status, total_amount")
+        .or(orQuery.join(","))
+        .limit(3000),
+    ]);
 
-    if (pageError) throw pageError;
+    if (pageRes.error) throw pageRes.error;
+    if (statsRes.error) throw statsRes.error;
 
-    return { claims: pageData || [], total: count || 0, statsData };
+    return { 
+      claims: pageRes.data || [], 
+      total: pageRes.count || 0, 
+      statsData: statsRes.data || [] 
+    };
   }
 
   static async findHospitalIdByName(name: string): Promise<string | null> {
@@ -336,9 +299,16 @@ export class HospitalService {
     const { data, error } = await supabase
       .from("authorization_requests")
       .insert(payload)
-      .select("id")
+      .select("id, hospital_name, status, source")
       .single();
     if (error) throw error;
+    if (!data.status || data.status.startsWith("pending")) {
+      void notifyPendingAuthorizationRequest({
+        requestId: data.id,
+        hospitalName: data.hospital_name || payload.hospital_name,
+        source: data.source || payload.source || "hospital_portal",
+      });
+    }
     return data;
   }
 

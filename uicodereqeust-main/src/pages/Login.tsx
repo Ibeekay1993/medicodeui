@@ -19,7 +19,7 @@ type AppRole = Database["public"]["Enums"]["app_role"];
 // ---------------------------------------------------------------------------
 const MAX_FAILED_ATTEMPTS = 3;
 const LOCKOUT_DURATION_MS = 30_000; // 30 seconds
-const AUTH_REQUEST_TIMEOUT_MS = 15_000;
+const AUTH_REQUEST_TIMEOUT_MS = 30_000; // 30 seconds
 
 function withAuthTimeout<T>(promise: Promise<T>): Promise<T> {
   return Promise.race([
@@ -140,11 +140,13 @@ export default function Login() {
     userId: string,
     userEmail: string
   ): Promise<AppRole | null> => {
-    const { data: roleRow, error: roleError } = await (supabase as any)
-      .from("user_roles")
-      .select("role, access_status, onboarding_completed")
-      .eq("user_id", userId)
-      .maybeSingle();
+    const { data: roleRow, error: roleError } = await withAuthTimeout(
+      (supabase as any)
+        .from("user_roles")
+        .select("role, access_status, onboarding_completed")
+        .eq("user_id", userId)
+        .maybeSingle()
+    );
 
     if (roleError) throw roleError;
 
@@ -156,9 +158,11 @@ export default function Login() {
       return (roleRow as any).role;
     }
 
-    const { data: healed, error: healErr } = await (supabase.rpc as any)(
-      "heal_hospital_user_link",
-      { p_user_id: userId, p_email: userEmail }
+    const { data: healed, error: healErr } = await withAuthTimeout(
+      (supabase.rpc as any)(
+        "heal_hospital_user_link",
+        { p_user_id: userId, p_email: userEmail }
+      )
     );
 
     if (healErr) {
@@ -167,11 +171,13 @@ export default function Login() {
       return healed[0].out_role as AppRole;
     }
 
-    const { data: retry, error: retryError } = await (supabase as any)
-      .from("user_roles")
-      .select("role, access_status, onboarding_completed")
-      .eq("user_id", userId)
-      .maybeSingle();
+    const { data: retry, error: retryError } = await withAuthTimeout(
+      (supabase as any)
+        .from("user_roles")
+        .select("role, access_status, onboarding_completed")
+        .eq("user_id", userId)
+        .maybeSingle()
+    );
 
     if (retryError) throw retryError;
 
@@ -199,13 +205,13 @@ export default function Login() {
   // FIX 3: Categorise errors correctly � don't expose internals but distinguish network issues
   const isTransientAuthError = (err: any): boolean => {
     const msg: string = (err?.message || "").toLowerCase();
+    if (msg.includes("invalid login credentials") || msg.includes("invalid_credentials") || msg.includes("account locked")) {
+      return false;
+    }
     return (
-      msg.includes("fetch") ||
-      msg.includes("network") ||
       msg.includes("failed to fetch") ||
       msg.includes("networkerror") ||
       msg.includes("timed out") ||
-      msg.includes("timeout") ||
       msg.includes("did not respond") ||
       msg.includes("cors") ||
       msg.includes("service unavailable") ||
@@ -216,6 +222,9 @@ export default function Login() {
   };
 
   const parseAuthError = (err: any): string => {
+    if (err?.message && err.message.includes("Account locked")) {
+      return err.message;
+    }
     if (isTransientAuthError(err)) {
       return "Connection error. Supabase did not respond. Please wait a moment and try again.";
     }
@@ -269,9 +278,15 @@ export default function Login() {
       setFailedAttempts(0);
       setLockedUntil(null);
 
-      
+      // Update last_sign_in timestamp on user_roles — fire-and-forget, must not block login
+      void supabase
+        .from("user_roles")
+        .update({ last_sign_in: new Date().toISOString() } as any)
+        .eq("user_id", userId)
+        .then(() => {/* ignore */})
+        .catch((err) => console.warn("Could not update last_sign_in on login", err));
 
-      const { data: factors } = await supabase.auth.mfa.listFactors();
+      const { data: factors } = await withAuthTimeout(supabase.auth.mfa.listFactors());
       const verifiedFactor = factors?.all.find((f) => f.status === "verified");
 
       if (verifiedFactor && resolvedRole !== "hospital") {
@@ -283,14 +298,19 @@ export default function Login() {
 
       // Wait for useEffect to navigate
     } catch (err: any) {
-      try {
-        await withAuthTimeout(supabase.auth.signOut());
-      } catch (signOutError) {
-        console.error("Login: sign-out after failed authentication timed out", signOutError);
+      // Only sign out if authentication itself failed.
+      // If auth succeeded but role-resolution timed out, keep the session alive.
+      if (!authenticationSucceeded) {
+        try {
+          await withAuthTimeout(supabase.auth.signOut());
+        } catch (signOutError) {
+          console.error("Login: sign-out after failed authentication timed out", signOutError);
+        }
       }
       
       let dbAttempts = 1;
       let dbStatus = "active";
+      // Only record failed attempts when the PASSWORD itself was wrong
       if (!authenticationSucceeded && !isTransientAuthError(err)) {
         try {
           const { data: rpcData, error: rpcErr } = await withAuthTimeout(
@@ -303,6 +323,12 @@ export default function Login() {
         } catch (rpcEx) {
           console.error("Failed to record login attempt in DB:", rpcEx);
         }
+      }
+
+      // When auth succeeded but role loading failed — don't increment counter, just show retry
+      if (authenticationSucceeded) {
+        setError("Your password was accepted, but your account profile could not be loaded. Please try again.");
+        return;
       }
 
       const localAttempts = failedAttempts + 1;
@@ -320,8 +346,6 @@ export default function Login() {
           }).catch((err) => console.error("Failed to send reset email on lockout", err));
         }
         setError("Account locked due to 5 failed attempts. A password reset link has been sent to your email to regain access.");
-      } else if (authenticationSucceeded) {
-        setError("Your password was accepted, but your account profile could not be loaded. Please try again or contact support.");
       } else {
         const baseError = parseAuthError(err);
         if (effectiveAttempts === 3) {

@@ -19,7 +19,7 @@ export class RequestsService {
 
     let q = supabase
       .from("authorization_requests")
-      .select("*", { count: "estimated" })
+      .select("*", { count: "exact" })
       .order("created_at", { ascending: false });
 
     if (role === "claims") {
@@ -34,7 +34,7 @@ export class RequestsService {
 
     if (search.trim()) {
       const term = `%${search.trim()}%`;
-      q = q.or(`patient_name.ilike.${term},request_number.ilike.${term},hospital_name.ilike.${term},policy_number.ilike.${term}`);
+      q = q.or(`patient_name.ilike.${term},request_id.ilike.${term},hospital_name.ilike.${term},policy_number.ilike.${term}`);
     }
 
     q = q.range(from, to);

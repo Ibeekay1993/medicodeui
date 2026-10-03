@@ -17,7 +17,6 @@ export default function MonthlyTrendChart({ data }: MonthlyTrendChartProps) {
           <Tooltip formatter={(value: number) => formatNaira(value)} />
           <Legend />
           <Bar dataKey="approvedAmount" fill="#10B981" name="Approved Amount" radius={[4, 4, 0, 0]} />
-          <Bar dataKey="rejectedAmount" fill="#EF4444" name="Rejected Amount" radius={[4, 4, 0, 0]} />
         </BarChart>
       </ResponsiveContainer>
     </div>

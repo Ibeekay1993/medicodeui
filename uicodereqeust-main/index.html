@@ -14,9 +14,17 @@
         document.getElementById('canonical-link').setAttribute('href', window.location.href);
       } catch (e) {}
     </script>
-    <link rel="manifest" href="/manifest.json" />
-    <link rel="icon" type="image/webp" href="/ronsberger-logo.webp" />
-    <link rel="apple-touch-icon" href="/ronsberger-logo.webp" />
+    <link rel="manifest" href="/manifest.json?v=3" />
+    <link rel="icon" type="image/x-icon" href="/favicon.ico?v=3" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png?v=3" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png?v=3" />
+    <link rel="icon" type="image/webp" href="/ronsberger-logo.webp?v=3" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=3" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=3" />
+    <link rel="apple-touch-icon" sizes="192x192" href="/icon-192.png?v=3" />
+    <link rel="apple-touch-icon" sizes="512x512" href="/icon-512.png?v=3" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="application-name" content="Ronsberger Portal" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Ronsberger Portal" />
@@ -57,5 +65,37 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function () {
+          navigator.serviceWorker.register('/sw.js', { scope: '/' })
+            .then(function (registration) {
+              // Listen for a new service worker waiting to activate
+              registration.addEventListener('updatefound', function () {
+                var newWorker = registration.installing;
+                if (!newWorker) return;
+                newWorker.addEventListener('statechange', function () {
+                  if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                    // New version is ready — dispatch event so the app can show a banner
+                    window.dispatchEvent(new CustomEvent('sw-update-available', { detail: registration }));
+                  }
+                });
+              });
+            })
+            .catch(function (err) {
+              console.warn('SW registration failed:', err);
+            });
+
+          // When the controller changes (new SW took over), reload once
+          var refreshing = false;
+          navigator.serviceWorker.addEventListener('controllerchange', function () {
+            if (!refreshing) {
+              refreshing = true;
+              window.location.reload();
+            }
+          });
+        });
+      }
+    </script>
   </body>
 </html>

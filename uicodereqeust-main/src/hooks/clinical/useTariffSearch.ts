@@ -29,20 +29,28 @@ export function useTariffSearch(
   useEffect(() => {
     if (open && request) {
       const parsedItems = Array.isArray(request.approved_items)
-        ? request.approved_items.map((item: any) => ({
-            code: item.code,
-            name: item.name,
-            category: item.category,
-            price: Number(item.amount || item.price || 0),
-            unitPrice: Number(item.unit_price || item.unitPrice || item.price || item.amount || 0),
-            quantity: Number(item.quantity || 1),
-            frequency: item.frequency || null,
-            duration: item.duration || null,
-            matched_via: item.matched_via,
-            confidence: item.confidence,
-            declined: Boolean(item.declined),
-            decline_reason: item.decline_reason || null,
-          }))
+        ? request.approved_items.map((item: any) => {
+            const quantity = Number(item.quantity || 1);
+            const unitPrice =
+              Number(item.unit_price || item.unitPrice || 0) ||
+              (Number(item.amount || item.price || 0) > 0 && quantity > 0
+                ? Number(item.amount || item.price || 0) / quantity
+                : Number(item.price || 0));
+            return {
+              code: item.code,
+              name: item.name,
+              category: item.category,
+              unitPrice: unitPrice,
+              price: Number(item.amount || (unitPrice * quantity) || 0),
+              quantity: quantity,
+              frequency: item.frequency || null,
+              duration: item.duration || null,
+              matched_via: item.matched_via,
+              confidence: item.confidence,
+              declined: Boolean(item.declined),
+              decline_reason: item.decline_reason || null,
+            };
+          })
         : [];
       setApprovedItems(parsedItems);
       setTariffSearch("");
@@ -128,10 +136,16 @@ export function useTariffSearch(
     [editTreatment, toast]
   );
 
-  // Auto-detect prescription parsing
+  // Auto-detect prescription parsing — only for fresh requests that have no saved approved items yet.
   useEffect(() => {
     if (!open || !editTreatment.trim() || !shouldAutoDetectFromSource) return;
     if (request?.deletion_status === "awaiting_admin_approval") return;
+
+    // ✅ Key guard: if the request already has saved approved_items (from a previous review/approval),
+    // do NOT re-run auto-detect. The DB data is the source of truth — re-parsing would overwrite
+    // deliberate clinical decisions made during the original approval.
+    if (Array.isArray(request?.approved_items) && request.approved_items.length > 0) return;
+
     const text = editTreatment.trim();
     if (text === lastParsedTextRef.current) return;
 
@@ -276,9 +290,37 @@ export function useTariffSearch(
       return next;
     });
     setApprovedItems((current) =>
-      current.map((item) =>
-        item.code === code ? { ...item, quantity, price: itemUnitPrice(item) * quantity } : item
-      )
+      current.map((item) => {
+        if (item.code !== code) return item;
+        const unit = itemUnitPrice(item);
+        return {
+          ...item,
+          unitPrice: unit,
+          quantity,
+          price: unit * quantity,
+        };
+      })
+    );
+  };
+
+  const changeItemQuantity = (code: string | null, newQuantity: number) => {
+    const quantity = Math.max(1, Math.floor(newQuantity));
+    setEditingQuantities((prev) => {
+      const next = { ...prev };
+      delete next[code || ""];
+      return next;
+    });
+    setApprovedItems((current) =>
+      current.map((item) => {
+        if (item.code !== code) return item;
+        const unit = itemUnitPrice(item);
+        return {
+          ...item,
+          unitPrice: unit,
+          quantity,
+          price: unit * quantity,
+        };
+      })
     );
   };
 
@@ -310,6 +352,7 @@ export function useTariffSearch(
     updateDeclineReason,
     updateApprovedItemQuantity,
     commitQuantity,
+    changeItemQuantity,
     parseTreatmentText,
   };
 }

@@ -107,7 +107,7 @@ export default function NhisBeneficiaryUpdatePage() {
   const fetchHistory = useCallback(async () => {
     const { count } = await supabase
       .from("nhis_beneficiaries")
-      .select("id", { count: "estimated", head: true });
+      .select("id", { count: "exact", head: true });
     setActiveCount(count ?? null);
 
     const { data, error } = await supabase

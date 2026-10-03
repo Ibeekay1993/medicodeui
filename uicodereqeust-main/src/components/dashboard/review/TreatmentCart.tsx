@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,15 +33,17 @@ interface TreatmentCartProps {
   request: any;
   editTreatment: string;
   setEditTreatment: (value: string) => void;
-  isHospitalDirected: boolean;
+  isHospitalDirected?: boolean;
   parseLoading: boolean;
   parseStatus: string;
   parseTreatmentText: (options?: { force?: boolean; replaceAuto?: boolean; quiet?: boolean }) => Promise<void>;
   approvedItems: TariffOption[];
-  approvedTotal: number;
+  approvedTotal?: number;
+  totalApprovedAmount?: number;
   editingQuantities: Record<string, string>;
   updateApprovedItemQuantity: (code: string | null, value: string) => void;
   commitQuantity: (code: string | null) => void;
+  changeItemQuantity?: (code: string | null, newQuantity: number) => void;
   removeApprovedItem: (code: string | null) => void;
   toggleDeclineApprovedItem?: (code: string | null) => void;
   updateDeclineReason?: (code: string | null, reason: string) => void;
@@ -53,21 +55,25 @@ interface TreatmentCartProps {
   addApprovedItem: (item: TariffOption) => void;
   cartCollapsed: boolean;
   setCartCollapsed: React.Dispatch<React.SetStateAction<boolean>>;
+  readOnly?: boolean;
 }
 
 export const TreatmentCart = React.memo(function TreatmentCart({
   request,
   editTreatment,
   setEditTreatment: _setEditTreatment,
-  isHospitalDirected,
+  isHospitalDirected = false,
+  readOnly = false,
   parseLoading,
   parseStatus,
   parseTreatmentText,
   approvedItems,
   approvedTotal,
+  totalApprovedAmount,
   editingQuantities,
   updateApprovedItemQuantity,
   commitQuantity,
+  changeItemQuantity,
   removeApprovedItem,
   toggleDeclineApprovedItem,
   updateDeclineReason,
@@ -84,6 +90,17 @@ export const TreatmentCart = React.memo(function TreatmentCart({
   const [declineDialogItem, setDeclineDialogItem] = useState<TariffOption | null>(null);
   const [declineReasonText, setDeclineReasonText] = useState("");
   const manualSearchRef = useRef<HTMLInputElement>(null);
+
+  // Real-time automatic calculation of approved total based on current items,
+  // excluding any declined items and reflecting quantity changes immediately.
+  const calculatedTotal = useMemo(() => {
+    return (approvedItems || []).reduce((sum, item) => {
+      if (item.declined) return sum;
+      return sum + itemTotal(item);
+    }, 0);
+  }, [approvedItems]);
+
+  const displayTotal = calculatedTotal;
 
   const handleConfirmDecline = () => {
     if (declineDialogItem) {
@@ -106,13 +123,15 @@ export const TreatmentCart = React.memo(function TreatmentCart({
             Approved Treatment Cart
           </div>
           <p className="mt-0.5 text-xs font-semibold text-slate-500">
-            {cartCollapsed
+            {readOnly
+              ? "Review approved clinical codes, quantities, and pricing."
+              : cartCollapsed
               ? "Tap arrow to view cart and auto-detect controls"
               : "Auto-detect and align clinical codes, quantities, and pricing."}
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0 self-start sm:self-auto w-full sm:w-auto">
-          {!cartCollapsed && (
+          {!cartCollapsed && !readOnly && (
             <Button
               type="button"
               variant="outline"
@@ -229,62 +248,82 @@ export const TreatmentCart = React.memo(function TreatmentCart({
                       </div>
 
                       <div className="flex flex-col items-end gap-2 shrink-0">
-                        <div className={cn(
-                          "flex items-center gap-1 rounded-xl p-0.5 border transition-all",
-                          item.declined
-                            ? "bg-slate-50 border-slate-100 opacity-40"
-                            : "bg-slate-100/60 border-slate-200"
-                        )}>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 rounded-lg hover:bg-white hover:shadow-xs transition-all"
-                            onClick={() =>
-                              updateApprovedItemQuantity(
-                                item.code,
-                                String(Math.max(1, (Number(item.quantity) || 1) - 1))
-                              )
-                            }
-                            disabled={item.declined || request?.deletion_status === "awaiting_admin_approval" || isHospitalDirected}
-                          >
-                            <Minus className="h-3.5 w-3.5" />
-                          </Button>
-                          <input
-                            type="text"
-                            inputMode="numeric"
-                            pattern="[0-9]*"
-                            value={editingQuantities[item.code || ""] ?? String(item.quantity)}
-                            onChange={(event) =>
-                              updateApprovedItemQuantity(item.code, event.target.value)
-                            }
-                            onBlur={() => commitQuantity(item.code)}
-                            onKeyDown={(event) => {
-                              if (event.key === "Enter") {
-                                event.preventDefault();
-                                commitQuantity(item.code);
-                              }
-                            }}
-                            onFocus={(event) => {
-                              event.target.select();
-                            }}
-                            className="h-7 w-10 border-0 bg-transparent text-center font-black text-xs p-0 outline-none focus:ring-0 cursor-text text-slate-900"
-                            disabled={item.declined || request?.deletion_status === "awaiting_admin_approval" || isHospitalDirected}
-                          />
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 rounded-lg hover:bg-white hover:shadow-xs transition-all"
-                            onClick={() =>
-                              updateApprovedItemQuantity(
-                                item.code,
-                                String((Number(item.quantity) || 1) + 1)
-                              )
-                            }
-                            disabled={item.declined || request?.deletion_status === "awaiting_admin_approval" || isHospitalDirected}
-                          >
-                            <Plus className="h-3.5 w-3.5" />
-                          </Button>
-                        </div>
+                        {readOnly ? (
+                          <div className="flex items-center gap-1.5 px-2.5 py-1 bg-slate-100/80 rounded-lg border border-slate-200">
+                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Qty</span>
+                            <span className="text-xs font-black text-slate-900">{item.quantity}</span>
+                          </div>
+                        ) : (
+                          <div className={cn(
+                            "flex items-center gap-1 rounded-xl p-0.5 border transition-all",
+                            item.declined
+                              ? "bg-slate-50 border-slate-100 opacity-40"
+                              : "bg-slate-100/60 border-slate-200"
+                          )}>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 rounded-lg hover:bg-white hover:shadow-xs transition-all"
+                              onClick={() => {
+                                const currentQty = Number(editingQuantities[item.code || ""] ?? item.quantity ?? 1);
+                                const nextQty = Math.max(1, currentQty - 1);
+                                if (changeItemQuantity) {
+                                  changeItemQuantity(item.code, nextQty);
+                                } else {
+                                  updateApprovedItemQuantity(item.code, String(nextQty));
+                                  commitQuantity(item.code);
+                                }
+                              }}
+                              disabled={item.declined || request?.deletion_status === "awaiting_admin_approval" || isHospitalDirected}
+                            >
+                              <Minus className="h-3.5 w-3.5" />
+                            </Button>
+                            <input
+                              type="text"
+                              inputMode="numeric"
+                              pattern="[0-9]*"
+                              value={editingQuantities[item.code || ""] ?? String(item.quantity)}
+                              onChange={(event) => {
+                                const val = event.target.value;
+                                updateApprovedItemQuantity(item.code, val);
+                                const num = Number(val);
+                                if (Number.isFinite(num) && num > 0 && changeItemQuantity) {
+                                  changeItemQuantity(item.code, num);
+                                }
+                              }}
+                              onBlur={() => commitQuantity(item.code)}
+                              onKeyDown={(event) => {
+                                if (event.key === "Enter") {
+                                  event.preventDefault();
+                                  commitQuantity(item.code);
+                                }
+                              }}
+                              onFocus={(event) => {
+                                event.target.select();
+                              }}
+                              className="h-7 w-10 border-0 bg-transparent text-center font-black text-xs p-0 outline-none focus:ring-0 cursor-text text-slate-900"
+                              disabled={item.declined || request?.deletion_status === "awaiting_admin_approval" || isHospitalDirected}
+                            />
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 rounded-lg hover:bg-white hover:shadow-xs transition-all"
+                              onClick={() => {
+                                const currentQty = Number(editingQuantities[item.code || ""] ?? item.quantity ?? 1);
+                                const nextQty = currentQty + 1;
+                                if (changeItemQuantity) {
+                                  changeItemQuantity(item.code, nextQty);
+                                } else {
+                                  updateApprovedItemQuantity(item.code, String(nextQty));
+                                  commitQuantity(item.code);
+                                }
+                              }}
+                              disabled={item.declined || request?.deletion_status === "awaiting_admin_approval" || isHospitalDirected}
+                            >
+                              <Plus className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        )}
                         <div className="text-right">
                           <p className={cn(
                             "text-xs font-black",
@@ -292,7 +331,7 @@ export const TreatmentCart = React.memo(function TreatmentCart({
                           )}>
                             {item.declined ? "Declined" : formatNaira(itemTotal(item))}
                           </p>
-                          {request?.deletion_status !== "awaiting_admin_approval" && !isHospitalDirected && (
+                          {request?.deletion_status !== "awaiting_admin_approval" && !isHospitalDirected && !readOnly && (
                               <div className="flex items-center justify-end gap-2 mt-1">
                                 <button
                                   type="button"
@@ -366,7 +405,7 @@ export const TreatmentCart = React.memo(function TreatmentCart({
                   Total Approved Amount
                 </span>
                 <span className="text-base font-black text-slate-800">
-                  {formatNaira(approvedTotal)}
+                  {formatNaira(displayTotal)}
                 </span>
               </div>
             </div>
@@ -377,77 +416,79 @@ export const TreatmentCart = React.memo(function TreatmentCart({
           )}
 
           {/* Add Item Manually Search Field */}
-          <div className="relative space-y-1.5">
-            <Label className="text-xs uppercase font-black text-slate-700 tracking-wider pl-1">
-              Add Item Manually
-            </Label>
-            <div className="relative">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <Input
-                ref={manualSearchRef}
-                placeholder="Search code, brand name, generic name, or abbreviation..."
-                value={tariffSearch}
-                onChange={(event) => setTariffSearch(event.target.value)}
-                className="bg-white rounded-xl border-slate-200 pl-9.5 pr-8 focus:ring-slate-500/20 font-medium"
-                disabled={request?.deletion_status === "awaiting_admin_approval" || isHospitalDirected}
-              />
-              {tariffSearchLoading && (
-                <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-slate-400" />
-              )}
-            </div>
+          {!readOnly && (
+            <div className="relative space-y-1.5">
+              <Label className="text-xs uppercase font-black text-slate-700 tracking-wider pl-1">
+                Add Item Manually
+              </Label>
+              <div className="relative">
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <Input
+                  ref={manualSearchRef}
+                  placeholder="Search code, brand name, generic name, or abbreviation..."
+                  value={tariffSearch}
+                  onChange={(event) => setTariffSearch(event.target.value)}
+                  className="bg-white rounded-xl border-slate-200 pl-9.5 pr-8 focus:ring-slate-500/20 font-medium"
+                  disabled={request?.deletion_status === "awaiting_admin_approval" || isHospitalDirected}
+                />
+                {tariffSearchLoading && (
+                  <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-slate-400" />
+                )}
+              </div>
 
-            {tariffOptions.length > 0 && (
+              {tariffOptions.length > 0 && (
                 <FloatingPanel
                   anchorRef={manualSearchRef}
                   open={tariffOptions.length > 0}
                   maxHeight={500}
                   onEscapeKeyDown={() => setTariffOptions([])}
-                className="divide-y divide-slate-100"
-              >
-                {tariffOptions.map((option) => (
-                  <button
-                    key={`${option.code}-${option.name}`}
-                    type="button"
-                    onClick={() => {
-                      addApprovedItem({
-                        ...option,
-                        matched_via: option.matched_via || "manual",
-                      });
-                      setTariffSearch("");
-                      setTariffOptions([]);
-                    }}
-                    className="flex w-full items-start justify-between gap-3 px-4 py-3 text-left hover:bg-slate-50/50 active:bg-slate-50 transition-colors"
-                  >
-                    <span className="min-w-0">
-                      <span className="block text-xs font-bold text-slate-800">{option.name}</span>
-                      <span className="mt-1 flex items-center gap-1.5 flex-wrap">
-                        <Badge
-                          variant="outline"
-                          className="text-xs font-black uppercase bg-slate-50/50 border-slate-200 text-slate-700"
-                        >
-                          {option.category || "tariff"}
-                        </Badge>
-                        <span className="text-xs font-mono font-bold text-slate-400">
-                          {option.code || "NHIA"}
-                        </span>
-                        {option.matched_via && (
+                  className="divide-y divide-slate-100"
+                >
+                  {tariffOptions.map((option) => (
+                    <button
+                      key={`${option.code}-${option.name}`}
+                      type="button"
+                      onClick={() => {
+                        addApprovedItem({
+                          ...option,
+                          matched_via: option.matched_via || "manual",
+                        });
+                        setTariffSearch("");
+                        setTariffOptions([]);
+                      }}
+                      className="flex w-full items-start justify-between gap-3 px-4 py-3 text-left hover:bg-slate-50/50 active:bg-slate-50 transition-colors"
+                    >
+                      <span className="min-w-0">
+                        <span className="block text-xs font-bold text-slate-800">{option.name}</span>
+                        <span className="mt-1 flex items-center gap-1.5 flex-wrap">
                           <Badge
                             variant="outline"
-                            className="bg-amber-50/60 border-amber-100 text-amber-700 text-xs uppercase tracking-wider font-black"
+                            className="text-xs font-black uppercase bg-slate-50/50 border-slate-200 text-slate-700"
                           >
-                            {option.matched_via}
+                            {option.category || "tariff"}
                           </Badge>
-                        )}
+                          <span className="text-xs font-mono font-bold text-slate-400">
+                            {option.code || "NHIA"}
+                          </span>
+                          {option.matched_via && (
+                            <Badge
+                              variant="outline"
+                              className="bg-amber-50/60 border-amber-100 text-amber-700 text-xs uppercase tracking-wider font-black"
+                            >
+                              {option.matched_via}
+                            </Badge>
+                          )}
+                        </span>
                       </span>
-                    </span>
-                    <span className="shrink-0 text-xs font-black text-slate-700 bg-slate-100 px-2 py-1 rounded-lg">
-                      {formatNaira(option.price)}
-                    </span>
-                  </button>
-                ))}
-              </FloatingPanel>
-            )}
-          </div>
+                      <span className="shrink-0 text-xs font-black text-slate-700 bg-slate-100 px-2 py-1 rounded-lg">
+                        {formatNaira(option.price)}
+                      </span>
+                    </button>
+                  ))}
+                </FloatingPanel>
+              )}
+            </div>
+          )}
         </div>
       )}
 

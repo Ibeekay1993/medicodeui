@@ -56,6 +56,20 @@ export function useToggleHospitalActive() {
   });
 }
 
+export function useToggleHospitalsActive() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: ({ ids, isActive }: { ids: string[]; isActive: boolean }) =>
+      HospitalsAdminService.toggleHospitalsActive(ids, isActive),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["hospitals-admin"] });
+      toast({ title: "Updated", description: "Status updated successfully." });
+    },
+    onError: (err: Error) => toast({ variant: "destructive", title: "Error", description: err.message }),
+  });
+}
+
 export function useDeleteHospital() {
   const queryClient = useQueryClient();
   const { toast } = useToast();

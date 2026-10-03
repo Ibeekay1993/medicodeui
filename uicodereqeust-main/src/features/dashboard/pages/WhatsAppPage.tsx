@@ -6,6 +6,7 @@ import { MessageSquare, Save, Wand2, Loader2, AlertTriangle, CheckCircle2 } from
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
+import { notifyPendingAuthorizationRequest } from "@/lib/pushNotifications";
 
 const whatsappSamples = [
   {
@@ -298,6 +299,12 @@ export default function WhatsAppPage() {
         .single();
       if (error) throw error;
       if (!insertedRequest?.id) throw new Error("Request created but no ID returned");
+
+      void notifyPendingAuthorizationRequest({
+        requestId: insertedRequest.id,
+        hospitalName,
+        source: "whatsapp_parser",
+      });
 
       try {
         const { error: otpError } = await supabase.functions.invoke("send-otp", {

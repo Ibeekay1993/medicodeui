@@ -233,42 +233,12 @@ export default function SupportMessagesPage() {
     }
   }, [conversations]);
 
-  // Realtime updates
+  // SUPPORT INBOX REALTIME TEMPORARILY DISABLED — not in use, reducing DB connection pool load.
+  // Re-enable when support messaging feature is reactivated.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   useEffect(() => {
-    if (!user?.id) return;
-    
-    const channel = supabase
-      .channel("support-inbox-realtime")
-      .on("postgres_changes", { event: "*", schema: "public", table: "support_conversations" }, (payload) => {
-        const row = payload.new as any;
-        if (!row?.id) return;
-        loadConversations(false);
-        setConversations((prev) => {
-          const next = prev.some((item) => item.id === row.id)
-            ? prev.map((item) => item.id === row.id ? { ...item, ...row } : item)
-            : [row, ...prev];
-          return next.sort((a, b) => new Date(b.last_message_at || b.created_at || 0).getTime() - new Date(a.last_message_at || a.created_at || 0).getTime());
-        });
-        if (selected?.id === row.id) setSelected((prev: any) => prev ? { ...prev, ...row } : prev);
-      })
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "support_messages" }, (payload) => {
-        const row = payload.new as any;
-        scheduleLoadConversations();
-        if (row.conversation_id === selected?.id) {
-          loadMessages(row.conversation_id);
-        }
-      })
-      .subscribe((status) => {
-        if (status === "SUBSCRIBED") {
-          scheduleLoadConversations();
-          if (selected?.id) loadMessages(selected.id);
-        }
-      });
-      
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [selected?.id, user?.id, loadConversations, loadMessages, scheduleLoadConversations]);
+    // Support inbox realtime DISABLED — re-enable when support messaging is reactivated
+  }, [user?.id]);
 
 useEffect(() => {
     if (!selected?.id) return;

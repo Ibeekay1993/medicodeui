@@ -13,6 +13,7 @@ import {
   Loader2,
   Building2,
   UserCheck,
+  Eye,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -134,11 +135,45 @@ export const PostReviewTemplates = React.memo(function PostReviewTemplates({
 
   const getRequestingHospitalPhone = async () => {
     const senderPhone = await getRequestSenderPhone();
-    // The authenticated sender is the authoritative recipient for this request.
-    // It may no longer be present in the hospital's current contact list.
     if (senderPhone) return senderPhone;
-    // Non-WhatsApp requests have no trustworthy sender. Never select a hospital
-    // contact automatically; the reviewer must choose or enter the recipient.
+
+    const hospitalId = request?.requesting_hospital_id || request?.hospital_id;
+    if (hospitalId) {
+      try {
+        const { data: contact } = await supabase
+          .from("hospital_whatsapp_contacts" as any)
+          .select("phone_number")
+          .eq("hospital_id", hospitalId)
+          .eq("status", "active")
+          .order("updated_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (contact?.phone_number) return formatPhoneNumber(contact.phone_number);
+
+        const { data: hosp } = await supabase
+          .from("hospitals")
+          .select("phone")
+          .eq("id", hospitalId)
+          .maybeSingle();
+        if (hosp?.phone) return formatPhoneNumber(hosp.phone);
+      } catch (e) {
+        console.warn("Could not resolve hospital phone from database:", e);
+      }
+    }
+
+    if (request?.hospital_name) {
+      try {
+        const { data: hosp } = await supabase
+          .from("hospitals")
+          .select("phone")
+          .ilike("name", String(request.hospital_name).trim())
+          .maybeSingle();
+        if (hosp?.phone) return formatPhoneNumber(hosp.phone);
+      } catch (e) {
+        console.warn("Could not resolve hospital phone by name:", e);
+      }
+    }
+
     return "";
   };
 
@@ -172,18 +207,36 @@ export const PostReviewTemplates = React.memo(function PostReviewTemplates({
     Promise.all([
       getRequestingHospitalPhone(),
       !isWhatsAppRequest()
-        ? supabase
-            .from("hospital_whatsapp_contacts")
-            .select("phone_number,contact_name,hospital_id")
-            .eq("status", "active")
-            .order("updated_at", { ascending: false })
-        : Promise.resolve({ data: [], error: null }),
+        ? Promise.all([
+            supabase
+              .from("hospital_whatsapp_contacts")
+              .select("phone_number,contact_name,hospital_id")
+              .eq("status", "active")
+              .order("updated_at", { ascending: false }),
+            supabase
+              .from("hospitals")
+              .select("id, name, phone")
+              .not("phone", "is", null)
+              .order("name"),
+          ])
+        : Promise.resolve([{ data: [], error: null }, { data: [], error: null }]),
     ])
-      .then(([phoneResult, contactsResult]) => {
-        if (contactsResult.error) throw contactsResult.error;
+      .then(([phoneResult, [contactsResult, hospitalsResult]]) => {
+        if (contactsResult?.error) console.warn("Contacts query warning:", contactsResult.error);
         if (!cancelled) {
-          setHospitalPhone(phoneResult);
-          setHospitalContacts((contactsResult.data || []).filter((contact) => contact.phone_number));
+          if (phoneResult) {
+            setHospitalPhone(phoneResult);
+          }
+          const allContacts: Array<{ phone_number: string; contact_name?: string | null; hospital_id?: string | null }> = [];
+          (contactsResult?.data || []).forEach((c: any) => {
+            if (c.phone_number) allContacts.push(c);
+          });
+          (hospitalsResult?.data || []).forEach((h: any) => {
+            if (h.phone && !allContacts.some((existing) => existing.phone_number === h.phone)) {
+              allContacts.push({ phone_number: h.phone, contact_name: h.name, hospital_id: h.id });
+            }
+          });
+          setHospitalContacts(allContacts);
         }
       })
       .catch((error) => {
@@ -397,7 +450,7 @@ export const PostReviewTemplates = React.memo(function PostReviewTemplates({
                 })
               ) : (
                 <p className="px-3 py-2 text-xs font-semibold text-slate-600 break-words bg-white/40">
-                  {approvalResult.treatment}
+                  {approvalResult.treatment?.trim() || request?.treatment?.trim() || "Approved as prescribed"}
                 </p>
               )}
             </div>
@@ -405,7 +458,17 @@ export const PostReviewTemplates = React.memo(function PostReviewTemplates({
 
           <p className="flex flex-wrap justify-between gap-1 border-b border-slate-100 pb-2.5">
             <strong className="text-slate-500 uppercase tracking-wider text-xs">Total Approved:</strong>
-            <span className="font-black text-emerald-700 text-sm">{formatNaira(approvalResult.totalAmount)}</span>
+            <span className="font-black text-emerald-700 text-sm">
+              {formatNaira(
+                (approvalResult.items.length
+                  ? approvalResult.items
+                      .filter((i) => !i.declined)
+                      .reduce((sum, i) => sum + itemTotal(i), 0)
+                  : 0) ||
+                approvalResult.totalAmount ||
+                Number(request?.total_amount || request?.approved_tariff_amount || 0)
+              )}
+            </span>
           </p>
           <p className="flex flex-wrap justify-between gap-1 pb-1">
             <strong className="text-slate-500 uppercase tracking-wider text-xs">Registry Date:</strong>
@@ -485,7 +548,7 @@ export const PostReviewTemplates = React.memo(function PostReviewTemplates({
             onClick={() => setApprovalResult(null)}
             className="flex-1 h-12 rounded-xl border-slate-200 hover:bg-slate-50 font-black gap-1.5 text-xs uppercase tracking-wider"
           >
-            <Sparkles className="w-4 h-4 text-primary" /> Modify Record
+            <Eye className="w-4 h-4 text-primary" /> Review Record
           </Button>
           <Button
             variant="ghost"
@@ -600,7 +663,7 @@ export const PostReviewTemplates = React.memo(function PostReviewTemplates({
             onClick={() => setDeclineResult(null)}
             className="flex-1 h-12 rounded-xl border-slate-200 hover:bg-slate-50 font-black gap-1.5 text-xs uppercase tracking-wider"
           >
-            <Sparkles className="w-4 h-4 text-primary" /> Modify Record
+            <Eye className="w-4 h-4 text-primary" /> Review Record
           </Button>
           <Button
             variant="ghost"

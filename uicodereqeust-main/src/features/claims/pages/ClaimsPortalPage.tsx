@@ -32,6 +32,11 @@ export default function ClaimsPortalPage() {
   const [isMobileDetailOpen, setIsMobileDetailOpen] = useState(false);
   const [page, setPage] = useState(1);
   const pageSize = 30;
+
+  useEffect(() => {
+    setPage(1);
+  }, [selectedHospitalId, statusTab, debouncedSearchTerm]);
+
   const { data: claimsData, isLoading: loading, refetch: refresh, isError, error } = useClaimsQuery({
     selectedHospitalId,
     statusTab,

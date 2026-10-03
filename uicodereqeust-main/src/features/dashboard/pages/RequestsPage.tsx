@@ -1,4 +1,5 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
@@ -36,6 +37,8 @@ export default function RequestsPage() {
   const isClaimsRole = role === "claims";
   
   const queryClient = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const reviewIdFromUrl = searchParams.get("review");
   const [search, setSearch] = useState(() => sessionStorage.getItem("req_search") || "");
   const [selectedRequest, setSelectedRequest] = useState<any | null>(null);
   const [statusFilter, setStatusFilter] = useState(() => sessionStorage.getItem("req_status_filter") || "action_required");
@@ -51,6 +54,9 @@ export default function RequestsPage() {
   const [otpValues, setOtpValues] = useState<Record<string, string>>({});
   const [otpLoading, setOtpLoading] = useState<Record<string, boolean>>({});
   const [otpVerifiedStatus, setOtpVerifiedStatus] = useState<Record<string, boolean>>({});
+  // Tracks IDs already fetched this session — prevents the OTP effect from re-fetching
+  // every time otpValues / otpVerifiedStatus state updates (which previously caused an infinite loop).
+  const fetchedOtpIdsRef = useRef<Set<string>>(new Set());
   const isMobile = useIsMobile();
   const rowsPerPage = isMobile ? 30 : 50;
   const { toast } = useToast();
@@ -73,14 +79,34 @@ export default function RequestsPage() {
 
   const { data, isLoading, refetch: fetchRequests } = useQuery({
     queryKey: ["requests", currentPage, search, statusFilter, rowsPerPage, role],
+    // ✅ Best Practice: Queue always loads once on mount (fixes blank queue after closing modal).
+    // Background polling is eliminated via refetchInterval:false + refetchOnWindowFocus:false.
+    // Decisions inside the modal do NOT re-trigger this query — see handleRequestUpdated.
+    // The queue only re-syncs with the server when the user explicitly closes the modal.
     enabled: Boolean(role),
-    // Realtime normally refreshes this query immediately; polling is a bounded
-    // recovery path for missed websocket events or transient connections.
-    refetchInterval: 30 * 1000,
+    refetchInterval: false,
+    refetchOnWindowFocus: false,
+    staleTime: 30_000, // treat data as fresh for 30 s — avoids redundant refetch if modal closes quickly
     queryFn: async () => {
       const from = (currentPage - 1) * rowsPerPage;
       const to = from + rowsPerPage - 1;
-      let q = supabase.from("authorization_requests").select("*", { count: "estimated" }).order("updated_at", { ascending: false });
+      let q = supabase
+        .from("authorization_requests")
+        .select(
+          // Only columns needed for list rendering — heavy JSON fields (approved_items,
+          // clinical_notes, decision_reason) are loaded on-demand when the modal opens.
+          "id,request_id,patient_name,policy_number,diagnosis,status,source," +
+          "hospital_name,requesting_hospital_name,referred_hospital_name," +
+          "authorization_code,urgency,created_at,updated_at,decided_at," +
+          "treatment_submitted_at,approved_by,decided_by,nurse_initials," +
+          "authorized_by_name,authorized_by_email,claiming_hospital_name," +
+          "referring_hospital_name,is_historical,is_unlocked," +
+          "deletion_status,patient_phone,patient_email," +
+          "hospital_id,requesting_hospital_id,referred_hospital_id,claiming_hospital_id," +
+          "treatment,decision_reason,clinical_notes,total_amount,approved_tariff_amount,approved_items",
+          { count: "exact" }
+        )
+        .order("updated_at", { ascending: false });
       if (search) q = q.or(`patient_name.ilike.%${search}%,policy_number.ilike.%${search}%,request_id.ilike.%${search}%,authorization_code.ilike.%${search}%`);
       if (statusFilter === "action_required") {
         q = q.in("status", ["pending", "pending_referral", "pending_authorization", "info_provided"]);
@@ -128,28 +154,173 @@ export default function RequestsPage() {
   const totalCount = data?.count || 0;
   const approverNames = data?.approverNames || {};
 
-  useTabVisibilityRefresh(() => fetchRequests());
+  // Synchronize review modal with URL (?review=<id>) so modal survives browser refresh
+  useEffect(() => {
+    if (!reviewIdFromUrl) {
+      if (selectedRequest) setSelectedRequest(null);
+      return;
+    }
+    if (selectedRequest?.id === reviewIdFromUrl) return;
 
-  // Fetch OTP values and verification statuses for pending/approved requests that have patient_email
+    // Check if item is already present in loaded rows
+    const cachedItem = requests.find((r: any) => r.id === reviewIdFromUrl);
+    if (cachedItem) {
+      setSelectedRequest(cachedItem);
+      return;
+    }
+
+    // If not in loaded page, fetch the single request by ID directly from DB
+    supabase
+      .from("authorization_requests")
+      .select("*")
+      .eq("id", reviewIdFromUrl)
+      .maybeSingle()
+      .then(({ data, error }) => {
+        if (!error && data) {
+          setSelectedRequest(data);
+        }
+      });
+  }, [reviewIdFromUrl, requests, selectedRequest?.id]);
+
+  const handleSelectRequest = (r: any) => {
+    // 1. Open the modal immediately with the lightweight row — fast, no spinner.
+    setSelectedRequest(r);
+    if (r?.id) {
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.set("review", r.id);
+        return next;
+      }, { replace: true });
+
+      // 2. Immediately fetch the full row (select *) in the background.
+      //    The queue query only selects a lightweight column set for list rendering,
+      //    so heavy fields (approved_items, treatment_plan, clinical_notes, etc.)
+      //    are absent from `r`. This fetch supplies them to the modal within milliseconds.
+      supabase
+        .from("authorization_requests")
+        .select("*")
+        .eq("id", r.id)
+        .maybeSingle()
+        .then(({ data }) => {
+          if (data) setSelectedRequest(data);
+        });
+    }
+  };
+
+  const handleCloseReview = () => {
+    setSelectedRequest(null);
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete("review");
+      return next;
+    }, { replace: true });
+    // ✅ Best Practice: sync the queue with the server ONLY when the user closes the modal.
+    // This is the single point where fresh queue data is needed — NOT during decisions inside the modal.
+    queryClient.invalidateQueries({ queryKey: ["requests"] });
+  };
+
+  const handleRequestUpdated = () => {
+    // ✅ Best Practice: when a decision is made inside the modal (Approve / Decline / Defer),
+    // we DO NOT invalidate the entire 50-row queue. Instead we:
+    //   1. Re-fetch ONLY the single open request from the DB (1 lightweight query).
+    //   2. Update it in-place in the React Query cache so the queue table reflects the change if visible.
+    // The full queue server-sync happens only when the user closes the modal (handleCloseReview).
+    if (selectedRequest?.id) {
+      const openId = selectedRequest.id;
+      supabase
+        .from("authorization_requests")
+        .select("*")
+        .eq("id", openId)
+        .maybeSingle()
+        .then(({ data }) => {
+          if (data) {
+            // Update the open modal state
+            setSelectedRequest(data);
+            // Patch the item in-place inside the cached queue list (zero extra DB call)
+            queryClient.setQueriesData(
+              { queryKey: ["requests"] },
+              (oldData: any) => {
+                if (!oldData?.rows) return oldData;
+                return {
+                  ...oldData,
+                  rows: oldData.rows.map((row: any) =>
+                    row.id === openId ? { ...row, ...data } : row
+                  ),
+                };
+              }
+            );
+          }
+        });
+    }
+  };
+
+  useTabVisibilityRefresh(() => {
+    if (!selectedRequest) {
+      fetchRequests();
+    }
+  });
+
+  // ✅ Fix: Fetch OTP for the single open request whenever the modal opens.
+  // This covers the case where the user loads directly from ?review=<id> (URL deep-link or page refresh)
+  // — in that scenario the bulk OTP effect never ran because requests[] was empty.
+  useEffect(() => {
+    if (!selectedRequest?.id) return;
+    if (role !== "utilization_manager" && role !== "admin" && role !== "hospital") return;
+    // Skip if already fetched
+    if (fetchedOtpIdsRef.current.has(selectedRequest.id)) return;
+
+    const id = selectedRequest.id;
+    fetchedOtpIdsRef.current.add(id);
+
+    supabase.rpc("get_otp_value" as any, { p_request_id: id }).then(({ data, error }) => {
+      if (!error && data) {
+        const otpRow = Array.isArray(data) ? data[0] : data;
+        if (otpRow) {
+          if (role === "utilization_manager" || role === "admin") {
+            if (otpRow.otp_value) {
+              setOtpValues(prev => ({ ...prev, [id]: otpRow.otp_value }));
+              if (otpRow.verified || !!otpRow.consumed_at) {
+                setOtpVerifiedStatus(prev => ({ ...prev, [id]: true }));
+              }
+            }
+          } else if (role === "hospital") {
+            setOtpVerifiedStatus(prev => ({
+              ...prev,
+              [id]: otpRow.verified || !!otpRow.consumed_at,
+            }));
+          }
+        }
+      }
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedRequest?.id, role]); // fetchedOtpIdsRef intentionally omitted (ref, stable)
+
+  // Fetch OTP values and verification statuses for relevant requests.
+  // IMPORTANT: otpValues and otpVerifiedStatus must NOT be in the dependency array —
+  // they update on every fetch which would create an infinite re-fetch loop.
+  // We use fetchedOtpIdsRef to ensure each ID is fetched at most once per page load.
   useEffect(() => {
     if (!Array.isArray(requests) || !requests.length || !role || role === "claims") return;
-    
+
     const requestsToFetch = requests.filter(r => {
+      // Skip if already fetched or currently loading
+      if (fetchedOtpIdsRef.current.has(r.id)) return false;
       if (otpLoading[r.id]) return false;
-      
+
       if (role === "utilization_manager" || role === "admin") {
-        return ["pending", "pending_referral", "pending_authorization", "info_provided", "approved", "referral_approved", "referral_accepted"].includes(r.status) && !otpValues[r.id];
+        return ["pending", "pending_referral", "pending_authorization", "info_provided", "approved", "referral_approved", "referral_accepted"].includes(r.status);
       }
-      
       if (role === "hospital") {
-        return r.status === "approved" && otpVerifiedStatus[r.id] === undefined;
+        return r.status === "approved";
       }
-      
       return false;
     });
-    
+
     if (requestsToFetch.length === 0) return;
-    
+
+    // Mark all as fetched immediately so rapid re-renders don't trigger duplicate calls
+    requestsToFetch.forEach(r => fetchedOtpIdsRef.current.add(r.id));
+
     const fetchOtps = async () => {
       const updates: Record<string, boolean> = {};
       requestsToFetch.forEach(r => updates[r.id] = true);
@@ -168,22 +339,16 @@ export default function RequestsPage() {
             data.forEach((row: any) => {
               if (row.otp_value && row.authorization_id) {
                 newValues[row.authorization_id] = row.otp_value;
-                if (row.verified) {
-                  newVerified[row.authorization_id] = true;
-                }
+                if (row.verified) newVerified[row.authorization_id] = true;
               }
             });
-            if (Object.keys(newValues).length > 0) {
-              setOtpValues(prev => ({ ...prev, ...newValues }));
-            }
-            if (Object.keys(newVerified).length > 0) {
-              setOtpVerifiedStatus(prev => ({ ...prev, ...newVerified }));
-            }
+            if (Object.keys(newValues).length > 0) setOtpValues(prev => ({ ...prev, ...newValues }));
+            if (Object.keys(newVerified).length > 0) setOtpVerifiedStatus(prev => ({ ...prev, ...newVerified }));
             return;
           }
         }
-        
-        // Fallback for batch fetch failure, OR normal execution for hospitals
+
+        // Fallback: individual fetch (for hospitals or batch failure)
         await Promise.all(
           requestsToFetch.map(async (r) => {
             try {
@@ -201,15 +366,16 @@ export default function RequestsPage() {
                       }
                     }
                   } else if (role === "hospital") {
-                    setOtpVerifiedStatus(prev => ({ 
-                      ...prev, 
-                      [r.id]: otpRow.verified || !!otpRow.consumed_at 
+                    setOtpVerifiedStatus(prev => ({
+                      ...prev,
+                      [r.id]: otpRow.verified || !!otpRow.consumed_at,
                     }));
                   }
                 }
               }
             } catch {
-              // Silently fail individual fetch
+              // Silently fail individual fetch — remove from ref so it can retry next page load
+              fetchedOtpIdsRef.current.delete(r.id);
             }
           })
         );
@@ -219,9 +385,10 @@ export default function RequestsPage() {
         setOtpLoading(prev => ({ ...prev, ...loadingReset }));
       }
     };
-    
+
     fetchOtps().catch((err) => console.error("fetchOtps error:", err));
-  }, [requests, role, otpValues, otpVerifiedStatus]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [requests, role]); // otpValues & otpVerifiedStatus intentionally omitted — see comment above
 
   const executeDelete = async () => {
     if (!deleteTarget || deleteConfirmText.trim() !== "DELETE") return;
@@ -314,7 +481,7 @@ export default function RequestsPage() {
           otpValues={otpValues}
           otpLoading={otpLoading}
           otpVerifiedStatus={otpVerifiedStatus}
-          onSelectRequest={setSelectedRequest}
+          onSelectRequest={handleSelectRequest}
           onDeleteRequest={setDeleteTarget}
           setOtpVerifiedStatus={setOtpVerifiedStatus}
           isLoading={isLoading}
@@ -339,8 +506,8 @@ export default function RequestsPage() {
       <ReviewModal 
         request={selectedRequest} 
         open={!!selectedRequest} 
-        onClose={() => setSelectedRequest(null)} 
-        onUpdated={() => fetchRequests(currentPage)} 
+        onClose={handleCloseReview} 
+        onUpdated={handleRequestUpdated} 
         otpValue={selectedRequest ? otpValues[selectedRequest.id] : undefined}
       />
 

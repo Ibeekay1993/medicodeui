@@ -26,8 +26,17 @@ export default defineConfig(() => ({
             if (id.includes("recharts") || id.includes("d3")) {
               return "vendor-charts";
             }
-            if (id.includes("xlsx")) {
-              return "vendor-xlsx";
+            if (id.includes("xlsx") || id.includes("exceljs")) {
+              return "vendor-excel";
+            }
+            if (id.includes("file-saver")) {
+              return "vendor-filesaver";
+            }
+            if (id.includes("@tanstack/react-query")) {
+              return "vendor-query";
+            }
+            if (id.includes("@radix-ui")) {
+              return "vendor-radix";
             }
             if (id.includes("@supabase") || id.includes("supabase-js")) {
               return "vendor-supabase";
@@ -35,7 +44,7 @@ export default defineConfig(() => ({
             if (id.includes("lucide-react")) {
               return "vendor-icons";
             }
-            if (id.includes("react-dom") || id.includes("react-router-dom")) {
+            if (id.includes("react-dom") || id.includes("react-router-dom") || id.includes("react/")) {
               return "vendor-react";
             }
           }

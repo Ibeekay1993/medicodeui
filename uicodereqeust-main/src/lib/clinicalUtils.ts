@@ -41,7 +41,11 @@ export function cleanPatientName(name: string) {
   if (!name) return "";
   return name
     .split(/diagnosis/i)[0]
-    .replace(/[:\-]/g, "")
+    .replace(/\b(null|nil|none|undefined|n\/a|na)\b/gi, "")
+    .replace(/\b(mr|mrs|ms|miss|dr|prof|master|chief|alhaji|alhaja|pastor|rev|nurse|pharm)\b\.?/gi, "")
+    .replace(/\b0[789][01]\d{8}\b/g, "") // Nigerian 11-digit phone numbers
+    .replace(/\b\d{7,}\b/g, "") // Any long digit sequence/phone
+    .replace(/[:\-_,]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -67,20 +71,37 @@ export function normalizePolicyNumber(value: unknown) {
 
 export function normalizePolicyRoot(value: unknown) {
   const raw = String(value ?? "").trim();
-  const base = raw.replace(/[-_]\d*$/, "");
+  if (!raw) return "";
+  
+  // Extract core numeric sequence if 4+ digits (e.g. 2173573-1 -> 2173573, OY/2173573/01 -> 2173573)
+  const numMatch = raw.match(/([0-9]{4,12})/);
+  if (numMatch) {
+    return numMatch[1];
+  }
+  
+  const base = raw.replace(/[-_/]\d*$/, "");
   return normalizePolicyNumber(base);
 }
 
 export function recordMatchesPolicy(record: any, policy: string) {
-  const recordRawPolicy = String(record?.policy_number || record?.nhis_no || record?.plan_code || "");
+  const recordRawPolicy = String(record?.policy_number || record?.nhis_no || record?.plan_code || "").trim();
+  if (!recordRawPolicy && !policy) return false;
+
   const recordPolicy = normalizePolicyNumber(recordRawPolicy);
   const normalizedPolicy = normalizePolicyNumber(policy);
   const recordRoot = normalizePolicyRoot(recordRawPolicy);
   const policyRoot = normalizePolicyRoot(policy);
 
-  if (!recordPolicy || !normalizedPolicy) return false;
-  if (recordPolicy === normalizedPolicy) return true;
+  if (recordPolicy && normalizedPolicy && recordPolicy === normalizedPolicy) return true;
   if (recordRoot && policyRoot && recordRoot === policyRoot) return true;
+  if (recordPolicy && policyRoot && (recordPolicy.startsWith(policyRoot) || recordPolicy.includes(policyRoot))) return true;
+  if (normalizedPolicy && recordRoot && (normalizedPolicy.startsWith(recordRoot) || normalizedPolicy.includes(recordRoot))) return true;
+
+  // Name fallback match for same patient if policy numbers are slightly dissimilar
+  const recordName = normalizePatientNameForMatch(record?.patient_name || record?.name);
+  const targetName = normalizePatientNameForMatch(record?.target_patient_name || policy);
+  if (recordName && targetName && recordName === targetName) return true;
+
   return false;
 }
 
@@ -89,12 +110,14 @@ export function recordMatchesHistory(record: any, policy: string) {
 }
 
 export function normalizePatientNameForMatch(value: unknown) {
-  return cleanPatientName(String(value ?? ""))
+  const cleaned = cleanPatientName(String(value ?? ""))
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, " ")
-    .trim()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .trim();
+
+  return cleaned
     .split(/\s+/)
-    .filter(Boolean)
+    .filter(w => w.length >= 2 && !["null", "nil", "none", "na", "undefined"].includes(w))
     .sort()
     .join(" ");
 }

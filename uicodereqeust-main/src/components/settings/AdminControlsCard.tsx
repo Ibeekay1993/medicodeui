@@ -1,13 +1,14 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Lock, ToggleLeft, ToggleRight, FileSpreadsheet, Mail, Play, Loader2 } from "lucide-react";
+import { Lock, FileSpreadsheet, Mail, Play, Loader2, ShieldAlert, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface AdminControlsCardProps {
@@ -143,150 +144,143 @@ export default function AdminControlsCard({ user }: AdminControlsCardProps) {
   };
 
   return (
-    <Card className="rounded-xl border-slate-100 bg-white shadow-sm overflow-hidden">
-      <CardHeader className="px-4 py-2.5 border-b border-slate-50 bg-slate-50/50">
-        <CardTitle className="text-xs font-black uppercase tracking-widest text-slate-400">
-          Administrative Controls
-        </CardTitle>
+    <Card className="rounded-2xl border border-slate-200/80 bg-white shadow-sm overflow-hidden transition-all">
+      <CardHeader className="p-4 sm:p-5 border-b border-slate-100 bg-slate-50/50">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-900 text-white shrink-0">
+            <Lock className="h-5 w-5" />
+          </div>
+          <div>
+            <CardTitle className="text-sm sm:text-base font-bold text-slate-900 leading-tight">
+              Administrative Controls
+            </CardTitle>
+            <CardDescription className="text-xs text-slate-500 mt-0.5">
+              Global system security policies and scheduled reporting
+            </CardDescription>
+          </div>
+        </div>
       </CardHeader>
-      <CardContent className="p-0 divide-y divide-slate-50">
-        {/* MFA Policy row */}
-        <div className="flex items-center justify-between gap-4 px-4 py-3">
-          <div className="flex items-center gap-3 min-w-0">
-            <div
-              className={cn(
-                "h-7 w-7 rounded-lg flex items-center justify-center shrink-0",
-                enforceMfaPolicy ? "bg-rose-50 text-rose-500" : "bg-slate-50 text-slate-400"
-              )}
-            >
-              <Lock className="h-3.5 w-3.5" />
-            </div>
-            <div className="min-w-0">
-              <div className="text-xs font-black uppercase text-slate-700 flex items-center gap-2">
+
+      <CardContent className="p-4 sm:p-5 space-y-4">
+        {/* Row 1: MFA Policy */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-4 rounded-xl bg-slate-50/90 border border-slate-100">
+          <div className="space-y-1 flex-1 pr-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs sm:text-sm font-bold text-slate-900">
                 Global MFA Enforcement
-                <Badge
-                  className={cn(
-                    "border-none text-xs font-black uppercase py-0 px-1.5",
-                    enforceMfaPolicy ? "bg-rose-50 text-rose-600 animate-pulse" : "bg-slate-100 text-slate-500"
-                  )}
-                >
-                  {enforceMfaPolicy ? "ENFORCED" : "OPTIONAL"}
-                </Badge>
-              </div>
-              <p className="text-xs font-medium text-slate-400 truncate">
-                Forces all admin roles to activate 2FA before accessing the dashboard
-              </p>
+              </span>
+              <Badge
+                className={cn(
+                  "text-[10px] font-bold py-0.5 px-2",
+                  enforceMfaPolicy ? "bg-rose-100 text-rose-700 border-rose-200" : "bg-slate-200 text-slate-700 border-slate-300"
+                )}
+                variant="outline"
+              >
+                {enforceMfaPolicy ? "ENFORCED" : "OPTIONAL"}
+              </Badge>
             </div>
+            <p className="text-xs text-slate-500 leading-relaxed">
+              Forces all admin and manager roles to activate 2FA before accessing portal dashboards.
+            </p>
           </div>
-          <Button
-            onClick={handleToggleMfaPolicy}
-            disabled={savingPolicy}
-            className={cn(
-              "h-8 px-4 shrink-0 rounded-lg text-xs font-black uppercase tracking-widest transition-all gap-1.5",
-              enforceMfaPolicy ? "bg-rose-600 hover:bg-rose-700 text-white" : "bg-slate-900 hover:bg-black text-white"
-            )}
-          >
-            {savingPolicy ? (
-              <Loader2 className="h-3 w-3 animate-spin" />
-            ) : enforceMfaPolicy ? (
-              <>
-                <ToggleRight className="h-4 w-4" />
-                Disable
-              </>
-            ) : (
-              <>
-                <ToggleLeft className="h-4 w-4" />
-                Enable
-              </>
-            )}
-          </Button>
-        </div>
-
-        {/* Daily report toggle row */}
-        <div className="flex items-center justify-between gap-4 px-4 py-3">
-          <div className="flex items-center gap-3 min-w-0">
-            <div
+          <div className="w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-200/60 flex justify-end">
+            <Button
+              onClick={handleToggleMfaPolicy}
+              disabled={savingPolicy}
+              size="sm"
               className={cn(
-                "h-7 w-7 rounded-lg flex items-center justify-center shrink-0",
-                reportEnabled ? "bg-emerald-50 text-emerald-500" : "bg-slate-50 text-slate-400"
+                "w-full sm:w-auto h-9 px-4 text-xs font-semibold shadow-sm transition-all",
+                enforceMfaPolicy ? "bg-rose-600 hover:bg-rose-700 text-white" : "bg-slate-900 hover:bg-black text-white"
               )}
             >
-              <FileSpreadsheet className="h-3.5 w-3.5" />
-            </div>
-            <div className="min-w-0">
-              <div className="text-xs font-black uppercase text-slate-700 flex items-center gap-2">
-                Daily Pre-Auth Email Report
-                <Badge
-                  className={cn(
-                    "border-none text-xs font-black uppercase py-0 px-1.5",
-                    reportEnabled ? "bg-emerald-50 text-emerald-600 animate-pulse" : "bg-slate-100 text-slate-500"
-                  )}
-                >
-                  {reportEnabled ? "ACTIVE" : "PAUSED"}
-                </Badge>
-              </div>
-              <p className="text-xs font-medium text-slate-400">
-                Sends CSV summary to recipient email at 12:00 AM WAT daily
-              </p>
-            </div>
+              {savingPolicy ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : enforceMfaPolicy ? (
+                "Disable Policy"
+              ) : (
+                "Enable Policy"
+              )}
+            </Button>
           </div>
-          <Button
-            onClick={() => setReportEnabled(!reportEnabled)}
-            variant="ghost"
-            className="h-8 px-3 shrink-0 rounded-lg text-xs font-black uppercase tracking-widest border border-slate-100 gap-1.5 hover:bg-slate-50"
-          >
-            {reportEnabled ? (
-              <>
-                <ToggleRight className="h-4 w-4 text-emerald-600" />
-                On
-              </>
-            ) : (
-              <>
-                <ToggleLeft className="h-4 w-4 text-slate-400" />
-                Off
-              </>
-            )}
-          </Button>
         </div>
 
-        {/* Email input + actions row */}
-        <div className="flex items-center gap-3 px-4 py-3">
-          <div className="h-7 w-7 rounded-lg bg-slate-50 flex items-center justify-center shrink-0">
-            <Mail className="h-3.5 w-3.5 text-slate-400" />
+        {/* Row 2: Daily Pre-Auth Report Toggle */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-4 rounded-xl bg-slate-50/90 border border-slate-100">
+          <div className="space-y-1 flex-1 pr-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs sm:text-sm font-bold text-slate-900">
+                Daily Pre-Auth Email Report
+              </span>
+              <Badge
+                className={cn(
+                  "text-[10px] font-bold py-0.5 px-2",
+                  reportEnabled ? "bg-emerald-100 text-emerald-800 border-emerald-200" : "bg-slate-200 text-slate-700 border-slate-300"
+                )}
+                variant="outline"
+              >
+                {reportEnabled ? "ACTIVE" : "PAUSED"}
+              </Badge>
+            </div>
+            <p className="text-xs text-slate-500 leading-relaxed">
+              Dispatches automated CSV summaries of daily authorization codes at 12:00 AM WAT.
+            </p>
           </div>
-          <div className="flex-1 min-w-0">
-            <Label className="text-xs font-black uppercase text-slate-400">Recipient Email</Label>
-            <Input
-              type="email"
-              placeholder="enter email address"
-              value={reportEmail}
-              onChange={(e) => setReportEmail(e.target.value)}
-              className="h-8 mt-1 rounded-lg text-xs font-bold bg-slate-50 border-none"
+          <div className="w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-200/60 flex items-center justify-between sm:justify-end gap-3">
+            <span className="text-xs font-semibold text-slate-600 sm:hidden">
+              {reportEnabled ? "Active" : "Paused"}
+            </span>
+            <Switch
+              checked={reportEnabled}
+              onCheckedChange={setReportEnabled}
+              className="data-[state=checked]:bg-emerald-600"
+              aria-label="Toggle daily report"
             />
           </div>
-          <div className="flex gap-2 shrink-0">
-            <Button
-              onClick={handleSaveReportSettings}
-              disabled={isSavingSettings}
-              className="h-8 px-4 rounded-lg text-xs font-black uppercase tracking-widest bg-slate-900 hover:bg-black text-white"
-            >
-              {isSavingSettings ? <Loader2 className="h-3 w-3 animate-spin" /> : "Save"}
-            </Button>
-            <Button
-              onClick={handleTriggerReport}
-              disabled={isTriggeringReport}
-              variant="outline"
-              className="h-8 px-4 rounded-lg text-xs font-black uppercase tracking-widest border-slate-200 text-slate-700 hover:bg-slate-50 gap-1"
-            >
-              {isTriggeringReport ? (
-                <Loader2 className="h-3 w-3 animate-spin" />
-              ) : (
-                <>
-                  <Play className="h-3 w-3 fill-current" />
-                  Test
-                </>
-              )}
-            </Button>
+        </div>
+
+        {/* Row 3: Recipient Email Configuration */}
+        <div className="p-4 rounded-xl bg-slate-50/90 border border-slate-100 space-y-3">
+          <div className="flex items-center gap-2">
+            <Mail className="h-4 w-4 text-slate-500" />
+            <Label className="text-xs sm:text-sm font-bold text-slate-900">
+              Report Recipient Email
+            </Label>
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-2.5">
+            <Input
+              type="email"
+              placeholder="e.g. reports@ronsberger.com"
+              value={reportEmail}
+              onChange={(e) => setReportEmail(e.target.value)}
+              className="h-10 rounded-xl text-xs sm:text-sm font-medium bg-white border-slate-200 text-slate-900 flex-1 shadow-sm"
+            />
+            <div className="flex gap-2">
+              <Button
+                onClick={handleSaveReportSettings}
+                disabled={isSavingSettings}
+                size="sm"
+                className="flex-1 sm:flex-none h-10 px-4 text-xs font-semibold bg-slate-900 hover:bg-black text-white shadow-sm"
+              >
+                {isSavingSettings ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Save"}
+              </Button>
+              <Button
+                onClick={handleTriggerReport}
+                disabled={isTriggeringReport}
+                variant="outline"
+                size="sm"
+                className="flex-1 sm:flex-none h-10 px-4 text-xs font-semibold border-slate-300 text-slate-700 bg-white hover:bg-slate-100 gap-1.5 shadow-sm"
+              >
+                {isTriggeringReport ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <>
+                    <Play className="h-3 w-3 fill-current" />
+                    <span>Test Send</span>
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
         </div>
       </CardContent>

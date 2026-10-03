@@ -16,10 +16,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { HospitalReferralField } from "@/components/HospitalReferralField";
-import { AlertTriangle, Building2, ChevronDown, ChevronUp, ChevronRight, Trash2, X, Loader2, Copy, Send } from "lucide-react";
+import { AlertTriangle, Building2, ChevronDown, ChevronUp, ChevronRight, Trash2, X, Loader2, Copy, Send, Lock, Unlock, XCircle, CheckCircle2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { areHospitalNamesMatching } from "@/lib/authorizations-helpers";
 
 
 // Custom Hooks
@@ -33,7 +33,6 @@ import { useClinicalActions } from "@/hooks/clinical/useClinicalActions";
 import { PatientVerifyCard } from "./review/PatientVerifyCard";
 import { TreatmentCart } from "./review/TreatmentCart";
 import { ClinicalHistory } from "./review/ClinicalHistory";
-import { ClinicalActionControls } from "./review/ClinicalActionControls";
 import { PostReviewTemplates } from "./review/PostReviewTemplates";
 
 // Utilities
@@ -42,6 +41,7 @@ import {
   canDeleteRequestRecord,
   recordMatchesHistory,
   normalizePolicyNumber,
+  normalizePatientNameForMatch,
 } from "@/lib/clinicalUtils";
 
 interface ReviewModalProps {
@@ -73,7 +73,7 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
       const policyNo = request.policy_number || "N/A";
       const hospitalName = request.hospital_name || "the hospital";
       const diagnosis = request.diagnosis || "Not specified";
-      const priority = request.priority || "ROUTINE";
+      const priority = request.urgency || "ROUTINE";
       const pin = otpValue || request.auth_code || "";
 
       let itemsText = "";
@@ -162,10 +162,19 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
     }
     let cancelled = false;
     setPrimaryHospitalLoading(true);
-    // Use the same family-policy resolver as patient verification so a
-    // suffixed request policy can still find the principal's hospital.
-    (supabase as any)
-      .rpc("resolve_nhis_family_members", { _policy: requestPolicyNumber })
+    // Fast indexed query instead of slow unindexed RPC to prevent database statement timeouts
+    const root = requestPolicyNumber.includes("-") ? requestPolicyNumber.split("-")[0] : requestPolicyNumber;
+    const conds = [`policy_number.eq.${requestPolicyNumber}`];
+    if (root && root !== requestPolicyNumber) {
+      conds.push(`policy_number.eq.${root}`);
+      conds.push(`policy_number.ilike.${root}-%`);
+    }
+
+    supabase
+      .from("nhis_beneficiaries")
+      .select("id, hcp_name, hcp_code, member_type, policy_number")
+      .or(conds.join(","))
+      .limit(20)
       .then(async ({ data, error }: { data: any[] | null; error: unknown }) => {
         if (error) {
           console.error("Primary hospital family lookup error:", error);
@@ -216,46 +225,45 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
           return;
         }
       }
-      
-      // If no ID or code not found, try looking up by name
+
       const hospitalName = request.hospital_name || request.requesting_hospital_name;
+
+      // If the requesting hospital matches the patient's registered primary hospital, link the HCP code directly
+      if (primaryHospital?.hcp_code && areHospitalNamesMatching(hospitalName, primaryHospital.hcp_name)) {
+        if (!cancelled) {
+          setRequestingHospitalCode(primaryHospital.hcp_code);
+          return;
+        }
+      }
+
+      // If no ID or code not found, try looking up in hospitals table
       if (hospitalName) {
-        const { data } = await supabase.from("hospitals").select("code").ilike("name", `%${hospitalName.trim()}%`).limit(1).maybeSingle();
-        if (!cancelled && data?.code) {
-          setRequestingHospitalCode(data.code);
+        const { data } = await supabase.from("hospitals").select("code, name").limit(100);
+        if (!cancelled && data && data.length > 0) {
+          const match = data.find((h: any) => areHospitalNamesMatching(h.name, hospitalName));
+          if (match?.code) {
+            setRequestingHospitalCode(match.code);
+            return;
+          }
         }
       }
     };
-    
+
     fetchHcpCode();
     return () => { cancelled = true; };
-  }, [open, request]);
+  }, [open, request, primaryHospital?.hcp_code, primaryHospital?.hcp_name]);
 
   // Normalise both hospital names to detect a mismatch
   const requestingHospitalName = String(request?.hospital_name || request?.requesting_hospital_name || "").trim();
-  
-  const cleanHospitalName = (str: string) =>
-    str
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, " ")
-      .replace(/\b(of|ibadan|health|service|services)\b/g, " ")
-      .replace(/\s+/g, " ")
-      .trim();
-  
-  const reqNameLower = cleanHospitalName(requestingHospitalName);
-  const primNameLower = cleanHospitalName(primaryHospital?.hcp_name || "");
-  
+
   const codeMatch = Boolean(
-    requestingHospitalCode && 
-    primaryHospital?.hcp_code && 
+    requestingHospitalCode &&
+    primaryHospital?.hcp_code &&
     requestingHospitalCode === primaryHospital.hcp_code
   );
 
-  const namesMatch = reqNameLower && primNameLower && (
-    reqNameLower === primNameLower ||
-    reqNameLower.includes(primNameLower) ||
-    primNameLower.includes(reqNameLower)
-  );
+  // Use canonical hospital name matching (handles UI, UHS, Jaja Clinic, UCH, etc.)
+  const namesMatch = areHospitalNamesMatching(requestingHospitalName, primaryHospital?.hcp_name);
 
   const primaryHospitalMismatch = Boolean(
     primaryHospital?.hcp_name &&
@@ -321,26 +329,53 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
   const targetPolicy = useMemo(() => normalizePolicyNumber(request?.policy_number), [request]);
   
   const visibleHistory = useMemo(() => {
-    const combined = [...verification.sheetHistory, ...verification.localHistory].filter((record) =>
-      recordMatchesHistory(record, targetPolicy)
-    );
-    return combined.filter((record, index, arr) => {
-      const key = `${record?.request_id || ""}|${record?.authorization_code || ""}|${
-        record?.date || record?.created_at || ""
-      }|${record?.patient_name || ""}`;
-      return (
-        index ===
-        arr.findIndex(
-          (item) =>
-            `${item?.request_id || ""}|${item?.authorization_code || ""}|${
-              item?.date || item?.created_at || ""
-            }|${item?.patient_name || ""}` === key
-        )
-      );
+    const getRecordTime = (r: any) => {
+      const d = r.date || r.decided_at || r.created_at;
+      return d ? new Date(d).getTime() : 0;
+    };
+
+    const combined = [...verification.sheetHistory, ...verification.localHistory].filter((record) => {
+      if (recordMatchesHistory(record, targetPolicy)) return true;
+      if (request?.patient_name && (record?.patient_name || record?.name)) {
+        const reqName = normalizePatientNameForMatch(request.patient_name);
+        const recName = normalizePatientNameForMatch(record.patient_name || record.name);
+        if (reqName && recName && (reqName === recName || reqName.includes(recName) || recName.includes(reqName))) return true;
+      }
+      return false;
     });
+
+    // Robust deduplication: ensure no record with the same auth code or ID is shown twice
+    const seen = new Set<string>();
+    const deduped: any[] = [];
+
+    for (const record of combined) {
+      const authCode = String(record?.authorization_code || "").trim().toUpperCase();
+      const id = String(record?.id || "").trim();
+      const requestId = String(record?.request_id || "").trim();
+
+      // Primary key is the official authorization code; secondary is id/request_id
+      const primaryKey = authCode && !["-", "PENDING", "NONE", "NULL"].includes(authCode)
+        ? `code:${authCode}`
+        : id
+        ? `id:${id}`
+        : requestId
+        ? `req:${requestId}`
+        : `${record?.patient_name || ""}|${record?.date || record?.created_at || ""}|${record?.diagnosis || ""}`;
+
+      if (seen.has(primaryKey)) continue;
+      seen.add(primaryKey);
+      deduped.push(record);
+    }
+
+    // Sort newest first
+    deduped.sort((a, b) => getRecordTime(b) - getRecordTime(a));
+    return deduped;
   }, [verification.sheetHistory, verification.localHistory, targetPolicy]);
 
   const allowDelete = canDeleteRequestRecord(request);
+  const isPending = ["pending", "pending_referral", "pending_authorization", "info_provided"].includes(request?.status || "");
+  const isDecided = !isPending;
+  const isLocked = isDecided && !request?.is_unlocked;
 
   if (!request) return null;
 
@@ -384,30 +419,28 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
               </h2>
               <div className="flex items-center gap-2 mt-1 flex-wrap text-slate-500 text-[11px]">
                 <span>Policy: {requestPolicyNumber || "N/A"}</span>
-                <span className="text-slate-300">&bull;</span>
-                {role !== "hospital" ? (
-                  <span>
-                    {actions.otpLoading ? (
-                      <span className="animate-pulse">Fetching OTPs...</span>
-                    ) : (actions.arrivalOtp || actions.treatmentOtp || otpValue) ? (
-                      <>
-                        {actions.arrivalOtp && (
-                          <span className="tracking-wider">
-                            OTP: {actions.arrivalOtp}
-                            {actions.arrivalOtpVerified && <span className="text-emerald-500 ml-1">✓</span>}
-                          </span>
-                        )}
-                        {!actions.arrivalOtp && !actions.treatmentOtp && otpValue && <span className="tracking-wider">OTP: {otpValue}</span>}
-                      </>
-                    ) : ["pending", "pending_authorization", "pending_referral", "info_provided"].includes(request?.status || "") ? (
-                      <span>OTP: &bull;&bull;&bull;&bull;&bull;&bull;</span>
-                    ) : (
-                      <span>OTP: N/A</span>
-                    )}
-                  </span>
-                ) : (
-                  <span>OTP: —</span>
-                )}
+                {role !== "hospital" && (actions.otpLoading || actions.arrivalOtp || actions.treatmentOtp || otpValue || ["pending", "pending_authorization", "pending_referral", "info_provided"].includes(request?.status || "")) ? (
+                  <>
+                    <span className="text-slate-300">&bull;</span>
+                    <span>
+                      {actions.otpLoading ? (
+                        <span className="animate-pulse">Fetching OTPs...</span>
+                      ) : (actions.arrivalOtp || actions.treatmentOtp || otpValue) ? (
+                        <>
+                          {actions.arrivalOtp && (
+                            <span className="tracking-wider">
+                              OTP: {actions.arrivalOtp}
+                              {actions.arrivalOtpVerified && <span className="text-emerald-500 ml-1">✓</span>}
+                            </span>
+                          )}
+                          {!actions.arrivalOtp && !actions.treatmentOtp && otpValue && <span className="tracking-wider">OTP: {otpValue}</span>}
+                        </>
+                      ) : (
+                        <span>OTP: &bull;&bull;&bull;&bull;&bull;&bull;</span>
+                      )}
+                    </span>
+                  </>
+                ) : null}
               </div>
             </div>
 
@@ -469,19 +502,98 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
             </div>
           ) : (
             <div className="flex justify-center items-center gap-1 sm:gap-2 px-2 sm:px-6 py-2">
-              <div className="flex flex-col items-center gap-1">
-                <div className="w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full bg-white border-[3px] border-slate-800" />
-                <span className="text-[8px] sm:text-[10px] font-bold uppercase tracking-wider text-slate-800">Verify</span>
+              {/* Step 1: Verify */}
+              <div 
+                className="flex flex-col items-center gap-1 cursor-pointer"
+                onClick={() => setActiveTab("verification")}
+              >
+                <div className={cn(
+                  "rounded-full transition-all flex items-center justify-center font-bold text-[9px]",
+                  isDecided
+                    ? "w-3.5 h-3.5 sm:w-4 sm:h-4 bg-emerald-600 text-white"
+                    : activeTab === "verification"
+                    ? "w-3.5 h-3.5 sm:w-4 sm:h-4 bg-white border-[3px] border-slate-900 text-slate-900"
+                    : "w-2.5 h-2.5 sm:w-3 sm:h-3 bg-slate-800"
+                )}>
+                  {isDecided ? "✓" : null}
+                </div>
+                <span className={cn(
+                  "text-[8px] sm:text-[10px] font-bold uppercase tracking-wider",
+                  isDecided
+                    ? "text-emerald-700"
+                    : activeTab === "verification"
+                    ? "text-slate-900"
+                    : "text-slate-500"
+                )}>
+                  Verify
+                </span>
               </div>
-              <div className="w-8 sm:w-10 h-[2px] bg-slate-200 mb-4" />
-              <div className="flex flex-col items-center gap-1">
-                <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-slate-300" />
-                <span className="text-[8px] sm:text-[10px] font-bold uppercase tracking-wider text-slate-400">Review</span>
+
+              {/* Line 1-2 */}
+              <div className={cn(
+                "w-8 sm:w-10 h-[2px] mb-4 transition-colors duration-300",
+                isDecided
+                  ? "bg-emerald-600"
+                  : activeTab === "clinical"
+                  ? "bg-slate-800"
+                  : "bg-slate-200"
+              )} />
+
+              {/* Step 2: Review */}
+              <div 
+                className="flex flex-col items-center gap-1 cursor-pointer"
+                onClick={() => setActiveTab("clinical")}
+              >
+                <div className={cn(
+                  "rounded-full transition-all flex items-center justify-center font-bold text-[9px]",
+                  isDecided
+                    ? "w-3.5 h-3.5 sm:w-4 sm:h-4 bg-emerald-600 text-white"
+                    : activeTab === "clinical"
+                    ? "w-3.5 h-3.5 sm:w-4 sm:h-4 bg-white border-[3px] border-slate-900 text-slate-900"
+                    : "w-2.5 h-2.5 sm:w-3 sm:h-3 bg-slate-300"
+                )}>
+                  {isDecided ? "✓" : null}
+                </div>
+                <span className={cn(
+                  "text-[8px] sm:text-[10px] font-bold uppercase tracking-wider",
+                  isDecided
+                    ? "text-emerald-700"
+                    : activeTab === "clinical"
+                    ? "text-slate-900"
+                    : "text-slate-400"
+                )}>
+                  Review
+                </span>
               </div>
-              <div className="w-8 sm:w-10 h-[2px] bg-slate-200 mb-4" />
+
+              {/* Line 2-3 */}
+              <div className={cn(
+                "w-8 sm:w-10 h-[2px] mb-4 transition-colors duration-300",
+                isDecided
+                  ? (request?.status === "rejected" ? "bg-rose-600" : "bg-emerald-600")
+                  : "bg-slate-200"
+              )} />
+
+              {/* Step 3: Decision */}
               <div className="flex flex-col items-center gap-1">
-                <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-slate-300" />
-                <span className="text-[8px] sm:text-[10px] font-bold uppercase tracking-wider text-slate-400">Decision</span>
+                <div className={cn(
+                  "rounded-full transition-all flex items-center justify-center font-bold text-[9px]",
+                  isDecided
+                    ? (request?.status === "rejected" ? "w-3.5 h-3.5 sm:w-4 sm:h-4 bg-rose-600 text-white" : "w-3.5 h-3.5 sm:w-4 sm:h-4 bg-emerald-600 text-white")
+                    : "w-2.5 h-2.5 sm:w-3 sm:h-3 bg-slate-300"
+                )}>
+                  {isDecided ? (request?.status === "rejected" ? "✗" : "✓") : null}
+                </div>
+                <span className={cn(
+                  "text-[8px] sm:text-[10px] font-bold uppercase tracking-wider",
+                  isDecided
+                    ? (request?.status === "rejected" ? "text-rose-700" : "text-emerald-700")
+                    : "text-slate-400"
+                )}>
+                  {isDecided
+                    ? (request?.status === "rejected" ? "Declined" : request?.status === "partially_approved" ? "Partially Approved" : "Approved")
+                    : "Decision"}
+                </span>
               </div>
             </div>
           )}
@@ -623,6 +735,7 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
                   setHistoryPage={setHistoryPage}
                   requestPatientName={requestPatientName}
                   requestPolicyNumber={requestPolicyNumber}
+                  checking={verification.checking}
                 />
 
                 {/* Tab 1 footer: Close + Next */}
@@ -645,6 +758,73 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
 
               {/* ─── Tab 2: Clinical Review ─── */}
               <TabsContent value="clinical" className="space-y-4 mt-0">
+                {/* Locked status banner */}
+                {isLocked && (
+                  <div className="p-4 rounded-2xl text-xs border bg-slate-100/90 border-slate-200/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-slate-800 shadow-xs animate-in fade-in duration-300">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-9 h-9 rounded-xl bg-slate-200 flex items-center justify-center text-slate-700 shrink-0">
+                        <Lock className="w-4 h-4 text-slate-700" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-black uppercase tracking-wider text-xs text-slate-900 flex items-center gap-2">
+                          <span>Record Locked</span>
+                          <Badge variant="outline" className="text-[10px] font-black uppercase bg-slate-200 text-slate-700 border-0 px-1.5 py-0">
+                            {request?.status?.replace("_", " ")}
+                          </Badge>
+                        </p>
+                        <p className="font-medium text-slate-500 text-[11px] mt-0.5">
+                          This authorization has been decided and is locked for clinical data integrity.
+                          {role === "admin" ? " As an Admin, you can unlock this record to permit amendments or re-decision." : " Only an Administrator can unlock this record."}
+                        </p>
+                      </div>
+                    </div>
+                    {role === "admin" && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={actions.handleUnlockRecord}
+                        disabled={actions.unlockLoading}
+                        className="shrink-0 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-black uppercase tracking-wider gap-1.5 shadow-sm h-9 px-4"
+                      >
+                        {actions.unlockLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Unlock className="w-3.5 h-3.5" />}
+                        Unlock Record
+                      </Button>
+                    )}
+                  </div>
+                )}
+
+                {/* Unlocked status banner */}
+                {isDecided && request?.is_unlocked && (
+                  <div className="p-4 rounded-2xl text-xs border bg-amber-50 border-amber-200/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-amber-950 shadow-xs animate-in fade-in duration-300">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-9 h-9 rounded-xl bg-amber-100 flex items-center justify-center text-amber-800 shrink-0">
+                        <Unlock className="w-4 h-4 text-amber-700" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-black uppercase tracking-wider text-xs text-amber-900">
+                          Record Unlocked for Revision
+                        </p>
+                        <p className="font-medium text-amber-700 text-[11px] mt-0.5">
+                          Amendments are enabled. Submitting an approval or decline will re-lock the record and notify the hospital with the updated details.
+                        </p>
+                      </div>
+                    </div>
+                    {role === "admin" && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={actions.handleLockRecord}
+                        disabled={actions.unlockLoading}
+                        className="shrink-0 rounded-xl border-amber-300 bg-white hover:bg-amber-100 text-amber-900 text-xs font-black uppercase tracking-wider gap-1.5 h-9 px-4"
+                      >
+                        {actions.unlockLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Lock className="w-3.5 h-3.5" />}
+                        Re-lock Record
+                      </Button>
+                    )}
+                  </div>
+                )}
+
                 {/* OTP Banner */}
                 {otpValue && (
                   <div className="bg-emerald-50 rounded-2xl p-4 sm:p-5 mb-4 border border-emerald-200 shadow-sm flex items-center justify-between">
@@ -690,7 +870,9 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
                       Requesting Facility
                     </div>
                     <div className="text-[16px] sm:text-[18px] font-extrabold text-slate-800 mt-2 leading-tight break-words [overflow-wrap:anywhere]">
-                      {requestingHospitalName || "Unknown Hospital"}
+                      {areHospitalNamesMatching(requestingHospitalName, primaryHospital?.hcp_name) && primaryHospital?.hcp_name
+                        ? primaryHospital.hcp_name
+                        : requestingHospitalName || "Unknown Hospital"}
                     </div>
                     {formattedNotes && (
                       <div className="text-[13px] font-medium text-slate-500 mt-1.5 leading-relaxed break-words [overflow-wrap:anywhere]">
@@ -728,11 +910,11 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
                   </div>
                   
                   <textarea 
-                    className="w-full p-3 border border-slate-100 rounded-xl text-[13px] sm:text-[14px] font-bold text-slate-800 bg-slate-50 min-h-[70px] focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                    className="w-full p-3 border border-slate-100 rounded-xl text-[13px] sm:text-[14px] font-bold text-slate-800 bg-slate-50 min-h-[70px] focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-80" 
                     placeholder="Diagnosis..."
                     value={actions.editDiagnosis}
                     onChange={(e) => actions.setEditDiagnosis(e.target.value)}
-                    readOnly={request?.deletion_status === "awaiting_admin_approval" || role === "hospital" || !!request?.referred_hospital_name}
+                    readOnly={isLocked || request?.deletion_status === "awaiting_admin_approval" || role === "hospital" || !!request?.referred_hospital_name}
                   />
 
                   <div className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wide flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100">
@@ -741,15 +923,15 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
                   </div>
                   
                   <textarea 
-                    className="w-full p-3 border border-slate-100 rounded-xl text-[13px] sm:text-[14px] font-bold text-slate-800 bg-slate-50 min-h-[90px] focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                    className="w-full p-3 border border-slate-100 rounded-xl text-[13px] sm:text-[14px] font-bold text-slate-800 bg-slate-50 min-h-[90px] focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-80" 
                     placeholder="Treatment Plan..."
                     value={actions.editTreatment}
                     onChange={(e) => actions.setEditTreatment(e.target.value)}
                     onBlur={() => {
-                      if (role === "hospital" || !(["hospital", "hospital_portal"].includes(role))) return;
+                      if (isLocked || role === "hospital" || !(["hospital", "hospital_portal"].includes(role))) return;
                       void tariffSearch.parseTreatmentText({ replaceAuto: true, quiet: true });
                     }}
-                    readOnly={request?.deletion_status === "awaiting_admin_approval" || role === "hospital"}
+                    readOnly={isLocked || request?.deletion_status === "awaiting_admin_approval" || role === "hospital"}
                   />
                   
                   {/* Referral details container */}
@@ -793,7 +975,7 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
                             actions.setEditReferralHospitalName(next.name);
                           }}
                           helperText="If this is a referral, the authorization code remains visible to the requester, but claim submission and payment belong only to this treating hospital."
-                          disabled={request?.deletion_status === "awaiting_admin_approval" || role === "hospital"}
+                          disabled={isLocked || request?.deletion_status === "awaiting_admin_approval" || role === "hospital"}
                         />
                         {actions.editReferralHospitalName.trim() ? (
                           <div className="rounded-xl border border-slate-100 bg-slate-50 px-3.5 py-2.5 text-[11px] sm:text-[12px] font-bold leading-relaxed text-slate-500 shadow-sm break-words">
@@ -842,7 +1024,9 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
                     approvedItems={tariffSearch.approvedItems}
                     removeApprovedItem={tariffSearch.removeApprovedItem}
                     updateApprovedItem={tariffSearch.updateApprovedItem}
+                    approvedTotal={tariffSearch.approvedTotal}
                     totalApprovedAmount={tariffSearch.approvedTotal}
+                    changeItemQuantity={tariffSearch.changeItemQuantity}
                     role={role}
                     isHmo={role !== "hospital"}
                     editTreatment={actions.editTreatment}
@@ -863,46 +1047,84 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
                     addApprovedItem={tariffSearch.addApprovedItem}
                     cartCollapsed={tariffSearch.cartCollapsed}
                     setCartCollapsed={tariffSearch.setCartCollapsed}
+                    readOnly={isLocked}
                   />
                 </div>
 
                 {/* Decision Section */}
                 <div className="mt-4 mb-2">
-                  <div className="text-[13px] sm:text-[14px] font-extrabold text-slate-800 uppercase tracking-wide mb-3">
-                    Review Decision <span className="text-red-500">*</span>
-                    <span className="text-[11px] text-slate-400 font-normal float-right lowercase normal-case">required</span>
+                  <div className="text-[13px] sm:text-[14px] font-extrabold text-slate-800 uppercase tracking-wide mb-2 flex items-center justify-between">
+                    <span>
+                      {isLocked ? "Decision Note (Saved)" : "Review Decision"} {!isLocked && <span className="text-red-500">*</span>}
+                    </span>
+                    {!isLocked && (
+                      <span className="text-[11px] text-slate-400 font-normal lowercase normal-case">required for decision</span>
+                    )}
                   </div>
                   <textarea 
-                    className="w-full p-3 border border-slate-100 rounded-xl text-[13px] sm:text-[14px] font-bold text-slate-800 bg-slate-50 min-h-[80px] focus:outline-none focus:ring-2 focus:ring-blue-500 mt-2" 
-                    placeholder="Enter reason for approval or decline..."
+                    className="w-full p-3 border border-slate-100 rounded-xl text-[13px] sm:text-[14px] font-bold text-slate-800 bg-slate-50 min-h-[80px] focus:outline-none focus:ring-2 focus:ring-blue-500 mt-1 disabled:opacity-80" 
+                    placeholder={isLocked ? "No decision note recorded" : "Enter reason for approval or decline..."}
                     value={actions.editDecisionNote}
                     onChange={(e) => actions.setEditDecisionNote(e.target.value)}
+                    readOnly={isLocked || request?.deletion_status === "awaiting_admin_approval"}
                   />
                 </div>
 
-                {/* Tab 2 footer: Close + Decline + Approve */}
-                <div className="flex flex-col sm:flex-row sm:items-center gap-2 pt-3 sm:pt-4 border-t border-slate-100">
-                  <Button
-                    variant="outline"
-                    className="w-full sm:w-auto h-11 sm:h-12 px-4 rounded-xl font-black text-[11px] sm:text-xs uppercase tracking-widest border-2 border-slate-200 text-slate-600 hover:bg-slate-50 transition-all sm:flex-shrink-0 sm:min-w-[100px]"
-                    onClick={onClose}
-                  >
-                    Close
-                  </Button>
-                  <Button
-                    className="w-full sm:w-auto sm:flex-1 h-11 sm:h-12 rounded-xl bg-red-600 hover:bg-red-700 text-white text-[11px] sm:text-xs font-black uppercase tracking-widest shadow-md transition-all flex items-center justify-center gap-1.5"
-                    onClick={() => actions.handleDecline(actions.editDecisionNote)}
-                    disabled={actions.processing || !actions.editDecisionNote}
-                  >
-                    {actions.processingAction === "decline" ? <Loader2 className="w-4 h-4 animate-spin" /> : "Decline"}
-                  </Button>
-                  <Button
-                    className="w-full sm:w-auto sm:flex-1 h-11 sm:h-12 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] sm:text-xs font-black uppercase tracking-widest shadow-md transition-all flex items-center justify-center gap-1.5"
-                    onClick={actions.handleApprove}
-                    disabled={actions.processing}
-                  >
-                    {actions.processingAction === "approve" ? <Loader2 className="w-4 h-4 animate-spin" /> : "Approve"}
-                  </Button>
+                {/* Tab 2 footer */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 sm:pt-4 border-t border-slate-100">
+                  <div className="flex items-center gap-2">
+                    {isLocked ? (
+                      <Badge variant="outline" className="px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider bg-slate-100 text-slate-700 border-slate-200 flex items-center gap-1.5">
+                        <Lock className="w-3.5 h-3.5 text-slate-500" /> Record Locked ({request?.status?.replace("_", " ")})
+                      </Badge>
+                    ) : isDecided && request?.is_unlocked ? (
+                      <Badge variant="outline" className="px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider bg-amber-100 text-amber-900 border-amber-300 flex items-center gap-1.5">
+                        <Unlock className="w-3.5 h-3.5 text-amber-700" /> Unlocked for Revision
+                      </Badge>
+                    ) : null}
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto">
+                    <Button
+                      variant="outline"
+                      className="w-full sm:w-auto h-11 sm:h-12 px-6 rounded-xl font-black text-[11px] sm:text-xs uppercase tracking-widest border-2 border-slate-200 text-slate-600 hover:bg-slate-50 transition-all sm:flex-shrink-0 sm:min-w-[100px]"
+                      onClick={onClose}
+                    >
+                      Close
+                    </Button>
+
+                    {isLocked ? (
+                      role === "admin" && (
+                        <Button
+                          onClick={actions.handleUnlockRecord}
+                          disabled={actions.unlockLoading}
+                          className="w-full sm:w-auto h-11 sm:h-12 px-6 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-[11px] sm:text-xs font-black uppercase tracking-widest shadow-md transition-all flex items-center justify-center gap-1.5"
+                        >
+                          {actions.unlockLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Unlock className="w-4 h-4" />}
+                          Unlock Record
+                        </Button>
+                      )
+                    ) : (
+                      <>
+                        <Button
+                          className="w-full sm:w-auto sm:flex-1 h-11 sm:h-12 px-6 rounded-xl bg-red-600 hover:bg-red-700 text-white text-[11px] sm:text-xs font-black uppercase tracking-widest shadow-md transition-all flex items-center justify-center gap-1.5"
+                          onClick={() => actions.handleDecline(actions.editDecisionNote)}
+                          disabled={actions.processing || !actions.editDecisionNote}
+                        >
+                          {actions.processingAction === "decline" ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}
+                          {isDecided ? "Update & Decline" : "Decline"}
+                        </Button>
+                        <Button
+                          className="w-full sm:w-auto sm:flex-1 h-11 sm:h-12 px-6 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] sm:text-xs font-black uppercase tracking-widest shadow-md transition-all flex items-center justify-center gap-1.5"
+                          onClick={actions.handleApprove}
+                          disabled={actions.processing}
+                        >
+                          {actions.processingAction === "approve" ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                          {isDecided ? "Update & Re-Approve" : "Approve"}
+                        </Button>
+                      </>
+                    )}
+                  </div>
                 </div>
               </TabsContent>
             </>

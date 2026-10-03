@@ -21,7 +21,11 @@ import {
   formatPercent,
   buildDateFilter,
   groupByDate,
-  calculateHospitalPerformance
+  calculateHospitalPerformance,
+  calculateApprovedAmount,
+  isApprovedStatus,
+  isRejectedStatus,
+  isPendingStatus,
 } from "@/lib/reports-helpers";
 
 import ReportFilters from "@/components/reports/ReportFilters";
@@ -54,27 +58,11 @@ export default function ReportsPage() {
   const [showHospitalPerformance, setShowHospitalPerformance] = useState(true);
 
   const calculateStats = useCallback((data: PreAuthRecord[]): ReportStats => {
-    const approved = data.filter((r) => ["approved", "referral_approved", "referral_accepted"].includes(r.status));
-    const pending = data.filter((r) => ["pending", "pending_referral", "pending_authorization"].includes(r.status));
-    const rejected = data.filter((r) => ["rejected", "referral_declined", "referral_expired"].includes(r.status));
+    const approved = data.filter((r) => isApprovedStatus(r.status));
+    const pending = data.filter((r) => isPendingStatus(r.status));
+    const rejected = data.filter((r) => isRejectedStatus(r.status));
 
-    const totalRequested = data.reduce((sum, r) => sum + (Number(r.requested_amount) || 0), 0);
     const totalApproved = approved.reduce((sum, r) => sum + (Number(r.approved_amount) || 0), 0);
-    const totalPending = pending.reduce((sum, r) => sum + (Number(r.requested_amount) || 0), 0);
-    
-    // For rejected amount, we should consider records where requested > approved, or explicit rejected_amount
-    const totalRejected = data.reduce((sum, r) => {
-      if (["pending", "pending_referral", "pending_authorization"].includes(r.status?.toLowerCase() || "")) {
-        return sum;
-      }
-      const req = Number(r.requested_amount) || 0;
-      const app = Number(r.approved_amount) || 0;
-      const rejExplicit = Number(r.rejected_amount) || 0;
-      if (rejExplicit > 0) return sum + rejExplicit;
-      
-      const calcRej = Math.max(0, req - app);
-      return sum + calcRej;
-    }, 0);
 
     const processedRecords = data.filter((r) => r.decided_at && r.created_at);
     const avgTime =
@@ -94,10 +82,7 @@ export default function ReportsPage() {
       approvedCodes: approved.length,
       pendingCodes: pending.length,
       rejectedCodes: rejected.length,
-      requestedAmount: totalRequested,
       approvedAmount: totalApproved,
-      pendingAmount: totalPending,
-      rejectedAmount: totalRejected,
       approvalRate: data.length > 0 ? (approved.length / data.length) * 100 : 0,
       rejectionRate: data.length > 0 ? (rejected.length / data.length) * 100 : 0,
       avgProcessingTime: avgTime,
@@ -126,7 +111,7 @@ export default function ReportsPage() {
         }
         if (filters.hospitalFilter !== "all") {
           const hospitalName = hospitals.find((h) => h.id === filters.hospitalFilter)?.name || filters.hospitalFilter;
-          q = q.ilike("requesting_hospital", `%${hospitalName}%`);
+          q = q.ilike("hospital_name", `%${hospitalName}%`);
         }
         if (dateRange.from) q = q.gte("created_at", dateRange.from.toISOString());
         if (dateRange.to) q = q.lte("created_at", dateRange.to.toISOString());
@@ -148,51 +133,6 @@ export default function ReportsPage() {
         }
       }
 
-      if (!mappedStatuses || mappedStatuses.length === 0 || mappedStatuses.includes("approved")) {
-        page = 0;
-        hasMore = true;
-        while (hasMore) {
-          let q = supabase.from("historical_codes").select("*").eq("record_type", "authorization").order("created_at", { ascending: false });
-          
-          if (filters.hospitalFilter !== "all") {
-            const hospitalName = hospitals.find((h) => h.id === filters.hospitalFilter)?.name || filters.hospitalFilter;
-            q = q.ilike("hospital_name", `%${hospitalName}%`);
-          }
-          if (dateRange.from) q = q.gte("legacy_creation_date", dateRange.from.toISOString().split("T")[0]);
-          if (dateRange.to) q = q.lte("legacy_creation_date", dateRange.to.toISOString().split("T")[0]);
-
-          q = q.range(page * pageSize, (page + 1) * pageSize - 1);
-
-          const { data, error } = await q;
-          if (error) {
-            console.error("Error fetching historical codes:", error);
-            break;
-          }
-
-          if (data && data.length > 0) {
-            const mappedHistorical = data.map((h: any) => ({
-              ...h,
-              status: "approved",
-              request_id: h.original_code,
-              phone: h.raw_data?.patient_phone || "",
-              email: h.raw_data?.patient_email || "",
-              diagnosis: h.raw_data?.diagnosis || "",
-              treatment: h.raw_data?.treatment || "",
-              requesting_hospital: h.hospital_name,
-              total_amount: h.raw_data?.requested_amount || 0,
-              approved_amount: h.raw_data?.approved_amount || 0,
-              created_at: h.legacy_creation_date ? new Date(h.legacy_creation_date).toISOString() : h.created_at,
-              decided_at: h.legacy_creation_date ? new Date(h.legacy_creation_date).toISOString() : h.created_at,
-            }));
-            allData = [...allData, ...mappedHistorical];
-            page++;
-            hasMore = data.length === pageSize;
-          } else {
-            hasMore = false;
-          }
-        }
-      }
-
       const mappedRecords: PreAuthRecord[] = (allData || []).map((item: any) => ({
         id: item.id,
         created_at: item.created_at,
@@ -206,11 +146,10 @@ export default function ReportsPage() {
         requesting_hospital: item.requesting_hospital || item.requesting_hospital_name || item.hospital_name || "",
         hospital_id: item.requesting_hospital_id || item.hospital_id,
         source: item.source || "Manual",
-        authorization_code: item.authorization_code || "",
+        authorization_code: item.authorization_code ?? "",
         status: item.status as RequestStatus,
-        requested_amount: item.total_amount || item.requested_amount || 0,
-        approved_amount: item.approved_tariff_amount || item.approved_amount || 0,
-        rejected_amount: item.rejected_amount || 0,
+        approved_amount: calculateApprovedAmount(item),
+        approved_items: Array.isArray(item.approved_items) ? item.approved_items : undefined,
         rejection_reason: item.rejection_reason || item.decision_reason || "",
         decision_reason: item.decision_reason || "",
         decided_at: item.decided_at,
@@ -277,9 +216,14 @@ export default function ReportsPage() {
 
   useTabVisibilityRefresh(fetchAnalytics);
 
-  const exportExcel = async (mode: "detailed" | "full" = "full") => {
+  const exportExcel = async (mode: "detailed" | "full" | "payment_advice" = "full") => {
     setIsExporting(true);
-    toast.info(`Preparing ${mode === "full" ? "Premium Excel Dashboard" : "Detailed Data Export"}…`);
+    const toastLabel = mode === "payment_advice"
+      ? "Payment Advice Schedule"
+      : mode === "full"
+      ? "Premium Excel Dashboard"
+      : "Detailed Data Export";
+    toast.info(`Preparing ${toastLabel}…`);
 
     try {
       const workbook = new ExcelJS.Workbook();
@@ -310,10 +254,94 @@ export default function ReportsPage() {
       const currencyFormat = '"₦"#,##0';
       const percentFormat = '0.0"%"';
 
-      // ── SHEETS 1-4 (Only in Full Mode) ───────────────────────────────────
-      if (mode === "full") {
-        // ── SHEET 1: Executive Summary ───────────────────────────────────────
-        const ws1 = workbook.addWorksheet("Executive Summary", {
+      if (mode === "payment_advice") {
+        const approvedRecords = records
+          .filter((r) => isApprovedStatus(r.status))
+          .sort((a, b) => (a.requesting_hospital || "").localeCompare(b.requesting_hospital || "") || new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+
+        if (approvedRecords.length === 0) {
+          toast.warning("No approved requests found in the current filter scope to generate Payment Advice.");
+          setIsExporting(false);
+          return;
+        }
+
+        const wsPA = workbook.addWorksheet("Payment Advice Schedule", {
+          views: [{ state: "frozen", xSplit: 0, ySplit: 1 }],
+          properties: { tabColor: { argb: theme.success } },
+        });
+
+        wsPA.columns = [
+          { header: "S/N", key: "sn", width: 8 },
+          { header: "Approval Date", key: "date", width: 16 },
+          { header: "Hospital / Provider", key: "hospital", width: 35 },
+          { header: "Auth Code", key: "authCode", width: 22 },
+          { header: "Request ID", key: "reqId", width: 20 },
+          { header: "Enrollee / Patient", key: "patient", width: 25 },
+          { header: "Policy Number", key: "policy", width: 20 },
+          { header: "Diagnosis", key: "diagnosis", width: 30 },
+          { header: "Approved Treatment / Services", key: "treatment", width: 35 },
+          { header: "Approved Amount (₦)", key: "appAmt", width: 24 },
+          { header: "Authorized By", key: "clinician", width: 22 },
+        ];
+
+        wsPA.getRow(1).font = headerFont;
+        wsPA.getRow(1).fill = {
+          type: "pattern",
+          pattern: "solid",
+          fgColor: { argb: "FF065F46" },
+        };
+
+        let totalPayable = 0;
+        approvedRecords.forEach((r, idx) => {
+          const amt = r.approved_amount || 0;
+          totalPayable += amt;
+          wsPA.addRow({
+            sn: idx + 1,
+            date: r.decided_at ? new Date(r.decided_at).toLocaleDateString("en-GB") : (r.created_at ? new Date(r.created_at).toLocaleDateString("en-GB") : ""),
+            hospital: r.requesting_hospital,
+            authCode: r.authorization_code,
+            reqId: r.request_id,
+            patient: r.patient_name,
+            policy: r.policy_number,
+            diagnosis: r.diagnosis,
+            treatment: r.treatment,
+            appAmt: amt,
+            clinician: r.clinician || "",
+          });
+        });
+
+        wsPA.getColumn("appAmt").numFmt = currencyFormat;
+
+        const totalRow = wsPA.addRow({
+          sn: "",
+          date: "",
+          hospital: "TOTAL APPROVED PAYABLE",
+          authCode: "",
+          reqId: "",
+          patient: "",
+          policy: "",
+          diagnosis: "",
+          treatment: `${approvedRecords.length} Authorizations`,
+          appAmt: totalPayable,
+          clinician: "",
+        });
+        totalRow.font = { bold: true, size: 12, color: { argb: "FF065F46" } };
+        totalRow.fill = {
+          type: "pattern",
+          pattern: "solid",
+          fgColor: { argb: "FFD1FAE5" },
+        };
+        totalRow.getCell("appAmt").numFmt = currencyFormat;
+
+        wsPA.autoFilter = {
+          from: { row: 1, column: 1 },
+          to: { row: approvedRecords.length + 1, column: 11 },
+        };
+      } else {
+        // ── SHEETS 1-4 (Only in Full Mode) ───────────────────────────────────
+        if (mode === "full") {
+          // ── SHEET 1: Executive Summary ───────────────────────────────────────
+          const ws1 = workbook.addWorksheet("Executive Summary", {
         views: [{ showGridLines: false }],
         properties: { tabColor: { argb: theme.primary } },
       });
@@ -359,9 +387,7 @@ export default function ReportsPage() {
       finSubHeader.font = { bold: true };
       finSubHeader.border = { bottom: { style: 'thin', color: { argb: 'FFCCCCCC' } } };
 
-      pushKPI("Total Requested Amount", stats.requestedAmount, "NGN amounts", true);
-      pushKPI("Total Approved Amount", stats.approvedAmount, "NGN amounts", true, false, theme.success);
-      pushKPI("Total Rejected Amount", stats.rejectedAmount, "NGN amounts", true, false, theme.danger);
+      pushKPI("Total Approved Amount", stats.approvedAmount, "Verified from approved items (NGN)", true, false, theme.success);
       pushKPI("Approval Rate", stats.approvalRate, "Approved / Total Volume", false, true);
       pushKPI("Rejection Rate", stats.rejectionRate, "Rejected / Total Volume", false, true, theme.danger);
 
@@ -422,7 +448,6 @@ export default function ReportsPage() {
         { header: "Total Codes", key: "total", width: 15 },
         { header: "Approved Codes", key: "approved", width: 18 },
         { header: "Rejected Codes", key: "rejected", width: 18 },
-        { header: "Requested Amount", key: "reqAmt", width: 22 },
         { header: "Approved Amount", key: "appAmt", width: 22 },
         { header: "Approval Rate", key: "rate", width: 18 },
       ];
@@ -438,19 +463,17 @@ export default function ReportsPage() {
           total: h.totalCodes,
           approved: h.approvedCodes,
           rejected: h.rejectedCodes,
-          reqAmt: h.requestedAmount,
           appAmt: h.approvedAmount,
           rate: h.approvalRate
         });
       }
 
-      ws3.getColumn('reqAmt').numFmt = currencyFormat;
       ws3.getColumn('appAmt').numFmt = currencyFormat;
       ws3.getColumn('rate').numFmt = percentFormat;
 
       // In-cell pseudo-chart for Hospital Approval Rate
       ws3.addConditionalFormatting({
-        ref: `G2:G${Math.max(2, sortedHospitals.length + 1)}`,
+        ref: `F2:F${Math.max(2, sortedHospitals.length + 1)}`,
         rules: [
           {
             type: 'colorScale',
@@ -520,9 +543,7 @@ export default function ReportsPage() {
         { header: "Policy Number", key: "policy", width: 20 },
         { header: "Diagnosis", key: "diagnosis", width: 30 },
         { header: "Treatment", key: "treatment", width: 30 },
-        { header: "Requested Amount", key: "reqAmt", width: 20 },
         { header: "Approved Amount", key: "appAmt", width: 20 },
-        { header: "Rejected Amount", key: "rejAmt", width: 20 },
         { header: "Auth Code", key: "authCode", width: 20 },
         { header: "Decision Note", key: "note", width: 40 },
         { header: "Clinician", key: "clinician", width: 20 },
@@ -541,23 +562,20 @@ export default function ReportsPage() {
           policy: r.policy_number,
           diagnosis: r.diagnosis,
           treatment: r.treatment,
-          reqAmt: r.requested_amount || 0,
           appAmt: r.approved_amount || 0,
-          rejAmt: r.rejected_amount || 0,
           authCode: r.authorization_code,
           note: r.rejection_reason || r.decision_reason || "",
           clinician: r.clinician || "",
         });
       }
 
-      ws5.getColumn('reqAmt').numFmt = currencyFormat;
       ws5.getColumn('appAmt').numFmt = currencyFormat;
-      ws5.getColumn('rejAmt').numFmt = currencyFormat;
       
       ws5.autoFilter = {
         from: { row: 1, column: 1 },
-        to: { row: Math.max(1, records.length), column: 14 }
+        to: { row: Math.max(1, records.length), column: 12 }
       };
+      }
 
       // ── DOWNLOAD ─────────────────────────────────────────────────────────
       const selectedHospital =
@@ -567,13 +585,19 @@ export default function ReportsPage() {
 
       const buffer = await workbook.xlsx.writeBuffer();
       const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
-      const filename = mode === "full" 
+      const filename = mode === "payment_advice"
+        ? `Payment_Advice_Schedule_${selectedHospital}_${new Date().toISOString().split("T")[0]}.xlsx`
+        : mode === "full" 
         ? `PreAuth_Executive_Dashboard_${selectedHospital}_${new Date().toISOString().split("T")[0]}.xlsx`
         : `PreAuth_Detailed_Data_${selectedHospital}_${new Date().toISOString().split("T")[0]}.xlsx`;
       
       saveAs(blob, filename);
 
-      toast.success(`Exported ${records.length} records (${mode === "full" ? "Premium Executive Dashboard" : "Detailed Data"})`);
+      toast.success(
+        mode === "payment_advice"
+          ? `Exported Payment Advice Schedule (${records.filter((r) => isApprovedStatus(r.status)).length} approved claims)`
+          : `Exported ${records.length} records (${mode === "full" ? "Premium Executive Dashboard" : "Detailed Data"})`
+      );
     } catch (error) {
       console.error("Export error:", error);
       toast.error(getErrorMessage(error, "Failed to export Excel dashboard"));

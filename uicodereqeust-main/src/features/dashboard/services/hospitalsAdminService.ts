@@ -55,6 +55,14 @@ export class HospitalsAdminService {
     if (error) throw error;
   }
 
+  static async toggleHospitalsActive(ids: string[], isActive: boolean) {
+    const { error } = await supabase.rpc("rpc_toggle_hospitals_status" as any, {
+      p_hospital_ids: ids,
+      p_is_active: isActive,
+    });
+    if (error) throw error;
+  }
+
   static async linkUserToHospital(userId: string, hospitalId: string) {
     const { error } = await supabase.rpc("rpc_link_user_to_hospital" as any, {
       p_user_id: userId,

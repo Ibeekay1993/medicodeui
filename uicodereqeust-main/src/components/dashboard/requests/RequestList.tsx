@@ -66,7 +66,7 @@ export function RequestList({
     if (isAwaitingDelete(r)) return "Code revoked - Awaiting Delete";
     if (role === "hospital" && isApproved(r) && !r.is_unlocked && !otpVerifiedStatus[r.id]) return "🔒 Locked";
     if (r.authorization_code) return r.authorization_code;
-    if (isRejected(r)) return rejectionReason(r) || "Rejected - reason not recorded";
+    if (isRejected(r)) return rejectionReason(r) || "Declined";
     return "Pending";
   };
   
@@ -121,20 +121,20 @@ export function RequestList({
         <table className="w-full min-w-[760px] border-collapse text-left">
           <thead className="table-heading">
             <tr>
-              <th className="p-4">Date</th>
-              <th className="px-4 py-4">Patient / Diagnosis</th>
-              <th className="px-4 py-4">Policy</th>
-              <th className="px-4 py-4">Auth Code</th>
+              <th className="p-4 w-[110px]">Date</th>
+              <th className="px-4 py-4 min-w-[220px]">Patient / Diagnosis</th>
+              <th className="px-4 py-4 w-[130px]">Policy</th>
+              <th className="px-4 py-4 min-w-[180px]">Auth Code</th>
               {!isClaimsRole && !["hospital"].includes(role || "") && (
-                <th className="px-4 py-4">OTP</th>
+                <th className="px-4 py-4 w-[90px] text-center">OTP</th>
               )}
-              <th className="px-4 py-4">Status</th>
-              <th className="px-4 py-4">Approver & SLA</th>
-              {!isClaimsRole && <th className="px-4 py-4 text-right">Action</th>}
+              <th className="px-4 py-4 w-[130px]">Status</th>
+              <th className="px-4 py-4 min-w-[200px]">Approver & SLA</th>
+              {!isClaimsRole && <th className="px-4 py-4 w-[60px] text-right">Action</th>}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {isLoading ? (
+            {isLoading && requests.length === 0 ? (
               <tr>
                 <td colSpan={isClaimsRole ? 6 : 8} className="py-12 text-center text-xs font-black uppercase tracking-widest text-slate-400">
                   <Loader2 className="mx-auto mb-3 h-6 w-6 animate-spin text-brand-700" />
@@ -279,7 +279,7 @@ export function RequestList({
 
       {/* Mobile Cards */}
       <div className="block md:hidden p-4 space-y-4 bg-slate-50 min-h-[50vh]">
-        {isLoading ? (
+        {isLoading && requests.length === 0 ? (
           <div className="py-12 text-center text-xs font-black uppercase tracking-widest text-slate-400 bg-white rounded-xl shadow-sm p-6 border border-slate-100">
             <Loader2 className="mx-auto mb-3 h-6 w-6 animate-spin text-brand-700" />
             Loading requests...
