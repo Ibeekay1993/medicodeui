@@ -9,6 +9,7 @@ describe("parseNhisRowWithoutMemberType", () => {
   it("captures a single-name beneficiary row when the member type is absent", () => {
     expect(parseNhisRowWithoutMemberType("3 1626681-21 OBEHI F 25/01/2002")).toEqual({
       policyNumber: "1626681",
+      beneficiaryNumber: "1626681-21",
       name: "OBEHI",
       gender: "F",
       dob: "25/01/2002",
@@ -18,6 +19,7 @@ describe("parseNhisRowWithoutMemberType", () => {
   it("captures multi-word names and an optional trailing field", () => {
     expect(parseNhisRowWithoutMemberType("3 2844595-21 BILKISU MUHAMMED F 14/01/2001 X1")).toEqual({
       policyNumber: "2844595",
+      beneficiaryNumber: "2844595-21",
       name: "BILKISU MUHAMMED",
       gender: "F",
       dob: "14/01/2001",

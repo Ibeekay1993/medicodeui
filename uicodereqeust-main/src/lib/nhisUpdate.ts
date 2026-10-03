@@ -9,7 +9,10 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 // ---------------------------------------------------------------------------
 
 export type NhisBeneficiaryRecord = {
+  /** Family-level policy used by existing eligibility and family lookups. */
   policy_number: string;
+  /** Full NHIA member number from the source, including its dependent suffix. */
+  beneficiary_number: string;
   member_type: string;
   first_name: string;
   surname: string;
@@ -53,6 +56,7 @@ export type NhisValidationSummary = {
 
 const FIELDS: (keyof NhisBeneficiaryRecord)[] = [
   "policy_number",
+  "beneficiary_number",
   "member_type",
   "first_name",
   "surname",
@@ -108,6 +112,7 @@ const missingMemberTypeRowPattern =
 
 export type UnclassifiedNhisRow = {
   policyNumber: string;
+  beneficiaryNumber: string;
   name: string;
   gender: string;
   dob: string;
@@ -122,6 +127,7 @@ export function parseNhisRowWithoutMemberType(line: string): UnclassifiedNhisRow
   if (!name) return null;
   return {
     policyNumber: match[2].split("-")[0],
+    beneficiaryNumber: match[2],
     name,
     gender: match[4].toUpperCase(),
     dob: match[5],
@@ -323,6 +329,7 @@ function buildRecord(
 
   return {
     policy_number: match[2].split("-")[0],
+    beneficiary_number: match[2],
     member_type: match[3].toUpperCase().replace(/\s{2,}/g, " "),
     first_name: firstName,
     surname,
@@ -497,6 +504,7 @@ export async function extractNhisPdf(
           const recordIndex = records.length;
           records.push({
             policy_number: missingTypeMatch.policyNumber,
+            beneficiary_number: missingTypeMatch.beneficiaryNumber,
             member_type: "UNSPECIFIED",
             first_name: firstName,
             surname,

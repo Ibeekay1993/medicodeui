@@ -1528,6 +1528,7 @@ export type Database = {
       }
       nhis_beneficiaries: {
         Row: {
+          beneficiary_number: string | null
           created_at: string
           dob: string | null
           first_name: string
@@ -1542,6 +1543,7 @@ export type Database = {
           surname: string
         }
         Insert: {
+          beneficiary_number?: string | null
           created_at?: string
           dob?: string | null
           first_name: string
@@ -1556,6 +1558,7 @@ export type Database = {
           surname: string
         }
         Update: {
+          beneficiary_number?: string | null
           created_at?: string
           dob?: string | null
           first_name?: string
@@ -1657,6 +1660,7 @@ export type Database = {
       }
       nhis_update_staging: {
         Row: {
+          beneficiary_number: string | null
           created_at: string
           dob: string | null
           first_name: string
@@ -1672,6 +1676,7 @@ export type Database = {
           surname: string
         }
         Insert: {
+          beneficiary_number?: string | null
           created_at?: string
           dob?: string | null
           first_name: string
@@ -1687,6 +1692,7 @@ export type Database = {
           surname: string
         }
         Update: {
+          beneficiary_number?: string | null
           created_at?: string
           dob?: string | null
           first_name?: string

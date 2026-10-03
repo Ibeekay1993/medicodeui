@@ -583,7 +583,8 @@ export default function NhisBeneficiaryUpdatePage() {
             <Table>
               <TableHeader>
                 <TableRow className="bg-slate-50">
-                  <TableHead>Policy</TableHead>
+                  <TableHead>Family policy</TableHead>
+                  <TableHead>NHIA member number</TableHead>
                   <TableHead>Member Type</TableHead>
                   <TableHead>Name</TableHead>
                   <TableHead>Gender</TableHead>
@@ -596,6 +597,7 @@ export default function NhisBeneficiaryUpdatePage() {
                 {previewRows.map((record, index) => (
                   <TableRow key={`${record.policy_number}-${index}`} className="text-xs">
                     <TableCell className="font-black text-emerald-700">{record.policy_number}</TableCell>
+                    <TableCell className="font-semibold">{record.beneficiary_number}</TableCell>
                     <TableCell>{record.member_type}</TableCell>
                     <TableCell className="font-bold">{record.full_name}</TableCell>
                     <TableCell>{record.gender}</TableCell>
