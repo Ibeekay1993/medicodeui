@@ -198,7 +198,10 @@ function joinLines(lines: string[], from: number, count: number): string {
  * Group raw PDF text items by y-coordinate, sort each row left-to-right, and
  * return an ordered array of normalised line strings (top of page first).
  */
-function textContentToLines(items: any[]): string[] {
+type PositionedTextItem = { x: number; y: number; text: string };
+type GroupedPdfLine = { y: number; text: string; parts: PositionedTextItem[] };
+
+function groupTextContentItems(items: any[]): GroupedPdfLine[] {
   const grouped = new Map<number, { x: number; text: string }[]>();
   for (const item of items) {
     const text = String(item.str || "").trim();
@@ -213,15 +216,88 @@ function textContentToLines(items: any[]): string[] {
 
   return [...grouped.entries()]
     .sort((a, b) => b[0] - a[0])
-    .map(([, parts]) =>
-      normalizeLine(
-        parts
-          .sort((a, b) => a.x - b.x)
-          .map((part) => part.text)
-          .join(" ")
-      )
-    )
-    .filter(Boolean);
+    .map(([y, rawParts]) => {
+      const parts = rawParts.sort((a, b) => a.x - b.x).map((part) => ({ ...part, y }));
+      return {
+        y,
+        parts,
+        text: normalizeLine(parts.map((part) => part.text).join(" ")),
+      };
+    })
+    .filter((line) => Boolean(line.text));
+}
+
+function textContentToLines(items: any[]): string[] {
+  return groupTextContentItems(items).map((line) => line.text);
+}
+
+/**
+ * Rebuild a beneficiary row when PDF table cells wrap onto adjacent baselines.
+ * The row anchor (serial, policy, sex, DOB) stays on one line while relationship
+ * and name cells can wrap independently. We use the nearest column headers and
+ * only collect nearby items from those columns, avoiding neighboring records.
+ */
+export function reconstructWrappedNhisRows(items: any[]): Map<number, string> {
+  const positioned = items.flatMap((item) => {
+    const text = normalizeLine(String(item.str || ""));
+    if (!text) return [];
+    return [{
+      x: Number(item.transform?.[4] || 0),
+      y: Math.round(Number(item.transform?.[5] || 0)),
+      text,
+    } satisfies PositionedTextItem];
+  });
+  const lines = groupTextContentItems(items);
+  const repairs = new Map<number, string>();
+  const columnLabels = ["Relationship", "FirstName", "LastName", "Sex", "DOB"] as const;
+
+  const columnPositions = (anchorY: number) => {
+    const result = new Map<string, number>();
+    for (const label of columnLabels) {
+      const header = positioned
+        .filter((item) => item.text.toLowerCase() === label.toLowerCase())
+        .sort((a, b) => Math.abs(a.y - anchorY) - Math.abs(b.y - anchorY))[0];
+      if (header && Math.abs(header.y - anchorY) <= 160) result.set(label, header.x);
+    }
+    return result;
+  };
+
+  const readCell = (fragments: PositionedTextItem[]) => {
+    const ordered = fragments.sort((a, b) => b.y - a.y || a.x - b.x);
+    return ordered.reduce((value, fragment) => {
+      const next = fragment.text.trim();
+      if (!value) return next;
+      return value.endsWith("-") ? `${value}${next}` : `${value} ${next}`;
+    }, "").trim();
+  };
+
+  for (const [lineIndex, line] of lines.entries()) {
+    if (!looksLikeDataRow.test(line.text) || !parseNhisRowWithoutMemberType(line.text)) continue;
+    const anchor = line.text.match(/^\s*(\d+)\s+([0-9]+(?:-[0-9]*)*)\s+/);
+    if (!anchor) continue;
+
+    const columns = columnPositions(line.y);
+    if (columnLabels.some((label) => !columns.has(label))) continue;
+    const nearby = positioned.filter((item) => Math.abs(item.y - line.y) <= 8);
+    const cellFragments = new Map<string, PositionedTextItem[]>(columnLabels.map((label) => [label, []]));
+    for (const item of nearby) {
+      const nearestColumn = columnLabels
+        .map((label) => ({ label, distance: Math.abs(item.x - (columns.get(label) ?? Infinity)) }))
+        .sort((a, b) => a.distance - b.distance)[0];
+      if (nearestColumn && nearestColumn.distance <= 28) cellFragments.get(nearestColumn.label)?.push(item);
+    }
+    const relationship = readCell(cellFragments.get("Relationship") || []);
+    const firstName = readCell(cellFragments.get("FirstName") || []);
+    const lastName = readCell(cellFragments.get("LastName") || []);
+    const sex = readCell(cellFragments.get("Sex") || []);
+    const dob = readCell(cellFragments.get("DOB") || []);
+    if (!/^(PRINCIPAL|SPOUSE|MEMBER|GIFSHIP|CHILD(?:\s+\d+)?|EXTRA\s+DEPENDENT(?:\s+\d+)?)$/i.test(relationship)) continue;
+    if (!firstName || !lastName || !/^[MF]$/i.test(sex) || !/^\d{2}\/\d{2}\/\d{4}$/.test(dob)) continue;
+
+    const rebuilt = normalizeLine(`${anchor[1]} ${anchor[2]} ${relationship} ${firstName} ${lastName} ${sex} ${dob}`);
+    if (rowPattern.test(rebuilt)) repairs.set(lineIndex, rebuilt);
+  }
+  return repairs;
 }
 
 /**
@@ -298,11 +374,15 @@ export async function extractNhisPdf(
 
     // Prepend any unmatched line from the previous page.
     const rawLines = textContentToLines(content.items as any[]);
+    const wrappedRowRepairs = reconstructWrappedNhisRows(content.items as any[]);
+    const hasCarryOver = Boolean(carryOver);
     const lines = carryOver ? [carryOver, ...rawLines] : rawLines;
     carryOver = "";
 
     for (let index = 0; index < lines.length; index += 1) {
-      const line = lines[index];
+      const originalLine = lines[index];
+      const repairIndex = index - (hasCarryOver ? 1 : 0);
+      const line = wrappedRowRepairs.get(repairIndex) || originalLine;
 
       // ── Grand total ─────────────────────────────────────────────────────
       const grandTotalMatch = line.match(grandTotalPattern);
