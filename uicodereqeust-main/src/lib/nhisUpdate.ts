@@ -28,8 +28,9 @@ export type NhisBeneficiaryRecord = {
 export type SkippedRow = {
   page: number;
   hcp_code: string;
-  reason: "NO_REGEX_MATCH" | "SINGLE_TOKEN_NAME" | "EMPTY_NAME";
+  reason: "NO_REGEX_MATCH" | "SINGLE_TOKEN_NAME" | "EMPTY_NAME" | "MISSING_MEMBER_TYPE";
   raw: string;
+  recordIndex?: number;
 };
 
 export type NhisValidationSummary = {
@@ -41,6 +42,8 @@ export type NhisValidationSummary = {
   invalidDates: number;
   hcpSummary: Record<string, number>;
   skippedRows: SkippedRow[];
+  unclassifiedRows: SkippedRow[];
+  manualMemberTypeAssignments: number;
   warnings: string[];
 };
 
@@ -94,6 +97,36 @@ const MAX_LOOKAHEAD = 4;
  */
 const rowPattern =
   /^\s*(\d+)\s+([0-9]+(?:-[0-9]*)*)\s+(PRINCIPAL|SPOUSE|MEMBER|GIFSHIP|CHILD(?:\s+\d+)?|EXTRA\s+DEPENDENT(?:\s+\d+)?)\s+(.+?)\s+([MF])\s+(\d{2}\/\d{2}\/\d{4})(?:\s+(\S+))?\s*$/i;
+
+/**
+ * Some NHIS export rows omit the relationship/member-type column entirely.
+ * Accept only a complete policy/name/sex/date row; the missing type is stored
+ * as UNSPECIFIED and surfaced for explicit review before replacement.
+ */
+const missingMemberTypeRowPattern =
+  /^\s*(\d+)\s+([0-9]+(?:-[0-9]*)*)\s+(.+?)\s+([MF])\s+(\d{2}\/\d{2}\/\d{4})(?:\s+(\S+))?\s*$/i;
+
+export type UnclassifiedNhisRow = {
+  policyNumber: string;
+  name: string;
+  gender: string;
+  dob: string;
+};
+
+/** Parse the complete row shape observed when NHIS omits relationship type. */
+export function parseNhisRowWithoutMemberType(line: string): UnclassifiedNhisRow | null {
+  const match = normalizeLine(line).match(missingMemberTypeRowPattern);
+  if (!match) return null;
+  if (/^(PRINCIPAL|SPOUSE|MEMBER|GIFSHIP|CHILD|EXTRA\s+DEPENDENT)\b/i.test(match[3].trim())) return null;
+  const name = match[3].trim();
+  if (!name) return null;
+  return {
+    policyNumber: match[2].split("-")[0],
+    name,
+    gender: match[4].toUpperCase(),
+    dob: match[5],
+  };
+}
 
 /** Matches the HCP provider number header line within each section. */
 const providerPattern = /Provider Number:\s*([A-Z]{2,3}\/\d{4}\/P)/i;
@@ -239,6 +272,7 @@ export async function extractNhisPdf(
 
   const records: NhisBeneficiaryRecord[] = [];
   const skippedRows: SkippedRow[] = [];
+  const unclassifiedRows: SkippedRow[] = [];
 
   let currentHcp = "";
   /** Human-readable name of the currently active provider section.
@@ -337,9 +371,10 @@ export async function extractNhisPdf(
       // joinLines() hyphenation handling are preserved exactly as before.
       // Adding hcp_name has zero impact on how patient names are assembled.
       let rowMatch = line.match(rowPattern);
+      let missingTypeMatch = rowMatch ? null : parseNhisRowWithoutMemberType(line);
       let extraConsumed = 0;
 
-      if (!rowMatch) {
+      if (!rowMatch && !missingTypeMatch) {
         // Try joining up to MAX_LOOKAHEAD subsequent lines.
         // joinLines handles trailing hyphens (word-break), so long names like
         // CHUKWUDOZIE-CHIMBUSOMMA that wrap across lines are reassembled
@@ -351,7 +386,8 @@ export async function extractNhisPdf(
         ) {
           const combined = joinLines(lines, index, ahead + 1);
           rowMatch = combined.match(rowPattern);
-          if (rowMatch) {
+          if (!rowMatch) missingTypeMatch = parseNhisRowWithoutMemberType(combined);
+          if (rowMatch || missingTypeMatch) {
             extraConsumed = ahead;
             break;
           }
@@ -371,6 +407,34 @@ export async function extractNhisPdf(
             reason: "EMPTY_NAME",
             raw: line.slice(0, 120),
           });
+        }
+        index += extraConsumed;
+      } else if (missingTypeMatch) {
+        const nameTokens = missingTypeMatch.name.split(/\s+/).filter(Boolean);
+        if (nameTokens.length > 0) {
+          const surname = nameTokens[nameTokens.length - 1];
+          const firstName = nameTokens.length > 1 ? nameTokens.slice(0, -1).join(" ") : "";
+          const recordIndex = records.length;
+          records.push({
+            policy_number: missingTypeMatch.policyNumber,
+            member_type: "UNSPECIFIED",
+            first_name: firstName,
+            surname,
+            full_name: `${surname} ${firstName}`.trim(),
+            gender: missingTypeMatch.gender,
+            dob: missingTypeMatch.dob,
+            hcp_code: currentHcp,
+            hcp_name: currentHcpName,
+          });
+          unclassifiedRows.push({
+            page: pageNumber,
+            hcp_code: currentHcp,
+            reason: "MISSING_MEMBER_TYPE",
+            raw: line.slice(0, 120),
+            recordIndex,
+          });
+        } else {
+          skippedRows.push({ page: pageNumber, hcp_code: currentHcp, reason: "EMPTY_NAME", raw: line.slice(0, 120) });
         }
         index += extraConsumed;
       } else {
@@ -398,7 +462,7 @@ export async function extractNhisPdf(
 
   return {
     records,
-    summary: validateNhisRecords(records, expectedTotal, skippedRows),
+    summary: validateNhisRecords(records, expectedTotal, skippedRows, unclassifiedRows),
     processingMs: Math.round(performance.now() - started),
   };
 }
@@ -410,7 +474,9 @@ export async function extractNhisPdf(
 export function validateNhisRecords(
   records: NhisBeneficiaryRecord[],
   expectedTotal: number | null,
-  skippedRows: SkippedRow[] = []
+  skippedRows: SkippedRow[] = [],
+  unclassifiedRows: SkippedRow[] = [],
+  manualMemberTypeAssignments = 0
 ): NhisValidationSummary {
   const seen = new Set<string>();
   const policies = new Set<string>();
@@ -463,6 +529,12 @@ export function validateNhisRecords(
     );
   }
 
+  if (unclassifiedRows.length > 0) {
+    warnings.push(
+      `${unclassifiedRows.length} identifiable row(s) were captured without a member type and marked UNSPECIFIED. Review these rows before replacement.`
+    );
+  }
+
   return {
     expectedTotal,
     totalRecords: records.length,
@@ -472,6 +544,8 @@ export function validateNhisRecords(
     invalidDates,
     hcpSummary,
     skippedRows,
+    unclassifiedRows,
+    manualMemberTypeAssignments,
     warnings,
   };
 }

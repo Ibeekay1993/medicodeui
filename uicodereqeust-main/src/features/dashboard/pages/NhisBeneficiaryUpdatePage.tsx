@@ -15,7 +15,9 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
+import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
@@ -29,6 +31,7 @@ import {
   extractNhisPdf,
   NhisBeneficiaryRecord,
   NhisValidationSummary,
+  validateNhisRecords,
   recordsToCsv,
   recordsToXlsxBlob,
 } from "@/lib/nhisUpdate";
@@ -68,6 +71,7 @@ function canReplace(summary: NhisValidationSummary | null) {
       summary.expectedTotal !== null &&
       summary.expectedTotal === summary.totalRecords &&
       summary.skippedRows.length === 0 &&
+      (summary.unclassifiedRows?.length ?? 0) === 0 &&
       summary.duplicateRecords === 0 &&
       summary.missingFields === 0 &&
       summary.invalidDates === 0,
@@ -89,6 +93,8 @@ export default function NhisBeneficiaryUpdatePage() {
   const [history, setHistory] = useState<UpdateRun[]>([]);
   const [extracting, setExtracting] = useState(false);
   const [replacing, setReplacing] = useState(false);
+  const [allowIncompleteReplacement, setAllowIncompleteReplacement] = useState(false);
+  const [incompleteReplacementReason, setIncompleteReplacementReason] = useState("");
   const [progress, setProgress] = useState(0);
   const [processingMs, setProcessingMs] = useState(0);
   const [activeCount, setActiveCount] = useState<number | null>(null);
@@ -216,8 +222,31 @@ export default function NhisBeneficiaryUpdatePage() {
     }
   };
 
+  const assignMissingMemberType = (row: { recordIndex?: number }, memberType: string) => {
+    if (!summary || row.recordIndex === undefined || !memberType) return;
+    const updatedRecords = records.map((record, index) =>
+      index === row.recordIndex ? { ...record, member_type: memberType } : record
+    );
+    const remainingUnclassified = (summary.unclassifiedRows ?? []).filter(
+      (candidate) => candidate.recordIndex !== row.recordIndex
+    );
+    setRecords(updatedRecords);
+    setSummary(validateNhisRecords(
+      updatedRecords,
+      summary.expectedTotal,
+      summary.skippedRows,
+      remainingUnclassified,
+      (summary.manualMemberTypeAssignments ?? 0) + 1,
+    ));
+  };
+
   const replaceDatabase = async () => {
-    if (!summary || !canReplace(summary)) return;
+    if (!summary) return;
+    const complete = canReplace(summary);
+    const canOverride = summary.totalRecords > 0 &&
+      summary.duplicateRecords === 0 && summary.missingFields === 0 && summary.invalidDates === 0;
+    const overrideAuthorized = allowIncompleteReplacement && canOverride && incompleteReplacementReason.trim().length >= 10;
+    if (!complete && !overrideAuthorized) return;
     setReplacing(true);
     try {
       const { data: run, error: runError } = await supabase
@@ -233,9 +262,13 @@ export default function NhisBeneficiaryUpdatePage() {
           missing_fields: summary.missingFields,
           invalid_dates: summary.invalidDates,
           hcp_summary: summary.hcpSummary,
-          validation_results: summary as any,
+          validation_results: {
+            ...summary,
+            allowIncompleteReplacement: !complete && overrideAuthorized,
+            incompleteReplacementReason: !complete && overrideAuthorized ? incompleteReplacementReason.trim() : null,
+          } as any,
           processing_ms: processingMs,
-          logs: ["PDF extracted and validated from admin dashboard"],
+          logs: [complete ? "PDF extracted and validated from admin dashboard" : "Incomplete PDF replacement explicitly approved by an administrator"],
         })
         .select("*")
         .single();
@@ -286,6 +319,9 @@ export default function NhisBeneficiaryUpdatePage() {
   };
 
   const validationOk = canReplace(summary);
+  const incompleteCanBeOverridden = Boolean(summary && summary.totalRecords > 0 &&
+    summary.duplicateRecords === 0 && summary.missingFields === 0 && summary.invalidDates === 0);
+  const overrideReady = allowIncompleteReplacement && incompleteReplacementReason.trim().length >= 10;
 
   if (replacementResult) {
     return (
@@ -431,6 +467,7 @@ export default function NhisBeneficiaryUpdatePage() {
                   Difference: {recordDifference === null ? "-" : `${recordDifference >= 0 ? "+" : ""}${formatNumber(recordDifference)}`}.
                   PDF grand total: {summary.expectedTotal ? formatNumber(summary.expectedTotal) : "Not detected"}.
                   Processing time: {(processingMs / 1000).toFixed(1)}s.
+                  {(summary.manualMemberTypeAssignments ?? 0) > 0 && ` Manually classified: ${summary.manualMemberTypeAssignments}.`}
                 </div>
                 {changePercent >= 0.1 && (
                   <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs font-bold text-amber-800">
@@ -443,6 +480,61 @@ export default function NhisBeneficiaryUpdatePage() {
                 {!validationOk && (
                   <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs font-bold text-rose-800">
                     Replacement is blocked until the PDF total matches the extracted row count and every row is parsed without validation errors.
+                  </div>
+                )}
+                {((summary.unclassifiedRows?.length ?? 0) > 0 || summary.skippedRows.length > 0) && (
+                  <div className="space-y-2 rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs text-amber-950">
+                    <p className="font-black">Rows needing review</p>
+                    {(summary.unclassifiedRows?.length ?? 0) > 0 && (
+                      <p>These rows follow the format “serial number, NHIA number, name, sex, date of birth” with no member type. Select the correct type from the source list.</p>
+                    )}
+                    {(summary.unclassifiedRows ?? []).map((row, index) => (
+                      <div key={`unclassified-${row.page}-${index}`} className="grid gap-2 rounded-lg border border-amber-200 bg-white p-2 sm:grid-cols-[1fr_12rem] sm:items-center">
+                        <p>Page {row.page} · {row.hcp_code || "Unknown provider"} · Member type missing · {row.raw}</p>
+                        <label className="sr-only" htmlFor={`member-type-${row.page}-${index}`}>Assign member type for this beneficiary</label>
+                        <select
+                          id={`member-type-${row.page}-${index}`}
+                          defaultValue=""
+                          onChange={(event) => assignMissingMemberType(row, event.target.value)}
+                          className="h-9 rounded-md border border-amber-300 bg-white px-2 text-xs text-slate-800"
+                        >
+                          <option value="" disabled>Choose member type</option>
+                          <option value="PRINCIPAL">Principal</option>
+                          <option value="SPOUSE">Spouse</option>
+                          <option value="MEMBER">Member</option>
+                          <option value="GIFSHIP">GIFSHIP</option>
+                          <option value="CHILD">Child</option>
+                          <option value="EXTRA DEPENDENT">Extra dependent</option>
+                        </select>
+                      </div>
+                    ))}
+                    {summary.skippedRows.map((row, index) => (
+                      <p key={`skipped-${row.page}-${index}`}>
+                        Page {row.page} · {row.hcp_code || "Unknown provider"} · Not included in extracted list · {row.raw}
+                      </p>
+                    ))}
+                  </div>
+                )}
+                {!validationOk && incompleteCanBeOverridden && (
+                  <div className="space-y-3 rounded-xl border border-rose-300 bg-rose-50 p-3">
+                    <label className="flex cursor-pointer items-start gap-2 text-xs font-bold text-rose-950">
+                      <Checkbox
+                        checked={allowIncompleteReplacement}
+                        onCheckedChange={(checked) => setAllowIncompleteReplacement(checked === true)}
+                        aria-label="Authorize replacing the list despite incomplete NHIS data"
+                      />
+                      <span>I reviewed the unresolved rows and authorize replacing the current NHIS list with this incomplete data.</span>
+                    </label>
+                    {allowIncompleteReplacement && (
+                      <Textarea
+                        value={incompleteReplacementReason}
+                        onChange={(event) => setIncompleteReplacementReason(event.target.value.slice(0, 500))}
+                        placeholder="Reason for approving this incomplete replacement (at least 10 characters)"
+                        aria-label="Reason for approving incomplete NHIS replacement"
+                        className="min-h-20 bg-white text-xs"
+                      />
+                    )}
+                    <p className="text-xs text-rose-800">This exception is recorded in the update history and audit log. Duplicate rows, missing required fields, or invalid dates still block replacement.</p>
                   </div>
                 )}
                 <div className="grid grid-cols-2 gap-2">
@@ -462,14 +554,14 @@ export default function NhisBeneficiaryUpdatePage() {
                   </Button>
                   <Button
                     onClick={replaceDatabase}
-                    disabled={!validationOk || replacing}
+                    disabled={(!validationOk && !(incompleteCanBeOverridden && overrideReady)) || replacing}
                     className="h-10 rounded-xl bg-emerald-600 text-xs font-black uppercase tracking-widest hover:bg-emerald-700"
                   >
                     {replacing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Database className="mr-2 h-4 w-4" />}
-                    Replace Existing List
+                    {validationOk ? "Replace Existing List" : "Replace Incomplete List"}
                   </Button>
                   <p className="text-center text-xs font-bold uppercase tracking-widest text-slate-400">
-                    Replacement is blocked if the PDF total is missing or any beneficiary row is skipped. The previous list is still replaced after validation passes.
+                    Complete replacements require a matching PDF total and no skipped or unclassified rows. An incomplete replacement requires an explicit approval and reason.
                   </p>
                 </div>
               </>
