@@ -6,9 +6,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useHospitalProfile } from "../hooks/useHospitalDashboard";
 import { useHospitalAuthorizations } from "../hooks/useHospitalAuthorizations";
 import { useDebounce } from "@/hooks/use-debounce";
+import { supabase } from "@/integrations/supabase/client";
 
 import { useToast } from "@/hooks/use-toast";
-import { cn } from "@/lib/utils";
 import {
   getApprovedItems,
   claimOwnerNameFor,
@@ -55,7 +55,7 @@ export default function HospitalAuthorizations() {
     setPage(1);
   }, [debouncedSearch, statusFilter]);
 
-  const { data: hospital, isLoading: hospitalLoading } = useHospitalProfile(hospitalId, user?.id, user?.email);
+  const { data: hospital, isLoading: hospitalLoading } = useHospitalProfile(hospitalId || undefined, user?.id, user?.email);
 
   const { data: authData, isLoading: authLoading, refetch } = useHospitalAuthorizations({
     hospital: hospital || null,
@@ -74,7 +74,7 @@ export default function HospitalAuthorizations() {
   const start = total === 0 ? 0 : (page - 1) * pageSize + 1;
   const end = Math.min(page * pageSize, total);
 
-  useTabVisibilityRefresh(refetch, Boolean(hospital));
+  useTabVisibilityRefresh(() => { void refetch(); }, Boolean(hospital));
 
   const handleCopyAuth = (r: any) => {
     if (!r.authorization_code) {
@@ -172,11 +172,7 @@ export default function HospitalAuthorizations() {
 
       toast({ title: "Claim Submitted", description: "Your reimbursement request has been logged successfully." });
       setIsReviewing(false);
-      setClaimStatusByRequestId(prev => {
-        const next = new Map(prev);
-        next.set(selectedRequest.id, "submitted");
-        return next;
-      });
+      await refetch();
     } catch (error: any) {
       console.error("Claim submission error:", error);
       toast({ 
@@ -406,7 +402,7 @@ export default function HospitalAuthorizations() {
         onClose={() => setIsProcessingReferral(false)}
         request={selectedRequest}
         hospital={hospital}
-        onUpdated={refetch}
+        onUpdated={() => { void refetch(); }}
       />
 
       <ReferralTreatmentFormDialog
@@ -414,7 +410,7 @@ export default function HospitalAuthorizations() {
         onClose={() => setIsAddingReferralTreatment(false)}
         request={selectedRequest}
         hospital={hospital}
-        onUpdated={refetch}
+        onUpdated={() => { void refetch(); }}
       />
 
       <ExportCSVDialog

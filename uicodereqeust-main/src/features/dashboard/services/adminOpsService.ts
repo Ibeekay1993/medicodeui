@@ -34,7 +34,7 @@ export class AdminOpsService {
       .order("created_at", { ascending: false })
       .limit(100);
     if (error) throw error;
-    return data || [];
+    return (data || []) as any[];
   }
 
   static async parseWhatsAppMessage(message: string) {

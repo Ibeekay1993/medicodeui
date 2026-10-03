@@ -1,6 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { notifyPendingAuthorizationRequest } from "@/lib/pushNotifications";
-import { Hospital, AuthorizationRequest, HospitalClaim } from "../types";
+import { Hospital } from "../types";
 
 export class HospitalService {
   /**
@@ -52,13 +52,22 @@ export class HospitalService {
 
     const fuzzyQuery = [`hospital_name.ilike.%${safeName}%`];
     if (safeCode.trim()) fuzzyQuery.push(`hospital_name.ilike.%${safeCode}%`);
-    
+
     const isUHS = safeName.toLowerCase().includes("university health") || safeCode.toUpperCase().includes("UHS");
     if (isUHS) {
       fuzzyQuery.push(`hospital_name.ilike.%UHS%`);
       fuzzyQuery.push(`hospital_name.ilike.%U.H.S%`);
       fuzzyQuery.push(`hospital_name.ilike.%University Health%`);
     }
+
+    const claimQuery = [
+      `hospital_id.eq.${hosp.id}`,
+      `requesting_hospital_id.eq.${hosp.id}`,
+      `referring_hospital_id.eq.${hosp.id}`,
+      `referred_hospital_id.eq.${hosp.id}`,
+      `claiming_hospital_id.eq.${hosp.id}`,
+      ...fuzzyQuery,
+    ];
 
     const [authRes, claimsRes] = await Promise.all([
       supabase
@@ -85,9 +94,9 @@ export class HospitalService {
     if (authRes.error) throw authRes.error;
     if (claimsRes.error) throw claimsRes.error;
 
-    return { 
-      authorizations: authRes.data || [], 
-      claims: claimsRes.data || [] 
+    return {
+      authorizations: authRes.data || [],
+      claims: claimsRes.data || []
     };
   }
 
@@ -188,13 +197,17 @@ export class HospitalService {
 
     const orQuery = [
       `hospital_id.eq.${hospital.id}`,
+      `requesting_hospital_id.eq.${hospital.id}`,
+      `referring_hospital_id.eq.${hospital.id}`,
+      `referred_hospital_id.eq.${hospital.id}`,
+      `claiming_hospital_id.eq.${hospital.id}`,
       `hospital_name.ilike.%${safeName}%`
     ];
 
     if (safeCode.trim()) {
       orQuery.push(`hospital_name.ilike.%${safeCode}%`);
     }
-    
+
     const isUHS = safeName.toLowerCase().includes("university health") || safeCode.toUpperCase().includes("UHS");
     if (isUHS) {
       orQuery.push(`hospital_name.ilike.%UHS%`);
@@ -229,10 +242,10 @@ export class HospitalService {
     if (pageRes.error) throw pageRes.error;
     if (statsRes.error) throw statsRes.error;
 
-    return { 
-      claims: pageRes.data || [], 
-      total: pageRes.count || 0, 
-      statsData: statsRes.data || [] 
+    return {
+      claims: (pageRes.data || []) as any[],
+      total: pageRes.count || 0,
+      statsData: (statsRes.data || []) as any[]
     };
   }
 

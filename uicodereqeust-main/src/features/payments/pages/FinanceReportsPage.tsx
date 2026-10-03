@@ -83,7 +83,7 @@ export default function FinanceReportsPage() {
         fgColor: { argb: theme.primary },
       };
 
-      const headerFont: ExcelJS.Font = {
+      const headerFont = {
         color: { argb: "FFFFFFFF" },
         bold: true,
         size: 12,
@@ -110,7 +110,7 @@ export default function FinanceReportsPage() {
         const row = ws1.addRow([metric, count, value]);
         row.getCell(1).font = { bold: true };
         row.getCell(2).alignment = { horizontal: 'right' };
-        
+
         const valCell = row.getCell(3);
         valCell.font = { bold: true, size: 14, color: colorArgb ? { argb: colorArgb } : undefined };
         valCell.alignment = { horizontal: 'right' };
@@ -134,7 +134,7 @@ export default function FinanceReportsPage() {
       // Helper to generate styled detailed sheets
       const addDetailedSheet = (name: string, tabColor: string, columns: any[], rowsData: any[]) => {
         if (!rowsData || rowsData.length === 0) return;
-        
+
         const ws = workbook.addWorksheet(name, {
           views: [{ state: 'frozen', xSplit: 0, ySplit: 1 }],
           properties: { tabColor: { argb: tabColor } },
@@ -173,9 +173,9 @@ export default function FinanceReportsPage() {
       ];
 
       addDetailedSheet(
-        "Awaiting Payments", 
-        theme.warning, 
-        claimCols, 
+        "Awaiting Payments",
+        theme.warning,
+        claimCols,
         (stats.awaitingList || []).map((c: any) => ({
           ...c,
           submitted_at: c.submitted_at ? new Date(c.submitted_at).toLocaleDateString() : ""
@@ -184,9 +184,9 @@ export default function FinanceReportsPage() {
 
       // ── SHEET 3: Paid Claims ──────────────────────────────────────────
       addDetailedSheet(
-        "Paid Claims", 
-        theme.success, 
-        claimCols, 
+        "Paid Claims",
+        theme.success,
+        claimCols,
         (stats.paidList || []).map((c: any) => ({
           ...c,
           paid_at: c.paid_at ? new Date(c.paid_at).toLocaleString() : ""
@@ -195,8 +195,8 @@ export default function FinanceReportsPage() {
 
       // ── SHEET 4: Batches ──────────────────────────────────────────────
       addDetailedSheet(
-        "Batches", 
-        theme.primary, 
+        "Batches",
+        theme.primary,
         [
           { header: "Batch ID", key: "id", width: 35 },
           { header: "Status", key: "status", width: 15 },
@@ -204,7 +204,7 @@ export default function FinanceReportsPage() {
           { header: "Claims Count", key: "claims_count", width: 15 },
           { header: "Created At", key: "created_at", width: 20 },
           { header: "Paid At", key: "paid_at", width: 20 },
-        ], 
+        ],
         (stats.batchesList || []).map((b: any) => ({
           ...b,
           created_at: b.created_at ? new Date(b.created_at).toLocaleString() : "",
@@ -225,7 +225,7 @@ export default function FinanceReportsPage() {
 
   const exportCSV = () => {
     if (!data) return;
-    
+
     const combined = [
       ...(stats.awaitingList || []),
       ...(stats.paidList || [])
@@ -286,7 +286,7 @@ export default function FinanceReportsPage() {
             Real-time payment and settlement activity. Monitor awaiting payments, batch statuses, and easily export your financial records.
           </p>
         </div>
-        
+
         <div className="flex items-center gap-2 w-full md:w-auto">
           <Button
             variant="outline"
@@ -345,4 +345,4 @@ export default function FinanceReportsPage() {
     </div>
   );
 }
-
+

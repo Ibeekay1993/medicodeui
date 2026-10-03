@@ -67,21 +67,30 @@ export function useUpdatePaymentBatchStatus() {
       status,
       evidenceFile,
       paidAt,
+      bankReference,
+      paidBy,
     }: {
       batchId: string;
       status: string;
       evidenceFile?: File;
       paidAt?: string;
+      bankReference?: string;
+      paidBy?: string;
     }) => {
-      let evidenceUrl = null;
+      let receiptPath: string | null = null;
 
       if (evidenceFile) {
-        evidenceUrl = await PaymentsService.uploadBatchEvidence(batchId, evidenceFile);
+        receiptPath = await PaymentsService.uploadBatchEvidence(batchId, evidenceFile);
       }
 
       const updatePayload: any = { status };
-      if (evidenceUrl) updatePayload.evidence_url = evidenceUrl;
+      if (receiptPath) {
+        updatePayload.receipt_url = receiptPath;
+        updatePayload.receipt_name = evidenceFile?.name || null;
+      }
       if (paidAt) updatePayload.paid_at = paidAt;
+      if (bankReference?.trim()) updatePayload.bank_reference = bankReference.trim();
+      if (paidBy) updatePayload.paid_by = paidBy;
 
       await PaymentsService.updateBatchStatus(batchId, updatePayload);
 

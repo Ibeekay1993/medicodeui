@@ -5,7 +5,7 @@ import { useHospitalProfile } from "../hooks/useHospitalDashboard";
 import { useHospitalClaims } from "../hooks/useHospitalClaims";
 import { useToast } from "@/hooks/use-toast";
 import { useDebounce } from "@/hooks/use-debounce";
-import { getErrorMessage } from "@/lib/errors";
+import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 import {
@@ -41,7 +41,7 @@ export default function HospitalClaims() {
     setPage(1);
   }, [debouncedSearch]);
 
-  const { data: hospital, isLoading: hospitalLoading } = useHospitalProfile(hospitalId, user?.id, user?.email);
+  const { data: hospital, isLoading: hospitalLoading } = useHospitalProfile(hospitalId || undefined, user?.id, user?.email);
 
   const { data: claimsData, isLoading: claimsLoading, refetch } = useHospitalClaims({
     hospital: hospital || null,
@@ -60,7 +60,7 @@ export default function HospitalClaims() {
 
   const claimStats = claimsData?.statsData ? calculateHospitalClaimStats(claimsData.statsData) : { pending: 0, approved: 0, paid: 0, totalValue: 0 };
 
-  useTabVisibilityRefresh(refetch, Boolean(hospital));
+  useTabVisibilityRefresh(() => { void refetch(); }, Boolean(hospital));
 
   const selectedClaim = claims.find(c => c.id === selectedClaimId) || null;
   const filteredClaims = claims;
@@ -194,7 +194,7 @@ export default function HospitalClaims() {
       toast({ variant: "destructive", title: "Contest Submission Failed", description: error.message });
     } else {
       toast({ title: "Contest Appeal Submitted", description: "The auditing panel has been notified for manual reconciliation." });
-      setClaims(prev => prev.map(c => c.id === contestTarget.id ? { ...c, status: "contested", notes: updatedNotes, contest_note: data.contestReason, contest_documents: documents, under_contest_amount: amountUnderContest } : c));
+      await refetch();
       setContestTarget(null);
     }
   };

@@ -14,6 +14,11 @@ import { supabase } from "@/integrations/supabase/client";
 /** VAPID public key injected via Vite env */
 const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY as string;
 const VAPID_KEY_STORAGE = "ronsberger_push_vapid_public_key";
+const PUSH_OPT_OUT_PREFIX = "ronsberger_push_opt_out:";
+
+export function hasOptedOutOfPush(userId: string): boolean {
+  return localStorage.getItem(`${PUSH_OPT_OUT_PREFIX}${userId}`) === "true";
+}
 
 // ---------------------------------------------------------------------------
 // Feature detection
@@ -110,8 +115,8 @@ export async function subscribeToPushNotifications(userId: string): Promise<{
   const auth = subJson.keys?.auth ?? "";
 
   // 5. Store in Supabase push_subscriptions table
-  const { error: dbErr } = await supabase
-    .from("push_subscriptions" as never)
+  const { error: dbErr } = await (supabase as any)
+    .from("push_subscriptions")
     .upsert(
       {
         user_id: userId,
@@ -129,6 +134,7 @@ export async function subscribeToPushNotifications(userId: string): Promise<{
   }
 
   localStorage.setItem(VAPID_KEY_STORAGE, VAPID_PUBLIC_KEY);
+  localStorage.removeItem(`${PUSH_OPT_OUT_PREFIX}${userId}`);
 
   return { success: true };
 }
@@ -141,6 +147,7 @@ export async function unsubscribeFromPushNotifications(userId: string): Promise<
   success: boolean;
   error?: string;
 }> {
+  localStorage.setItem(`${PUSH_OPT_OUT_PREFIX}${userId}`, "true");
   if (!isPushNotificationSupported()) return { success: true };
 
   try {
@@ -148,8 +155,8 @@ export async function unsubscribeFromPushNotifications(userId: string): Promise<
     const sub = await registration.pushManager.getSubscription();
     if (sub) {
       await sub.unsubscribe();
-      await supabase
-        .from("push_subscriptions" as never)
+      await (supabase as any)
+        .from("push_subscriptions")
         .delete()
         .eq("endpoint", sub.endpoint)
         .eq("user_id", userId);
@@ -187,12 +194,14 @@ export async function notifyPendingAuthorizationRequest(input: {
       : "hospital portal";
     const { error } = await supabase.functions.invoke("send-push-notification", {
       body: {
-        target_roles: ["admin", "utilization_manager"],
+        target_roles: ["admin", "utilization_manager", "claims", "finance"],
         title: "New Pending Authorization Request",
         body: `A new request from ${input.hospitalName || "a hospital"} via ${sourceLabel} is ready for review.`,
         url_by_role: {
           admin: "/backoffice/admin/requests",
           utilization_manager: "/backoffice/utilization-manager/requests",
+          claims: "/backoffice/claims",
+          finance: "/backoffice/finance",
         },
         tag: `auth-request-${input.requestId}`,
       },

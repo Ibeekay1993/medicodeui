@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { Activity, Download, Loader2, MoreVertical, RefreshCw, Search } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { ShieldAlert } from "lucide-react";
@@ -8,8 +8,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import { useToast } from "@/hooks/use-toast";
-import { getErrorMessage } from "@/lib/errors";
 import { useDataPagination } from "@/hooks/use-data-pagination";
 import { DataPagination } from "@/components/dashboard/DataPagination";
 import { useTabVisibilityRefresh } from "@/hooks/use-tab-visibility-refresh";
@@ -52,12 +50,11 @@ export default function AuditLogsPage() {
   const [search, setSearch] = useState("");
   const [entityFilter, setEntityFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
-  const { toast } = useToast();
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const { data: logs = [], isLoading: loading, refetch: fetchLogs } = useAuditLogs();
 
-  useTabVisibilityRefresh(fetchLogs);
+  useTabVisibilityRefresh(() => { void fetchLogs(); });
 
   const entities = useMemo(() => Array.from(new Set(logs.map((log) => log.entity_type || "system").filter(Boolean))).sort(), [logs]);
   const filtered = useMemo(() => logs.filter((log) => {
@@ -125,7 +122,7 @@ export default function AuditLogsPage() {
       <div className="pb-3 border-b border-slate-200">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
           <div className="flex flex-wrap items-center gap-2">
-            <Button variant="outline" onClick={fetchLogs} className="h-8 rounded-lg gap-2 text-xs"><RefreshCw className="h-3.5 w-3.5" /> Refresh</Button>
+            <Button variant="outline" onClick={() => { void fetchLogs(); }} className="h-8 rounded-lg gap-2 text-xs"><RefreshCw className="h-3.5 w-3.5" /> Refresh</Button>
             <Button variant="outline" onClick={exportCsv} className="h-8 rounded-lg gap-2 text-xs"><Download className="h-3.5 w-3.5" /> Export CSV</Button>
           </div>
         </div>

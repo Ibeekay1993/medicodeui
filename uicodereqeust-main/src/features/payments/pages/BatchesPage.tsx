@@ -30,28 +30,13 @@ import {
   Download,
   CheckCircle,
   CreditCard,
+  Trash2,
+  FileSpreadsheet,
 } from "lucide-react";
 import { BatchDetailsDrawer } from "../components/BatchDetailsDrawer";
 import { MonthYearPicker } from "@/components/ui/MonthYearPicker";
 import { usePaymentBatches, useUpdatePaymentBatchStatus, useDeletePaymentBatch } from "../hooks/usePayments";
 import { PaymentsService } from "../services/paymentsService";
-
-interface Batch {
-  id: string;
-  batch_reference: string;
-  provider_id: string;
-  month: string;
-  total_claims: number;
-  total_amount: number;
-  status: "draft" | "ready" | "paid";
-  bank_reference: string | null;
-  created_at: string;
-  created_by: string | null;
-  paid_at: string | null;
-  receipt_url: string | null;
-  receipt_name: string | null;
-  hospitals: { name: string } | null;
-}
 
 export default function BatchesPage() {
   const { user, role } = useAuth();
@@ -72,7 +57,7 @@ export default function BatchesPage() {
   const canSettlePayments = role === "admin" || role === "finance";
 
   // Fetch payment batches with hospital details joined
-  const { data: batches, isLoading, error } = usePaymentBatches();
+  const { data: batches, isLoading, error, refetch } = usePaymentBatches();
   const updateBatchStatusMutation = useUpdatePaymentBatchStatus();
   const deleteBatchMutation = useDeletePaymentBatch();
   const isSubmittingPayment = updateBatchStatusMutation.isPending;
@@ -159,7 +144,7 @@ export default function BatchesPage() {
       
       const theme = { primary: "FF1E3A8A", success: "FF10B981", danger: "FFEF4444", bg: "FFF8FAFC" };
       const headerFill: ExcelJS.FillPattern = { type: "pattern", pattern: "solid", fgColor: { argb: theme.primary } };
-      const headerFont: ExcelJS.Font = { color: { argb: "FFFFFFFF" }, bold: true, size: 12 };
+      const headerFont = { color: { argb: "FFFFFFFF" }, bold: true, size: 12 };
       const currencyFormat = '"₦"#,##0';
 
       const ws = workbook.addWorksheet("Batch Report", {
@@ -213,6 +198,8 @@ export default function BatchesPage() {
         status: "paid",
         evidenceFile: receiptFile || undefined,
         paidAt: new Date().toISOString(),
+        bankReference: bankRef,
+        paidBy: user.id,
       });
 
       toast({
@@ -381,7 +368,7 @@ export default function BatchesPage() {
         
         <div className="text-right shrink-0">
           <span className="text-xs font-black uppercase tracking-wider text-slate-400">
-            {filteredBatches.length} Batch(es) Found
+            {filteredBatches.length} {filteredBatches.length === 1 ? "batch" : "batches"} found
           </span>
         </div>
       </div>
@@ -393,7 +380,8 @@ export default function BatchesPage() {
           const statusColors = {
             draft: "bg-slate-100 text-slate-500 border-slate-200",
             ready: "bg-slate-100 text-slate-600 border-slate-200",
-            paid: "bg-emerald-50 text-emerald-600 border-emerald-100"
+            paid: "bg-emerald-50 text-emerald-600 border-emerald-100",
+            rejected: "bg-rose-50 text-rose-700 border-rose-200",
           };
 
           return (
@@ -598,7 +586,7 @@ export default function BatchesPage() {
 
               <div className="space-y-1.5">
                 <label className="text-xs font-black uppercase tracking-wider text-slate-400 block">
-                  Proof of Payment / Receipt Receipt (Optional)
+                  Proof of Payment (optional)
                 </label>
                 <input 
                   type="file"

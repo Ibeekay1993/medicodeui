@@ -44,6 +44,7 @@ interface AuthorizationsTableProps {
   setPage: (page: number) => void;
   otpVerifiedStatus?: Record<string, boolean>;
   setOtpVerifiedStatus?: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
+  isLoading?: boolean;
 }
 
 export default function AuthorizationsTable({
@@ -64,7 +65,8 @@ export default function AuthorizationsTable({
   pageSize,
   setPage,
   otpVerifiedStatus = {},
-  setOtpVerifiedStatus
+  setOtpVerifiedStatus,
+  isLoading = false
 }: AuthorizationsTableProps) {
   const { toast } = useToast();
   const [unlockingReqId, setUnlockingReqId] = useState<string | null>(null);
@@ -101,6 +103,14 @@ export default function AuthorizationsTable({
     const s = String(r.status || "").toLowerCase();
     return s.includes("approved") || s.includes("accepted");
   };
+
+  if (isLoading) {
+    return (
+      <Card className="flex min-h-48 items-center justify-center rounded-xl border border-slate-100 bg-white p-8 text-sm text-slate-500">
+        <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Loading authorizations…
+      </Card>
+    );
+  }
 
   return (
     <>

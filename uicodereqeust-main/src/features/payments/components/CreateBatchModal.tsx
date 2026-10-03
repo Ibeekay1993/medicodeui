@@ -76,8 +76,8 @@ export function CreateBatchModal({
       });
 
       toast({
-        title: "Batch Created Successfully",
-        description: `Batch ${batchRef} containing ${selectedClaims.length} claim(s) has been assembled.`,
+        title: "Batch created",
+        description: `Batch ${batchRef} includes ${selectedClaims.length} ${selectedClaims.length === 1 ? "claim" : "claims"}.`,
       });
 
       onSuccess();
@@ -93,8 +93,6 @@ export function CreateBatchModal({
         title: "Batch Creation Failed",
         description: errorMsg || "An unexpected error occurred during batching.",
       });
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
@@ -119,7 +117,7 @@ export function CreateBatchModal({
             </div>
             <div className="flex justify-between items-center text-xs">
               <span className="font-semibold text-slate-400">CLAIMS SELECTED:</span>
-              <span className="font-black text-brand-700">{selectedClaims.length} Claim(s)</span>
+              <span className="font-black text-brand-700">{selectedClaims.length} {selectedClaims.length === 1 ? "claim" : "claims"}</span>
             </div>
             <div className="border-t border-slate-200 my-2 pt-2 flex justify-between items-center text-xs">
               <span className="font-black text-slate-900 uppercase">Total Amount:</span>

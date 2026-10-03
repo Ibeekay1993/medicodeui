@@ -2,8 +2,10 @@ export type Hospital = {
   id: string;
   name: string;
   code?: string;
-  user_id?: string;
-  email?: string;
+  user_id?: string | null;
+  email?: string | null;
+  address?: string | null;
+  phone?: string | null;
   [key: string]: any;
 };
 

@@ -2,13 +2,12 @@
  * PushNotificationFirstTimePrompt.tsx
  *
  * Compact bottom-anchored toast that prompts users to enable push notifications.
- * - Does NOT auto-dismiss — stays visible until the user explicitly acts.
- * - Tells users they can enable/disable later in Settings.
- * - Snoozed for 2 days via localStorage after dismiss; cleared on enable.
- * - Session-level guard via sessionStorage prevents re-showing on same session.
+ * Requests notification permission after the first authenticated staff gesture,
+ * because browsers prohibit silent permission grants. Users can opt out here
+ * or later from Settings.
  */
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Bell, X, Settings2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -17,54 +16,55 @@ import {
   isPushNotificationSupported,
   getNotificationPermission,
   subscribeToPushNotifications,
+  hasOptedOutOfPush,
 } from "@/lib/pushNotifications";
 
-const SESSION_KEY = "ronsberger_push_session_dismissed";
-const SNOOZE_KEY = "ronsberger_push_prompt_v3";
-const SNOOZE_DAYS = 2;
+const STAFF_ROLES = new Set(["admin", "utilization_manager", "claims", "finance"]);
 
 export function PushNotificationFirstTimePrompt() {
-  const { user } = useAuth();
+  const { user, role } = useAuth();
   const { toast } = useToast();
   const [visible, setVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  // Ref prevents the useEffect from double-showing in React StrictMode
-  const didCheck = useRef(false);
-
   useEffect(() => {
-    if (didCheck.current) return;
-    if (!user?.id) return;
-    // Auth is loaded asynchronously. Do not consume the one-time check while
-    // the user is still null, or the prompt will never appear after sign-in.
-    didCheck.current = true;
+    if (!user?.id || !role || !STAFF_ROLES.has(role)) return;
     if (!isPushNotificationSupported()) return;
 
     const perm = getNotificationPermission();
 
-    // Permission already granted — silently re-subscribe if needed
+    if (hasOptedOutOfPush(user.id)) return;
+
+    // Permission already granted — keep this account subscribed on this device.
     if (perm === "granted") {
-      // Reconcile the device subscription and persist it for this account.
-      subscribeToPushNotifications(user.id).catch(() => {});
+      subscribeToPushNotifications(user.id).then((result) => {
+        if (result.success) setVisible(false);
+      }).catch(() => {});
       return;
     }
 
     // Browser blocked notifications
     if (perm === "denied") return;
 
-    // Already dismissed this session
-    if (sessionStorage.getItem(SESSION_KEY)) return;
-
-    // Snoozed recently
-    const snoozedAt = localStorage.getItem(SNOOZE_KEY);
-    if (snoozedAt) {
-      const daysSince = (Date.now() - parseInt(snoozedAt, 10)) / 86_400_000;
-      if (daysSince < SNOOZE_DAYS) return;
-    }
-
-    // Show with a short delay so the page settles first
+    // Ask automatically on the first interaction. Browser APIs require a user
+    // gesture, so sites cannot silently grant notification permission.
     const t = setTimeout(() => setVisible(true), 600);
-    return () => clearTimeout(t);
-  }, [user?.id]);
+    const requestOnInteraction = (event: Event) => {
+      if ((event.target as Element | null)?.closest?.("[data-push-prompt]")) return;
+      window.removeEventListener("pointerdown", requestOnInteraction, true);
+      window.removeEventListener("keydown", requestOnInteraction, true);
+      void subscribeToPushNotifications(user.id).then((result) => {
+        if (result.success) setVisible(false);
+        else if (getNotificationPermission() === "denied") setVisible(false);
+      }).catch(() => {});
+    };
+    window.addEventListener("pointerdown", requestOnInteraction, true);
+    window.addEventListener("keydown", requestOnInteraction, true);
+    return () => {
+      clearTimeout(t);
+      window.removeEventListener("pointerdown", requestOnInteraction, true);
+      window.removeEventListener("keydown", requestOnInteraction, true);
+    };
+  }, [user?.id, role]);
 
   const handleEnable = useCallback(async () => {
     if (!user?.id) return;
@@ -73,8 +73,6 @@ export function PushNotificationFirstTimePrompt() {
     setIsLoading(false);
 
     if (result.success) {
-      localStorage.removeItem(SNOOZE_KEY);
-      sessionStorage.removeItem(SESSION_KEY);
       setVisible(false);
       toast({
         title: "Push Notifications Active 🔔",
@@ -94,16 +92,16 @@ export function PushNotificationFirstTimePrompt() {
   }, [user?.id, toast]);
 
   const handleDismiss = useCallback(() => {
-    sessionStorage.setItem(SESSION_KEY, "true");
-    localStorage.setItem(SNOOZE_KEY, Date.now().toString());
+    if (user?.id) localStorage.setItem(`ronsberger_push_opt_out:${user.id}`, "true");
     setVisible(false);
-  }, []);
+  }, [user?.id]);
 
   if (!visible) return null;
 
   return (
     /* Fixed bottom toast — sits above the mobile nav bar */
     <div
+      data-push-prompt
       className="fixed bottom-20 sm:bottom-6 left-3 right-3 sm:left-auto sm:right-6 sm:w-[360px] z-[200]
                  animate-in slide-in-from-bottom-4 fade-in duration-300"
       role="dialog"
@@ -126,10 +124,10 @@ export function PushNotificationFirstTimePrompt() {
               </div>
               <div>
                 <p className="text-sm font-bold text-slate-900 leading-tight">
-                  Turn On Push Notifications
+                  Notifications
                 </p>
                 <p className="text-xs text-slate-500 mt-0.5 leading-snug">
-                  Get alerts even when your browser is closed
+                  We’ll ask your browser to allow alerts.
                 </p>
               </div>
             </div>
@@ -147,9 +145,9 @@ export function PushNotificationFirstTimePrompt() {
           <div className="flex items-start gap-2 mt-3 px-1">
             <Settings2 className="h-3.5 w-3.5 text-brand-600 shrink-0 mt-0.5" />
             <p className="text-xs text-slate-500 leading-relaxed">
-              You can enable or disable push alerts anytime in{" "}
+              Enable alerts here, or turn them off in{" "}
               <strong className="text-slate-700 font-semibold">
-                Settings → Push Notifications
+                Settings → Alerts
               </strong>
               .
             </p>
@@ -163,7 +161,7 @@ export function PushNotificationFirstTimePrompt() {
               onClick={handleDismiss}
               className="flex-1 text-xs h-9 text-slate-500 hover:text-slate-800 hover:bg-slate-100"
             >
-              Maybe Later
+              Turn Off
             </Button>
             <Button
               type="button"

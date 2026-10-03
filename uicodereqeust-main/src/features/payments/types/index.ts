@@ -7,8 +7,10 @@ export interface PaymentBatch {
   total_amount: number;
   status: "draft" | "ready" | "paid" | "rejected";
   created_at: string;
+  bank_reference?: string | null;
   paid_at?: string | null;
-  evidence_url?: string | null;
+  receipt_url?: string | null;
+  receipt_name?: string | null;
   hospitals?: { name: string } | null;
 }
 

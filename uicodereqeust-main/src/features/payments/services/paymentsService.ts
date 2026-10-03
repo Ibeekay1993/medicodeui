@@ -107,20 +107,15 @@ export class PaymentsService {
   }
 
   static async uploadBatchEvidence(batchId: string, file: File): Promise<string> {
-    const fileExt = file.name.split('.').pop();
-    const filePath = `${batchId}-${Math.random()}.${fileExt}`;
+    const safeName = file.name.split(/[\\/]/).pop()?.replace(/[^a-zA-Z0-9._-]/g, "_") || "receipt";
+    const filePath = `${batchId}/${crypto.randomUUID()}-${safeName}`;
     
     const { error: uploadError } = await supabase.storage
-      .from("payment_evidence")
+      .from("payment-receipts")
       .upload(filePath, file);
 
     if (uploadError) throw uploadError;
-
-    const { data: publicUrlData } = supabase.storage
-      .from("payment_evidence")
-      .getPublicUrl(filePath);
-
-    return publicUrlData.publicUrl;
+    return filePath;
   }
 
   static async updateBatchStatus(batchId: string, payload: any) {

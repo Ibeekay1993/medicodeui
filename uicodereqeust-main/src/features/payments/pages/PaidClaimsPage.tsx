@@ -212,7 +212,7 @@ export default function PaidClaimsPage() {
         
         <div className="text-right shrink-0">
           <span className="text-xs font-black uppercase tracking-wider text-slate-400">
-            {(claims || []).length} Paid Claim(s)
+            {(claims || []).length} {(claims || []).length === 1 ? "paid claim" : "paid claims"}
           </span>
         </div>
       </div>

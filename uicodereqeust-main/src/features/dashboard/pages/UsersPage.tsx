@@ -60,7 +60,6 @@ import {
   ResetPasswordModal,
   AccessStatusModal,
   DeleteUserModal,
-  UnenrollMfaModal,
 } from "@/components/users/ActionModals";
 
 export default function UsersPage() {
@@ -396,7 +395,7 @@ export default function UsersPage() {
                           {item.phone && <div className="text-slate-400 text-xs mt-0.5 leading-tight">{item.phone}</div>}
                         </td>
                         <td className="px-4 py-2.5">
-                          <span className="text-sm font-medium text-slate-600">{roleLabel(item.role)}</span>
+                          <span className="inline-flex max-w-full whitespace-normal break-words rounded-md bg-slate-100 px-2 py-1 text-xs font-medium leading-tight text-slate-700">{roleLabel(item.role)}</span>
                         </td>
                         <td className="px-4 py-2.5 break-words whitespace-normal leading-snug">
                           <div className="font-medium text-slate-700 text-xs">{linkedHospital}</div>
@@ -460,10 +459,10 @@ export default function UsersPage() {
                 const suspended = ["suspended", "revoked", "inactive"].includes(status);
                 const linkedHospital = item.hospital_name || hospitals.find((hospital) => hospital.id === item.hospital_id)?.name || (item.role === "hospital" ? "No hospital assigned" : "Ronsberger HMO Operations");
                 return (
-                  <div key={item.id} className="relative p-4 hover:bg-slate-50/50 transition-colors">
-                    {/* Left text section with margin to prevent badge overlap */}
-                    <div className="pr-28 space-y-1">
-                      <span className="text-base font-semibold text-slate-900 truncate block">{item.full_name || "Unnamed User"}</span>
+                  <div key={item.id} className="p-4 transition-colors hover:bg-slate-50/50">
+                    <div className="flex min-w-0 items-start gap-2">
+                      <div className="min-w-0 flex-1 space-y-1">
+                      <span className="block break-words text-base font-semibold leading-snug text-slate-900">{item.full_name || "Unnamed User"}</span>
                       {!item.full_name && <div className="text-xs text-rose-600 font-medium leading-none">Update name required</div>}
                       <div className="text-sm text-slate-500 font-normal space-y-0.5">
                         <p className="font-mono truncate" title={item.email}>{item.email || "No email"}</p>
@@ -471,20 +470,7 @@ export default function UsersPage() {
                         <p className="truncate text-xs text-slate-400">{linkedHospital}</p>
                       </div>
                       <div className="text-xs text-slate-400 mt-1.5">Active: {prettyDate(item.last_sign_in || (status === "active" ? item.updated_at : null))}</div>
-                    </div>
-
-                    {/* Right absolute badges and dropdown */}
-                    <div className="absolute top-4 right-4 flex items-center gap-1.5">
-                      <div className="flex flex-col items-end gap-1.5 shrink-0">
-                        <span className="text-sm font-medium text-slate-600">
-                          {roleLabel(item.role)}
-                        </span>
-                        <div className="flex items-center gap-1.5 mt-0.5">
-                          <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", status === "active" ? "bg-emerald-500" : status === "onboarding" ? "bg-amber-500" : "bg-rose-500")} />
-                          <span className="text-xs font-medium text-slate-700">{status.charAt(0).toUpperCase() + status.slice(1)}</span>
-                        </div>
                       </div>
-                      
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" size="icon" className="h-10 w-10 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg flex items-center justify-center">
@@ -513,6 +499,13 @@ export default function UsersPage() {
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
+                    </div>
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      <span className="inline-flex max-w-full whitespace-normal break-words rounded-md bg-slate-100 px-2 py-1 text-xs font-medium leading-tight text-slate-700">{roleLabel(item.role)}</span>
+                      <span className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 px-2 py-1 text-xs font-medium text-slate-600">
+                        <span className={cn("h-1.5 w-1.5 rounded-full", status === "active" ? "bg-emerald-500" : status === "onboarding" ? "bg-amber-500" : "bg-rose-500")} />
+                        {status.charAt(0).toUpperCase() + status.slice(1)}
+                      </span>
                     </div>
                   </div>
                 );

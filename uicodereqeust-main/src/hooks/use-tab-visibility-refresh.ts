@@ -4,14 +4,14 @@ import { useEffect, useRef } from "react";
  * Hook to silently refresh data when tab becomes visible or window is focused.
  * Uses a cooldown to ensure we only refresh if the user was away for a certain time,
  * and a throttle to prevent spamming when toggling tabs rapidly.
- * 
+ *
  * @param onRefresh - The function to call to refresh the data.
  * @param enabled - Whether the hook is active (default: true).
  * @param cooldownMs - Minimum time (in ms) the user must have been away/inactive before a refresh is triggered (default: 5 minutes).
  * @param throttleMs - Minimum time (in ms) between consecutive refreshes (default: 30 seconds).
  */
 export function useTabVisibilityRefresh(
-  onRefresh: (force?: boolean) => void,
+  onRefresh: () => unknown,
   enabled = true,
   cooldownMs = 5 * 60 * 1000,
   throttleMs = 30000
@@ -31,7 +31,7 @@ export function useTabVisibilityRefresh(
       }
 
       lastRefreshedAt.current = now;
-      onRefresh(force);
+      void onRefresh();
     };
 
     const triggerRefreshOnReturn = () => {
@@ -71,4 +71,4 @@ export function useTabVisibilityRefresh(
       window.removeEventListener("blur", handleBlur);
     };
   }, [onRefresh, enabled, cooldownMs, throttleMs]);
-}
+}

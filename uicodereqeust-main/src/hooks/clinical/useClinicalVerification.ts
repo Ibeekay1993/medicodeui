@@ -8,7 +8,7 @@ import {
   recordMatchesPolicy,
 } from "@/lib/clinicalUtils";
 
-function withTimeout<T>(promise: Promise<T>, ms: number = 4000): Promise<T> {
+function withTimeout<T>(promise: PromiseLike<T>, ms: number = 4000): Promise<T> {
   return Promise.race([
     promise,
     new Promise<T>((_, reject) =>

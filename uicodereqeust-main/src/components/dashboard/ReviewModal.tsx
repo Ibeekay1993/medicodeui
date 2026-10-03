@@ -724,7 +724,7 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
                   primaryHospital={primaryHospital}
                   primaryHospitalMismatch={primaryHospitalMismatch}
                   requestingHospitalName={requestingHospitalName}
-                  requestingHospitalCode={requestingHospitalCode}
+                  requestingHospitalCode={requestingHospitalCode ?? undefined}
                 />
 
                 {/* Local and spreadsheet claims history */}
@@ -928,7 +928,7 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
                     value={actions.editTreatment}
                     onChange={(e) => actions.setEditTreatment(e.target.value)}
                     onBlur={() => {
-                      if (isLocked || role === "hospital" || !(["hospital", "hospital_portal"].includes(role))) return;
+                      if (isLocked || role === "hospital" || !(["hospital", "hospital_portal"].includes(role ?? ""))) return;
                       void tariffSearch.parseTreatmentText({ replaceAuto: true, quiet: true });
                     }}
                     readOnly={isLocked || request?.deletion_status === "awaiting_admin_approval" || role === "hospital"}
@@ -1023,12 +1023,10 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
                     request={request}
                     approvedItems={tariffSearch.approvedItems}
                     removeApprovedItem={tariffSearch.removeApprovedItem}
-                    updateApprovedItem={tariffSearch.updateApprovedItem}
                     approvedTotal={tariffSearch.approvedTotal}
                     totalApprovedAmount={tariffSearch.approvedTotal}
                     changeItemQuantity={tariffSearch.changeItemQuantity}
-                    role={role}
-                    isHmo={role !== "hospital"}
+                    isHospitalDirected={isHospitalDirected}
                     editTreatment={actions.editTreatment}
                     setEditTreatment={actions.setEditTreatment}
                     updateDeclineReason={tariffSearch.updateDeclineReason}
@@ -1108,7 +1106,7 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
                       <>
                         <Button
                           className="w-full sm:w-auto sm:flex-1 h-11 sm:h-12 px-6 rounded-xl bg-red-600 hover:bg-red-700 text-white text-[11px] sm:text-xs font-black uppercase tracking-widest shadow-md transition-all flex items-center justify-center gap-1.5"
-                          onClick={() => actions.handleDecline(actions.editDecisionNote)}
+                          onClick={actions.handleDecline}
                           disabled={actions.processing || !actions.editDecisionNote}
                         >
                           {actions.processingAction === "decline" ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}

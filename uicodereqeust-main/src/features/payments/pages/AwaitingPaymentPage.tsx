@@ -304,7 +304,7 @@ export default function AwaitingPaymentPage() {
            <span className="text-xs font-black uppercase tracking-wider text-slate-400">
              {isFinance
                ? `${filteredClaims.length} Payments Awaiting Settlement`
-               : `${filteredClaims.length} Claim(s) Awaiting Payment`}
+               : `${filteredClaims.length} ${filteredClaims.length === 1 ? "claim" : "claims"} awaiting payment`}
            </span>
          </div>
        </div>

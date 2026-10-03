@@ -1,17 +1,15 @@
-import React, { useState } from "react";
-import { Badge } from "@/components/ui/badge";
-import { Loader2, ChevronDown, ChevronUp, Check, AlertTriangle } from "lucide-react";
-import { cleanPatientName } from "@/lib/clinicalUtils";
+import { useState } from "react";
+import { AlertTriangle } from "lucide-react";
 
 interface PatientVerifyCardProps {
   request: any;
   checking: boolean;
-  patientMatchStatus: 'checking' | 'matched' | 'mismatch' | 'not_found' | 'error';
+  patientMatchStatus: 'exact' | 'partial' | 'none' | null;
   matchedMemberId: string | null;
-  policyVerified: boolean;
-  nhisVerified: boolean;
+  policyVerified: boolean | null;
+  nhisVerified: boolean | null;
   familyMembers: any[];
-  earlyRefill: { isEarly: boolean; daysSinceLast: number | null; lastApprovalDate: string | null };
+  earlyRefill: { isEarly: boolean; daysSince: number; lastDate: string } | null;
   requestPatientName: string;
   requestPolicyNumber: string;
   primaryHospitalLoading?: boolean;
@@ -22,17 +20,12 @@ interface PatientVerifyCardProps {
 }
 
 export function PatientVerifyCard({
-  request,
   checking,
   patientMatchStatus,
   matchedMemberId,
   policyVerified,
-  nhisVerified,
   familyMembers,
-  earlyRefill,
   requestPatientName,
-  requestPolicyNumber,
-  primaryHospitalLoading = false,
   primaryHospital = null,
   primaryHospitalMismatch = false,
   requestingHospitalName = "",

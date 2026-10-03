@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { money } from "@/lib/claims-helpers";
 import { Loader2, FileSpreadsheet, Calendar, User, Hash } from "lucide-react";
 import { useBatchDetails, useBatchClaims } from "../hooks/usePayments";
+import { supabase } from "@/integrations/supabase/client";
 
 interface BatchDetailsDrawerProps {
   isOpen: boolean;
@@ -76,7 +77,7 @@ export function BatchDetailsDrawer({
                 <div>
                   <p className="text-xs font-black uppercase tracking-wider text-slate-400">Claims Count</p>
                   <p className="font-mono font-black text-brand-700 text-xs mt-0.5">
-                    {batch.total_claims} Claim(s)
+                    {batch.total_claims} {batch.total_claims === 1 ? "claim" : "claims"}
                   </p>
                 </div>
               </div>
@@ -107,19 +108,22 @@ export function BatchDetailsDrawer({
                   </div>
                   <div className="text-xs space-y-1 font-medium text-slate-600">
                     <p>Bank Reference: <span className="font-mono font-black text-slate-800">{batch.bank_reference || "N/A"}</span></p>
-                    <p>Settled On: <span className="font-bold text-slate-800">{new Date(batch.paid_at).toLocaleString("en-GB")}</span></p>
+                    <p>Settled On: <span className="font-bold text-slate-800">{batch.paid_at ? new Date(batch.paid_at).toLocaleString("en-GB") : "Not recorded"}</span></p>
                     {batch.receipt_url && (
                       <div className="pt-1.5">
                         <button
                           type="button"
                           onClick={async () => {
+                            const receiptWindow = window.open("about:blank", "_blank");
+                            if (receiptWindow) receiptWindow.opener = null;
                             const { data, error } = await supabase.storage
                               .from("payment-receipts")
-                              .createSignedUrl(batch.receipt_url, 3600);
-                            if (error) {
-                              alert("Error fetching receipt: " + error.message);
-                            } else if (data?.signedUrl) {
-                              window.open(data.signedUrl, "_blank");
+                              .createSignedUrl(batch.receipt_url!, 3600);
+                            if (error || !data?.signedUrl) {
+                              receiptWindow?.close();
+                              alert("Could not open the payment receipt. Please try again.");
+                            } else if (receiptWindow) {
+                              receiptWindow.location.href = data.signedUrl;
                             }
                           }}
                           className="flex items-center gap-1 text-xs font-black uppercase text-brand-700 hover:text-brand-800 border border-slate-200 bg-white rounded px-2 py-1 transition-all cursor-pointer"
