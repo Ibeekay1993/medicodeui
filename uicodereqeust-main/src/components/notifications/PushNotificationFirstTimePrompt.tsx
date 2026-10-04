@@ -26,6 +26,7 @@ export function PushNotificationFirstTimePrompt() {
   const { toast } = useToast();
   const [visible, setVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [setupError, setSetupError] = useState<string | null>(null);
   useEffect(() => {
     if (!user?.id || !role || !STAFF_ROLES.has(role)) return;
     if (!isPushNotificationSupported()) return;
@@ -38,6 +39,10 @@ export function PushNotificationFirstTimePrompt() {
     if (perm === "granted") {
       subscribeToPushNotifications(user.id).then((result) => {
         if (result.success) setVisible(false);
+        else {
+          setSetupError("Notifications are allowed by your browser, but this device could not be registered with the portal. Retry or ask your administrator for help.");
+          setVisible(true);
+        }
       }).catch(() => {});
       return;
     }
@@ -45,24 +50,9 @@ export function PushNotificationFirstTimePrompt() {
     // Browser blocked notifications
     if (perm === "denied") return;
 
-    // Ask automatically on the first interaction. Browser APIs require a user
-    // gesture, so sites cannot silently grant notification permission.
     const t = setTimeout(() => setVisible(true), 600);
-    const requestOnInteraction = (event: Event) => {
-      if ((event.target as Element | null)?.closest?.("[data-push-prompt]")) return;
-      window.removeEventListener("pointerdown", requestOnInteraction, true);
-      window.removeEventListener("keydown", requestOnInteraction, true);
-      void subscribeToPushNotifications(user.id).then((result) => {
-        if (result.success) setVisible(false);
-        else if (getNotificationPermission() === "denied") setVisible(false);
-      }).catch(() => {});
-    };
-    window.addEventListener("pointerdown", requestOnInteraction, true);
-    window.addEventListener("keydown", requestOnInteraction, true);
     return () => {
       clearTimeout(t);
-      window.removeEventListener("pointerdown", requestOnInteraction, true);
-      window.removeEventListener("keydown", requestOnInteraction, true);
     };
   }, [user?.id, role]);
 
@@ -74,12 +64,14 @@ export function PushNotificationFirstTimePrompt() {
 
     if (result.success) {
       setVisible(false);
+      setSetupError(null);
       toast({
         title: "Push Notifications Active 🔔",
         description:
           "You will now receive instant alerts on your phone even when Chrome is closed.",
       });
     } else {
+      setSetupError(result.error || "Please allow notifications in your browser prompt.");
       toast({
         title: "Could Not Enable Notifications",
         description:
@@ -127,7 +119,7 @@ export function PushNotificationFirstTimePrompt() {
                   Notifications
                 </p>
                 <p className="text-xs text-slate-500 mt-0.5 leading-snug">
-                  We’ll ask your browser to allow alerts.
+                  Enable alerts for incoming authorization requests.
                 </p>
               </div>
             </div>
@@ -140,6 +132,8 @@ export function PushNotificationFirstTimePrompt() {
               <X className="h-4 w-4" />
             </button>
           </div>
+
+          {setupError && <p role="status" className="mt-3 text-xs leading-relaxed text-rose-700">{setupError}</p>}
 
           {/* Info line */}
           <div className="flex items-start gap-2 mt-3 px-1">

@@ -7,7 +7,7 @@ const VAPID_PRIVATE_KEY = Deno.env.get("VAPID_PRIVATE_KEY") || "";
 const VAPID_SUBJECT = Deno.env.get("VAPID_SUBJECT") || "mailto:support@ronsbergerhmo.com";
 const INTERNAL_SHARED_SECRET = Deno.env.get("WHATSAPP_WORKER_SECRET") || Deno.env.get("MEDAUTH_INTERNAL_API_KEY") || "";
 
-const ALLOWED_ROLES = ["admin", "utilization_manager", "hospital", "claims", "finance"];
+const ALLOWED_ROLES = ["admin", "utilization_manager", "utilization_manager_lead", "hospital", "claims", "finance"];
 
 function constantTimeEqual(a: string, b: string): boolean {
   let diff = a.length ^ b.length;

@@ -17,7 +17,7 @@ import {
   getNotificationPermission,
   subscribeToPushNotifications,
   unsubscribeFromPushNotifications,
-  getExistingSubscription,
+  getRegisteredPushSubscription,
 } from "@/lib/pushNotifications";
 
 export default function PushNotificationSettingsCard() {
@@ -26,14 +26,19 @@ export default function PushNotificationSettingsCard() {
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [permission, setPermission] = useState<NotificationPermission>("default");
   const [isLoading, setIsLoading] = useState(false);
+  const [setupIncomplete, setSetupIncomplete] = useState(false);
+  const [setupError, setSetupError] = useState<string | null>(null);
   const isSupported = isPushNotificationSupported();
 
   const checkStatus = useCallback(async () => {
     if (!isSupported) return;
     setPermission(getNotificationPermission());
-    const sub = await getExistingSubscription();
-    setIsSubscribed(!!sub);
-  }, [isSupported]);
+    if (!user?.id) return;
+    const status = await getRegisteredPushSubscription(user.id);
+    setIsSubscribed(status.registered);
+    setSetupIncomplete(!!status.subscription && !status.registered);
+    setSetupError(status.error || null);
+  }, [isSupported, user?.id]);
 
   useEffect(() => {
     checkStatus();
@@ -48,6 +53,7 @@ export default function PushNotificationSettingsCard() {
         : await unsubscribeFromPushNotifications(user.id);
 
       if (!res.success) {
+        setSetupError(res.error || "Please check your browser notification settings and try again.");
         toast({
           title: checked ? "Failed to Enable Notifications" : "Failed to Disable Notifications",
           description: res.error || "Please check your browser notification settings and try again.",
@@ -58,6 +64,8 @@ export default function PushNotificationSettingsCard() {
       }
 
       setIsSubscribed(checked);
+      setSetupIncomplete(false);
+      setSetupError(null);
       if (checked) setPermission("granted");
       toast({
         title: checked ? "Push Notifications Enabled" : "Push Notifications Disabled",
@@ -86,15 +94,15 @@ export default function PushNotificationSettingsCard() {
           window.setTimeout(() => reject(new Error("The notification service is still starting. Reload the page and try again.")), 15_000),
         ),
       ]);
-      reg.showNotification("Ronsberger HMO Alert 🔔", {
-        body: "Push notifications are working properly on your device!",
+      await reg.showNotification("Ronsberger HMO Alert", {
+        body: "This device can display portal notifications.",
         icon: "/icon-192.png",
         badge: "/icon-192.png",
         tag: "test-alert",
       });
       toast({
-        title: "Test Alert Dispatched",
-        description: "A test notification was triggered on this device.",
+        title: "Test Alert Received",
+        description: "This device displayed the test notification.",
       });
     } catch (error: unknown) {
       toast({
@@ -136,8 +144,8 @@ export default function PushNotificationSettingsCard() {
                 <CheckCircle2 className="h-3 w-3" /> Active
               </Badge>
             ) : (
-              <Badge variant="outline" className="text-xs text-slate-500 bg-slate-50 border-slate-200 font-semibold">
-                Disabled
+              <Badge variant="outline" className={`text-xs font-semibold ${setupIncomplete ? "text-amber-800 bg-amber-50 border-amber-300" : "text-slate-500 bg-slate-50 border-slate-200"}`}>
+                {setupIncomplete ? "Setup incomplete" : "Disabled"}
               </Badge>
             )}
           </div>
@@ -175,8 +183,16 @@ export default function PushNotificationSettingsCard() {
                 <span>Background Pre-Auth &amp; Approval Alerts</span>
               </div>
               <p className="text-xs text-slate-500 leading-relaxed">
-                Receive instant notifications when new requests arrive for review — even when Chrome or your browser is closed.
+                Receive request alerts while the browser is closed. Each device must allow notifications and register successfully.
               </p>
+              {setupIncomplete && (
+                <p role="status" className="pt-1 text-xs font-medium text-amber-800">
+                  This browser has a notification subscription, but it is not registered to this account. Turn notifications on again to repair setup.
+                </p>
+              )}
+              {setupError && !setupIncomplete && (
+                <p role="status" className="pt-1 text-xs font-medium text-rose-700">{setupError}</p>
+              )}
             </div>
 
             {isSubscribed ? (
@@ -206,7 +222,7 @@ export default function PushNotificationSettingsCard() {
                   className="text-xs h-9 px-4 bg-brand-700 hover:bg-brand-800 text-white font-semibold shadow-sm flex-1 sm:flex-none"
                 >
                   <Bell className="h-3.5 w-3.5 mr-1.5" />
-                  {isLoading ? "Enabling…" : "Turn On Notifications"}
+                  {isLoading ? "Enabling…" : setupIncomplete ? "Repair Notifications" : "Turn On Notifications"}
                 </Button>
               </div>
             )}

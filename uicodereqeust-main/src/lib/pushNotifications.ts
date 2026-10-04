@@ -217,6 +217,33 @@ export async function getExistingSubscription(): Promise<PushSubscription | null
   }
 }
 
+/** A browser subscription is not deliverable until it is saved for this account. */
+export async function getRegisteredPushSubscription(userId: string): Promise<{
+  subscription: PushSubscription | null;
+  registered: boolean;
+  error?: string;
+}> {
+  const subscription = await getExistingSubscription();
+  if (!subscription) return { subscription: null, registered: false };
+
+  try {
+    const { data, error } = await (supabase as any)
+      .from("push_subscriptions")
+      .select("id")
+      .eq("user_id", userId)
+      .eq("endpoint", subscription.endpoint)
+      .maybeSingle();
+    if (error) return { subscription, registered: false, error: error.message };
+    return { subscription, registered: !!data };
+  } catch (error) {
+    return {
+      subscription,
+      registered: false,
+      error: error instanceof Error ? error.message : "Could not verify this device's notification setup.",
+    };
+  }
+}
+
 /** Best-effort approver alert for a newly created pending authorization. */
 export async function notifyPendingAuthorizationRequest(input: {
   requestId: string;
@@ -227,7 +254,7 @@ export async function notifyPendingAuthorizationRequest(input: {
     const sourceLabel = input.source === "whatsapp" || input.source === "whatsapp_parser"
       ? "WhatsApp"
       : "hospital portal";
-    const { error } = await supabase.functions.invoke("send-push-notification", {
+    const { data, error } = await supabase.functions.invoke("send-push-notification", {
       body: {
         target_roles: ["admin", "utilization_manager", "utilization_manager_lead", "claims", "finance"],
         title: "New Pending Authorization Request",
@@ -243,6 +270,14 @@ export async function notifyPendingAuthorizationRequest(input: {
       },
     });
     if (error) console.error("Failed to dispatch pending-request push notification", error);
+    else if (!data?.success || data.sent_count === 0 || data.failed_count > 0) {
+      console.warn("Pending-request push delivery needs attention", {
+        success: data?.success,
+        sentCount: data?.sent_count ?? 0,
+        failedCount: data?.failed_count ?? 0,
+        reason: data?.message || data?.error || "Some recipients may not have an active device subscription.",
+      });
+    }
   } catch (error) {
     console.error("Failed to dispatch pending-request push notification", error);
   }
