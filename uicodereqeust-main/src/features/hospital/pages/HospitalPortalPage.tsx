@@ -3,6 +3,7 @@ import { useTabVisibilityRefresh } from "@/hooks/use-tab-visibility-refresh";
 import { useAuth } from "@/contexts/AuthContext";
 import { useHospitalProfile, useHospitalDashboard, useHospitalAnnouncements } from "../hooks/useHospitalDashboard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { DashboardMetricGrid } from "@/components/dashboard/DashboardMetricGrid";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { 
@@ -87,30 +88,17 @@ export default function HospitalPortalPage() {
       </div>
 
       {/* Dashboard Stats */}
-      <div className="grid gap-2 sm:gap-4 grid-cols-3 md:grid-cols-3 lg:grid-cols-6">
-        {[
-          { label: "Approved", val: metrics.approvedCount, isZero: metrics.approvedCount === 0, color: "text-emerald-600", icon: CheckCircle2, accent: "#10B981" },
-          { label: "Pending", val: metrics.pendingCount, isZero: metrics.pendingCount === 0, color: "text-amber-600", icon: Clock, accent: "#F59E0B" },
-          { label: "Rejected", val: metrics.deniedCount, isZero: metrics.deniedCount === 0, color: "text-rose-600", icon: XCircle, accent: "#EF4444" },
-          { label: "Portfolio", val: `₦${metrics.totalValue.toLocaleString()}`, isZero: metrics.totalValue === 0, color: "text-blue-600", icon: TrendingUp, accent: "#3B82F6" },
-          { label: "Unpaid", val: `₦${metrics.pendingPayout.toLocaleString()}`, isZero: metrics.pendingPayout === 0, color: "text-purple-600", icon: Banknote, accent: "#8B5CF6" },
-          { label: "Paid", val: `₦${metrics.paidClaims.toLocaleString()}`, isZero: metrics.paidClaims === 0, color: "text-emerald-600", icon: ShieldCheck, accent: "#10B981" },
-        ].map((m, i) => (
-          <div key={i} className="flex flex-1 min-w-0 flex-col p-3 rounded-xl border border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm transition-all cursor-pointer relative overflow-hidden" title={m.label}>
-            <div className="flex justify-between items-start mb-2 gap-1">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 leading-tight break-words">{m.label}</p>
-              <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full" style={{ background: `${m.accent}1A`, color: m.accent }}>
-                <m.icon className="h-[10px] w-[10px]" strokeWidth={3} />
-              </div>
-            </div>
-            <div className="mt-auto">
-              <h3 className={cn("text-base font-black leading-none tracking-tight break-words", m.isZero ? "text-slate-400" : m.color)}>
-                {m.val}
-              </h3>
-            </div>
-          </div>
-        ))}
-      </div>
+      <section aria-labelledby="hospital-summary-heading" className="space-y-2">
+        <h2 id="hospital-summary-heading" className="text-sm font-semibold text-slate-900">Authorization and payment summary</h2>
+        <DashboardMetricGrid loading={pageLoading} columns="grid-cols-1 min-[420px]:grid-cols-2 xl:grid-cols-3" items={[
+          { label: "Approved", value: metrics.approvedCount, icon: CheckCircle2, color: "text-emerald-700" },
+          { label: "Pending", value: metrics.pendingCount, icon: Clock, color: "text-amber-700" },
+          { label: "Rejected", value: metrics.deniedCount, icon: XCircle, color: "text-rose-700" },
+          { label: "Authorization value", value: `₦${metrics.totalValue.toLocaleString("en-NG")}`, icon: TrendingUp },
+          { label: "Awaiting payment", value: `₦${metrics.pendingPayout.toLocaleString("en-NG")}`, icon: Banknote, color: "text-amber-700" },
+          { label: "Paid claims", value: `₦${metrics.paidClaims.toLocaleString("en-NG")}`, icon: ShieldCheck, color: "text-emerald-700" },
+        ]} />
+      </section>
       
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 mt-4">
         <Card className="premium-card rounded-xl border border-slate-100 shadow-sm bg-white overflow-hidden transition-shadow hover:shadow-md">

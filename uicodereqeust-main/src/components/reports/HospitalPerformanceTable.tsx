@@ -8,56 +8,56 @@ interface HospitalPerformanceTableProps {
 
 export default function HospitalPerformanceTable({ data }: HospitalPerformanceTableProps) {
   return (
-    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow duration-300 overflow-hidden">
-      <div className="p-4 sm:p-6 border-b border-slate-100">
-        <h3 className="text-sm font-black uppercase tracking-widest text-slate-800">Hospital Performance</h3>
-        <p className="text-xs text-slate-400 mt-1 font-semibold">Detailed breakdown by provider</p>
+    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+      <div className="border-b border-slate-200 p-4 sm:p-5">
+        <h3 className="text-sm font-semibold text-slate-900">Hospital performance</h3>
+        <p className="mt-1 text-xs text-slate-500">Request and approved amount totals by provider</p>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
-          <thead className="bg-slate-50/80 border-b border-slate-100">
+          <thead className="border-b border-slate-200 bg-slate-50">
             <tr>
-              <th className="text-left py-4 px-6 text-[10px] font-black uppercase tracking-widest text-slate-400">Hospital</th>
-              <th className="text-right py-4 px-6 text-[10px] font-black uppercase tracking-widest text-slate-400">Total Codes</th>
-              <th className="text-right py-4 px-6 text-[10px] font-black uppercase tracking-widest text-slate-400">Approved</th>
-              <th className="text-right py-4 px-6 text-[10px] font-black uppercase tracking-widest text-slate-400">Pending</th>
-              <th className="text-right py-4 px-6 text-[10px] font-black uppercase tracking-widest text-slate-400">Rejected</th>
-              <th className="text-right py-4 px-6 text-[10px] font-black uppercase tracking-widest text-slate-400">Approved Value</th>
-              <th className="text-right py-4 px-6 text-[10px] font-black uppercase tracking-widest text-slate-400">Approval Rate</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 sm:px-5">Hospital</th>
+              <th className="px-4 py-3 text-right text-xs font-semibold text-slate-600 sm:px-5">Total requests</th>
+              <th className="px-4 py-3 text-right text-xs font-semibold text-slate-600 sm:px-5">Approved</th>
+              <th className="px-4 py-3 text-right text-xs font-semibold text-slate-600 sm:px-5">Pending</th>
+              <th className="px-4 py-3 text-right text-xs font-semibold text-slate-600 sm:px-5">Rejected</th>
+              <th className="px-4 py-3 text-right text-xs font-semibold text-slate-600 sm:px-5">Approved value</th>
+              <th className="px-4 py-3 text-right text-xs font-semibold text-slate-600 sm:px-5">Approval rate</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-50">
+          <tbody className="divide-y divide-slate-100">
             {data.map((hosp, index) => (
-              <tr key={index} className="hover:bg-slate-50/50 transition-colors duration-150 group">
-                <td className="py-4 px-6">
+              <tr key={index} className="transition-colors hover:bg-slate-50">
+                <td className="px-4 py-3 sm:px-5">
                   <div className="flex items-center gap-3">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-slate-500 border border-slate-200/50 shrink-0 group-hover:bg-white group-hover:border-slate-300 transition-colors">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-slate-600">
                       <Building2 className="h-4 w-4" />
                     </div>
-                    <span className="font-bold text-slate-800 leading-tight">{hosp.hospital}</span>
+                    <span className="font-medium leading-tight text-slate-800">{hosp.hospital}</span>
                   </div>
                 </td>
-                <td className="py-4 px-6 text-right font-mono font-bold text-slate-700">{hosp.totalCodes}</td>
-                <td className="py-4 px-6 text-right">
-                  <span className="bg-slate-50 text-emerald-700 border border-slate-200 text-xs font-bold px-2 py-0.5 rounded-md">
+                <td className="px-4 py-3 text-right tabular-nums text-slate-700 sm:px-5">{hosp.totalCodes}</td>
+                <td className="px-4 py-3 text-right sm:px-5">
+                  <span className="rounded border border-slate-200 bg-white px-2 py-0.5 text-xs font-medium tabular-nums text-emerald-700">
                     {hosp.approvedCodes}
                   </span>
                 </td>
-                <td className="py-4 px-6 text-right">
-                  <span className="bg-slate-50 text-amber-700 border border-slate-200 text-xs font-bold px-2 py-0.5 rounded-md">
+                <td className="px-4 py-3 text-right sm:px-5">
+                  <span className="rounded border border-slate-200 bg-white px-2 py-0.5 text-xs font-medium tabular-nums text-amber-700">
                     {hosp.pendingCodes}
                   </span>
                 </td>
-                <td className="py-4 px-6 text-right">
-                  <span className="bg-slate-50 text-rose-700 border border-slate-200 text-xs font-bold px-2 py-0.5 rounded-md">
+                <td className="px-4 py-3 text-right sm:px-5">
+                  <span className="rounded border border-slate-200 bg-white px-2 py-0.5 text-xs font-medium tabular-nums text-rose-700">
                     {hosp.rejectedCodes}
                   </span>
                 </td>
-                <td className="py-4 px-6 text-right font-mono font-bold text-emerald-600">{formatNaira(hosp.approvedAmount)}</td>
-                <td className="py-4 px-6 text-right">
+                <td className="px-4 py-3 text-right font-medium tabular-nums text-slate-800 sm:px-5">{formatNaira(hosp.approvedAmount)}</td>
+                <td className="px-4 py-3 text-right sm:px-5">
                   <span
                     className={cn(
-                      "text-xs font-bold px-2.5 py-1 rounded-full border",
+                      "rounded border px-2 py-1 text-xs font-medium tabular-nums",
                       hosp.approvalRate > 85
                         ? "bg-slate-50 text-emerald-700 border-slate-200"
                         : hosp.approvalRate > 60

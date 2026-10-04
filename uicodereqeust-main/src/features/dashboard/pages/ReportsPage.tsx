@@ -91,6 +91,276 @@ function formatReportScope(filters: FilterState, hospitalName?: string) {
   return `Requests created: ${dateLabel} (local time) · Status: ${statusLabel} · Hospital: ${hospitalLabel}`;
 }
 
+type PaymentAdviceRecord = PreAuthRecord & { source_total_amount: number | null };
+
+async function fetchPaymentAdviceRecords(filters: FilterState): Promise<PaymentAdviceRecord[]> {
+  const dateRange = buildDateFilter(filters.dateFilter, filters.startDate, filters.endDate);
+  const hospitalId = filters.hospitalFilter === "all" ? null : filters.hospitalFilter;
+  const approvedRows: any[] = [];
+  let page = 0;
+  const pageSize = 1000;
+
+  while (true) {
+    let query = supabase
+      .from("authorization_requests")
+      .select("*")
+      .in("status", ["approved", "partially_approved", "referral_approved", "referral_accepted", "authorization_approved"])
+      .order("decided_at", { ascending: true })
+      .order("id", { ascending: true });
+    if (dateRange.from) query = query.gte("decided_at", dateRange.from.toISOString());
+    if (dateRange.to) query = query.lte("decided_at", dateRange.to.toISOString());
+    if (hospitalId) {
+      query = query.or([
+        `claiming_hospital_id.eq.${hospitalId}`,
+        `referred_hospital_id.eq.${hospitalId}`,
+        `requesting_hospital_id.eq.${hospitalId}`,
+        `hospital_id.eq.${hospitalId}`,
+      ].join(","));
+    }
+
+    const { data, error } = await query.range(page * pageSize, (page + 1) * pageSize - 1);
+    if (error) throw error;
+    if (!data?.length) break;
+    approvedRows.push(...data);
+    if (data.length < pageSize) break;
+    page += 1;
+  }
+
+  return approvedRows
+    .map((item: any) => ({
+      id: item.id,
+      created_at: item.created_at,
+      request_id: item.request_id || "",
+      patient_name: item.patient_name || "",
+      patient_phone: item.patient_phone || item.phone || item.phone_number || "",
+      patient_email: item.patient_email || item.email || "",
+      policy_number: item.policy_number || "",
+      diagnosis: item.diagnosis || "",
+      treatment: item.treatment || "",
+      requesting_hospital: item.claiming_hospital_name || item.referred_hospital_name || item.requesting_hospital_name || item.hospital_name || "",
+      hospital_id: item.claiming_hospital_id || item.referred_hospital_id || item.requesting_hospital_id || item.hospital_id,
+      source: item.source || "Manual",
+      authorization_code: item.authorization_code || "",
+      status: item.status as RequestStatus,
+      approved_amount: calculateApprovedAmount(item),
+      approved_items: Array.isArray(item.approved_items) ? item.approved_items : [],
+      source_total_amount: item.total_amount === null || item.total_amount === undefined || item.total_amount === ""
+        ? null
+        : Number.isFinite(Number(item.total_amount)) ? Number(item.total_amount) : null,
+      rejection_reason: item.rejection_reason || "",
+      decision_reason: item.decision_reason || "",
+      decided_at: item.decided_at || undefined,
+      decided_by: item.decided_by,
+      approved_by: item.approved_by,
+      treatment_submitted_at: item.treatment_submitted_at,
+      urgency: item.urgency,
+      clinician: item.authorized_by_name || "",
+    }))
+    .sort((a, b) => (a.requesting_hospital || "").localeCompare(b.requesting_hospital || "") || new Date(a.decided_at || a.created_at).getTime() - new Date(b.decided_at || b.created_at).getTime());
+}
+
+function addPaymentAdviceWorksheets(
+  workbook: ExcelJS.Workbook,
+  records: PaymentAdviceRecord[],
+  filters: FilterState,
+  hospitalLabel: string,
+  currencyFormat: string,
+  headerFont: ExcelJS.Font,
+) {
+  const titleFill: ExcelJS.FillPattern = {
+    type: "pattern",
+    pattern: "solid",
+    fgColor: { argb: "FF0F3D35" },
+  };
+  const headerFill: ExcelJS.FillPattern = {
+    type: "pattern",
+    pattern: "solid",
+    fgColor: { argb: "FF1E3A5F" },
+  };
+  const dateRange = buildDateFilter(filters.dateFilter, filters.startDate, filters.endDate);
+  const approvalPeriod = dateRange.from && dateRange.to
+    ? `${formatScopeDate(dateRange.from)} to ${formatScopeDate(dateRange.to)}`
+    : dateRange.from
+      ? `From ${formatScopeDate(dateRange.from)}`
+      : dateRange.to
+        ? `Through ${formatScopeDate(dateRange.to)}`
+        : "All available dates";
+  const amountTotal = records.reduce((sum, record) => sum + Math.round((Number(record.approved_amount) || 0) * 100), 0) / 100;
+  const firstDataRow = 4;
+  const lastDataRow = firstDataRow + records.length - 1;
+
+  const schedule = workbook.addWorksheet("Payment Advice Schedule", {
+    views: [{ state: "frozen", xSplit: 0, ySplit: 3, showGridLines: false, zoomScale: 85 }],
+    properties: { tabColor: { argb: "FF059669" } },
+  });
+  schedule.columns = [
+    { header: "S/N", key: "sn", width: 8 },
+    { header: "Approval Date", key: "date", width: 16 },
+    { header: "Hospital / Provider", key: "hospital", width: 32 },
+    { header: "Auth Code", key: "authCode", width: 20 },
+    { header: "Request ID", key: "reqId", width: 19 },
+    { header: "Enrollee / Patient", key: "patient", width: 24 },
+    { header: "Policy Number", key: "policy", width: 18 },
+    { header: "Diagnosis", key: "diagnosis", width: 28 },
+    { header: "Approved Items (code, quantity, amount)", key: "treatment", width: 48 },
+    { header: "Approved Amount (₦)", key: "appAmt", width: 21 },
+    { header: "Authorized By", key: "clinician", width: 22 },
+  ];
+  schedule.mergeCells("A1:K1");
+  schedule.getCell("A1").value = "PAYMENT ADVICE SCHEDULE";
+  schedule.getCell("A1").font = { bold: true, size: 16, color: { argb: "FFFFFFFF" } };
+  schedule.getCell("A1").fill = titleFill;
+  schedule.getCell("A1").alignment = { vertical: "middle" };
+  schedule.getRow(1).height = 32;
+  schedule.getRow(2).values = ["Approval period", approvalPeriod, "Hospital", hospitalLabel, "", "", "", "", "", "Visible requests", records.length
+    ? { formula: `SUBTOTAL(103,A${firstDataRow}:A${lastDataRow})`, result: records.length }
+    : 0];
+  if (records.length) {
+    schedule.getCell("K2").value = { formula: `SUBTOTAL(103,A${firstDataRow}:A${lastDataRow})`, result: records.length };
+  }
+  schedule.getRow(2).height = 24;
+  schedule.getRow(2).eachCell((cell, columnNumber) => {
+    cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF1F5F9" } };
+    cell.font = columnNumber % 2 === 1
+      ? { bold: true, color: { argb: "FF475569" }, size: 10 }
+      : { color: { argb: "FF0F172A" }, size: 10 };
+  });
+  const headerRow = schedule.getRow(3);
+  headerRow.font = headerFont;
+  headerRow.fill = headerFill;
+  headerRow.height = 28;
+  headerRow.alignment = { vertical: "middle", wrapText: true };
+
+  records.forEach((record, index) => {
+    const approvedItems = (record.approved_items || []).filter((item: any) => item && !item.declined);
+    const itemSummary = approvedItems.length
+      ? approvedItems.map((item: any) => {
+          const quantity = Number(item.quantity || 1);
+          const amount = Number(item.amount ?? (Number(item.unit_price || item.price || 0) * quantity));
+          const name = [item.code, item.name].filter(Boolean).join(" ");
+          return `${name} × ${quantity} · ₦${amount.toLocaleString("en-NG", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        }).join("; ")
+      : record.treatment || "Approved item details unavailable";
+    const row = schedule.addRow({
+      sn: index + 1,
+      date: record.decided_at ? new Date(record.decided_at) : "Missing decision date",
+      hospital: record.requesting_hospital,
+      authCode: record.authorization_code,
+      reqId: record.request_id,
+      patient: record.patient_name,
+      policy: record.policy_number,
+      diagnosis: record.diagnosis,
+      treatment: itemSummary,
+      appAmt: Number(record.approved_amount) || 0,
+      clinician: record.clinician || "",
+    });
+    row.height = Math.min(90, Math.max(22, Math.ceil(itemSummary.length / 65) * 15));
+    row.eachCell({ includeEmpty: true }, (cell, columnNumber) => {
+      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: index % 2 === 0 ? "FFFFFFFF" : "FFF8FAFC" } };
+      cell.border = { bottom: { style: "hair", color: { argb: "FFE2E8F0" } } };
+      cell.alignment = { vertical: "top", wrapText: columnNumber === 8 || columnNumber === 9 };
+    });
+  });
+  schedule.getColumn("date").numFmt = "dd/mm/yyyy";
+  schedule.getColumn("appAmt").numFmt = currencyFormat;
+  const totalRow = schedule.addRow({
+    hospital: "TOTAL (visible rows)",
+    treatment: "Approved payable amount",
+    appAmt: records.length
+      ? { formula: `SUBTOTAL(109,J${firstDataRow}:J${lastDataRow})`, result: amountTotal }
+      : amountTotal,
+  });
+  totalRow.font = { bold: true, color: { argb: "FF065F46" } };
+  totalRow.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFD1FAE5" } };
+  totalRow.getCell("appAmt").numFmt = currencyFormat;
+  totalRow.height = 24;
+  if (records.length) {
+    schedule.autoFilter = {
+      from: { row: 3, column: 1 },
+      to: { row: lastDataRow, column: 11 },
+    };
+  }
+
+  const checks = workbook.addWorksheet("Payment Advice Checks", {
+    views: [{ state: "frozen", xSplit: 0, ySplit: 3, showGridLines: false, zoomScale: 90 }],
+    properties: { tabColor: { argb: "FF64748B" } },
+  });
+  checks.columns = [
+    { header: "Request ID", key: "requestId", width: 22 },
+    { header: "Authorization Code", key: "authCode", width: 22 },
+    { header: "Approved Amount (Schedule)", key: "scheduleAmount", width: 27 },
+    { header: "Stored Approved Total", key: "storedAmount", width: 24 },
+    { header: "Difference", key: "difference", width: 18 },
+    { header: "Data Quality Issues", key: "issues", width: 58 },
+  ];
+  checks.mergeCells("A1:F1");
+  checks.getCell("A1").value = "PAYMENT ADVICE CHECKS";
+  checks.getCell("A1").font = { bold: true, size: 16, color: { argb: "FFFFFFFF" } };
+  checks.getCell("A1").fill = titleFill;
+  checks.getCell("A1").alignment = { vertical: "middle" };
+  checks.getRow(1).height = 32;
+
+  const issueRows: Array<{ requestId: string; authCode: string; scheduleAmount: number; storedAmount: number | string; difference: number | string; issues: string }> = [];
+  for (const record of records) {
+    const issues = [
+      !record.requesting_hospital && "Missing provider",
+      !record.authorization_code && "Missing authorization code",
+      !record.request_id && "Missing request ID",
+      !record.patient_name && "Missing patient name",
+      !record.policy_number && "Missing policy number",
+      !record.diagnosis && "Missing diagnosis",
+      !(record.approved_items || []).some((item: any) => item && !item.declined) && "Missing approved item details",
+      !record.decided_at && "Missing decision date",
+      record.source_total_amount === null && "Missing stored approved total",
+    ].filter(Boolean) as string[];
+    const difference = record.source_total_amount === null ? null : Number(record.approved_amount) - record.source_total_amount;
+    if (difference !== null && Math.abs(difference) >= 0.01) issues.push("Approved item sum differs from stored approved total");
+    if (!issues.length) continue;
+    issueRows.push({
+      requestId: record.request_id,
+      authCode: record.authorization_code,
+      scheduleAmount: Number(record.approved_amount) || 0,
+      storedAmount: record.source_total_amount ?? "Missing",
+      difference: difference ?? "Not compared",
+      issues: issues.join("; "),
+    });
+  }
+
+  checks.getRow(2).values = ["Approved records checked", records.length, "Records needing attention", issueRows.length];
+  checks.getRow(2).height = 24;
+  checks.getRow(2).eachCell((cell, columnNumber) => {
+    cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF1F5F9" } };
+    cell.font = { bold: columnNumber % 2 === 1, color: { argb: columnNumber % 2 === 1 ? "FF475569" : "FF0F172A" }, size: 10 };
+  });
+  const checksHeader = checks.getRow(3);
+  checksHeader.font = headerFont;
+  checksHeader.fill = headerFill;
+  checksHeader.height = 28;
+  checksHeader.alignment = { vertical: "middle", wrapText: true };
+  for (const issue of issueRows) {
+    const row = checks.addRow(issue);
+    row.height = 30;
+    row.eachCell({ includeEmpty: true }, (cell) => {
+      cell.border = { bottom: { style: "hair", color: { argb: "FFE2E8F0" } } };
+      cell.alignment = { vertical: "top", wrapText: true };
+    });
+    row.getCell("issues").font = { color: { argb: "FF92400E" } };
+    row.getCell("issues").fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFFFBEB" } };
+  }
+  if (!issueRows.length) {
+    const clearRow = checks.addRow({ issues: records.length
+      ? "No missing payment fields or amount differences found."
+      : "No approved requests fell within this approval period." });
+    clearRow.font = { color: { argb: "FF475569" }, italic: true };
+  } else {
+    checks.autoFilter = { from: { row: 3, column: 1 }, to: { row: checks.rowCount, column: 6 } };
+  }
+  for (const column of ["scheduleAmount", "storedAmount", "difference"]) {
+    checks.getColumn(column).numFmt = currencyFormat;
+  }
+  return { totalAmount: amountTotal, rowCount: records.length };
+}
+
 export default function ReportsPage() {
   const { role, user } = useAuth();
   const normalizedRole = role?.toLowerCase();
@@ -298,200 +568,30 @@ export default function ReportsPage() {
 
       const currencyFormat = '"₦"#,##0.00';
       const percentFormat = '0.0"%"';
+      workbook.calcProperties.fullCalcOnLoad = true;
+      workbook.calcProperties.forceFullCalc = true;
+      workbook.calcProperties.calcMode = "auto";
       let paymentAdviceRowCount = 0;
 
+      const approvedAdviceRecords = mode === "full" || mode === "payment_advice"
+        ? await fetchPaymentAdviceRecords(filters)
+        : [];
+      paymentAdviceRowCount = approvedAdviceRecords.length;
+
+      if (mode === "payment_advice" && approvedAdviceRecords.length === 0) {
+        toast.warning("No approved requests found in the current filter scope to generate Payment Advice.");
+        return;
+      }
+
       if (mode === "payment_advice") {
-        // Payment periods are based on decision/approval date, while the
-        // analytics dashboard's date filter intentionally measures requests
-        // by creation date. Query the payment schedule on its own date axis.
-        const dateRange = buildDateFilter(filters.dateFilter, filters.startDate, filters.endDate);
-        const hospitalId = filters.hospitalFilter === "all" ? null : filters.hospitalFilter;
-        let approvedRows: any[] = [];
-        let page = 0;
-        const pageSize = 1000;
-        while (true) {
-          let query = supabase
-            .from("authorization_requests")
-            .select("*")
-            .in("status", ["approved", "partially_approved", "referral_approved", "referral_accepted", "authorization_approved"])
-            .order("decided_at", { ascending: true })
-            .order("id", { ascending: true })
-            .range(page * pageSize, (page + 1) * pageSize - 1);
-          if (dateRange.from) query = query.gte("decided_at", dateRange.from.toISOString());
-          if (dateRange.to) query = query.lte("decided_at", dateRange.to.toISOString());
-          if (hospitalId) {
-            query = query.or([
-              `claiming_hospital_id.eq.${hospitalId}`,
-              `referred_hospital_id.eq.${hospitalId}`,
-              `requesting_hospital_id.eq.${hospitalId}`,
-              `hospital_id.eq.${hospitalId}`,
-            ].join(","));
-          }
-          const { data, error } = await query;
-          if (error) throw error;
-          if (!data?.length) break;
-          approvedRows = approvedRows.concat(data);
-          if (data.length < pageSize) break;
-          page += 1;
-        }
-        const approvedRecords = approvedRows
-          .map((item: any) => ({
-            id: item.id,
-            created_at: item.created_at,
-            request_id: item.request_id || "",
-            patient_name: item.patient_name || "",
-            patient_phone: item.patient_phone || item.phone || item.phone_number || "",
-            patient_email: item.patient_email || item.email || "",
-            policy_number: item.policy_number || "",
-            diagnosis: item.diagnosis || "",
-            treatment: item.treatment || "",
-            requesting_hospital: item.claiming_hospital_name || item.referred_hospital_name || item.requesting_hospital_name || item.hospital_name || "",
-            hospital_id: item.claiming_hospital_id || item.referred_hospital_id || item.requesting_hospital_id || item.hospital_id,
-            source: item.source || "Manual",
-            authorization_code: item.authorization_code || "",
-            status: item.status as RequestStatus,
-            approved_amount: calculateApprovedAmount(item),
-            approved_items: Array.isArray(item.approved_items) ? item.approved_items : [],
-            source_total_amount: Number(item.total_amount) || 0,
-            rejection_reason: item.rejection_reason || "",
-            decision_reason: item.decision_reason || "",
-            decided_at: item.decided_at || undefined,
-            decided_by: item.decided_by,
-            approved_by: item.approved_by,
-            treatment_submitted_at: item.treatment_submitted_at,
-            urgency: item.urgency,
-            clinician: item.authorized_by_name || "",
-          } as PreAuthRecord & { source_total_amount: number }))
-          .sort((a, b) => (a.requesting_hospital || "").localeCompare(b.requesting_hospital || "") || new Date(a.decided_at || a.created_at).getTime() - new Date(b.decided_at || b.created_at).getTime());
-        paymentAdviceRowCount = approvedRecords.length;
-
-        if (approvedRecords.length === 0) {
-          toast.warning("No approved requests found in the current filter scope to generate Payment Advice.");
-          setIsExporting(false);
-          return;
-        }
-
-        const wsPA = workbook.addWorksheet("Payment Advice Schedule", {
-          views: [{ state: "frozen", xSplit: 0, ySplit: 1 }],
-          properties: { tabColor: { argb: theme.success } },
-        });
-
-        wsPA.columns = [
-          { header: "S/N", key: "sn", width: 8 },
-          { header: "Approval Date", key: "date", width: 16 },
-          { header: "Hospital / Provider", key: "hospital", width: 35 },
-          { header: "Auth Code", key: "authCode", width: 22 },
-          { header: "Request ID", key: "reqId", width: 20 },
-          { header: "Enrollee / Patient", key: "patient", width: 25 },
-          { header: "Policy Number", key: "policy", width: 20 },
-          { header: "Diagnosis", key: "diagnosis", width: 30 },
-          { header: "Approved NHIA Items (Code × Qty)", key: "treatment", width: 45 },
-          { header: "Approved Amount (₦)", key: "appAmt", width: 24 },
-          { header: "Authorized By", key: "clinician", width: 22 },
-        ];
-
-        wsPA.getRow(1).font = headerFont;
-        wsPA.getRow(1).fill = {
-          type: "pattern",
-          pattern: "solid",
-          fgColor: { argb: "FF065F46" },
-        };
-
-        let totalPayableCents = 0;
-        approvedRecords.forEach((r, idx) => {
-          const amt = Number(r.approved_amount) || 0;
-          totalPayableCents += Math.round(amt * 100);
-          const approvedItems = (r.approved_items || []).filter((item: any) => item && !item.declined);
-          const itemSummary = approvedItems.length
-            ? approvedItems.map((item: any) => `${item.code || ""} ${item.name || ""} × ${Number(item.quantity || 1)} — ₦${Number(item.amount ?? (Number(item.unit_price || item.price || 0) * Number(item.quantity || 1))).toLocaleString("en-NG", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`).join("; ")
-            : (r.treatment || "Approved item details unavailable");
-          wsPA.addRow({
-            sn: idx + 1,
-            date: r.decided_at ? new Date(r.decided_at).toLocaleDateString("en-GB") : "MISSING DECISION DATE",
-            hospital: r.requesting_hospital,
-            authCode: r.authorization_code,
-            reqId: r.request_id,
-            patient: r.patient_name,
-            policy: r.policy_number,
-            diagnosis: r.diagnosis,
-            treatment: itemSummary,
-            appAmt: amt,
-            clinician: r.clinician || "",
-          });
-        });
-
-        wsPA.getColumn("appAmt").numFmt = currencyFormat;
-
-        const totalRow = wsPA.addRow({
-          sn: "",
-          date: "",
-          hospital: "TOTAL APPROVED PAYABLE",
-          authCode: "",
-          reqId: "",
-          patient: "",
-          policy: "",
-          diagnosis: "",
-          treatment: `${approvedRecords.length} Authorizations`,
-          appAmt: totalPayableCents / 100,
-          clinician: "",
-        });
-        totalRow.font = { bold: true, size: 12, color: { argb: "FF065F46" } };
-        totalRow.fill = {
-          type: "pattern",
-          pattern: "solid",
-          fgColor: { argb: "FFD1FAE5" },
-        };
-        totalRow.getCell("appAmt").numFmt = currencyFormat;
-
-        const reconciliation = workbook.addWorksheet("Payment Advice Checks");
-        reconciliation.columns = [
-          { header: "Request ID", key: "requestId", width: 22 },
-          { header: "Authorization Code", key: "authCode", width: 22 },
-          { header: "Approved Amount (Schedule)", key: "scheduleAmount", width: 26 },
-          { header: "Stored Approved Total", key: "storedAmount", width: 24 },
-          { header: "Difference", key: "difference", width: 18 },
-          { header: "Data Quality Issues", key: "issues", width: 60 },
-        ];
-        reconciliation.getRow(1).font = headerFont;
-        reconciliation.getRow(1).fill = headerFill;
-        for (const r of approvedRecords) {
-          const issues = [
-            !r.requesting_hospital && "Missing provider",
-            !r.authorization_code && "Missing authorization code",
-            !r.request_id && "Missing request ID",
-            !r.patient_name && "Missing patient name",
-            !r.policy_number && "Missing policy number",
-            !r.diagnosis && "Missing diagnosis",
-            !(r.approved_items || []).some((item: any) => item && !item.declined) && "Missing approved item details",
-            !r.decided_at && "Missing decision date",
-          ].filter(Boolean);
-          const difference = Number(r.approved_amount) - r.source_total_amount;
-          if (Math.abs(difference) >= 0.01) issues.push("Approved item sum differs from stored approved total");
-          if (!issues.length) continue;
-          reconciliation.addRow({
-            requestId: r.request_id,
-            authCode: r.authorization_code,
-            scheduleAmount: r.approved_amount,
-            storedAmount: r.source_total_amount,
-            difference,
-            issues: issues.join("; "),
-          });
-        }
-        for (const column of ["scheduleAmount", "storedAmount", "difference"]) {
-          reconciliation.getColumn(column).numFmt = currencyFormat;
-        }
-        if (reconciliation.rowCount === 1) {
-          reconciliation.addRow({ issues: "No missing payment fields or amount differences found." });
-        }
-        reconciliation.autoFilter = {
-          from: { row: 1, column: 1 },
-          to: { row: reconciliation.rowCount, column: 6 },
-        };
-
-        wsPA.autoFilter = {
-          from: { row: 1, column: 1 },
-          to: { row: approvedRecords.length + 1, column: 11 },
-        };
+        addPaymentAdviceWorksheets(
+          workbook,
+          approvedAdviceRecords,
+          filters,
+          selectedHospitalName || "All hospitals",
+          currencyFormat,
+          headerFont,
+        );
       } else {
         // ── SHEETS 1-4 (Only in Full Mode) ───────────────────────────────────
         if (mode === "full") {
@@ -545,6 +645,15 @@ export default function ReportsPage() {
       pushKPI("Total Approved Amount", stats.approvedAmount, "Verified from approved items (NGN)", true, false, theme.success);
       pushKPI("Approval Rate", stats.approvalRate, "Approved / Total Volume", false, true);
       pushKPI("Rejection Rate", stats.rejectionRate, "Rejected / Total Volume", false, true, theme.danger);
+      const paymentAdvice = addPaymentAdviceWorksheets(
+        workbook,
+        approvedAdviceRecords,
+        filters,
+        selectedHospitalName || "All hospitals",
+        currencyFormat,
+        headerFont,
+      );
+      pushKPI("Payment Advice Payable", paymentAdvice.totalAmount, `${paymentAdvice.rowCount} approved requests by approval date`, true, false, theme.success);
 
       // ── SHEET 2: Trend Analysis ──────────────────────────────────────────
       const ws2 = workbook.addWorksheet("Trend Analysis", {
@@ -772,10 +881,10 @@ export default function ReportsPage() {
   }
 
   return (
-    <div className="space-y-6 max-w-full overflow-x-hidden pb-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
+    <div className="max-w-full space-y-5 overflow-x-hidden pb-10">
 
       {/* Filters */}
-      <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 delay-100 fill-mode-both">
+      <div>
         <ReportFilters
           filters={filters}
           onChange={(patch) => setFilters((f) => ({ ...f, ...patch }))}
@@ -824,12 +933,12 @@ export default function ReportsPage() {
 
       {visibleReportState.status === "SUCCESS_COMPLETE" && currentResult && (
         <>
-          <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 delay-200 fill-mode-both">
+          <div>
             <KPIStatsGrid stats={stats} isLoading={false} />
           </div>
 
           {(normalizedRole === "admin" || normalizedRole === "utilization_manager" || normalizedRole === "utilization_manager_lead") && (
-            <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 delay-250 fill-mode-both">
+            <div>
               <UtilizationSlaAnalysis
                 records={records}
                 managerNames={utilizationManagerNames}
@@ -840,15 +949,15 @@ export default function ReportsPage() {
           )}
 
           {/* Analytics Dashboard */}
-          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-300 fill-mode-both">
-        <div className="flex items-center justify-between">
+          <div className="space-y-4">
+        <div className="flex items-center gap-3 border-b border-slate-200 pb-3">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl shadow-sm">
-              <BarChart3 className="h-5 w-5 text-white" />
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-slate-700">
+              <BarChart3 className="h-4 w-4" />
             </div>
             <div>
-              <h2 className="text-lg font-black text-slate-900 tracking-tight">Analytics Dashboard</h2>
-              <p className="text-xs font-semibold text-slate-400">Deep dive into financial and operational metrics</p>
+              <h2 className="text-base font-semibold text-slate-900">Request analytics</h2>
+              <p className="text-xs text-slate-500">Status mix and approved value over time</p>
             </div>
           </div>
         </div>
@@ -864,7 +973,7 @@ export default function ReportsPage() {
           <div className="flex justify-end">
             <button
               onClick={() => setShowHospitalPerformance(!showHospitalPerformance)}
-              className="flex items-center gap-2 px-4 py-2.5 text-xs font-bold text-slate-700 bg-white border border-slate-200 rounded-xl shadow-sm hover:bg-slate-50 hover:shadow transition-all group"
+              className="flex min-h-11 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 group"
             >
               {showHospitalPerformance ? (
                 <>
@@ -880,7 +989,7 @@ export default function ReportsPage() {
             </button>
           </div>
           {showHospitalPerformance && (
-            <div className="animate-in fade-in slide-in-from-top-4 duration-500">
+            <div>
               <HospitalPerformanceTable data={hospitalPerformance} />
             </div>
           )}

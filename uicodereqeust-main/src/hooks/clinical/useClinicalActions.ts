@@ -15,13 +15,6 @@ import {
 } from "@/lib/clinicalUtils";
 import { normalizeHospitalName, areHospitalNamesMatching } from "@/lib/authorizations-helpers";
 
-function formatWhatsAppPhone(value: unknown): string {
-  const digits = String(value || "").replace(/\D/g, "");
-  if (digits.length === 11 && digits.startsWith("0")) return `234${digits.slice(1)}`;
-  if (digits.length === 10) return `234${digits}`;
-  return digits;
-}
-
 /**
  * Extracts a human-readable string from a clinical_notes or decision_reason value.
  * WhatsApp-sourced requests store a JSON blob in clinical_notes like:
@@ -47,137 +40,6 @@ function parseClinicalNote(value: unknown): string {
     }
   }
   return trimmed;
-}
-
-function getApprovalClosing(isPartial: boolean): string {
-  return isPartial
-    ? "Please proceed only with the approved services listed above. Declined services must not be provided under this authorization. For clarification, please contact Ronsberger HMO before treatment."
-    : "Please proceed with the approved services listed above. For clarification, please contact Ronsberger HMO before treatment.";
-}
-
-function formatApprovalServices(items: any[], treatment: string): string {
-  if (!items.length) return `Approved Services:\n${treatment}`;
-  const approvedLines = items
-    .filter((item) => !item.declined)
-    .map((item) => `${item.code || "NHIA"} - ${item.name}: ${itemQuantity(item)}`)
-    .join("\n");
-  const declinedLines = items
-    .filter((item) => item.declined)
-    .map((item) => {
-      const line = `${item.code || "NHIA"} - ${item.name}: ${itemQuantity(item)}`;
-      return `~${line}~${item.decline_reason ? ` (Reason: ${item.decline_reason})` : ""}`;
-    })
-    .join("\n");
-  return `Approved Services:\n${approvedLines || "None"}${
-    declinedLines ? `\n\nDeclined Services:\n${declinedLines}` : ""
-  }`;
-}
-
-async function resolvePatientPhone(request: any): Promise<string> {
-  if (request?.patient_phone) {
-    const formatted = formatWhatsAppPhone(request.patient_phone);
-    if (formatted) return formatted;
-  }
-  const notes = request?.clinical_notes;
-  if (notes) {
-    try {
-      const parsed = typeof notes === "string" ? JSON.parse(notes) : notes;
-      if (parsed?.patient_phone) return formatWhatsAppPhone(parsed.patient_phone);
-    } catch {
-      // Non-JSON notes
-    }
-  }
-  if (request?.policy_number) {
-    try {
-      const { data } = await supabase
-        .from("patients" as any)
-        .select("phone_number")
-        .eq("policy_number", request.policy_number)
-        .maybeSingle();
-      if (data?.phone_number) return formatWhatsAppPhone(data.phone_number);
-    } catch (e) {
-      console.warn("Could not resolve patient phone from patients table:", e);
-    }
-  }
-  return "";
-}
-
-async function resolveRequestingHospitalPhone(request: any): Promise<string> {
-  // 1. Check clinical_notes for WhatsApp sender phone
-  const notes = request?.clinical_notes;
-  if (notes) {
-    try {
-      const parsed = typeof notes === "string" ? JSON.parse(notes) : notes;
-      if (parsed?.whatsapp_sender_phone) return formatWhatsAppPhone(parsed.whatsapp_sender_phone);
-    } catch {
-      // Non-JSON notes
-    }
-  }
-
-  // 2. Check whatsapp_messages linked to this authorization request
-  if (request?.id) {
-    try {
-      const { data } = await supabase
-        .from("whatsapp_messages" as any)
-        .select("phone_number")
-        .eq("authorization_request_id", request.id)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (data?.phone_number) return formatWhatsAppPhone(data.phone_number);
-    } catch (e) {
-      console.warn("Error looking up whatsapp_messages for hospital phone:", e);
-    }
-  }
-
-  const hospitalId = request?.requesting_hospital_id || request?.hospital_id;
-
-  // 3. Check hospital_whatsapp_contacts table for this hospital
-  if (hospitalId) {
-    try {
-      const { data: contact } = await supabase
-        .from("hospital_whatsapp_contacts" as any)
-        .select("phone_number")
-        .eq("hospital_id", hospitalId)
-        .eq("status", "active")
-        .order("updated_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (contact?.phone_number) return formatWhatsAppPhone(contact.phone_number);
-    } catch (e) {
-      console.warn("Error looking up hospital_whatsapp_contacts:", e);
-    }
-  }
-
-  // 4. Check hospitals table by hospital_id
-  if (hospitalId) {
-    try {
-      const { data: hosp } = await supabase
-        .from("hospitals")
-        .select("phone")
-        .eq("id", hospitalId)
-        .maybeSingle();
-      if (hosp?.phone) return formatWhatsAppPhone(hosp.phone);
-    } catch (e) {
-      console.warn("Error looking up hospitals table by ID:", e);
-    }
-  }
-
-  // 5. Check hospitals table by hospital_name
-  if (request?.hospital_name) {
-    try {
-      const { data: hosp } = await supabase
-        .from("hospitals")
-        .select("phone")
-        .ilike("name", String(request.hospital_name).trim())
-        .maybeSingle();
-      if (hosp?.phone) return formatWhatsAppPhone(hosp.phone);
-    } catch (e) {
-      console.warn("Error looking up hospitals table by name:", e);
-    }
-  }
-
-  return "";
 }
 
 interface UseClinicalActionsProps {
@@ -681,114 +543,8 @@ export function useClinicalActions({
           });
         }
 
-        resolvePatientPhone(request).then((patientWhatsApp) => {
-          if (!patientWhatsApp) return;
-          const patientLabel = cleanPatientName(request.patient_name);
-          const policyLabel = request.policy_number || "N/A";
-          const hospitalLabel = request.hospital_name || "the hospital";
-          const diagnosisLabel = editDiagnosis || "Not specified";
-          const whatsappStatus =
-            dbStatus === "rejected"
-              ? "DECLINED"
-              : dbStatus === "partially_approved"
-                ? "PARTIALLY APPROVED"
-                : "APPROVED";
-          const serviceText =
-            approvedItems.length > 0
-              ? approvedItems
-                  .filter((item) => !item.declined)
-                  .map((item) => `- ${itemQuantity(item)}x ${item.name}`)
-                  .join("\n")
-              : editTreatment || "Approved as prescribed";
-          const reasonText = decisionReason || "Please contact your hospital or Ronsberger HMO for more information.";
-          const message =
-            `Ronsberger HMO\n\n` +
-            `AUTHORIZATION ${whatsappStatus}\n\n` +
-            `Hello ${patientLabel},\n\n` +
-            `Your treatment request submitted through ${hospitalLabel} has been ${whatsappStatus.toLowerCase()}.\n\n` +
-            `Policy No: ${policyLabel}\nDiagnosis: ${diagnosisLabel}\n\n` +
-            (dbStatus === "rejected"
-              ? `Reason:\n${reasonText}\n`
-              : `Approved services:\n${serviceText}\n`) +
-            `\nPlease contact your hospital or Ronsberger HMO if you have any questions.`;
-
-          // Fire-and-forget: do not await — modal must not block on WhatsApp delivery
-          supabase.functions.invoke("send-whatsapp", {
-            body: { phone_number: patientWhatsApp, message },
-          }).then(({ data, error }) => {
-            if (error || !data?.success) {
-              console.error("Automatic patient decision WhatsApp failed:", error || data);
-              toast({
-                variant: "destructive",
-                title: "Patient WhatsApp failed",
-                description: "The decision was saved, but the patient WhatsApp message could not be delivered.",
-              });
-            } else {
-              toast({
-                title: "Patient WhatsApp sent",
-                description: `Decision sent to patient (${patientLabel}).`,
-              });
-            }
-          }).catch((error) => {
-            console.error("Automatic patient decision WhatsApp error:", error);
-            toast({
-              variant: "destructive",
-              title: "Patient WhatsApp error",
-              description: "Could not reach WhatsApp gateway for patient notification.",
-            });
-          });
-        });
-
-        // Resolve hospital phone in background — do NOT await so the UI completes instantly.
-        // A small stagger (3s) is enough to prevent simultaneous message burst on WhatsApp.
-        resolveRequestingHospitalPhone(request).then((hospitalWhatsApp) => {
-          if (!hospitalWhatsApp) return;
-          const wasPreviouslyUnlocked = Boolean(request?.is_unlocked);
-          const hospitalStatus =
-            dbStatus === "rejected"
-              ? (wasPreviouslyUnlocked ? "RECORD UPDATED - DECLINED" : "DECLINED")
-              : dbStatus === "partially_approved"
-                ? (wasPreviouslyUnlocked ? "RECORD UPDATED - PARTIALLY APPROVED" : "PARTIALLY APPROVED")
-                : (wasPreviouslyUnlocked ? "RECORD UPDATED - RE-APPROVED" : "APPROVED");
-          const hospitalItems = approvedItems.length
-            ? formatApprovalServices(approvedItems, approvedSummary || editTreatment)
-            : editTreatment || "No service details recorded";
-          const updateNotice = wasPreviouslyUnlocked
-            ? "⚠️ *NOTICE: PREVIOUS AUTHORIZATION RECORD HAS BEEN UPDATED*\nPlease note that the previously issued decision for this patient has been revised with the details below.\n\n"
-            : "";
-          const hospitalMessage =
-            `Ronsberger HMO\n\n` +
-            updateNotice +
-            `AUTHORIZATION ${hospitalStatus}\n\n` +
-            `Patient: ${cleanPatientName(request.patient_name)}\n` +
-            `Policy No: ${request.policy_number || "N/A"}\n` +
-            `Auth Code: ${currentCode || request.authorization_code || "N/A"}\n` +
-            `Hospital: ${treatingHospitalName || request.hospital_name || "N/A"}\n` +
-            `Diagnosis: ${editDiagnosis || "Not specified"}\n\n` +
-            (dbStatus === "rejected"
-              ? `Reason for Decline:\n${decisionReason || "Not covered"}\n`
-              : `${hospitalItems}\n`) +
-            `\nDate: ${new Date().toLocaleDateString("en-GB")}\n\n` +
-            (dbStatus === "rejected"
-              ? "Please contact Ronsberger HMO for clarification before proceeding."
-              : getApprovalClosing(dbStatus === "partially_approved")) +
-            "\n\nRonsberger HMO UI Desk";
-
-          supabase.functions.invoke("send-whatsapp", {
-            body: { phone_number: hospitalWhatsApp, message: hospitalMessage },
-          }).then(({ data, error }) => {
-            if (error || !data?.success) {
-              console.error("Automatic hospital WhatsApp failed:", error || data);
-              toast({
-                variant: "destructive",
-                title: "Hospital WhatsApp notification failed",
-                description: "The decision was saved, but the verified hospital message was not delivered.",
-              });
-            }
-          }).catch((error) => {
-            console.error("Automatic hospital WhatsApp error:", error);
-          });
-        });
+        // The database decision trigger queues one hospital and one patient delivery.
+        // WhatsApp worker owns delivery and retries so a browser send cannot duplicate it.
 
         // Send approval email to patient (standard treatment approval)
         if ((targetStatus === "approved" || targetStatus === "partially_approved" || dbStatus === "partially_approved") && request.patient_email && !request.patient_email.startsWith("no-email")) {
@@ -853,7 +609,13 @@ export function useClinicalActions({
             });
         }
 
-        toast({ title: "Saved", description: `Request updated to ${officialLabel}.` });
+        const hasDecisionNotification = ["approved", "partially_approved", "referral_approved", "rejected"].includes(dbStatus);
+        toast({
+          title: "Saved",
+          description: hasDecisionNotification
+            ? `Request updated to ${officialLabel}. Hospital and patient WhatsApp delivery is queued.`
+            : `Request updated to ${officialLabel}.`,
+        });
         onUpdated();
         if (options?.closeAfter) onClose();
         return true;

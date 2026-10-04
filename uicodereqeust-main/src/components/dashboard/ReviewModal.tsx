@@ -383,7 +383,7 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent
-        className="w-[94vw] max-w-[94vw] sm:max-w-3xl md:max-w-5xl lg:max-w-6xl max-h-[92dvh] rounded-[1.5rem] sm:rounded-[2rem] border-0 bg-white/95 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-white to-slate-50/50 backdrop-blur-2xl selection:bg-slate-200 p-0 shadow-[0_8px_40px_rgb(0,0,0,0.08)] ring-1 ring-slate-200 overflow-y-auto overflow-x-hidden min-w-0 [&_*]:min-w-0 [&>button.absolute.right-4]:hidden"
+        className="w-[calc(100vw_-_1rem)] max-w-[calc(100vw_-_1rem)] max-h-[calc(100dvh_-_1rem)] rounded-xl border border-slate-200 bg-white p-0 shadow-xl ring-1 ring-slate-200 overflow-y-auto overflow-x-hidden min-w-0 sm:w-[94vw] sm:max-w-3xl sm:max-h-[92dvh] sm:rounded-2xl md:max-w-5xl lg:max-w-6xl [&_*]:min-w-0 [&>button.absolute.right-4]:hidden"
         ref={scrollContainerRef}
         onScroll={(e) => setShowStickyName((e.target as HTMLElement).scrollTop > 60)}
       >
@@ -401,7 +401,7 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
         </div>
         <Tabs value={activeTab} onValueChange={setActiveTab as any} className="w-full min-w-0">
         {/* Fixed Header */}
-        <div className="shrink-0 z-30 px-5 pt-4 pb-2 border-b border-slate-200 shadow-sm relative flex flex-col gap-4 min-w-0 w-full">
+        <div className="relative z-30 flex w-full min-w-0 shrink-0 flex-col gap-3 border-b border-slate-200 px-3 pb-2 pt-3 sm:gap-4 sm:px-5 sm:pt-4">
           <button 
             onClick={onClose}
             type="button"
@@ -411,12 +411,12 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
             <X className="h-5 w-5 stroke-[2.5]" />
           </button>
           
-          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 pr-5 sm:pr-8">
+          <div className="flex min-w-0 items-start justify-between gap-2 pr-8 sm:gap-3 sm:pr-8">
             <div className="min-w-0 flex-1 w-full">
-              <div className="text-[11px] font-black text-slate-800 uppercase tracking-widest mb-1">
+              <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-slate-600 sm:text-[11px] sm:tracking-widest">
                 Clinical Review
               </div>
-              <h2 className="text-lg sm:text-xl font-extrabold text-slate-900 leading-tight truncate uppercase">
+              <h2 className="truncate text-base font-bold uppercase leading-tight text-slate-900 sm:text-xl">
                 {requestPatientName || "Unknown Patient"}
               </h2>
               <div className="flex items-center gap-2 mt-1 flex-wrap text-slate-500 text-[11px]">
@@ -446,13 +446,13 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
               </div>
             </div>
 
-            <div className="text-left sm:text-right w-full sm:max-w-[200px] shrink-0 sm:self-center flex flex-col items-start sm:items-end mt-2 sm:mt-0">
-              <div className="text-[10px] font-bold text-cyan-600 uppercase tracking-widest mb-0.5">Contact Details</div>
-              <div className="text-xs font-bold text-slate-700 truncate w-full">
+            <div className="mt-1 flex w-[42%] shrink-0 flex-col items-start text-left sm:mt-0 sm:w-full sm:max-w-[200px] sm:items-end sm:self-center sm:text-right">
+              <div className="mb-0.5 text-[9px] font-semibold uppercase tracking-wide text-slate-600 sm:text-[10px] sm:tracking-widest">Contact</div>
+              <div className="w-full truncate text-[11px] font-semibold text-slate-700 sm:text-xs" title={request?.patient_phone || undefined}>
                 {request?.patient_phone ? `${request.patient_phone}` : "—"}
               </div>
               {request?.patient_email && (
-                <div className="text-[11px] font-medium text-slate-500 truncate mt-0.5 leading-none w-full">
+                <div className="mt-0.5 w-full truncate text-[10px] font-medium leading-tight text-slate-500 sm:text-[11px]" title={request.patient_email}>
                   {request.patient_email === "no-email@medicode.com" ? (
                     <span className="italic opacity-70">No email provided</span>
                   ) : (
@@ -620,7 +620,7 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
         </div>
 
                         {/* Modal body container (Scrollable) */}
-        <div className="p-3 sm:p-5 space-y-4 min-w-0 w-full">
+        <div className="w-full min-w-0 space-y-3 p-2.5 sm:space-y-4 sm:p-5">
           {/* Locked status warning */}
           {request?.deletion_status === "awaiting_admin_approval" && (
             <div className="p-4 rounded-2xl text-xs border bg-rose-50 border-rose-200 flex items-center gap-3 text-rose-900 shadow-xs animate-in fade-in duration-350">
@@ -652,20 +652,20 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
 
           {/* OTP Banner on Approved View */}
           {actions.approvalResult && otpValue && (
-            <div className="bg-emerald-50 rounded-2xl p-4 sm:p-5 mb-4 border border-emerald-200 shadow-sm flex items-center justify-between animate-in fade-in duration-300">
-              <div>
-                <div className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest">
+            <div className="mb-3 flex flex-col gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3 sm:mb-4 sm:flex-row sm:items-center sm:justify-between sm:rounded-2xl sm:p-5">
+              <div className="min-w-0">
+                <div className="text-[10px] font-semibold uppercase tracking-wide text-emerald-700 sm:tracking-widest">
                   Patient OTP / Arrival PIN
                 </div>
-                <div className="text-2xl font-black text-emerald-900 mt-1 tracking-widest font-mono">
+                <div className="mt-1 font-mono text-xl font-bold tracking-wider text-emerald-900 sm:text-2xl sm:tracking-widest">
                   {otpValue}
                 </div>
               </div>
-              <div className="flex gap-2">
+              <div className="flex w-full items-center gap-2 sm:w-auto">
                 <Button
                   variant="outline"
                   size="icon"
-                  className="h-10 w-10 bg-white border-emerald-200 text-emerald-700 hover:bg-emerald-100 shrink-0"
+                  className="h-11 w-11 shrink-0 border-emerald-200 bg-white text-emerald-700 hover:bg-emerald-100"
                   aria-label="Copy patient OTP"
                   onClick={async () => {
                     try {
@@ -681,7 +681,7 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
                 </Button>
                 <Button
                   variant="default"
-                  className="h-10 px-4 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shrink-0"
+                  className="h-11 min-w-0 flex-1 bg-emerald-700 px-3 text-xs font-semibold text-white hover:bg-emerald-800 sm:flex-none sm:px-4"
                   onClick={handleResendOtp}
                   disabled={isResending}
                   title="Resend OTP"
@@ -834,20 +834,20 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
 
                 {/* OTP Banner */}
                 {otpValue && (
-                  <div className="bg-emerald-50 rounded-2xl p-4 sm:p-5 mb-4 border border-emerald-200 shadow-sm flex items-center justify-between">
-                    <div>
-                      <div className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest">
+                <div className="mb-3 flex flex-col gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3 sm:mb-4 sm:flex-row sm:items-center sm:justify-between sm:rounded-2xl sm:p-5">
+                    <div className="min-w-0">
+                      <div className="text-[10px] font-semibold uppercase tracking-wide text-emerald-700 sm:tracking-widest">
                         Patient OTP / Arrival PIN
                       </div>
-                      <div className="text-2xl font-black text-emerald-900 mt-1 tracking-widest font-mono">
+                      <div className="mt-1 font-mono text-xl font-bold tracking-wider text-emerald-900 sm:text-2xl sm:tracking-widest">
                         {otpValue}
                       </div>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex w-full items-center gap-2 sm:w-auto">
                       <Button
                         variant="outline"
                         size="icon"
-                        className="h-10 w-10 bg-white border-emerald-200 text-emerald-700 hover:bg-emerald-100 shrink-0"
+                        className="h-11 w-11 shrink-0 border-emerald-200 bg-white text-emerald-700 hover:bg-emerald-100"
                         aria-label="Copy patient OTP"
                         onClick={async () => {
                           try {
@@ -863,7 +863,7 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
                       </Button>
                       <Button
                         variant="default"
-                        className="h-10 px-4 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shrink-0"
+                        className="h-11 min-w-0 flex-1 bg-emerald-700 px-3 text-xs font-semibold text-white hover:bg-emerald-800 sm:flex-none sm:px-4"
                         onClick={handleResendOtp}
                         disabled={isResending}
                         title="Resend OTP"

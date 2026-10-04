@@ -84,13 +84,13 @@ export default function UtilizationSlaAnalysis({ records, managerNames, viewerId
 
   const metrics = [
     { label: "Reviewed within 15 min", value: `${completionRate}%`, detail: `${analysis.onTime.length} of ${analysis.completed.length} decided requests`, icon: CheckCircle2, color: "text-emerald-700", bg: "bg-emerald-50" },
-    { label: "Median review time", value: formatDuration(analysis.medianMinutes), detail: "From treatment submitted to decision", icon: Clock3, color: "text-indigo-700", bg: "bg-indigo-50" },
+    { label: "Median review time", value: formatDuration(analysis.medianMinutes), detail: "From treatment submitted to decision", icon: Clock3, color: "text-slate-700", bg: "bg-slate-50" },
     { label: "At risk · 16–30 min", value: String(analysis.warning.length + analysis.pendingWarning.length), detail: `${analysis.pendingWarning.length} still pending`, icon: AlarmClock, color: "text-amber-700", bg: "bg-amber-50" },
     { label: "Over SLA · over 30 min", value: String(analysis.breached.length + analysis.pendingBreached.length), detail: `${analysis.pendingBreached.length} still pending`, icon: ShieldAlert, color: "text-rose-700", bg: "bg-rose-50" },
   ];
 
   return (
-    <section aria-labelledby="utilization-sla-title" className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+    <section aria-labelledby="utilization-sla-title" className="space-y-4 rounded-xl border border-slate-200 bg-white p-4 sm:p-5">
       <div>
         <h3 id="utilization-sla-title" className="text-base font-bold text-slate-900">Utilization Manager SLA Analysis</h3>
         <p className="mt-1 text-xs leading-relaxed text-slate-500">
@@ -101,7 +101,7 @@ export default function UtilizationSlaAnalysis({ records, managerNames, viewerId
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {metrics.map(({ label, value, detail, icon: Icon, color, bg }) => (
-          <div key={label} className="min-w-0 rounded-xl border border-slate-100 p-3.5">
+          <div key={label} className="min-w-0 rounded-lg border border-slate-200 p-3.5">
             <div className="flex items-start gap-2.5">
               <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${bg} ${color}`}><Icon className="h-4 w-4" /></span>
               <div className="min-w-0">
@@ -114,8 +114,8 @@ export default function UtilizationSlaAnalysis({ records, managerNames, viewerId
         ))}
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-slate-200">
-        <div className="border-b border-slate-100 bg-slate-50 px-3.5 py-2.5">
+      <div className="overflow-hidden rounded-lg border border-slate-200">
+        <div className="border-b border-slate-200 bg-slate-50 px-3.5 py-2.5">
           <h4 className="text-sm font-semibold text-slate-800">{canSeeTeamPerformance ? "Decisions by Utilization Manager" : "Your Decisions"}</h4>
         </div>
         {analysis.managerRows.length ? (

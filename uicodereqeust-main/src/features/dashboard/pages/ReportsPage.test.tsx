@@ -1,21 +1,26 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import * as ExcelJS from "exceljs";
 import ReportsPage from "./ReportsPage";
 
 const mocks = vi.hoisted(() => ({
   from: vi.fn(),
   rpc: vi.fn(),
   pageHandler: vi.fn(),
+  saveAs: vi.fn(),
   hospitalRows: [] as Array<{ id: string; name: string; code?: string }>,
 }));
 
 vi.mock("@/integrations/supabase/client", () => ({ supabase: { from: mocks.from, rpc: mocks.rpc } }));
+vi.mock("file-saver", () => ({ saveAs: mocks.saveAs }));
 vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ role: "admin", user: { id: "admin-1" } }) }));
 vi.mock("@/hooks/use-tab-visibility-refresh", () => ({ useTabVisibilityRefresh: () => undefined }));
 
 vi.mock("@/components/reports/ReportFilters", () => ({
-  default: ({ filters, onChange }: any) => (
+  default: ({ filters, onChange, onExport }: any) => (
     <div>
+      <button onClick={() => onExport("payment_advice")}>Export payment advice</button>
+      <button onClick={() => onExport("full")}>Export premium dashboard</button>
       <label>
         Status
         <select aria-label="Status" value={filters.statusFilter} onChange={(event) => onChange({ statusFilter: event.target.value })}>
@@ -50,7 +55,7 @@ vi.mock("@/components/reports/HospitalPerformanceTable", () => ({ default: ({ da
 function createQueryBuilder(table: string) {
   const conditions: Array<{ method: string; args: unknown[] }> = [];
   const builder: any = {};
-  for (const method of ["select", "order", "eq", "in", "ilike", "gte", "lte"]) {
+  for (const method of ["select", "order", "eq", "in", "ilike", "gte", "lte", "or"]) {
     builder[method] = vi.fn((...args: unknown[]) => {
       conditions.push({ method, args });
       return builder;
@@ -97,6 +102,19 @@ function setupPageHandler(handler: (request: any) => Promise<{ data: any[] | nul
 
 function renderPage() {
   return render(<ReportsPage />);
+}
+
+async function readDownloadedWorkbook() {
+  const blob = mocks.saveAs.mock.calls.at(-1)?.[0] as Blob;
+  const buffer = await new Promise<ArrayBuffer>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as ArrayBuffer);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsArrayBuffer(blob);
+  });
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.load(buffer);
+  return workbook;
 }
 
 describe("ReportsPage report integrity", () => {
@@ -272,5 +290,46 @@ describe("ReportsPage report integrity", () => {
     expect(screen.queryByText(/Data loaded:/)).not.toBeInTheDocument();
     response.resolve({ data: [row("ok", "approved")], error: null });
     expect(await screen.findByText(/Data loaded:/)).toBeInTheDocument();
+  });
+
+  it("exports payment advice with a filtered-row total formula and its checks tab", async () => {
+    setupPageHandler(async () => ({
+      data: [
+        row("advice-a", "approved", "Hospital A"),
+        row("advice-b", "approved", "Hospital B"),
+      ],
+      error: null,
+    }));
+    renderPage();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Export payment advice" }));
+    await waitFor(() => expect(mocks.saveAs).toHaveBeenCalledTimes(1));
+
+    const workbook = await readDownloadedWorkbook();
+    expect(workbook.worksheets.map((sheet) => sheet.name)).toEqual(["Payment Advice Schedule", "Payment Advice Checks"]);
+    const schedule = workbook.getWorksheet("Payment Advice Schedule")!;
+    expect(schedule.getCell("J6").value).toMatchObject({ formula: "SUBTOTAL(109,J4:J5)", result: 200 });
+    expect(schedule.getCell("J4").value).toBe(100);
+    expect(schedule.getCell("J5").value).toBe(100);
+    expect(schedule.getCell("K2").value).toMatchObject({ formula: "SUBTOTAL(103,A4:A5)", result: 2 });
+  });
+
+  it("includes the payment advice schedule and amount in the premium export", async () => {
+    setupPageHandler(async () => ({
+      data: [row("premium-advice", "approved", "Hospital A")],
+      error: null,
+    }));
+    renderPage();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Export premium dashboard" }));
+    await waitFor(() => expect(mocks.saveAs).toHaveBeenCalledTimes(1));
+
+    const workbook = await readDownloadedWorkbook();
+    expect(workbook.worksheets.map((sheet) => sheet.name)).toContain("Payment Advice Schedule");
+    expect(workbook.worksheets.map((sheet) => sheet.name)).toContain("Payment Advice Checks");
+    const summary = workbook.getWorksheet("Executive Summary")!;
+    const payableRow = summary.getColumn(1).values.findIndex((value) => value === "Payment Advice Payable");
+    expect(payableRow).toBeGreaterThan(0);
+    expect(summary.getCell(payableRow, 2).value).toBe(100);
   });
 });

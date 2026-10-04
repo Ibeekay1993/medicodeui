@@ -325,7 +325,7 @@ export const PostReviewTemplates = React.memo(function PostReviewTemplates({
       if (error || !data?.success) {
         throw new Error("WhatsApp delivery failed. Please verify the patient number and try again.");
       } else {
-        toast({ title: "Patient Notified!", description: `Approval PIN sent to patient (${formatted})` });
+        toast({ title: "Patient notified", description: `Approval notice sent to ${formatted}` });
       }
     } catch (e: any) {
       console.error(e);
@@ -366,21 +366,21 @@ export const PostReviewTemplates = React.memo(function PostReviewTemplates({
   if (approvalResult) {
     const isPartiallyApproved = request?.status === "partially_approved";
     return (
-      <div className="space-y-6 animate-in fade-in zoom-in-95 duration-300">
-        <div className="text-center p-6 sm:p-8 bg-emerald-50/70 rounded-3xl border border-emerald-100 relative overflow-hidden shadow-xs">
-          <CheckCircle className="w-12 h-12 sm:w-14 sm:h-14 mx-auto mb-3 text-emerald-600" />
-          <p className="text-xs uppercase font-black tracking-widest text-emerald-800/60 mb-2">
+      <div className="space-y-4 sm:space-y-6">
+        <div className="relative overflow-hidden rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-center sm:rounded-3xl sm:p-8">
+          <CheckCircle className="mx-auto mb-2 h-10 w-10 text-emerald-700 sm:mb-3 sm:h-14 sm:w-14" />
+          <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-800 sm:mb-2 sm:text-xs sm:tracking-widest">
             {isPartiallyApproved ? "Partially Approved Auth Code" : "Approved Auth Code"}
           </p>
-          <p className="text-3xl sm:text-4xl font-black text-emerald-700 tracking-tighter tabular-nums break-all">
+          <p className="mx-auto max-w-full whitespace-nowrap font-mono text-[clamp(1.125rem,6.8vw,2.25rem)] font-bold leading-tight tracking-tight tabular-nums text-emerald-800 sm:text-4xl">
             {approvalResult.authCode}
           </p>
-          <p className="mt-2 text-xs font-black uppercase tracking-[0.2em] text-emerald-800/40">
+          <p className="mt-2 text-[10px] font-semibold uppercase leading-relaxed tracking-[0.08em] text-emerald-800/70 sm:text-xs sm:tracking-[0.16em]">
             Authorized by {nurseDisplayName} ({nurseInitials})
           </p>
         </div>
 
-        <div className="bg-white rounded-2xl p-5 text-xs space-y-3 font-sans border border-slate-100 shadow-xs">
+        <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-3 font-sans text-xs sm:rounded-2xl sm:p-5">
           <div className="flex items-center gap-2 mb-2">
             <Badge className="bg-emerald-600 hover:bg-emerald-700 border-0 text-xs font-black uppercase tracking-wider">Clinical Record</Badge>
             <div className="h-px flex-1 bg-slate-100" />
@@ -391,7 +391,7 @@ export const PostReviewTemplates = React.memo(function PostReviewTemplates({
           </p>
           <p className="flex flex-wrap justify-between gap-1 border-b border-slate-100 pb-2.5">
             <strong className="text-slate-500 uppercase tracking-wider text-xs">Policy No:</strong>
-            <span className="font-mono text-emerald-700 font-bold break-all">{approvalResult.policyNumber}</span>
+            <span className="max-w-full font-mono font-semibold text-emerald-800 [overflow-wrap:anywhere]">{approvalResult.policyNumber}</span>
           </p>
           <p className="flex flex-wrap justify-between gap-1 border-b border-slate-100 pb-2.5">
             <strong className="text-slate-500 uppercase tracking-wider text-xs">Hospital:</strong>
@@ -479,14 +479,18 @@ export const PostReviewTemplates = React.memo(function PostReviewTemplates({
         </div>
 
         <div className="flex flex-col gap-2.5">
+          <p role="status" className="text-xs leading-relaxed text-slate-500">
+            Hospital and patient notices are queued automatically after the decision. Resend only if a recipient confirms they did not receive the message.
+          </p>
           {/* Primary Action 1: Send Response to Hospital via WhatsApp */}
           <Button
             onClick={handleSendToHospital}
           disabled={sendingHospital || loadingHospitalPhone || (!isWhatsAppRequest() && !formatPhoneNumber(hospitalPhone))}
-            className="w-full h-13 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs sm:text-sm gap-2 shadow-lg shadow-emerald-100 uppercase tracking-widest transition-transform hover:scale-[1.01]"
+            aria-busy={sendingHospital}
+            className="h-11 w-full rounded-xl bg-emerald-700 text-xs font-semibold text-white shadow-none hover:bg-emerald-800 sm:w-auto sm:px-4"
           >
             {sendingHospital ? <Loader2 className="w-4 h-4 animate-spin" /> : <Building2 className="w-4.5 h-4.5" />}
-            Send Response to Hospital (WhatsApp)
+            {sendingHospital ? "Sending…" : "Resend response to hospital"}
           </Button>
           {!loadingHospitalPhone && !isWhatsAppRequest() && (
           <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3 space-y-1.5">
@@ -519,10 +523,11 @@ export const PostReviewTemplates = React.memo(function PostReviewTemplates({
           <Button
             onClick={handleNotifyPatient}
             disabled={sendingPatient}
-            className="w-full h-12 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white font-black text-xs gap-2 shadow-md uppercase tracking-wider transition-transform hover:scale-[1.01]"
+            aria-busy={sendingPatient}
+            className="h-11 w-full rounded-xl bg-slate-900 text-xs font-semibold text-white shadow-none hover:bg-slate-800 sm:w-auto sm:px-4"
           >
             {sendingPatient ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserCheck className="w-4 h-4 text-emerald-400" />}
-            Notify Patient via WhatsApp (PIN)
+            {sendingPatient ? "Sending…" : "Resend patient WhatsApp notice"}
           </Button>
 
           {/* Copy Options */}

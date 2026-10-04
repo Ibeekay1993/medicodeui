@@ -42,6 +42,9 @@ export default function RequestsPage() {
   const reviewIdFromUrl = searchParams.get("review");
   const [search, setSearch] = useState(() => sessionStorage.getItem("req_search") || "");
   const [selectedRequest, setSelectedRequest] = useState<any | null>(null);
+  const selectedRequestRef = useRef<any | null>(null);
+  selectedRequestRef.current = selectedRequest;
+  const requestRefreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [statusFilter, setStatusFilter] = useState(() => sessionStorage.getItem("req_status_filter") || "action_required");
   const [dateFilter, _setDateFilter] = useState(() => sessionStorage.getItem("req_date_filter") || "all");
   const [currentPage, setCurrentPage] = useState(() => {
@@ -140,6 +143,44 @@ export default function RequestsPage() {
       return { rows, count: count ?? 0, approverNames: names };
     }
   });
+
+  useEffect(() => {
+    if (!user?.id || !role) return;
+
+    const channel = supabase
+      .channel(`authorization-requests:${user.id}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "authorization_requests" },
+        (payload) => {
+          const change = payload as any;
+          const changedRow = change.eventType === "DELETE" ? change.old : change.new;
+          const changedId = changedRow?.id;
+          if (!changedId) return;
+
+          if (change.eventType === "UPDATE" && selectedRequestRef.current?.id === changedId) {
+            setSelectedRequest((current) =>
+              current?.id === changedId ? { ...current, ...change.new } : current
+            );
+          }
+
+          if (requestRefreshTimerRef.current) clearTimeout(requestRefreshTimerRef.current);
+          requestRefreshTimerRef.current = setTimeout(() => {
+            void queryClient.invalidateQueries({ queryKey: ["requests"] });
+            requestRefreshTimerRef.current = null;
+          }, 250);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      if (requestRefreshTimerRef.current) {
+        clearTimeout(requestRefreshTimerRef.current);
+        requestRefreshTimerRef.current = null;
+      }
+      void supabase.removeChannel(channel);
+    };
+  }, [user?.id, role, queryClient]);
 
   const requests = useMemo(() => {
     const raw = data?.rows || [];

@@ -16,7 +16,7 @@ SELECT cron.schedule(
   $job$
   SELECT net.http_post(
     url := 'https://optistuvyeiojlgmkdks.supabase.co/functions/v1/whatsapp-worker',
-    headers := '{"Content-Type": "application/json", "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9wdGlzdHV2eWVpb2psZ21rZGtzIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NDc3NzI3MywiZXhwIjoyMDkwMzUzMjczfQ.X3MVQXZtPurimp3mOV3sgK3DJpqNvO--ga_pdXbCThA"}'::jsonb,
+    headers := jsonb_build_object('Content-Type', 'application/json', 'x-worker-secret', current_setting('app.worker_secret', true)),
     body := '{"poll":true}'::jsonb
   ) AS request_id;
   $job$

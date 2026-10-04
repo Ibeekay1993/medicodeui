@@ -1,16 +1,5 @@
-import { useMemo } from "react";
-import {
-  Activity,
-  TrendingUp,
-  Clock,
-  Loader2,
-  DollarSign,
-  AlertTriangle,
-  CheckCircle,
-  BarChart3,
-} from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
-import { cn } from "@/lib/utils";
+import { BarChart3, CheckCircle, Clock, DollarSign, TrendingUp, Activity, AlertTriangle } from "lucide-react";
+import { DashboardMetricGrid } from "@/components/dashboard/DashboardMetricGrid";
 import { ReportStats, formatNaira, formatPercent } from "@/lib/reports-helpers";
 
 interface KPIStatsGridProps {
@@ -19,48 +8,20 @@ interface KPIStatsGridProps {
 }
 
 export default function KPIStatsGrid({ stats, isLoading }: KPIStatsGridProps) {
-  const kpiGroups = useMemo(
-    () => [
-      [
-        { label: "Total Codes", value: stats.totalCodes.toLocaleString(), icon: BarChart3, color: "text-slate-700", bg: "bg-slate-50", gradient: "group-hover:bg-slate-100" },
-        { label: "Approved", value: stats.approvedCodes.toLocaleString(), icon: CheckCircle, color: "text-emerald-600", bg: "bg-slate-50", gradient: "group-hover:bg-slate-100" },
-        { label: "Pending", value: stats.pendingCodes.toLocaleString(), icon: Clock, color: "text-amber-600", bg: "bg-slate-50", gradient: "group-hover:bg-slate-100" },
-        { label: "Rejected", value: stats.rejectedCodes.toLocaleString(), icon: AlertTriangle, color: "text-rose-600", bg: "bg-slate-50", gradient: "group-hover:bg-slate-100" },
-      ],
-      [
-        { label: "Total Approved Value", value: formatNaira(stats.approvedAmount), icon: DollarSign, color: "text-emerald-600", bg: "bg-slate-50", gradient: "group-hover:bg-slate-100" },
-        { label: "Approval Rate", value: formatPercent(stats.approvalRate), icon: TrendingUp, color: "text-emerald-600", bg: "bg-slate-50", gradient: "group-hover:bg-slate-100" },
-        { label: "Avg Processing", value: `${stats.avgProcessingTime.toFixed(1)} hrs`, icon: Clock, color: "text-indigo-600", bg: "bg-slate-50", gradient: "group-hover:bg-slate-100" },
-        { label: "Daily Volume", value: `${stats.dailyVolume.toFixed(0)}/day`, icon: Activity, color: "text-violet-600", bg: "bg-slate-50", gradient: "group-hover:bg-slate-100" },
-      ],
-    ],
-    [stats]
-  );
-
   return (
-    <div className="space-y-4">
-      {kpiGroups.map((group, groupIndex) => (
-        <div key={groupIndex} className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4">
-          {group.map((kpi, index) => (
-            <Card key={index} className="border-slate-100 shadow-sm bg-white rounded-xl sm:rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-md hover:-translate-y-1 group">
-              <CardContent className="p-2.5 sm:p-4 md:p-5 flex flex-col sm:flex-row items-start sm:items-center gap-1.5 sm:gap-3">
-                <div className="flex w-full items-center justify-between sm:w-auto sm:justify-start">
-                  <p className="sm:hidden text-[9px] font-bold uppercase tracking-wider text-slate-500 break-words leading-tight pr-1 max-w-[75%]">{kpi.label}</p>
-                  <div className={cn("flex h-6 w-6 sm:h-10 sm:w-10 md:h-12 md:w-12 rounded-md sm:rounded-xl items-center justify-center shrink-0 transition-colors duration-300", kpi.bg, kpi.gradient)}>
-                    <kpi.icon className={cn("h-3.5 w-3.5 sm:h-5 sm:w-5 md:h-6 md:w-6 transition-transform duration-300 group-hover:scale-110", kpi.color)} />
-                  </div>
-                </div>
-                <div className="min-w-0 flex-1 text-left w-full">
-                  <p className="hidden sm:block text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-400 break-words leading-tight group-hover:text-slate-500 transition-colors">{kpi.label}</p>
-                  <div className={cn("text-sm sm:text-lg md:text-xl font-black tracking-tight break-words leading-tight sm:mt-1", kpi.color)}>
-                    {isLoading ? <Loader2 className="h-3 w-3 sm:h-4 sm:w-4 animate-spin" /> : kpi.value}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      ))}
+    <div className="space-y-3">
+      <DashboardMetricGrid loading={isLoading} items={[
+        { label: "Total requests", value: stats.totalCodes, icon: BarChart3 },
+        { label: "Approved", value: stats.approvedCodes, icon: CheckCircle, color: "text-emerald-700" },
+        { label: "Pending", value: stats.pendingCodes, icon: Clock, color: "text-amber-700" },
+        { label: "Rejected", value: stats.rejectedCodes, icon: AlertTriangle, color: "text-rose-700" },
+      ]} />
+      <DashboardMetricGrid loading={isLoading} items={[
+        { label: "Approved value", value: formatNaira(stats.approvedAmount), icon: DollarSign },
+        { label: "Approval rate", value: formatPercent(stats.approvalRate), icon: TrendingUp },
+        { label: "Average processing", value: `${stats.avgProcessingTime.toFixed(1)} hrs`, icon: Clock },
+        { label: "Daily volume", value: `${stats.dailyVolume.toFixed(0)} / day`, icon: Activity },
+      ]} />
     </div>
   );
 }

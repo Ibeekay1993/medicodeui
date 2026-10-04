@@ -242,7 +242,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     
     // Claims role routes
     if (path === "/backoffice/claims" || path === "/backoffice/claims/") {
-      return { title: "Dashboard Overview", description: "Real-time clinical authorizations & claims sync" };
+      return { title: "Dashboard Overview", description: "Claims workload and review activity" };
     }
     if (path.startsWith("/backoffice/claims/analysis")) {
       return { title: "Claims Analysis", description: "Hospital billing performance and clinical intake insights" };
@@ -268,7 +268,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
     // Finance role routes
     if (path === "/backoffice/finance" || path === "/backoffice/finance/") {
-      return { title: "Dashboard Overview", description: "Real-time clinical authorizations & claims sync" };
+      return { title: "Dashboard Overview", description: "Payment queues and settlement totals" };
     }
     if (path.startsWith("/backoffice/finance/payments/awaiting")) {
       return { title: "Awaiting Payment", description: "Approved claims ready for payment processing" };
@@ -291,7 +291,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
     // Admin routes
     if (path === "/backoffice/admin" || path === "/backoffice/admin/") {
-      return { title: "Dashboard Overview", description: "Real-time clinical authorizations & claims sync" };
+      return { title: "Dashboard Overview", description: "Authorization, claims, and payment activity" };
     }
     if (path.startsWith("/backoffice/admin/requests")) {
       return { title: "Authorizations", description: "Search, review, and audit authorization requests" };
@@ -350,7 +350,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
     // Utilization Manager routes
     if (path === "/backoffice/utilization-manager" || path === "/backoffice/utilization-manager/") {
-      return { title: "Dashboard Overview", description: "Real-time clinical authorizations & claims sync" };
+      return { title: "Dashboard Overview", description: "Authorization queue and review activity" };
     }
     if (path.startsWith("/backoffice/utilization-manager/requests")) {
       return { title: "Authorizations", description: "Search, review, and audit authorization requests" };

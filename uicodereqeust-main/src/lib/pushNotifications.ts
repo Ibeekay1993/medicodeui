@@ -15,6 +15,7 @@ import { supabase } from "@/integrations/supabase/client";
 const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY as string;
 const VAPID_KEY_STORAGE = "ronsberger_push_vapid_public_key";
 const PUSH_OPT_OUT_PREFIX = "ronsberger_push_opt_out:";
+const SERVICE_WORKER_START_TIMEOUT_MS = 20_000;
 
 function withTimeout<T>(promise: PromiseLike<T>, timeoutMs: number, message: string): Promise<T> {
   let timeoutId: ReturnType<typeof setTimeout>;
@@ -46,6 +47,41 @@ export function isPushNotificationSupported(): boolean {
 export function getNotificationPermission(): NotificationPermission {
   if (!isPushNotificationSupported()) return "denied";
   return Notification.permission;
+}
+
+/** Explicit registration avoids waiting forever when the app shell did not register its worker. */
+export async function getPushServiceWorkerRegistration(): Promise<ServiceWorkerRegistration> {
+  if (!isPushNotificationSupported()) throw new Error("Push notifications are not supported by this browser.");
+
+  try {
+    const registration = await withTimeout((async () => {
+      const existing = await navigator.serviceWorker.getRegistration("/");
+      const current = existing ?? await navigator.serviceWorker.register("/sw.js", {
+        scope: "/",
+        updateViaCache: "none",
+      });
+      if (current.active) return current;
+
+      const worker = current.installing || current.waiting;
+      if (!worker) return await navigator.serviceWorker.ready;
+
+      await new Promise<void>((resolve, reject) => {
+        const checkState = () => {
+          if (worker.state === "activated") resolve();
+          else if (worker.state === "redundant") reject(new Error("The notification service worker could not activate. Reload and try again."));
+        };
+        worker.addEventListener("statechange", checkState);
+        checkState();
+      });
+      return current;
+    })(), SERVICE_WORKER_START_TIMEOUT_MS, "The notification service worker did not activate. Reload the page and try again.");
+    return registration;
+  } catch (error: unknown) {
+    if (error instanceof Error && error.message.includes("did not activate")) throw error;
+    throw new Error(error instanceof Error
+      ? `Could not start the notification service worker: ${error.message}`
+      : "Could not start the notification service worker. Check that this site is available over HTTPS and try again.");
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -94,11 +130,7 @@ export async function subscribeToPushNotifications(userId: string): Promise<{
   // 2. Get the active service worker registration
   let registration: ServiceWorkerRegistration;
   try {
-    registration = await withTimeout(
-      navigator.serviceWorker.ready,
-      15_000,
-      "The portal notification service is still starting. Reload the page and try again.",
-    );
+    registration = await getPushServiceWorkerRegistration();
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Service worker is not ready";
     return { success: false, error: msg };
@@ -210,8 +242,8 @@ export async function unsubscribeFromPushNotifications(userId: string): Promise<
 export async function getExistingSubscription(): Promise<PushSubscription | null> {
   if (!isPushNotificationSupported()) return null;
   try {
-    const registration = await navigator.serviceWorker.ready;
-    return registration.pushManager.getSubscription();
+    const registration = await navigator.serviceWorker.getRegistration("/");
+    return registration?.pushManager.getSubscription() ?? null;
   } catch {
     return null;
   }

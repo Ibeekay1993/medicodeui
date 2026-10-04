@@ -18,6 +18,7 @@ import {
   subscribeToPushNotifications,
   unsubscribeFromPushNotifications,
   getRegisteredPushSubscription,
+  getPushServiceWorkerRegistration,
 } from "@/lib/pushNotifications";
 
 export default function PushNotificationSettingsCard() {
@@ -88,12 +89,7 @@ export default function PushNotificationSettingsCard() {
   const handleTestNotification = async () => {
     if (!isSupported || !("serviceWorker" in navigator)) return;
     try {
-      const reg = await Promise.race([
-        navigator.serviceWorker.ready,
-        new Promise<ServiceWorkerRegistration>((_, reject) =>
-          window.setTimeout(() => reject(new Error("The notification service is still starting. Reload the page and try again.")), 15_000),
-        ),
-      ]);
+      const reg = await getPushServiceWorkerRegistration();
       await reg.showNotification("Ronsberger HMO Alert", {
         body: "This device can display portal notifications.",
         icon: "/icon-192.png",

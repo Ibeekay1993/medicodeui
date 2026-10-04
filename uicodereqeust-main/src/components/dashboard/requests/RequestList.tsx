@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Copy, Loader2, Trash2, MessageSquare, CheckCircle2 } from "lucide-react";
+import { Copy, Loader2, Trash2, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -62,6 +62,7 @@ export function RequestList({
   const rejectionReason = (r: any) => String(r.decision_reason || r.rejection_reason || r.clinical_notes || "").trim();
   const isRejected = (r: any) => ["rejected", "declined", "denied"].includes(String(r.status || "").toLowerCase());
   const isApproved = (r: any) => String(r.status || "").toLowerCase().includes("approved") || String(r.status || "").toLowerCase().includes("accepted");
+  const canShowAuthorizationCode = (r: any) => Boolean(r.authorization_code) && !isAwaitingDelete(r) && !(role === "hospital" && isApproved(r) && !r.is_unlocked && !otpVerifiedStatus[r.id]);
   
   const codeOrDecisionText = (r: any) => {
     if (isAwaitingDelete(r)) return "Code revoked - Awaiting Delete";
@@ -291,7 +292,7 @@ export function RequestList({
       </div>
 
       {/* Mobile Cards */}
-      <div className="block md:hidden p-4 space-y-4 bg-slate-50 min-h-[50vh]">
+      <div className="block md:hidden min-h-[50vh] space-y-3 bg-slate-100/70 px-1 py-3 min-[420px]:px-2 sm:px-2">
         {isLoading && requests.length === 0 ? (
           <div className="py-12 text-center text-xs font-black uppercase tracking-widest text-slate-400 bg-white rounded-xl shadow-sm p-6 border border-slate-100">
             <Loader2 className="mx-auto mb-3 h-6 w-6 animate-spin text-brand-700" />
@@ -307,10 +308,10 @@ export function RequestList({
             const isPend = !isApproved(r) && !isRej;
             
             return (
-              <div key={r.id} className="cursor-pointer bg-white border border-slate-200 rounded-[14px] p-4 shadow-sm transition-all hover:bg-slate-50 active:scale-[0.99] flex flex-col" onClick={() => onSelectRequest(r)}>
+              <div key={r.id} className="flex cursor-pointer flex-col rounded-xl border border-slate-200 bg-white p-3 shadow-sm transition-colors hover:bg-slate-50 active:bg-slate-50" onClick={() => onSelectRequest(r)}>
                 {/* Header Row */}
-                <div className="flex items-start justify-between gap-3 mb-1">
-                  <span className="text-[14px] font-bold text-slate-900 flex-1 min-w-0 uppercase leading-tight">{r.patient_name}</span>
+                <div className="mb-1 flex items-start justify-between gap-2">
+                  <span className="min-w-0 flex-1 text-sm font-semibold uppercase leading-snug text-slate-900">{r.patient_name}</span>
                   <div className={cn(
                     "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider shrink-0",
                     isApproved(r) ? "bg-emerald-50 text-emerald-600" : isRej ? "bg-rose-50 text-rose-600" : "bg-slate-100 text-slate-600"
@@ -324,7 +325,7 @@ export function RequestList({
                 </div>
                 
                 {/* Diagnosis */}
-                <div className="text-xs text-slate-500 mb-2 truncate font-medium">
+                <div className="mb-1.5 line-clamp-2 text-xs font-medium leading-relaxed text-slate-600">
                   {r.diagnosis || "No diagnosis recorded"}
                 </div>
 
@@ -346,20 +347,29 @@ export function RequestList({
                     <span className="text-[11px] font-medium text-slate-400">
                       {new Date(r.created_at).toLocaleDateString("en-GB", { day: '2-digit', month: '2-digit', year: 'numeric' })}
                     </span>
-                    <span className={cn("text-[11px] font-mono font-bold mt-1", (isRej || isAwaitingDelete(r)) ? "text-rose-600" : r.authorization_code ? "text-slate-800" : "text-slate-400")}>
+                    <span className={cn(
+                      "mt-1 text-[11px] font-mono font-bold",
+                      canShowAuthorizationCode(r)
+                        ? "inline-flex w-fit max-w-full items-center rounded border border-slate-200 bg-slate-50 px-1.5 py-px font-semibold leading-tight text-slate-700"
+                        : (isRej || isAwaitingDelete(r)) ? "text-rose-600" : "text-slate-400"
+                    )}>
                       {codeOrDecisionText(r)}
                     </span>
                   </div>
 
-                  <div className="flex items-center gap-2 shrink-0">
-                    <Button variant="outline" size="sm" className="h-8 px-3 rounded-md text-xs font-semibold text-slate-600 border-slate-200 bg-white" onClick={(e) => { e.stopPropagation(); onSelectRequest(r); }}>
-                      View
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    <Button variant="default" size="sm" className="group h-11 min-w-[56px] rounded-md border-0 bg-transparent p-0 text-xs font-semibold text-white shadow-none hover:bg-transparent focus-visible:ring-2 focus-visible:ring-slate-500" title="View authorization details" onClick={(e) => { e.stopPropagation(); onSelectRequest(r); }}>
+                      <span className="flex h-8 w-full items-center justify-center rounded-md bg-slate-800 transition-colors group-hover:bg-slate-700 group-active:bg-slate-900">View</span>
                     </Button>
-                    <Button variant="outline" size="icon" className="h-8 w-8 rounded-full text-slate-600 border-slate-200 bg-white" aria-label="View request details" onClick={(e) => { e.stopPropagation(); onSelectRequest(r); }}>
-                      <MessageSquare className="h-4 w-4" />
-                    </Button>
+                    {canShowAuthorizationCode(r) && (
+                      <Button variant="outline" size="icon" className="group h-11 w-11 rounded-md border-0 bg-transparent p-0 text-slate-600 shadow-none hover:bg-transparent focus-visible:ring-2 focus-visible:ring-slate-500" aria-label="Copy authorization code" title="Copy authorization code" onClick={(e) => { e.stopPropagation(); void handleCopyCode(r.authorization_code); }}>
+                        <span className="flex h-8 w-8 items-center justify-center rounded-md border border-slate-200 bg-white transition-colors group-hover:border-slate-300 group-hover:bg-slate-50 group-active:bg-slate-100">
+                          <Copy className="h-4 w-4" />
+                        </span>
+                      </Button>
+                    )}
                     {!isClaimsRole && !isAwaitingDelete(r) && (
-                      <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onDeleteRequest(r); }} className="h-8 w-8 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-full">
+                      <Button variant="ghost" size="icon" aria-label="Request record deletion" title="Request record deletion" onClick={(e) => { e.stopPropagation(); onDeleteRequest(r); }} className="h-11 w-11 rounded-lg text-rose-600 hover:bg-rose-50 hover:text-rose-700">
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     )}

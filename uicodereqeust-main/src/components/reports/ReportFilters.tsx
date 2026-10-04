@@ -29,15 +29,15 @@ export default function ReportFilters({
   const [openHospitalSelect, setOpenHospitalSelect] = useState(false);
 
   return (
-    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white/80 backdrop-blur-md p-4 rounded-2xl border border-slate-100 shadow-sm transition-all duration-300 hover:shadow-md">
+    <div className="flex flex-col justify-between gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4 md:flex-row md:items-center">
       <div className="flex items-center gap-2">
-        <div className="p-2 bg-slate-100 rounded-xl">
-          <Filter className="w-4 h-4 text-slate-500" />
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-50">
+          <Filter className="h-4 w-4 text-slate-600" />
         </div>
-        <span className="text-sm font-bold text-slate-700 tracking-tight">Report Filters</span>
+        <span className="text-sm font-semibold text-slate-800">Report filters</span>
       </div>
 
-      <div className="flex flex-col md:flex-row gap-3 items-center flex-wrap w-full md:w-auto justify-end">
+      <div className="flex w-full flex-col flex-wrap items-stretch justify-end gap-2 md:w-auto md:flex-row md:items-center md:gap-3">
         {filters.dateFilter === "custom" && (
           <div className="flex items-center gap-2 bg-slate-50/80 p-1 rounded-xl border border-slate-100">
             <Input
@@ -62,10 +62,10 @@ export default function ReportFilters({
               variant="outline"
               role="combobox"
               aria-expanded={openHospitalSelect}
-              className="h-10 w-full md:w-[280px] justify-between rounded-xl border-slate-200 bg-slate-50 hover:bg-slate-100/80 text-xs font-bold px-3 shadow-sm transition-all duration-200 group"
+              className="h-10 w-full justify-between rounded-lg border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 shadow-none hover:bg-slate-50 md:w-[240px]"
             >
               <div className="flex items-center gap-2 truncate">
-                <Building2 className="w-3.5 h-3.5 text-slate-400 group-hover:text-emerald-500 transition-colors shrink-0" />
+                <Building2 className="w-3.5 h-3.5 shrink-0 text-slate-500" />
                 <span className="truncate">
                   {filters.hospitalFilter === "all"
                     ? "All Hospitals"
@@ -75,7 +75,7 @@ export default function ReportFilters({
               <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-[280px] p-0 rounded-xl shadow-xl border-slate-100">
+          <PopoverContent className="w-[min(18rem,calc(100vw-2rem))] rounded-lg border-slate-200 p-0 shadow-lg">
             <Command>
               <CommandInput placeholder="Search hospitals..." className="h-9 text-xs" />
               <CommandList>
@@ -130,13 +130,13 @@ export default function ReportFilters({
         </Popover>
 
         <Select value={filters.dateFilter} onValueChange={(v) => onChange({ dateFilter: v })}>
-          <SelectTrigger className="h-10 w-full md:w-40 rounded-xl bg-slate-50 hover:bg-slate-100/80 border-slate-200 text-xs font-bold shadow-sm transition-all duration-200 group">
+          <SelectTrigger className="h-10 w-full rounded-lg border-slate-200 bg-white text-xs font-medium text-slate-700 shadow-none hover:bg-slate-50 md:w-40">
             <div className="flex items-center gap-2">
-              <Calendar className="w-3.5 h-3.5 text-slate-400 group-hover:text-blue-500 transition-colors" />
+              <Calendar className="h-3.5 w-3.5 text-slate-500" />
               <SelectValue placeholder="All Time" />
             </div>
           </SelectTrigger>
-          <SelectContent className="rounded-xl border-slate-100 shadow-xl">
+          <SelectContent className="rounded-lg border-slate-200 shadow-lg">
             <SelectItem value="all" className="text-xs font-bold cursor-pointer rounded-lg">All Time</SelectItem>
             <SelectItem value="today" className="text-xs font-bold cursor-pointer rounded-lg">Today</SelectItem>
             <SelectItem value="7days" className="text-xs font-bold cursor-pointer rounded-lg">Last 7 Days</SelectItem>
@@ -148,13 +148,13 @@ export default function ReportFilters({
         </Select>
 
         <Select value={filters.statusFilter} onValueChange={(v) => onChange({ statusFilter: v })}>
-          <SelectTrigger className="h-10 w-full md:w-44 rounded-xl bg-slate-50 hover:bg-slate-100/80 border-slate-200 text-xs font-bold shadow-sm transition-all duration-200 group">
+          <SelectTrigger className="h-10 w-full rounded-lg border-slate-200 bg-white text-xs font-medium text-slate-700 shadow-none hover:bg-slate-50 md:w-40">
             <div className="flex items-center gap-2">
-              <Activity className="w-3.5 h-3.5 text-slate-400 group-hover:text-violet-500 transition-colors" />
+              <Activity className="w-3.5 h-3.5 text-slate-500" />
               <SelectValue placeholder="All Status" />
             </div>
           </SelectTrigger>
-          <SelectContent className="rounded-xl border-slate-100 shadow-xl">
+          <SelectContent className="rounded-lg border-slate-200 shadow-lg">
             <SelectItem value="all" className="text-xs font-bold cursor-pointer rounded-lg">All Status</SelectItem>
             <SelectItem value="pending" className="text-xs font-bold cursor-pointer rounded-lg">Pending</SelectItem>
             <SelectItem value="pending_referral" className="text-xs font-bold cursor-pointer rounded-lg">Pending Referral</SelectItem>
@@ -173,49 +173,49 @@ export default function ReportFilters({
           <DropdownMenuTrigger asChild>
             <Button
               disabled={isExporting}
-              className="h-10 px-5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white rounded-xl text-xs font-black tracking-wider shadow-md hover:shadow-lg transition-all duration-300 w-full md:w-auto"
+              className="h-10 w-full rounded-lg bg-slate-900 px-4 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-slate-800 md:w-auto"
             >
               {isExporting ? (
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
               ) : (
                 <Download className="h-4 w-4 mr-2" />
               )}
-              {isExporting ? "EXPORTING..." : "EXPORT REPORT"}
+              {isExporting ? "Exporting…" : "Export report"}
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-64 rounded-xl shadow-2xl border-slate-100 p-2">
-            <DropdownMenuLabel className="text-xs font-bold text-slate-500 uppercase tracking-wider px-2">Export Options</DropdownMenuLabel>
+          <DropdownMenuContent align="end" className="w-[min(20rem,calc(100vw-2rem))] rounded-lg border-slate-200 p-2 shadow-lg">
+            <DropdownMenuLabel className="px-2 text-xs font-semibold text-slate-500">Export options</DropdownMenuLabel>
             <DropdownMenuItem 
               onClick={() => onExport("payment_advice")}
-              className="flex flex-col items-start gap-1 p-3 cursor-pointer rounded-lg bg-emerald-50/70 focus:bg-emerald-100/90 group transition-colors border border-emerald-200/60 mb-1"
+              className="mb-1 flex cursor-pointer flex-col items-start gap-1 rounded-md border border-slate-200 bg-white p-3 transition-colors focus:bg-slate-50 group"
             >
               <div className="flex items-center gap-2">
-                <Receipt className="h-4 w-4 text-emerald-700" />
-                <span className="text-sm font-bold text-emerald-950 group-hover:text-emerald-800">Payment Advice Schedule</span>
+                <Receipt className="h-4 w-4 text-slate-600" />
+                <span className="text-sm font-medium text-slate-900">Payment Advice Schedule</span>
               </div>
-              <p className="text-[11px] text-emerald-700 font-medium">Approved claims only with provider totals for payment</p>
+              <p className="text-[11px] leading-relaxed text-slate-500">Approved request details and provider totals</p>
             </DropdownMenuItem>
 
             <DropdownMenuItem 
               onClick={() => onExport("full")}
-              className="flex flex-col items-start gap-1 p-3 cursor-pointer rounded-lg focus:bg-slate-50 group transition-colors"
+              className="flex cursor-pointer flex-col items-start gap-1 rounded-md p-3 transition-colors focus:bg-slate-50 group"
             >
               <div className="flex items-center gap-2">
-                <FileBarChart2 className="h-4 w-4 text-slate-700" />
-                <span className="text-sm font-bold text-slate-800 group-hover:text-slate-900">Premium Dashboard</span>
+                <FileBarChart2 className="h-4 w-4 text-slate-600" />
+                <span className="text-sm font-medium text-slate-800">Premium Dashboard</span>
               </div>
-              <p className="text-[11px] text-slate-500 font-medium">Full 5-sheet interactive executive analysis</p>
+              <p className="text-[11px] leading-relaxed text-slate-500">Summary, trends, clinical detail, and payment advice</p>
             </DropdownMenuItem>
             
             <DropdownMenuItem 
               onClick={() => onExport("detailed")}
-              className="flex flex-col items-start gap-1 p-3 cursor-pointer rounded-lg focus:bg-slate-100 group transition-colors mt-1"
+              className="mt-1 flex cursor-pointer flex-col items-start gap-1 rounded-md p-3 transition-colors focus:bg-slate-50 group"
             >
               <div className="flex items-center gap-2">
-                <FileSpreadsheet className="h-4 w-4 text-slate-500 group-hover:text-slate-700" />
-                <span className="text-sm font-bold text-slate-700 group-hover:text-slate-800">Detailed Data Only</span>
+                <FileSpreadsheet className="h-4 w-4 text-slate-600" />
+                <span className="text-sm font-medium text-slate-800">Detailed data only</span>
               </div>
-              <p className="text-[11px] text-slate-500 font-medium">Raw data table with frozen headers and filters</p>
+              <p className="text-[11px] leading-relaxed text-slate-500">Raw data table with frozen headers and filters</p>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

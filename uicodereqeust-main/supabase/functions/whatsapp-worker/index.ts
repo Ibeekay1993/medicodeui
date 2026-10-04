@@ -349,14 +349,24 @@ async function sendWhatsAppMessage(toPhone: string, text: string) {
     await new Promise((resolve) => setTimeout(resolve, OUTBOUND_DELAY_MS));
   }
   const url = `${EVOLUTION_API_URL.replace(/\/$/, "")}/message/sendText/${encodeURIComponent(EVOLUTION_INSTANCE_NAME)}`;
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { apikey: EVOLUTION_API_KEY, "Content-Type": "application/json" },
-    body: JSON.stringify({ number: toPhone, text }),
-  });
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: "POST",
+      headers: { apikey: EVOLUTION_API_KEY, "Content-Type": "application/json" },
+      body: JSON.stringify({ number: toPhone, text }),
+    });
+  } catch (cause) {
+    const error = new Error(`Evolution delivery outcome is uncertain: ${(cause as Error).message || "network error"}`);
+    Object.assign(error, { deliveryAmbiguous: true });
+    throw error;
+  }
   const body = await res.text();
-  if (!res.ok)
-    throw new Error(`Evolution send ${res.status}: ${body.slice(0, 200)}`);
+  if (!res.ok) {
+    const error = new Error(`Evolution send ${res.status}: ${body.slice(0, 200)}`);
+    if (res.status >= 500) Object.assign(error, { deliveryAmbiguous: true });
+    throw error;
+  }
   return body;
 }
 
@@ -410,6 +420,7 @@ async function sendOutboundReply(
   text: string,
   messageId: string,
   authorizationRequestId?: string | null,
+  operationKey = "authorization_response",
 ) {
   const ledger = await getOutboundLedger(supabase, messageId);
   if (ledger && isOutboundAmbiguous(ledger.outbound_state, ledger.lease_expires_at)) {
@@ -436,7 +447,7 @@ async function sendOutboundReply(
     {
       p_message_id: messageId,
       p_authorization_request_id: authorizationRequestId || null,
-      p_operation_key: "authorization_response",
+      p_operation_key: operationKey,
       p_destination_phone: toPhone,
       p_content_hash: contentHash,
       p_lease_owner: leaseOwner,
@@ -453,11 +464,12 @@ async function sendOutboundReply(
     providerMessageId = await sendWhatsAppMessage(toPhone, text);
   } catch (error) {
     const msg = (error as Error).message || "unknown";
+    const deliveryAmbiguous = Boolean((error as Error & { deliveryAmbiguous?: boolean }).deliveryAmbiguous);
     const { error: updateError } = await supabase
       .from("whatsapp_outbound_ledger")
       .update({
-      outbound_state: "send_failed",
-      status: "failed",
+      outbound_state: deliveryAmbiguous ? "ambiguous" : "send_failed",
+      status: deliveryAmbiguous ? "retrying" : "failed",
       attempt_count: attemptNumber,
       last_error: msg.slice(0, 500),
       lease_expires_at: null,
@@ -467,6 +479,9 @@ async function sendOutboundReply(
       .eq("message_id", messageId)
       .eq("lease_owner", leaseOwner);
     if (updateError) throw updateError;
+    if (deliveryAmbiguous) {
+      return { skipped: true, ambiguous: true, providerMessageId: null };
+    }
     throw error;
   }
 
@@ -841,6 +856,35 @@ function formatDetailedDecisionMessage(
     ? "Please proceed only with the approved services listed above. Declined services must not be provided under this authorization. For clarification, please contact Ronsberger HMO before treatment."
     : "Please proceed with the approved services listed above. For clarification, please contact Ronsberger HMO before treatment.";
   return `${isPartial ? "AUTHORIZATION PARTIALLY APPROVED" : "AUTHORIZATION APPROVED"}\n\nPatient: ${auth.patient_name}\nPolicy No: ${auth.policy_number || "N/A"}\nAuth Code: ${auth.authorization_code || "N/A"}\nHospital: ${auth.claiming_hospital_name || auth.hospital_name || "N/A"}\nDiagnosis: ${auth.diagnosis || "Not specified"}\n\nApproved Services:\n${approved}${declined ? `\n\nDeclined Services:\n${declined}` : ""}\nDate: ${date}\n\n${closing}\n\nRonsberger HMO UI Desk`;
+}
+
+function formatPatientDecisionMessage(
+  auth: any,
+  decision: "approved" | "partially_approved" | "rejected",
+): string {
+  const isPartial = decision === "partially_approved";
+  const heading = decision === "rejected"
+    ? "AUTHORIZATION DECLINED"
+    : isPartial
+    ? "AUTHORIZATION PARTIALLY APPROVED"
+    : "AUTHORIZATION APPROVED";
+  const approved = (Array.isArray(auth.approved_items) ? auth.approved_items : [])
+    .filter((item: any) => !item?.declined)
+    .map((item: any) => `- ${item?.code || "NHIA"} - ${item?.name || "Approved service"}: ${Number(item?.quantity || 1)}`)
+    .join("\n") || auth.treatment || "See the authorization details provided by your hospital.";
+  const declined = (Array.isArray(auth.approved_items) ? auth.approved_items : [])
+    .filter((item: any) => item?.declined)
+    .map((item: any) => `- ${item?.code || "NHIA"} - ${item?.name || "Service"}: ${Number(item?.quantity || 1)}${item?.decline_reason ? ` (${item.decline_reason})` : ""}`)
+    .join("\n");
+  const date = auth.decided_at
+    ? new Date(auth.decided_at).toLocaleDateString("en-GB")
+    : new Date().toLocaleDateString("en-GB");
+
+  if (decision === "rejected") {
+    return `Ronsberger HMO\n\n${heading}\n\nPatient: ${auth.patient_name}\nPolicy No: ${auth.policy_number || "N/A"}\nDiagnosis: ${auth.diagnosis || "Not specified"}\nReason: ${auth.decision_reason || "Please contact your hospital or Ronsberger HMO for clarification."}\n\nDate: ${date}\n\nPlease contact your hospital or Ronsberger HMO if you have any questions.`;
+  }
+
+  return `Ronsberger HMO\n\n${heading}\n\nPatient: ${auth.patient_name}\nPolicy No: ${auth.policy_number || "N/A"}\nAuth Code: ${auth.authorization_code || "N/A"}\nHospital: ${auth.claiming_hospital_name || auth.hospital_name || "N/A"}\nDiagnosis: ${auth.diagnosis || "Not specified"}\n\nApproved Services:\n${approved}${declined ? `\n\nNot Approved:\n${declined}` : ""}\n\nDate: ${date}\n\n${isPartial ? "Please proceed only with the approved services listed above. Do not receive declined services under this authorization." : "Please contact your hospital or Ronsberger HMO if you have any questions."}\n\nRonsberger HMO`;
 }
 
 // ── Deterministic provider information lookup (get_provider_information) ─────
@@ -1580,26 +1624,51 @@ async function processNotifications(
   const { data: notes } = await supabase
     .from("whatsapp_notifications")
     .select("*")
-    .in("status", ["pending", "retry"])
-    .lt("attempts", MAX_ATTEMPTS)
+    .in("status", ["queued_v2", "retry_v2"])
+    .or(`attempts.lt.${MAX_ATTEMPTS},attempts.is.null`)
     .order("created_at", { ascending: true })
     .limit(WORKER_BATCH);
-  for (const note of notes || []) {
+
+  for (const candidate of notes || []) {
+    const leaseOwner = `decision-${crypto.randomUUID()}`;
+    const { data: claimedRows, error: claimError } = await supabase.rpc(
+      "claim_whatsapp_decision_notification",
+      {
+        p_notification_id: candidate.id,
+        p_lease_owner: leaseOwner,
+        p_lease_seconds: 180,
+      },
+    );
+    if (claimError) {
+      log("decision_notification_claim", String(candidate.id), "error", {
+        error: claimError.message,
+      });
+      continue;
+    }
+    const note = Array.isArray(claimedRows) ? claimedRows[0] : claimedRows;
+    if (!note) continue;
+
     try {
-      const { data: msgs } = await supabase
-          .from("whatsapp_messages")
-          .select("phone_number")
-          .eq("authorization_request_id", note.authorization_request_id)
-          .order("received_at", { ascending: true })
-          .limit(1),
-        recipient = msgs?.[0]?.phone_number || note.phone_number,
-        { data: auth } = await supabase
-          .from("authorization_requests")
-          .select("patient_name,policy_number,authorization_code,hospital_name,claiming_hospital_name,diagnosis,status,decision_reason,approved_items,treatment,decided_at")
-          .eq("id", note.authorization_request_id)
-          .single();
-      if (!recipient || !auth)
-        throw new Error("notification target/request missing");
+      const { data: auth, error: authError } = await supabase
+        .from("authorization_requests")
+        .select("id,patient_name,patient_phone,policy_number,authorization_code,hospital_name,claiming_hospital_name,requesting_hospital_id,hospital_id,diagnosis,status,decision_reason,approved_items,treatment,decided_at")
+        .eq("id", note.authorization_request_id)
+        .maybeSingle();
+      if (authError) throw authError;
+      if (!auth) {
+        await supabase
+          .from("whatsapp_notifications")
+          .update({
+            status: "superseded",
+            last_error: "Authorization request no longer exists.",
+            processing_lease_owner: null,
+            processing_lease_expires_at: null,
+          })
+          .eq("id", note.id)
+          .eq("processing_lease_owner", leaseOwner);
+        continue;
+      }
+
       const expectedStatus =
         note.notification_type === "APPROVAL"
           ? ["approved", "referral_approved"]
@@ -1608,93 +1677,131 @@ async function processNotifications(
             : note.notification_type === "REJECTION"
               ? ["rejected"]
               : [];
-      if (!expectedStatus.includes(String(auth.status || "").toLowerCase())) {
+      const sameDecision = !note.decision_at ||
+        Date.parse(String(note.decision_at)) === Date.parse(String(auth.decided_at || ""));
+      if (!sameDecision || !expectedStatus.includes(String(auth.status || "").toLowerCase())) {
         await supabase
           .from("whatsapp_notifications")
           .update({
-            status: "skipped",
-            last_error: `Stale notification ignored: request status is ${auth.status}`,
+            status: "superseded",
+            last_error: `Superseded decision notification ignored (current status: ${auth.status}).`,
+            processing_lease_owner: null,
+            processing_lease_expires_at: null,
           })
-          .eq("id", note.id);
+          .eq("id", note.id)
+          .eq("processing_lease_owner", leaseOwner);
         continue;
       }
-      const body = formatDetailedDecisionMessage(
-        auth,
-        note.notification_type === "APPROVAL"
-          ? "approved"
-          : note.notification_type === "PARTIAL_APPROVAL"
-            ? "partially_approved"
-            : "rejected",
+
+      const decision = note.notification_type === "APPROVAL"
+        ? "approved"
+        : note.notification_type === "PARTIAL_APPROVAL"
+        ? "partially_approved"
+        : "rejected";
+      let recipient = normalizePhoneNumber(String(note.phone_number || ""));
+      if (note.recipient_type === "patient") {
+        recipient = normalizePhoneNumber(String(auth.patient_phone || recipient));
+        if (!recipient && auth.policy_number) {
+          const { data: patient, error: patientError } = await supabase
+            .from("patients")
+            .select("phone_number")
+            .eq("policy_number", auth.policy_number)
+            .maybeSingle();
+          if (patientError) throw patientError;
+          recipient = normalizePhoneNumber(String(patient?.phone_number || ""));
+        }
+      } else {
+        const { data: senderRows, error: senderError } = await supabase
+          .from("whatsapp_messages")
+          .select("phone_number")
+          .eq("authorization_request_id", auth.id)
+          .order("received_at", { ascending: true })
+          .limit(1);
+        if (senderError) throw senderError;
+        recipient = normalizePhoneNumber(String(senderRows?.[0]?.phone_number || recipient));
+
+        const hospitalId = auth.requesting_hospital_id || auth.hospital_id;
+        if (!recipient && hospitalId) {
+          const { data: contact, error: contactError } = await supabase
+            .from("hospital_whatsapp_contacts")
+            .select("phone_number")
+            .eq("hospital_id", hospitalId)
+            .eq("status", "active")
+            .order("updated_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          if (contactError) throw contactError;
+          recipient = normalizePhoneNumber(String(contact?.phone_number || ""));
+        }
+        if (!recipient && hospitalId) {
+          const { data: hospital, error: hospitalError } = await supabase
+            .from("hospitals")
+            .select("phone")
+            .eq("id", hospitalId)
+            .maybeSingle();
+          if (hospitalError) throw hospitalError;
+          recipient = normalizePhoneNumber(String(hospital?.phone || ""));
+        }
+      }
+
+      if (!recipient) {
+        await supabase
+          .from("whatsapp_notifications")
+          .update({
+            status: "failed_v2",
+            last_error: `No ${note.recipient_type} phone is available for this decision.`,
+            processing_lease_owner: null,
+            processing_lease_expires_at: null,
+          })
+          .eq("id", note.id)
+          .eq("processing_lease_owner", leaseOwner);
+        continue;
+      }
+
+      const body = note.recipient_type === "patient"
+        ? formatPatientDecisionMessage(auth, decision)
+        : formatDetailedDecisionMessage(auth, decision);
+      const operationKey = `authorization_decision_${note.recipient_type}`;
+      const delivery = await sendOutboundReply(
+        supabase,
+        recipient,
+        body,
+        `decision-notification:${auth.id}:${note.decision_at}:${note.recipient_type}`,
+        auth.id,
+        operationKey,
       );
-      await sendWhatsAppMessage(recipient, body);
-      await supabase
-        .from("whatsapp_notifications")
-        .update({ status: "sent", sent_at: new Date().toISOString() })
-        .eq("id", note.id);
-    } catch (e) {
-      await supabase
+      const nextState = delivery.ambiguous ? "ambiguous_v2" : "sent_v2";
+      const { error: updateError } = await supabase
         .from("whatsapp_notifications")
         .update({
-          status: "retry",
-          attempts: (note.attempts || 0) + 1,
-          last_error: (e as Error).message,
+          status: nextState,
+          sent_at: delivery.ambiguous ? null : new Date().toISOString(),
+          last_error: delivery.ambiguous
+            ? "Provider delivery is uncertain; automatic resend was stopped to prevent a duplicate. Reconcile before retrying."
+            : null,
+          processing_lease_owner: null,
+          processing_lease_expires_at: null,
         })
-        .eq("id", note.id);
-    }
-  }
-}
-
-async function enqueueRecentDecisionNotifications(
-  supabase: ReturnType<typeof getServiceClient>,
-) {
-  const cutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-  const { data: requests, error } = await supabase
-    .from("authorization_requests")
-    .select("id,status,decided_at,decided_by,approved_by,authorization_code,decision_reason")
-    .eq("source", "whatsapp")
-    .in("status", ["approved", "partially_approved", "rejected"])
-    .gte("decided_at", cutoff)
-    .limit(WORKER_BATCH * 5);
-  if (error) {
-    log("notification_backfill", "worker", "error", { error: error.message });
-    return;
-  }
-
-  for (const request of requests || []) {
-    const isApprovedDecision =
-      ["approved", "partially_approved"].includes(String(request.status || "")) &&
-      request.approved_by &&
-      String(request.authorization_code || "").trim();
-    const isRejectedDecision =
-      request.status === "rejected" &&
-      request.decided_by &&
-      String(request.decision_reason || "").trim();
-    if (!request.decided_at || !request.decided_by || (!isApprovedDecision && !isRejectedDecision))
-      continue;
-    const { data: existing } = await supabase
-      .from("whatsapp_notifications")
-      .select("id")
-      .eq("authorization_request_id", request.id)
-      .limit(1);
-    if (existing?.length) continue;
-
-    const notificationType =
-      request.status === "approved"
-        ? "APPROVAL"
-        : request.status === "partially_approved"
-        ? "PARTIAL_APPROVAL"
-        : "REJECTION";
-    const { error: insertError } = await supabase
-      .from("whatsapp_notifications")
-      .insert({
-      authorization_request_id: request.id,
-      notification_type: notificationType,
-      status: "pending",
-      });
-    if (insertError) {
-      log("notification_backfill", String(request.id), "error", {
-        error: insertError.message,
-      });
+        .eq("id", note.id)
+        .eq("processing_lease_owner", leaseOwner);
+      if (updateError) throw updateError;
+    } catch (e) {
+      const attempts = Number(note.attempts || 0);
+      const { error: updateError } = await supabase
+        .from("whatsapp_notifications")
+        .update({
+          status: attempts >= MAX_ATTEMPTS ? "failed_v2" : "retry_v2",
+          last_error: ((e as Error).message || "Notification delivery failed.").slice(0, 500),
+          processing_lease_owner: null,
+          processing_lease_expires_at: null,
+        })
+        .eq("id", note.id)
+        .eq("processing_lease_owner", leaseOwner);
+      if (updateError) {
+        log("decision_notification_state", String(note.id), "error", {
+          error: updateError.message,
+        });
+      }
     }
   }
 }
@@ -1710,7 +1817,6 @@ async function pollAndProcess(supabase: ReturnType<typeof getServiceClient>) {
     .limit(WORKER_BATCH * 3);
 
   const queuePlan = getQueuePlan(rows || [], WORKER_BATCH, now);
-  await enqueueRecentDecisionNotifications(supabase);
   await processNotifications(supabase);
   for (const r of queuePlan) await processOne(supabase, r.message_id);
 }
@@ -1734,8 +1840,6 @@ serve(async (req) => {
   }
   if (body?.message_id) {
     await processOne(supabase, String(body.message_id));
-    await enqueueRecentDecisionNotifications(supabase);
-    await processNotifications(supabase);
   } else await pollAndProcess(supabase);
   return new Response(JSON.stringify({ ok: true }), {
     status: 200,
