@@ -1,10 +1,9 @@
 /**
  * PushNotificationFirstTimePrompt.tsx
  *
- * Compact bottom-anchored toast that prompts users to enable push notifications.
- * Requests notification permission after the first authenticated staff gesture,
- * because browsers prohibit silent permission grants. Users can opt out here
- * or later from Settings.
+ * Compact bottom-anchored prompt that activates push setup on a staff user's
+ * first gesture. Browsers require a user gesture before showing permission.
+ * Users can opt out here or disable alerts later from Settings.
  */
 
 import { useEffect, useState, useCallback } from "react";
@@ -51,10 +50,52 @@ export function PushNotificationFirstTimePrompt() {
     if (perm === "denied") return;
 
     const t = setTimeout(() => setVisible(true), 600);
+    const requestOnFirstInteraction = (event: Event) => {
+      if (event.type === "keydown" && !["Enter", " "].includes((event as KeyboardEvent).key)) return;
+      const target = event.target as Element | null;
+      if (target?.closest?.("[data-push-prompt]")) return;
+      if (hasOptedOutOfPush(user.id)) {
+        removeRequestListeners();
+        return;
+      }
+
+      removeRequestListeners();
+      void subscribeToPushNotifications(user.id).then((result) => {
+        if (result.success) {
+          setVisible(false);
+          setSetupError(null);
+          toast({
+            title: "Notifications Enabled",
+            description: "This device is registered for new request alerts.",
+          });
+        } else if (getNotificationPermission() === "denied") {
+          setVisible(false);
+          toast({
+            title: "Notifications Blocked",
+            description: "Allow notifications for this site in your browser settings, then enable them from Settings.",
+            variant: "destructive",
+          });
+        } else {
+          setSetupError(result.error || "Notifications could not be set up. Retry here or from Settings.");
+          setVisible(true);
+        }
+      }).catch(() => {
+        setSetupError("Notifications could not be set up. Retry here or from Settings.");
+        setVisible(true);
+      });
+    };
+    const removeRequestListeners = () => {
+      window.removeEventListener("pointerdown", requestOnFirstInteraction, true);
+      window.removeEventListener("keydown", requestOnFirstInteraction, true);
+    };
+
+    window.addEventListener("pointerdown", requestOnFirstInteraction, true);
+    window.addEventListener("keydown", requestOnFirstInteraction, true);
     return () => {
       clearTimeout(t);
+      removeRequestListeners();
     };
-  }, [user?.id, role]);
+  }, [user?.id, role, toast]);
 
   const handleEnable = useCallback(async () => {
     if (!user?.id) return;
