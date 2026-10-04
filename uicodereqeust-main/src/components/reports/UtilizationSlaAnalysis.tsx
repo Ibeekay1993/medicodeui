@@ -96,6 +96,7 @@ export default function UtilizationSlaAnalysis({ records, managerNames, viewerId
         <p className="mt-1 text-xs leading-relaxed text-slate-500">
           Matches the Authorization Queue: on time up to 15 minutes, at risk from 16–30 minutes, and over SLA after 30 minutes. Time starts at treatment submission, or request creation when that timestamp is unavailable. Historical imports are excluded.
         </p>
+        <p className="mt-1 text-xs leading-relaxed text-slate-500">SLA figures use the filtered request set shown above.</p>
       </div>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { writeClipboardText } from "@/lib/clipboard";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   TariffOption,
@@ -479,7 +480,7 @@ export function useClinicalActions({
           description: "This request is awaiting deletion approval and cannot be modified.",
         });
         setProcessingAction(null);
-        return;
+        return false;
       }
       setProcessing(true);
       try {
@@ -855,8 +856,10 @@ export function useClinicalActions({
         toast({ title: "Saved", description: `Request updated to ${officialLabel}.` });
         onUpdated();
         if (options?.closeAfter) onClose();
+        return true;
       } catch (err: any) {
         toast({ variant: "destructive", title: "Action failed", description: err.message });
+        return false;
       } finally {
         setProcessing(false);
         setProcessingAction(null);
@@ -955,28 +958,32 @@ export function useClinicalActions({
       return;
     }
     setProcessingAction("decline");
-    await persistRequestUpdate("rejected", "DECLINED");
+    const persisted = await persistRequestUpdate("rejected", "DECLINED");
+    if (!persisted) return;
 
     // Send rejection email to patient if email on file
     if (request?.patient_email && !request.patient_email.startsWith("no-email")) {
-      supabase.functions
-        .invoke("send-rejection-email", {
+      try {
+        const { data, error } = await supabase.functions.invoke("send-rejection-email", {
           method: "POST",
           body: { authorization_id: request.id },
-        })
-        .then(({ data, error }: { data?: any; error?: any }) => {
-          if (error) {
-            console.error("Rejection email failed:", error);
-          } else if (data?.email_status === "sent") {
-            toast({
-              title: "Rejection email sent",
-              description: `Patient notified at ${request.patient_email}`,
-            });
-          }
-        })
-        .catch((err: any) => {
-          console.error("Rejection email error:", err);
         });
+        if (error || data?.email_status !== "sent") {
+          toast({
+            variant: "destructive",
+            title: "Decline saved; notification failed",
+            description: "The request is declined, but the patient email was not confirmed. Follow up with the patient through your usual communication channel.",
+          });
+        } else {
+          toast({ title: "Rejection email sent", description: `Patient notified at ${request.patient_email}` });
+        }
+      } catch {
+        toast({
+          variant: "destructive",
+          title: "Decline saved; notification failed",
+          description: "The request is declined, but the patient email was not confirmed. Follow up with the patient through your usual communication channel.",
+        });
+      }
     }
   };
 
@@ -1139,7 +1146,7 @@ export function useClinicalActions({
     await persistRequestUpdate(editStatus, statusMap[editStatus] || editStatus, { closeAfter: true });
   };
 
-  const copyApprovalMessage = () => {
+  const copyApprovalMessage = async () => {
     if (!approvalResult) return;
     const dateStr = new Date().toLocaleDateString("en-GB");
     const isPartial = request.status === "partially_approved";
@@ -1168,16 +1175,24 @@ export function useClinicalActions({
       ? "Please proceed only with the approved services listed above. Declined services must not be provided under this authorization. For clarification, please contact Ronsberger HMO before treatment."
       : "Please proceed with the approved services listed above. For clarification, please contact Ronsberger HMO before treatment.";
     const msg = `${approvalHeading}\n\nPatient: ${approvalResult.patientName}\nPolicy No: ${approvalResult.policyNumber}\nAuth Code: ${approvalResult.authCode}\nHospital: ${approvalResult.hospitalName}${referralLine}\nDiagnosis: ${approvalResult.diagnosis}\n\n${serviceLines}\nDate: ${dateStr}\n\n${closing}\n\nRonsberger HMO UI Desk`;
-    navigator.clipboard.writeText(msg);
-    toast({ title: "Copied! Ready to paste to WhatsApp" });
+    try {
+      await writeClipboardText(msg);
+      toast({ title: "Copied! Ready to paste to WhatsApp" });
+    } catch {
+      toast({ variant: "destructive", title: "Copy failed", description: "Allow clipboard access or copy the message manually." });
+    }
   };
 
-  const copyDeclineMessage = () => {
+  const copyDeclineMessage = async () => {
     if (!declineResult) return;
     const dateStr = new Date().toLocaleDateString("en-GB");
     const msg = `AUTHORIZATION DECLINED\n\nPatient: ${declineResult.patientName}\nPolicy No: ${declineResult.policyNumber}\nHospital: ${declineResult.hospitalName}\nRequested For: ${declineResult.diagnosis} - ${declineResult.treatment}\nReason: ${declineResult.reason}\nDate: ${dateStr}\n\nPlease contact the HMO registry for clarification.\nRonsberger HMO UI Desk`;
-    navigator.clipboard.writeText(msg);
-    toast({ title: "Copied! Ready to send to hospital" });
+    try {
+      await writeClipboardText(msg);
+      toast({ title: "Copied! Ready to send to hospital" });
+    } catch {
+      toast({ variant: "destructive", title: "Copy failed", description: "Allow clipboard access or copy the message manually." });
+    }
   };
 
   const [unlockLoading, setUnlockLoading] = useState(false);

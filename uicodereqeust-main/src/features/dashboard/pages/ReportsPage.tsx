@@ -1,9 +1,8 @@
-import { useCallback, useEffect, useState } from "react";
-import { Navigate } from "react-router-dom";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTabVisibilityRefresh } from "@/hooks/use-tab-visibility-refresh";
-import { BarChart3, ShieldAlert, Eye, EyeOff } from "lucide-react";
+import { BarChart3, ShieldAlert, Eye, EyeOff, Loader2, RotateCw } from "lucide-react";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/lib/errors";
 import * as ExcelJS from "exceljs";
@@ -16,16 +15,13 @@ import {
   PreAuthRecord,
   FilterState,
   defaultStats,
-  preAuthStatusFilterMap,
-  formatNaira,
-  formatPercent,
+  getReportStatusPredicate,
+  fetchAllReportPages,
+  calculateReportStats,
   buildDateFilter,
   groupByDate,
   calculateHospitalPerformance,
   calculateApprovedAmount,
-  isApprovedStatus,
-  isRejectedStatus,
-  isPendingStatus,
 } from "@/lib/reports-helpers";
 
 import ReportFilters from "@/components/reports/ReportFilters";
@@ -35,6 +31,65 @@ import StatusDistributionChart from "@/components/reports/StatusDistributionChar
 import MonthlyTrendChart from "@/components/reports/MonthlyTrendChart";
 import HospitalPerformanceTable from "@/components/reports/HospitalPerformanceTable";
 import UtilizationSlaAnalysis from "@/components/reports/UtilizationSlaAnalysis";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+
+interface ReportResult {
+  records: PreAuthRecord[];
+  stats: ReportStats;
+  hospitalPerformance: HospitalPerformance[];
+  dailyTrend: TrendPoint[];
+  monthlyTrend: TrendPoint[];
+  utilizationManagerNames: Record<string, string>;
+}
+
+type ReportState =
+  | { status: "INITIAL" }
+  | { status: "LOADING"; filterKey: string }
+  | { status: "SUCCESS_EMPTY"; filterKey: string; result: ReportResult; loadedAt: number }
+  | { status: "SUCCESS_COMPLETE"; filterKey: string; result: ReportResult; loadedAt: number }
+  | { status: "ERROR"; filterKey: string };
+
+const reportErrorMessage = "The report could not be fully loaded. No report totals are available. Check your connection and retry.";
+
+function makeFilterKey(filters: FilterState, hospitalName?: string) {
+  return JSON.stringify([filters.statusFilter, filters.dateFilter, filters.startDate, filters.endDate, filters.hospitalFilter, hospitalName]);
+}
+
+function formatScopeDate(date: Date) {
+  return new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric" }).format(date);
+}
+
+function formatReportScope(filters: FilterState, hospitalName?: string) {
+  const range = buildDateFilter(filters.dateFilter, filters.startDate, filters.endDate);
+  let dateLabel = "All available dates";
+  if (range.from && range.to) {
+    const from = formatScopeDate(range.from);
+    const to = formatScopeDate(range.to);
+    dateLabel = from === to ? from : `${from}–${to}`;
+  } else if (range.from) {
+    dateLabel = `From ${formatScopeDate(range.from)}`;
+  } else if (range.to) {
+    dateLabel = `Through ${formatScopeDate(range.to)}`;
+  }
+
+  const statusLabels: Record<string, string> = {
+    all: "All statuses",
+    pending: "Pending",
+    pending_referral: "Pending Referral",
+    referral_approved: "Referral Approved",
+    referral_accepted: "Referral Accepted",
+    pending_authorization: "Pending Authorization",
+    approved: "Approved",
+    partially_approved: "Partially Approved",
+    rejected: "Rejected",
+    referral_declined: "Referral Declined",
+    referral_expired: "Referral Expired",
+  };
+  const statusLabel = statusLabels[filters.statusFilter] || "All statuses";
+  const hospitalLabel = filters.hospitalFilter === "all" ? "All hospitals" : hospitalName || filters.hospitalFilter;
+  return `Requests created: ${dateLabel} (local time) · Status: ${statusLabel} · Hospital: ${hospitalLabel}`;
+}
 
 export default function ReportsPage() {
   const { role, user } = useAuth();
@@ -49,93 +104,55 @@ export default function ReportsPage() {
     endDate: "",
     hospitalFilter: "all",
   });
-  const [records, setRecords] = useState<PreAuthRecord[]>([]);
-  const [stats, setStats] = useState<ReportStats>(defaultStats);
-  const [hospitalPerformance, setHospitalPerformance] = useState<HospitalPerformance[]>([]);
-  const [dailyTrend, setDailyTrend] = useState<TrendPoint[]>([]);
-  const [monthlyTrend, setMonthlyTrend] = useState<TrendPoint[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [reportState, setReportState] = useState<ReportState>({ status: "INITIAL" });
   const [isExporting, setIsExporting] = useState(false);
   const [showHospitalPerformance, setShowHospitalPerformance] = useState(true);
-  const [utilizationManagerNames, setUtilizationManagerNames] = useState<Record<string, string>>({});
+  const requestGeneration = useRef(0);
 
-  const calculateStats = useCallback((data: PreAuthRecord[]): ReportStats => {
-    const approved = data.filter((r) => isApprovedStatus(r.status));
-    const pending = data.filter((r) => isPendingStatus(r.status));
-    const rejected = data.filter((r) => isRejectedStatus(r.status));
-
-    const totalApproved = approved.reduce((sum, r) => sum + (Number(r.approved_amount) || 0), 0);
-
-    const processedRecords = data.filter((r) => r.decided_at && r.created_at);
-    const avgTime =
-      processedRecords.length > 0
-        ? processedRecords.reduce((sum, r) => {
-            const created = new Date(r.created_at).getTime();
-            const decided = new Date(r.decided_at!).getTime();
-            return sum + (decided - created);
-          }, 0) / processedRecords.length / (1000 * 60 * 60)
-        : 0;
-
-    const uniqueDays = new Set(data.map((r) => r.created_at.split("T")[0])).size;
-    const dailyVol = uniqueDays > 0 ? data.length / uniqueDays : 0;
-
-    return {
-      totalCodes: data.length,
-      approvedCodes: approved.length,
-      pendingCodes: pending.length,
-      rejectedCodes: rejected.length,
-      approvedAmount: totalApproved,
-      approvalRate: data.length > 0 ? (approved.length / data.length) * 100 : 0,
-      rejectionRate: data.length > 0 ? (rejected.length / data.length) * 100 : 0,
-      avgProcessingTime: avgTime,
-      dailyVolume: dailyVol,
-    };
-  }, []);
+  const selectedHospitalName = filters.hospitalFilter === "all"
+    ? undefined
+    : hospitals.find((hospital) => hospital.id === filters.hospitalFilter)?.name || filters.hospitalFilter;
+  const currentFilterKey = makeFilterKey(filters, selectedHospitalName);
+  const scopeLabel = formatReportScope(filters, selectedHospitalName);
+  const visibleReportState = "filterKey" in reportState && reportState.filterKey !== currentFilterKey
+    ? { status: "LOADING" as const, filterKey: currentFilterKey }
+    : reportState;
+  const currentResult = visibleReportState.status === "SUCCESS_EMPTY" || visibleReportState.status === "SUCCESS_COMPLETE"
+    ? visibleReportState.result
+    : null;
+  const records = currentResult?.records || [];
+  const stats = currentResult?.stats || defaultStats;
+  const hospitalPerformance = currentResult?.hospitalPerformance || [];
+  const dailyTrend = currentResult?.dailyTrend || [];
+  const monthlyTrend = currentResult?.monthlyTrend || [];
+  const utilizationManagerNames = currentResult?.utilizationManagerNames || {};
 
   const fetchAnalytics = useCallback(async () => {
-    setIsLoading(true);
+    const generation = ++requestGeneration.current;
+    const filterSnapshot = { ...filters };
+    const filterKey = makeFilterKey(filterSnapshot, selectedHospitalName);
+    setReportState({ status: "LOADING", filterKey });
+
     try {
-      let allData: any[] = [];
-      let page = 0;
       const pageSize = 1000;
-      let hasMore = true;
+      const statusPredicate = getReportStatusPredicate(filterSnapshot.statusFilter);
+      const dateRange = buildDateFilter(filterSnapshot.dateFilter, filterSnapshot.startDate, filterSnapshot.endDate);
+      const allData = await fetchAllReportPages<any>(async ({ from, to }) => {
+        let q = supabase.from("authorization_requests").select("*")
+          .order("created_at", { ascending: false })
+          .order("id", { ascending: true });
 
-      const mappedStatuses = preAuthStatusFilterMap[filters.statusFilter];
-      const dateRange = buildDateFilter(filters.dateFilter, filters.startDate, filters.endDate);
-
-      while (hasMore) {
-        let q = supabase.from("authorization_requests").select("*").order("created_at", { ascending: false });
-        
-        if (mappedStatuses?.length === 1) {
-          q = q.eq("status", mappedStatuses[0]);
-        } else if (mappedStatuses?.length) {
-          q = q.in("status", mappedStatuses);
-        }
-        if (filters.hospitalFilter !== "all") {
-          const hospitalName = hospitals.find((h) => h.id === filters.hospitalFilter)?.name || filters.hospitalFilter;
-          q = q.ilike("hospital_name", `%${hospitalName}%`);
-        }
+        if (statusPredicate?.operator === "eq") q = q.eq("status", statusPredicate.value);
+        else if (statusPredicate?.operator === "in") q = q.in("status", statusPredicate.values);
+        if (filterSnapshot.hospitalFilter !== "all") q = q.ilike("hospital_name", `%${selectedHospitalName}%`);
         if (dateRange.from) q = q.gte("created_at", dateRange.from.toISOString());
         if (dateRange.to) q = q.lte("created_at", dateRange.to.toISOString());
 
-        q = q.range(page * pageSize, (page + 1) * pageSize - 1);
+        const { data, error } = await q.range(from, to);
+        return { data, error };
+      }, pageSize);
 
-        const { data, error } = await q;
-        if (error) {
-          console.error("Error fetching analytics page:", error);
-          break;
-        }
-
-        if (data && data.length > 0) {
-          allData = [...allData, ...data];
-          page++;
-          hasMore = data.length === pageSize;
-        } else {
-          hasMore = false;
-        }
-      }
-
-      const mappedRecords: PreAuthRecord[] = (allData || []).map((item: any) => ({
+      const mappedRecords: PreAuthRecord[] = allData.map((item: any) => ({
         id: item.id,
         created_at: item.created_at,
         request_id: item.request_id || "",
@@ -166,34 +183,40 @@ export default function ReportsPage() {
       const managerIds = Array.from(new Set(
         mappedRecords.flatMap((record) => [record.approved_by, record.decided_by]).filter((id): id is string => Boolean(id)),
       ));
-      setUtilizationManagerNames({});
+      let managerNames: Record<string, string> = {};
       if (managerIds.length) {
         const { data: managers, error: managersError } = await supabase.rpc("rpc_get_utilization_manager_directory", { _user_ids: managerIds });
         if (managersError) {
           console.warn("Could not load utilization manager names for SLA report", managersError);
         } else {
-          setUtilizationManagerNames(Object.fromEntries((managers || []).map((manager) => [manager.user_id, manager.full_name])));
+          managerNames = Object.fromEntries((managers || []).map((manager) => [manager.user_id, manager.full_name]));
         }
-      } else {
-        setUtilizationManagerNames({});
       }
 
       const validRecords = mappedRecords.filter((r) => r.status !== "deferred");
-      setRecords(validRecords);
-      setStats(calculateStats(validRecords));
-      setHospitalPerformance(calculateHospitalPerformance(validRecords));
-      setDailyTrend(groupByDate(validRecords, "day"));
-
       const currentYear = new Date().getFullYear();
       const currentYearRecords = validRecords.filter(r => new Date(r.created_at).getFullYear() === currentYear);
-      setMonthlyTrend(groupByDate(currentYearRecords, "month"));
+      const result: ReportResult = {
+        records: validRecords,
+        stats: calculateReportStats(validRecords),
+        hospitalPerformance: calculateHospitalPerformance(validRecords),
+        dailyTrend: groupByDate(validRecords, "day"),
+        monthlyTrend: groupByDate(currentYearRecords, "month"),
+        utilizationManagerNames: managerNames,
+      };
+
+      if (generation !== requestGeneration.current) return;
+      setReportState({
+        status: validRecords.length ? "SUCCESS_COMPLETE" : "SUCCESS_EMPTY",
+        filterKey,
+        result,
+        loadedAt: Date.now(),
+      });
     } catch (error) {
       console.error("Analytics fetch error:", error);
-      toast.error(getErrorMessage(error, "Failed to load analytics data"));
-    } finally {
-      setIsLoading(false);
+      if (generation === requestGeneration.current) setReportState({ status: "ERROR", filterKey });
     }
-  }, [filters, hospitals, calculateStats]);
+  }, [filters, selectedHospitalName]);
 
   const fetchHospitals = useCallback(async () => {
     setLoadingHospitals(true);
@@ -763,24 +786,61 @@ export default function ReportsPage() {
         />
       </div>
 
-      {/* KPI Stats */}
-      <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 delay-200 fill-mode-both">
-        <KPIStatsGrid stats={stats} isLoading={isLoading} />
+      <div aria-label="Report scope" className="space-y-1 text-xs text-slate-600">
+        <p className="font-medium">{scopeLabel}</p>
+        <p>
+          SLA metrics use this same filtered request set.
+          {currentResult && (visibleReportState.status === "SUCCESS_EMPTY" || visibleReportState.status === "SUCCESS_COMPLETE") && (
+            <span> Data loaded: {new Intl.DateTimeFormat("en-NG", { hour: "numeric", minute: "2-digit" }).format(new Date(visibleReportState.loadedAt))} (local time).</span>
+          )}
+        </p>
       </div>
 
-      {(normalizedRole === "admin" || normalizedRole === "utilization_manager" || normalizedRole === "utilization_manager_lead") && (
-        <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 delay-250 fill-mode-both">
-          <UtilizationSlaAnalysis
-            records={records}
-            managerNames={utilizationManagerNames}
-            viewerId={user?.id}
-            canSeeTeamPerformance={normalizedRole === "admin" || normalizedRole === "utilization_manager_lead"}
-          />
+      {(visibleReportState.status === "INITIAL" || visibleReportState.status === "LOADING") && (
+        <div role="status" aria-live="polite" className="flex min-h-24 items-center gap-3 rounded-lg border border-slate-200 bg-white px-4 py-5 text-sm text-slate-600">
+          <Loader2 className="h-5 w-5 animate-spin text-brand-700" aria-hidden="true" />
+          <span>Loading authorization report…</span>
         </div>
       )}
 
-      {/* Analytics Dashboard */}
-      <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-300 fill-mode-both">
+      {visibleReportState.status === "ERROR" && (
+        <Alert variant="destructive" className="bg-white">
+          <RotateCw className="h-4 w-4" aria-hidden="true" />
+          <AlertTitle>Report unavailable</AlertTitle>
+          <AlertDescription className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <span>{reportErrorMessage}</span>
+            <Button type="button" variant="outline" onClick={() => void fetchAnalytics()}>
+              Retry
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {visibleReportState.status === "SUCCESS_EMPTY" && (
+        <div role="status" className="rounded-lg border border-slate-200 bg-white px-4 py-8 text-center text-sm text-slate-600">
+          No authorization requests match the selected report filters.
+        </div>
+      )}
+
+      {visibleReportState.status === "SUCCESS_COMPLETE" && currentResult && (
+        <>
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 delay-200 fill-mode-both">
+            <KPIStatsGrid stats={stats} isLoading={false} />
+          </div>
+
+          {(normalizedRole === "admin" || normalizedRole === "utilization_manager" || normalizedRole === "utilization_manager_lead") && (
+            <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 delay-250 fill-mode-both">
+              <UtilizationSlaAnalysis
+                records={records}
+                managerNames={utilizationManagerNames}
+                viewerId={user?.id}
+                canSeeTeamPerformance={normalizedRole === "admin" || normalizedRole === "utilization_manager_lead"}
+              />
+            </div>
+          )}
+
+          {/* Analytics Dashboard */}
+          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-300 fill-mode-both">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="p-2.5 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl shadow-sm">
@@ -825,7 +885,9 @@ export default function ReportsPage() {
             </div>
           )}
         </div>
-      </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

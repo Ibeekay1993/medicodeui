@@ -127,6 +127,14 @@ export class PaymentsService {
     if (error) throw error;
   }
 
+  static async settlePaymentBatch(batchId: string, payload: Record<string, unknown>) {
+    const { error } = await supabase.rpc("settle_payment_batch_transactional" as any, {
+      p_batch_id: batchId,
+      p_payload: { ...payload, status: "paid" },
+    });
+    if (error) throw error;
+  }
+
   static async updateClaimsPaymentStatusByBatch(batchId: string, paymentStatus: string) {
     const { error } = await supabase
       .from("hospital_claims" as any)

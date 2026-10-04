@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -36,6 +36,7 @@ export function CreateBatchModal({
   const { user } = useAuth();
   const { toast } = useToast();
   const [batchRef, setBatchRef] = useState("");
+  const submissionStartedRef = useRef(false);
   const createBatchMutation = useCreatePaymentBatch();
   const isSubmitting = createBatchMutation.isPending;
 
@@ -61,7 +62,8 @@ export function CreateBatchModal({
   }, [isOpen, monthCode, monthName]);
 
   const handleCreateBatch = async () => {
-    if (!user || !batchRef) return;
+    if (!user || !batchRef || submissionStartedRef.current) return;
+    submissionStartedRef.current = true;
 
     try {
       // Call atomic database RPC function to create batch and link claims in one transaction
@@ -93,6 +95,8 @@ export function CreateBatchModal({
         title: "Batch Creation Failed",
         description: errorMsg || "An unexpected error occurred during batching.",
       });
+    } finally {
+      submissionStartedRef.current = false;
     }
   };
 

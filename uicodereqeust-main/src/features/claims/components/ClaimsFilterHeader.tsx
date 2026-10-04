@@ -26,12 +26,12 @@ export default function ClaimsFilterHeader({
 }: ClaimsFilterHeaderProps) {
   return (
     <div className="premium-card bg-white/80 backdrop-blur-md p-4 rounded-xl border border-slate-100 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4 mb-2 transition-all duration-300 hover:shadow-md relative z-[100]">
-      <div className="flex items-center gap-4">
+      <div className="flex w-full flex-col items-stretch gap-3 sm:w-auto sm:flex-row sm:items-center sm:gap-4">
         <h2 className="text-lg font-black text-slate-900 tracking-tight">Claims Ledger</h2>
-        <Tabs value={statusTab === 'pending' ? 'pending' : 'all'} onValueChange={(val: any) => setStatusTab(val)} className="w-auto hidden sm:block">
-          <TabsList className="h-8 bg-slate-100 rounded-lg">
-            <TabsTrigger value="pending" className="text-xs font-bold px-4 rounded-md">Action Needed</TabsTrigger>
-            <TabsTrigger value="all" className="text-xs font-bold px-4 rounded-md">All Claims</TabsTrigger>
+        <Tabs value={statusTab === 'pending' ? 'pending' : 'all'} onValueChange={(val: any) => setStatusTab(val)} className="w-full sm:w-auto">
+          <TabsList className="h-9 w-full bg-slate-100 rounded-lg sm:w-auto">
+            <TabsTrigger value="pending" className="min-w-0 flex-1 text-xs font-bold px-2 rounded-md sm:flex-none sm:px-4">Action Needed</TabsTrigger>
+            <TabsTrigger value="all" className="min-w-0 flex-1 text-xs font-bold px-2 rounded-md sm:flex-none sm:px-4">All Claims</TabsTrigger>
           </TabsList>
         </Tabs>
       </div>

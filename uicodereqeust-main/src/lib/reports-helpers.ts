@@ -150,10 +150,75 @@ export const preAuthStatusFilterMap: Record<string, string[]> = {
   referral_accepted: ["referral_accepted"],
   pending_authorization: ["pending_authorization"],
   approved: ["approved", "partially_approved", "referral_approved", "referral_accepted", "authorization_approved"],
+  partially_approved: ["partially_approved"],
   rejected: ["rejected", "referral_declined", "referral_expired"],
   referral_declined: ["referral_declined"],
   referral_expired: ["referral_expired"],
 };
+
+export type ReportStatusPredicate =
+  | { operator: "eq"; value: string }
+  | { operator: "in"; values: string[] }
+  | null;
+
+export function getReportStatusPredicate(statusFilter: string): ReportStatusPredicate {
+  const statuses = preAuthStatusFilterMap[statusFilter];
+  if (!statuses?.length) return null;
+  if (statuses.length === 1) return { operator: "eq", value: statuses[0] };
+  return { operator: "in", values: statuses };
+}
+
+export async function fetchAllReportPages<T>(
+  fetchPage: (range: { from: number; to: number }) => Promise<{ data: T[] | null; error: unknown | null }>,
+  pageSize = 1000,
+): Promise<T[]> {
+  const allRows: T[] = [];
+  let page = 0;
+
+  while (true) {
+    const from = page * pageSize;
+    const { data, error } = await fetchPage({ from, to: from + pageSize - 1 });
+    if (error) throw error;
+    if (!data?.length) return allRows;
+
+    allRows.push(...data);
+    if (data.length < pageSize) return allRows;
+    page += 1;
+  }
+}
+
+export function calculateReportStats(data: PreAuthRecord[]): ReportStats {
+  const approved = data.filter((r) => isApprovedStatus(r.status));
+  const pending = data.filter((r) => isPendingStatus(r.status));
+  const rejected = data.filter((r) => isRejectedStatus(r.status));
+
+  const totalApproved = approved.reduce((sum, r) => sum + (Number(r.approved_amount) || 0), 0);
+
+  const processedRecords = data.filter((r) => r.decided_at && r.created_at);
+  const avgTime =
+    processedRecords.length > 0
+      ? processedRecords.reduce((sum, r) => {
+          const created = new Date(r.created_at).getTime();
+          const decided = new Date(r.decided_at!).getTime();
+          return sum + (decided - created);
+        }, 0) / processedRecords.length / (1000 * 60 * 60)
+      : 0;
+
+  const uniqueDays = new Set(data.map((r) => r.created_at.split("T")[0])).size;
+  const dailyVol = uniqueDays > 0 ? data.length / uniqueDays : 0;
+
+  return {
+    totalCodes: data.length,
+    approvedCodes: approved.length,
+    pendingCodes: pending.length,
+    rejectedCodes: rejected.length,
+    approvedAmount: totalApproved,
+    approvalRate: data.length > 0 ? (approved.length / data.length) * 100 : 0,
+    rejectionRate: data.length > 0 ? (rejected.length / data.length) * 100 : 0,
+    avgProcessingTime: avgTime,
+    dailyVolume: dailyVol,
+  };
+}
 
 export function formatNaira(value: number): string {
   return new Intl.NumberFormat("en-NG", {

@@ -410,7 +410,7 @@ export default function DashboardHome() {
         : nurseActions;
 
   const mainStats = [
-    { label: role === "admin" ? "Active Users" : role === "claims" ? "Total Claims" : "Total Load", value: role === "admin" ? stats.users : stats.total, icon: Users, color: "text-slate-600" },
+    { label: role === "admin" ? "User Roles" : role === "claims" ? "Total Claims" : "Total Load", value: role === "admin" ? stats.users : stats.total, icon: Users, color: "text-slate-600" },
     { label: "Facilities", value: stats.hospitals, icon: Building2, color: "text-slate-700" },
     { label: "Approved", value: stats.approved, icon: CheckCircle2, color: "text-slate-700" },
     { label: role === "claims" ? "Pending Review" : "Rejected", value: role === "claims" ? stats.pending : stats.rejected, icon: role === "claims" ? Clock : XCircle, color: role === "claims" ? "text-amber-600" : "text-rose-600" },
@@ -430,21 +430,21 @@ export default function DashboardHome() {
             <h3 className="text-sm font-semibold text-slate-900 tracking-tight">Clinical Authorizations</h3>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 md:gap-4">
               {[
-                { label: "Active Users",    value: stats.users,     icon: Users,         color: "text-slate-600" },
+                { label: "User Roles",     value: stats.users,     icon: Users,         color: "text-slate-600" },
                 { label: "Total Requests",  value: stats.total,     icon: FileText,      color: "text-slate-700" },
                 { label: "Approved",        value: stats.approved,  icon: CheckCircle2,  color: "text-slate-700" },
                 { label: "Rejected",        value: stats.rejected,  icon: XCircle,       color: "text-rose-600" },
               ].map((item) => (
-                <div key={item.label} className="border-slate-100 shadow-sm bg-white rounded-xl sm:rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-md hover:-translate-y-1 group flex flex-col p-0 cursor-pointer" title={item.label}>
+                <div key={item.label} className="border-slate-100 shadow-sm bg-white rounded-xl sm:rounded-2xl overflow-hidden flex flex-col p-0" title={item.label}>
                   <div className="p-2.5 sm:p-4 md:p-5 flex flex-col sm:flex-row items-start sm:items-center gap-1.5 sm:gap-3">
                     <div className="flex w-full items-center justify-between sm:w-auto sm:justify-start">
                       <p className="sm:hidden text-[9px] font-bold uppercase tracking-wider text-slate-500 break-words leading-tight pr-1 max-w-[75%]">{item.label}</p>
-                      <div className="flex h-6 w-6 sm:h-10 sm:w-10 md:h-12 md:w-12 rounded-md sm:rounded-xl items-center justify-center shrink-0 transition-colors duration-300 bg-slate-50 group-hover:bg-slate-100">
-                        <item.icon className={cn("h-3.5 w-3.5 sm:h-5 sm:w-5 md:h-6 md:w-6 transition-transform duration-300 group-hover:scale-110", item.color)} />
+                      <div className="flex h-6 w-6 sm:h-10 sm:w-10 md:h-12 md:w-12 rounded-md sm:rounded-xl items-center justify-center shrink-0 bg-slate-50">
+                        <item.icon className={cn("h-3.5 w-3.5 sm:h-5 sm:w-5 md:h-6 md:w-6 ", item.color)} />
                       </div>
                     </div>
                     <div className="min-w-0 flex-1 text-left w-full">
-                      <p className="hidden sm:block text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-400 break-words leading-tight group-hover:text-slate-500 transition-colors">{item.label}</p>
+                      <p className="hidden sm:block text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-400 break-words leading-tight">{item.label}</p>
                       <div className={cn("text-sm sm:text-lg md:text-xl font-black tracking-tight break-words leading-tight sm:mt-1", item.color)}>
                         {loading ? <StatSkeleton /> : (item.value !== undefined ? Number(item.value).toLocaleString() : 0)}
                       </div>
@@ -465,16 +465,16 @@ export default function DashboardHome() {
                 { label: "Appr. Value",   value: money(claimStats.approvedValue),       color: "text-slate-700", format: "money", icon: Banknote },
                 { label: "Contested",     value: claimStats.contested,                  color: "text-amber-600", format: "number", icon: AlertTriangle },
               ].map((item) => (
-                <div key={item.label} className="border-slate-100 shadow-sm bg-white rounded-xl sm:rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-md hover:-translate-y-1 group flex flex-col p-0 cursor-pointer" title={item.label}>
+                <div key={item.label} className="border-slate-100 shadow-sm bg-white rounded-xl sm:rounded-2xl overflow-hidden flex flex-col p-0" title={item.label}>
                   <div className="p-2.5 sm:p-4 md:p-5 flex flex-col sm:flex-row items-start sm:items-center gap-1.5 sm:gap-3">
                     <div className="flex w-full items-center justify-between sm:w-auto sm:justify-start">
                       <p className="sm:hidden text-[9px] font-bold uppercase tracking-wider text-slate-500 break-words leading-tight pr-1 max-w-[75%]">{item.label}</p>
-                      <div className="flex h-6 w-6 sm:h-10 sm:w-10 md:h-12 md:w-12 rounded-md sm:rounded-xl items-center justify-center shrink-0 transition-colors duration-300 bg-slate-50 group-hover:bg-slate-100">
-                        <item.icon className={cn("h-3.5 w-3.5 sm:h-5 sm:w-5 md:h-6 md:w-6 transition-transform duration-300 group-hover:scale-110", item.color)} />
+                      <div className="flex h-6 w-6 sm:h-10 sm:w-10 md:h-12 md:w-12 rounded-md sm:rounded-xl items-center justify-center shrink-0 bg-slate-50">
+                        <item.icon className={cn("h-3.5 w-3.5 sm:h-5 sm:w-5 md:h-6 md:w-6 ", item.color)} />
                       </div>
                     </div>
                     <div className="min-w-0 flex-1 text-left w-full">
-                      <p className="hidden sm:block text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-400 break-words leading-tight group-hover:text-slate-500 transition-colors">{item.label}</p>
+                      <p className="hidden sm:block text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-400 break-words leading-tight">{item.label}</p>
                       <div className={cn("text-sm sm:text-lg md:text-xl font-black tracking-tight break-words leading-tight sm:mt-1", item.color)}>
                         {loading ? <StatSkeleton /> : (item.format === "number" ? Number(item.value || 0).toLocaleString() : item.value)}
                       </div>
@@ -493,18 +493,18 @@ export default function DashboardHome() {
                 { label: "Awaiting Value",  value: money(financeStats.awaitingValue),      color: "text-amber-600", icon: Clock },
                 { label: "Paid Value",      value: money(financeStats.paidValue),          color: "text-slate-700", icon: Banknote },
                 { label: "Settled Batches", value: financeStats.paidBatches,               color: "text-slate-600", icon: Layers },
-                { label: "Batches Value",   value: money(financeStats.totalBatchesValue),  color: "text-slate-700", icon: Wallet },
+                { label: "All Batch Value", value: money(financeStats.totalBatchesValue),  color: "text-slate-700", icon: Wallet },
               ].map((item) => (
-                <div key={item.label} className="border-slate-100 shadow-sm bg-white rounded-xl sm:rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-md hover:-translate-y-1 group flex flex-col p-0 cursor-pointer" title={item.label}>
+                <div key={item.label} className="border-slate-100 shadow-sm bg-white rounded-xl sm:rounded-2xl overflow-hidden flex flex-col p-0" title={item.label}>
                   <div className="p-2.5 sm:p-4 md:p-5 flex flex-col sm:flex-row items-start sm:items-center gap-1.5 sm:gap-3">
                     <div className="flex w-full items-center justify-between sm:w-auto sm:justify-start">
                       <p className="sm:hidden text-[9px] font-bold uppercase tracking-wider text-slate-500 break-words leading-tight pr-1 max-w-[75%]">{item.label}</p>
-                      <div className="flex h-6 w-6 sm:h-10 sm:w-10 md:h-12 md:w-12 rounded-md sm:rounded-xl items-center justify-center shrink-0 transition-colors duration-300 bg-slate-50 group-hover:bg-slate-100">
-                        <item.icon className={cn("h-3.5 w-3.5 sm:h-5 sm:w-5 md:h-6 md:w-6 transition-transform duration-300 group-hover:scale-110", item.color)} />
+                      <div className="flex h-6 w-6 sm:h-10 sm:w-10 md:h-12 md:w-12 rounded-md sm:rounded-xl items-center justify-center shrink-0 bg-slate-50">
+                        <item.icon className={cn("h-3.5 w-3.5 sm:h-5 sm:w-5 md:h-6 md:w-6 ", item.color)} />
                       </div>
                     </div>
                     <div className="min-w-0 flex-1 text-left w-full">
-                      <p className="hidden sm:block text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-400 break-words leading-tight group-hover:text-slate-500 transition-colors">{item.label}</p>
+                      <p className="hidden sm:block text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-400 break-words leading-tight">{item.label}</p>
                       <div className={cn("text-sm sm:text-lg md:text-xl font-black tracking-tight break-words leading-tight sm:mt-1", item.color)}>
                         {loading ? <StatSkeleton /> : item.value}
                       </div>
@@ -523,18 +523,18 @@ export default function DashboardHome() {
             { label: "Awaiting Value",  value: money(financeStats.awaitingValue),      color: "text-amber-600", icon: Clock },
             { label: "Paid Value",      value: money(financeStats.paidValue),          color: "text-slate-700", icon: Banknote },
             { label: "Settled Batches", value: financeStats.paidBatches,               color: "text-slate-600", icon: Layers },
-            { label: "Batches Value",   value: money(financeStats.totalBatchesValue),  color: "text-slate-700", icon: Wallet },
+            { label: "All Batch Value", value: money(financeStats.totalBatchesValue),  color: "text-slate-700", icon: Wallet },
           ].map((item) => (
-            <div key={item.label} className="border-slate-100 shadow-sm bg-white rounded-xl sm:rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-md hover:-translate-y-1 group flex flex-col p-0 cursor-pointer" title={item.label}>
+            <div key={item.label} className="border-slate-100 shadow-sm bg-white rounded-xl sm:rounded-2xl overflow-hidden flex flex-col p-0" title={item.label}>
               <div className="p-2.5 sm:p-4 md:p-5 flex flex-col sm:flex-row items-start sm:items-center gap-1.5 sm:gap-3">
                 <div className="flex w-full items-center justify-between sm:w-auto sm:justify-start">
                   <p className="sm:hidden text-[9px] font-bold uppercase tracking-wider text-slate-500 break-words leading-tight pr-1 max-w-[75%]">{item.label}</p>
-                  <div className="flex h-6 w-6 sm:h-10 sm:w-10 md:h-12 md:w-12 rounded-md sm:rounded-xl items-center justify-center shrink-0 transition-colors duration-300 bg-slate-50 group-hover:bg-slate-100">
-                    <item.icon className={cn("h-3.5 w-3.5 sm:h-5 sm:w-5 md:h-6 md:w-6 transition-transform duration-300 group-hover:scale-110", item.color)} />
+                  <div className="flex h-6 w-6 sm:h-10 sm:w-10 md:h-12 md:w-12 rounded-md sm:rounded-xl items-center justify-center shrink-0 bg-slate-50">
+                    <item.icon className={cn("h-3.5 w-3.5 sm:h-5 sm:w-5 md:h-6 md:w-6 ", item.color)} />
                   </div>
                 </div>
                 <div className="min-w-0 flex-1 text-left w-full">
-                  <p className="hidden sm:block text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-400 break-words leading-tight group-hover:text-slate-500 transition-colors">{item.label}</p>
+                  <p className="hidden sm:block text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-400 break-words leading-tight">{item.label}</p>
                   <div className={cn("text-sm sm:text-lg md:text-xl font-black tracking-tight break-words leading-tight sm:mt-1", item.color)}>
                     {loading ? <StatSkeleton /> : item.value}
                   </div>
@@ -548,16 +548,16 @@ export default function DashboardHome() {
       {isNurseOrOther && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 md:gap-4 overflow-x-hidden">
           {mainStats.map((item) => (
-            <div key={item.label} className="border-slate-100 shadow-sm bg-white rounded-xl sm:rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-md hover:-translate-y-1 group flex flex-col p-0 cursor-pointer" title={item.label}>
+            <div key={item.label} className="border-slate-100 shadow-sm bg-white rounded-xl sm:rounded-2xl overflow-hidden flex flex-col p-0" title={item.label}>
               <div className="p-2.5 sm:p-4 md:p-5 flex flex-col sm:flex-row items-start sm:items-center gap-1.5 sm:gap-3">
                 <div className="flex w-full items-center justify-between sm:w-auto sm:justify-start">
                   <p className="sm:hidden text-[9px] font-bold uppercase tracking-wider text-slate-500 break-words leading-tight pr-1 max-w-[75%]">{item.label}</p>
-                  <div className="flex h-6 w-6 sm:h-10 sm:w-10 md:h-12 md:w-12 rounded-md sm:rounded-xl items-center justify-center shrink-0 transition-colors duration-300 bg-slate-50 group-hover:bg-slate-100">
-                    <item.icon className={cn("h-3.5 w-3.5 sm:h-5 sm:w-5 md:h-6 md:w-6 transition-transform duration-300 group-hover:scale-110", item.color)} />
+                  <div className="flex h-6 w-6 sm:h-10 sm:w-10 md:h-12 md:w-12 rounded-md sm:rounded-xl items-center justify-center shrink-0 bg-slate-50">
+                    <item.icon className={cn("h-3.5 w-3.5 sm:h-5 sm:w-5 md:h-6 md:w-6 ", item.color)} />
                   </div>
                 </div>
                 <div className="min-w-0 flex-1 text-left w-full">
-                  <p className="hidden sm:block text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-400 break-words leading-tight group-hover:text-slate-500 transition-colors">{item.label}</p>
+                  <p className="hidden sm:block text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-400 break-words leading-tight">{item.label}</p>
                   <div className={cn("text-sm sm:text-lg md:text-xl font-black tracking-tight break-words leading-tight sm:mt-1", item.color)}>
                     {loading ? <StatSkeleton /> : Number(item.value || 0).toLocaleString()}
                   </div>
@@ -579,16 +579,16 @@ export default function DashboardHome() {
             { label: "Appr. Value", value: money(claimStats.approvedValue), color: "text-slate-700", icon: Banknote },
             { label: "Savings", value: money(claimStats.declinedValue), color: "text-slate-600", icon: Wallet },
           ].map((item) => (
-            <div key={item.label} className="border-slate-100 shadow-sm bg-white rounded-xl sm:rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-md hover:-translate-y-1 group flex flex-col p-0 cursor-pointer" title={item.label}>
+            <div key={item.label} className="border-slate-100 shadow-sm bg-white rounded-xl sm:rounded-2xl overflow-hidden flex flex-col p-0" title={item.label}>
               <div className="p-2.5 sm:p-4 md:p-5 flex flex-col sm:flex-row items-start sm:items-center gap-1.5 sm:gap-3">
                 <div className="flex w-full items-center justify-between sm:w-auto sm:justify-start">
                   <p className="sm:hidden text-[9px] font-bold uppercase tracking-wider text-slate-500 break-words leading-tight pr-1 max-w-[75%]">{item.label}</p>
-                  <div className="flex h-6 w-6 sm:h-10 sm:w-10 md:h-12 md:w-12 rounded-md sm:rounded-xl items-center justify-center shrink-0 transition-colors duration-300 bg-slate-50 group-hover:bg-slate-100">
-                    <item.icon className={cn("h-3.5 w-3.5 sm:h-5 sm:w-5 md:h-6 md:w-6 transition-transform duration-300 group-hover:scale-110", item.color)} />
+                  <div className="flex h-6 w-6 sm:h-10 sm:w-10 md:h-12 md:w-12 rounded-md sm:rounded-xl items-center justify-center shrink-0 bg-slate-50">
+                    <item.icon className={cn("h-3.5 w-3.5 sm:h-5 sm:w-5 md:h-6 md:w-6 ", item.color)} />
                   </div>
                 </div>
                 <div className="min-w-0 flex-1 text-left w-full">
-                  <p className="hidden sm:block text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-400 break-words leading-tight group-hover:text-slate-500 transition-colors">{item.label}</p>
+                  <p className="hidden sm:block text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-400 break-words leading-tight">{item.label}</p>
                   <div className={cn("text-sm sm:text-lg md:text-xl font-black tracking-tight break-words leading-tight sm:mt-1", item.color)}>
                     {loading ? <StatSkeleton /> : (typeof item.value === "number" ? item.value.toLocaleString() : item.value)}
                   </div>

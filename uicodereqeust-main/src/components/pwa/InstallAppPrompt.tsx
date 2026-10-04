@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { Download, X, Share2, PlusSquare, Smartphone, MoreVertical } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useLocation } from "react-router-dom";
 import {
   Dialog,
   DialogContent,
@@ -64,6 +65,7 @@ function isInstallPromptDismissed(): boolean {
 }
 
 export function InstallAppPrompt() {
+  const location = useLocation();
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(globalDeferredPrompt);
   const [isStandalone, setIsStandalone] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
@@ -71,6 +73,12 @@ export function InstallAppPrompt() {
   const [showGuideModal, setShowGuideModal] = useState(false);
 
   useEffect(() => {
+    setDeferredPrompt(globalDeferredPrompt);
+    if (location.pathname === "/login") {
+      setShowBanner(false);
+      setShowGuideModal(false);
+      return;
+    }
     // If running in standalone or already installed, never show banner
     if (isAppInstalled()) {
       setIsStandalone(true);
@@ -125,7 +133,7 @@ export function InstallAppPrompt() {
       window.removeEventListener("pwa-prompt-ready", handlePromptReady);
       window.removeEventListener("pwa-installed-success", handleInstalled);
     };
-  }, []);
+  }, [location.pathname]);
 
   const handleInstallClick = useCallback(async () => {
     if (deferredPrompt) {

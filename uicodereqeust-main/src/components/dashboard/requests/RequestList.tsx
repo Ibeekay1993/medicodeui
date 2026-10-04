@@ -6,6 +6,7 @@ import { Copy, Loader2, Trash2, MessageSquare, CheckCircle2 } from "lucide-react
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { writeClipboardText } from "@/lib/clipboard";
 
 interface RequestListProps {
   requests: any[];
@@ -81,10 +82,14 @@ export function RequestList({
     return "Unassigned";
   };
 
-  const handleCopyCode = (code: string) => {
+  const handleCopyCode = async (code: string) => {
     if (!code) return;
-    navigator.clipboard.writeText(code);
-    toast({ title: "Copied to clipboard" });
+    try {
+      await writeClipboardText(code);
+      toast({ title: "Copied to clipboard" });
+    } catch {
+      toast({ variant: "destructive", title: "Copy failed", description: "Allow clipboard access or copy the code manually." });
+    }
   };
 
   const handleUnlockOtp = async (r: any, e: React.MouseEvent) => {
@@ -217,7 +222,15 @@ export function RequestList({
                             <Button 
                               variant="ghost" 
                               size="icon" 
-                              onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(otpValues[r.id]); toast({ title: "OTP Copied" }); }} 
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                try {
+                                  await writeClipboardText(otpValues[r.id]);
+                                  toast({ title: "OTP Copied" });
+                                } catch {
+                                  toast({ variant: "destructive", title: "Copy failed", description: "Allow clipboard access or copy the OTP manually." });
+                                }
+                              }}
                               className="h-5 w-5 text-slate-400 hover:text-amber-700"
                             >
                               <Copy className="h-3 w-3" />
@@ -342,7 +355,7 @@ export function RequestList({
                     <Button variant="outline" size="sm" className="h-8 px-3 rounded-md text-xs font-semibold text-slate-600 border-slate-200 bg-white" onClick={(e) => { e.stopPropagation(); onSelectRequest(r); }}>
                       View
                     </Button>
-                    <Button variant="outline" size="icon" className="h-8 w-8 rounded-full text-slate-600 border-slate-200 bg-white" aria-label="Message" onClick={(e) => { e.stopPropagation(); toast({ title: "Opening messages...", description: "Feature available in detailed view." }); onSelectRequest(r); }}>
+                    <Button variant="outline" size="icon" className="h-8 w-8 rounded-full text-slate-600 border-slate-200 bg-white" aria-label="View request details" onClick={(e) => { e.stopPropagation(); onSelectRequest(r); }}>
                       <MessageSquare className="h-4 w-4" />
                     </Button>
                     {!isClaimsRole && !isAwaitingDelete(r) && (

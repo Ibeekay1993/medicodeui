@@ -20,6 +20,7 @@ import { HospitalReferralField } from "@/components/HospitalReferralField";
 import { AlertTriangle, Building2, ChevronDown, ChevronUp, ChevronRight, Trash2, X, Loader2, Copy, Send, Lock, Unlock, XCircle, CheckCircle2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { areHospitalNamesMatching } from "@/lib/authorizations-helpers";
+import { writeClipboardText } from "@/lib/clipboard";
 
 
 // Custom Hooks
@@ -385,7 +386,6 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
         className="w-[94vw] max-w-[94vw] sm:max-w-3xl md:max-w-5xl lg:max-w-6xl max-h-[92dvh] rounded-[1.5rem] sm:rounded-[2rem] border-0 bg-white/95 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-white to-slate-50/50 backdrop-blur-2xl selection:bg-slate-200 p-0 shadow-[0_8px_40px_rgb(0,0,0,0.08)] ring-1 ring-slate-200 overflow-y-auto overflow-x-hidden min-w-0 [&_*]:min-w-0 [&>button.absolute.right-4]:hidden"
         ref={scrollContainerRef}
         onScroll={(e) => setShowStickyName((e.target as HTMLElement).scrollTop > 60)}
-        onOpenAutoFocus={(e) => e.preventDefault()}
       >
         <div className="sticky top-0 z-[100] w-full h-0 pointer-events-none">
           <div 
@@ -404,7 +404,9 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
         <div className="shrink-0 z-30 px-5 pt-4 pb-2 border-b border-slate-200 shadow-sm relative flex flex-col gap-4 min-w-0 w-full">
           <button 
             onClick={onClose}
-            className="absolute top-4 right-4 p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-full transition-colors z-40"
+            type="button"
+            aria-label="Close authorization review"
+            className="absolute top-4 right-4 h-11 w-11 inline-flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-full transition-colors z-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 focus-visible:ring-offset-2"
           >
             <X className="h-5 w-5 stroke-[2.5]" />
           </button>
@@ -664,9 +666,14 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
                   variant="outline"
                   size="icon"
                   className="h-10 w-10 bg-white border-emerald-200 text-emerald-700 hover:bg-emerald-100 shrink-0"
-                  onClick={() => {
-                    navigator.clipboard.writeText(otpValue);
-                    toast({ title: "OTP Copied!" });
+                  aria-label="Copy patient OTP"
+                  onClick={async () => {
+                    try {
+                      await writeClipboardText(otpValue);
+                      toast({ title: "OTP Copied!" });
+                    } catch {
+                      toast({ variant: "destructive", title: "Copy failed", description: "Allow clipboard access or copy the OTP manually." });
+                    }
                   }}
                   title="Copy OTP"
                 >
@@ -841,9 +848,14 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
                         variant="outline"
                         size="icon"
                         className="h-10 w-10 bg-white border-emerald-200 text-emerald-700 hover:bg-emerald-100 shrink-0"
-                        onClick={() => {
-                          navigator.clipboard.writeText(otpValue);
-                          toast({ title: "OTP Copied!" });
+                        aria-label="Copy patient OTP"
+                        onClick={async () => {
+                          try {
+                            await writeClipboardText(otpValue);
+                            toast({ title: "OTP Copied!" });
+                          } catch {
+                            toast({ variant: "destructive", title: "Copy failed", description: "Allow clipboard access or copy the OTP manually." });
+                          }
                         }}
                         title="Copy OTP"
                       >

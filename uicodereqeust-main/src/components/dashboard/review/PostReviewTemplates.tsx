@@ -16,6 +16,7 @@ import {
   Eye,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { writeClipboardText } from "@/lib/clipboard";
 import {
   formatNaira,
   itemUnitPrice,
@@ -124,13 +125,14 @@ export const PostReviewTemplates = React.memo(function PostReviewTemplates({
     return formatPhoneNumber(data?.phone_number || "");
   };
 
-  const handleCopyCodeOnly = () => {
+  const handleCopyCodeOnly = async () => {
     if (!approvalResult) return;
-    navigator.clipboard.writeText(approvalResult.authCode);
-    toast({
-      title: "Code Copied",
-      description: "Authorization code copied to clipboard.",
-    });
+    try {
+      await writeClipboardText(approvalResult.authCode);
+      toast({ title: "Code Copied", description: "Authorization code copied to clipboard." });
+    } catch {
+      toast({ variant: "destructive", title: "Copy failed", description: "Allow clipboard access or copy the authorization code manually." });
+    }
   };
 
   const getRequestingHospitalPhone = async () => {
@@ -311,7 +313,7 @@ export const PostReviewTemplates = React.memo(function PostReviewTemplates({
         if (isWhatsAppRequest()) {
           throw new Error("The WhatsApp sender number could not be verified for this request. The response was not sent.");
         }
-        navigator.clipboard.writeText(msg);
+        await writeClipboardText(msg);
         toast({ title: "Copied!", description: "No patient phone on record. Copied patient notice to clipboard." });
         return;
       }

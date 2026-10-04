@@ -5,6 +5,9 @@ import { useDebounce } from "@/hooks/use-debounce";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 import { getErrorMessage } from "@/lib/errors";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { writeClipboardText } from "@/lib/clipboard";
 
 import { useClaimsQuery, useHospitalsQuery, useVerifyClaimQuery, useUpdateClaimMutation } from "../hooks/useClaims";
 
@@ -44,10 +47,6 @@ export default function ClaimsPortalPage() {
     page,
     pageSize,
   });
-
-  if (isError && error) {
-    toast({ variant: "destructive", title: "Error", description: getErrorMessage(error, "Unable to load claims ledger") });
-  }
 
   const claims = claimsData?.claims || [];
   const totalClaims = claimsData?.total || 0;
@@ -423,9 +422,13 @@ ${itemDecisionLines.join("\n")}`;
   const start = totalClaims === 0 ? 0 : (page - 1) * pageSize + 1;
   const end = Math.min(page * pageSize, totalClaims);
 
-  const copyToClipboard = (text: string, label: string) => {
-    navigator.clipboard.writeText(text);
-    toast({ title: "Copied!", description: `${label} copied to clipboard.` });
+  const copyToClipboard = async (text: string, label: string) => {
+    try {
+      await writeClipboardText(text);
+      toast({ title: "Copied!", description: `${label} copied to clipboard.` });
+    } catch {
+      toast({ variant: "destructive", title: "Copy failed", description: `Could not copy ${label}. Allow clipboard access or copy it manually.` });
+    }
   };
 
   if (loading) {
@@ -434,6 +437,20 @@ ${itemDecisionLines.join("\n")}`;
         <Loader2 className="h-8 w-8 animate-spin text-slate-800" />
         <p className="text-xs font-black uppercase tracking-widest text-slate-400">Loading Claims Ledger...</p>
       </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <Alert variant="destructive" className="mx-auto max-w-3xl">
+        <AlertTitle>Could not load the claims ledger</AlertTitle>
+        <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
+          <span>{getErrorMessage(error, "Check your connection and retry. No claim totals are available.")}</span>
+          <Button type="button" variant="outline" onClick={() => void refresh()}>
+            Retry
+          </Button>
+        </AlertDescription>
+      </Alert>
     );
   }
 

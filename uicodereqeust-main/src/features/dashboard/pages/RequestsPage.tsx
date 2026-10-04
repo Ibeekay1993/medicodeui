@@ -31,6 +31,7 @@ import { useToast } from "@/hooks/use-toast";
 import { getErrorMessage } from "@/lib/errors";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useTabVisibilityRefresh } from "@/hooks/use-tab-visibility-refresh";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 export default function RequestsPage() {
   const { role, user } = useAuth();
@@ -57,6 +58,7 @@ export default function RequestsPage() {
   // Tracks IDs already fetched this session — prevents the OTP effect from re-fetching
   // every time otpValues / otpVerifiedStatus state updates (which previously caused an infinite loop).
   const fetchedOtpIdsRef = useRef<Set<string>>(new Set());
+  const requestLoadGenerationRef = useRef(0);
   const isMobile = useIsMobile();
   const rowsPerPage = isMobile ? 30 : 50;
   const { toast } = useToast();
@@ -77,7 +79,7 @@ export default function RequestsPage() {
     sessionStorage.setItem("req_page", String(currentPage));
   }, [currentPage]);
 
-  const { data, isLoading, refetch: fetchRequests } = useQuery({
+  const { data, isLoading, isError, error, refetch: fetchRequests } = useQuery({
     queryKey: ["requests", currentPage, search, statusFilter, rowsPerPage, role],
     // ✅ Best Practice: Queue always loads once on mount (fixes blank queue after closing modal).
     // Background polling is eliminated via refetchInterval:false + refetchOnWindowFocus:false.
@@ -170,19 +172,22 @@ export default function RequestsPage() {
     }
 
     // If not in loaded page, fetch the single request by ID directly from DB
+    let cancelled = false;
     supabase
       .from("authorization_requests")
       .select("*")
       .eq("id", reviewIdFromUrl)
       .maybeSingle()
       .then(({ data, error }) => {
-        if (!error && data) {
+        if (!cancelled && !error && data) {
           setSelectedRequest(data);
         }
       });
+    return () => { cancelled = true; };
   }, [reviewIdFromUrl, requests, selectedRequest?.id]);
 
   const handleSelectRequest = (r: any) => {
+    const requestLoadGeneration = ++requestLoadGenerationRef.current;
     // 1. Open the modal immediately with the lightweight row — fast, no spinner.
     setSelectedRequest(r);
     if (r?.id) {
@@ -202,12 +207,15 @@ export default function RequestsPage() {
         .eq("id", r.id)
         .maybeSingle()
         .then(({ data }) => {
-          if (data) setSelectedRequest(data);
+          if (data && requestLoadGeneration === requestLoadGenerationRef.current) {
+            setSelectedRequest(current => current?.id === r.id ? data : current);
+          }
         });
     }
   };
 
   const handleCloseReview = () => {
+    requestLoadGenerationRef.current += 1;
     setSelectedRequest(null);
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
@@ -460,6 +468,18 @@ export default function RequestsPage() {
       </div>
 
       <Card className="premium-card overflow-hidden rounded-xl border border-slate-100 bg-white shadow-sm transition-all duration-300 hover:shadow-md">
+        {isError ? (
+          <Alert variant="destructive" className="m-4">
+            <AlertTitle>Could not load authorization requests</AlertTitle>
+            <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
+              <span>{getErrorMessage(error, "Check your connection and retry. Your filters are unchanged.")}</span>
+              <Button type="button" variant="outline" size="sm" onClick={() => void fetchRequests()} disabled={isLoading}>
+                Retry
+              </Button>
+            </AlertDescription>
+          </Alert>
+        ) : (
+        <>
         <RequestList 
           requests={requests}
           role={role}
@@ -477,6 +497,8 @@ export default function RequestsPage() {
           <div className="p-8 text-center text-xs font-bold text-slate-400 uppercase tracking-widest">
             No records found
           </div>
+        )}
+        </>
         )}
       </Card>
 

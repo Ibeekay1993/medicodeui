@@ -92,12 +92,13 @@ export function useUpdatePaymentBatchStatus() {
       if (bankReference?.trim()) updatePayload.bank_reference = bankReference.trim();
       if (paidBy) updatePayload.paid_by = paidBy;
 
-      await PaymentsService.updateBatchStatus(batchId, updatePayload);
-
       if (status === "paid") {
-        await PaymentsService.updateClaimsPaymentStatusByBatch(batchId, "paid");
+        await PaymentsService.settlePaymentBatch(batchId, updatePayload);
       } else if (status === "rejected") {
+        await PaymentsService.updateBatchStatus(batchId, updatePayload);
         await PaymentsService.unlinkClaimsFromBatch(batchId);
+      } else {
+        await PaymentsService.updateBatchStatus(batchId, updatePayload);
       }
 
       return batchId;

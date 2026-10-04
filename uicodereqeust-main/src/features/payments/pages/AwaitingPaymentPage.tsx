@@ -10,6 +10,7 @@ import { Loader2, FolderOpen, AlertCircle, Search, ChevronDown, Check, Calendar 
 import { CreateBatchModal } from "../components/CreateBatchModal";
 import { MonthYearPicker } from "@/components/ui/MonthYearPicker";
 import { useAwaitingPaymentClaims } from "../hooks/usePayments";
+import { getSelectedVisibleClaims, reconcileClaimSelection, toggleVisibleClaimSelection } from "../utils/claimSelection";
 
 export default function AwaitingPaymentPage() {
   const { role } = useAuth();
@@ -106,6 +107,15 @@ export default function AwaitingPaymentPage() {
     });
   }, [claims, selectedHospitalId, searchTerm, selectedMonth, startDate, endDate]);
 
+  // Keep batch selection scoped to the claims currently visible under these filters.
+  useEffect(() => {
+    const visibleIds = filteredClaims.map(c => c.id);
+    setSelectedClaims(current => {
+      const next = reconcileClaimSelection(current, visibleIds);
+      return next.size === current.size ? current : next;
+    });
+  }, [filteredClaims]);
+
   const toggleClaim = (claimId: string) => {
     if (isViewOnly) return;
     const newSelected = new Set(selectedClaims);
@@ -119,17 +129,12 @@ export default function AwaitingPaymentPage() {
 
   const toggleAll = () => {
     if (isViewOnly) return;
-    if (selectedClaims.size === filteredClaims.length) {
-      setSelectedClaims(new Set());
-    } else {
-      setSelectedClaims(new Set(filteredClaims.map(c => c.id)));
-    }
+    setSelectedClaims(current => toggleVisibleClaimSelection(current, filteredClaims.map(c => c.id)));
   };
 
   const selectedClaimsList = useMemo(() => {
-    if (!claims) return [];
-    return claims.filter(c => selectedClaims.has(c.id));
-  }, [claims, selectedClaims]);
+    return getSelectedVisibleClaims(filteredClaims, selectedClaims);
+  }, [filteredClaims, selectedClaims]);
 
   const totalAmountSelected = useMemo(() => {
     return selectedClaimsList.reduce((sum, c) => sum + Number(c.approved_amount || c.total_amount || 0), 0);
