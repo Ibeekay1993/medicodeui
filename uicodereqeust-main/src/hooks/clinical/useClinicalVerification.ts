@@ -53,7 +53,7 @@ export function useClinicalVerification(
     try {
       let history: any[] = [];
 
-      // ── Step 1: Try fast RPC (SECURITY DEFINER, direct index scan, bypasses slow RLS loops) ──
+      // ── Step 1: Try the indexed RPC. It runs as the caller so table RLS still applies. ──
       let rpcSucceeded = false;
       try {
         const { data: rpcData, error: rpcError } = await withTimeout(
