@@ -16,7 +16,7 @@ interface ClinicalHistoryProps {
   onRetryHistory?: () => void;
 }
 
-const HistoryCard = ({ record, showPatient }: { record: any; showPatient: boolean }) => {
+const HistoryCard = ({ record }: { record: any }) => {
   const [showFullNote, setShowFullNote] = useState(false);
 
   const displayValue = (value: unknown, fallback = "Not recorded") => {
@@ -91,7 +91,7 @@ const HistoryCard = ({ record, showPatient }: { record: any; showPatient: boolea
               <span className="text-[10px] font-medium text-slate-500">Imported record</span>
             )}
           </div>
-          {showPatient && (record.patient_name || record.name) && (
+          {(record.patient_name || record.name) && (
             <p className="mt-2 text-sm font-semibold text-slate-800">{displayValue(record.patient_name || record.name)}</p>
           )}
           {record.hospital_name && (
@@ -290,7 +290,7 @@ export function ClinicalHistory({
                 </div>
               ) : filteredHistory.length > 0 ? (
                 filteredHistory.map((record, i) => (
-                  <HistoryCard key={record.id || record.authorization_code || i} record={record} showPatient={includeDependents} />
+                  <HistoryCard key={record.id || record.authorization_code || i} record={record} />
                 ))
               ) : (
                 <div className="rounded-xl border border-dashed border-slate-200 p-4 text-center text-[12px] font-semibold text-slate-500">
