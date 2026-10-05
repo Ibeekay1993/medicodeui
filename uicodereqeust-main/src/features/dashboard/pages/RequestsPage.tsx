@@ -153,11 +153,11 @@ export default function RequestsPage() {
     // for that hospital's rows — reduces compute load on nano instances.
     const realtimeFilter: Parameters<typeof channel.on>[1] =
       role === "hospital" && hospitalId
-        ? { event: "*", schema: "public", table: "authorization_requests", filter: hospital_id=eq. }
+        ? { event: "*", schema: "public", table: "authorization_requests", filter: `hospital_id=eq.${hospitalId}` }
         : { event: "*", schema: "public", table: "authorization_requests" };
 
     const channel = supabase
-      .channel(uthorization-requests:)
+      .channel("authorization-requests:" + user.id)
       .on(
         "postgres_changes",
         realtimeFilter,

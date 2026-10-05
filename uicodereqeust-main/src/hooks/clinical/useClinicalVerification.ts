@@ -81,11 +81,11 @@ export function useClinicalVerification(
       if (!rpcSucceeded && policy) {
         const conditions = new Set<string>();
         if (policyRoot) {
-          conditions.add(policy_number.eq. + policyRoot);
-          conditions.add(policy_number.like. + policyRoot + -%);
+          conditions.add("policy_number.eq." + policyRoot);
+          conditions.add("policy_number.like." + policyRoot + "-%");
         }
-        if (policy !== policyRoot) conditions.add(policy_number.eq. + policy);
-        if (beneficiaryNum) conditions.add(eneficiary_number.eq. + beneficiaryNum);
+        if (policy !== policyRoot) conditions.add("policy_number.eq." + policy);
+        if (beneficiaryNum) conditions.add("beneficiary_number.eq." + beneficiaryNum);
 
         const { data, error } = await withTimeout(
           supabase
@@ -110,7 +110,7 @@ export function useClinicalVerification(
             supabase
               .from("authorization_requests")
               .select("id, request_id, patient_name, policy_number, beneficiary_number, diagnosis, treatment, hospital_name, status, authorization_code, decision_reason, clinical_notes, decided_at, created_at, source, is_historical")
-              .or(namePrefixes.map((word) => patient_name.ilike. + word + %).join(","))
+              .or(namePrefixes.map((word) => "patient_name.ilike." + word + "%").join(","))
               .limit(50),
             12000,
           );
