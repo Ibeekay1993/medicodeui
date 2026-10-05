@@ -22,6 +22,7 @@ export function useClinicalVerification(
   request: any
 ) {
   const [checking, setChecking] = useState(false);
+  const [verificationLoadFailed, setVerificationLoadFailed] = useState(false);
   const [nhisVerified, setNhisVerified] = useState<boolean | null>(null);
   const [policyVerified, setPolicyVerified] = useState<boolean | null>(null);
   const [patientVerified, setPatientVerified] = useState<boolean | null>(null);
@@ -126,6 +127,7 @@ export function useClinicalVerification(
 
   const runVerificationSuite = useCallback(async () => {
     setChecking(true);
+    setVerificationLoadFailed(false);
 
     const policy = normalizePolicyNumber(request?.policy_number);
     const patientName = String(request?.patient_name || "").trim();
@@ -148,11 +150,10 @@ export function useClinicalVerification(
               .limit(50),
             4000
           );
-          if (!error && data) {
-            matchedRows = data;
-          }
+          if (error) throw error;
+          matchedRows = data || [];
         } catch (err) {
-          console.warn("Direct NHIS lookup caught:", err);
+          throw err;
         }
       }
       const hasPolicyMatch = matchedRows.length > 0;
@@ -165,7 +166,7 @@ export function useClinicalVerification(
             .map((word) => word.replace(/[^a-z0-9]/gi, ""))
             .filter((word) => word.length >= 3))];
           if (namePrefixes.length) {
-            const { data } = await withTimeout(
+            const { data, error } = await withTimeout(
               supabase
                 .from("nhis_beneficiaries")
                 .select("id,full_name,surname,first_name,hcp_name,hcp_code,member_type,policy_number,beneficiary_number")
@@ -173,10 +174,11 @@ export function useClinicalVerification(
                 .limit(30),
               4000
             );
+            if (error) throw error;
             matchedRows = data || [];
           }
         } catch (err) {
-          console.warn("NHIS beneficiary name lookup warning:", err);
+          throw err;
         }
       }
 
@@ -230,7 +232,11 @@ export function useClinicalVerification(
         setFamilyMembers(matchedRows);
       } else if (request?.policy_number) {
         try {
-          const { data: patients } = await supabase.from("patients").select("*").eq("policy_number", request.policy_number);
+          const { data: patients, error } = await withTimeout(
+            supabase.from("patients").select("*").eq("policy_number", request.policy_number),
+            4000,
+          );
+          if (error) throw error;
           if (patients && patients.length > 0) {
             setPatientVerified(true);
             setFamilyMembers(patients);
@@ -242,9 +248,8 @@ export function useClinicalVerification(
             setPatientVerified(false);
             setFamilyMembers([]);
           }
-        } catch {
-          setPatientVerified(false);
-          setFamilyMembers([]);
+        } catch (patientsErr) {
+          throw patientsErr;
         }
       } else {
         setPatientVerified(false);
@@ -252,9 +257,11 @@ export function useClinicalVerification(
       }
     } catch (nhisErr) {
       console.warn("NHIS verification warning:", nhisErr);
-      setNhisVerified(false);
-      setPolicyVerified(false);
-      setPatientVerified(false);
+      setVerificationLoadFailed(true);
+      setNhisVerified(null);
+      setPolicyVerified(null);
+      setPatientVerified(null);
+      setPatientMatchStatus(null);
       setFamilyMembers([]);
     } finally {
       setChecking(false);
@@ -264,6 +271,7 @@ export function useClinicalVerification(
   useEffect(() => {
     if (open && request) {
       setNhisVerified(null);
+      setVerificationLoadFailed(false);
       setPolicyVerified(null);
       setPatientVerified(null);
       setPatientMatchStatus(null);
@@ -282,6 +290,7 @@ export function useClinicalVerification(
 
   return {
     checking,
+    verificationLoadFailed,
     nhisVerified,
     policyVerified,
     patientVerified,

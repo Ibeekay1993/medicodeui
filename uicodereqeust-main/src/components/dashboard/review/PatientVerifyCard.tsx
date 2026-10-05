@@ -4,6 +4,8 @@ import { AlertTriangle } from "lucide-react";
 interface PatientVerifyCardProps {
   request: any;
   checking: boolean;
+  verificationLoadFailed?: boolean;
+  onRetryVerification?: () => void;
   patientMatchStatus: 'exact' | 'partial' | 'none' | null;
   matchedMemberId: string | null;
   policyVerified: boolean | null;
@@ -21,6 +23,8 @@ interface PatientVerifyCardProps {
 
 export function PatientVerifyCard({
   checking,
+  verificationLoadFailed = false,
+  onRetryVerification,
   patientMatchStatus,
   matchedMemberId,
   policyVerified,
@@ -98,17 +102,19 @@ export function PatientVerifyCard({
           <div className="flex items-center gap-2">
             <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center text-[12px] font-bold ${
               checking ? "border-slate-300 text-slate-400 animate-pulse" :
+              verificationLoadFailed ? "border-rose-400 text-rose-500" :
               policyVerified && (patientMatchStatus === "exact" || (patientMatchStatus as string) === "matched") ? "border-green-500 text-green-500" :
               policyVerified && patientMatchStatus === "partial" ? "border-yellow-500 text-yellow-500" :
               policyVerified ? "border-amber-500 text-amber-500" :
               "border-slate-300 text-slate-400"
             }`}>
-              {checking ? "◓" : policyVerified && (patientMatchStatus === "exact" || (patientMatchStatus as string) === "matched") ? "✓" : policyVerified ? "!" : "–"}
+              {checking ? "◓" : verificationLoadFailed ? "!" : policyVerified && (patientMatchStatus === "exact" || (patientMatchStatus as string) === "matched") ? "✓" : policyVerified ? "!" : "–"}
             </div>
             <div>
               <div className="text-[13px] font-extrabold text-slate-800">NHIS Confirmation</div>
-              <div className={`text-[11px] ${!policyVerified && !checking ? 'text-slate-500 font-medium' : policyVerified && (patientMatchStatus === 'none' || (patientMatchStatus as string) === 'mismatch') ? 'text-amber-600 font-bold' : policyVerified ? 'text-green-600 font-semibold' : 'text-slate-400'}`}>
+              <div className={`text-[11px] ${verificationLoadFailed ? 'text-rose-600 font-semibold' : !policyVerified && !checking ? 'text-slate-500 font-medium' : policyVerified && (patientMatchStatus === 'none' || (patientMatchStatus as string) === 'mismatch') ? 'text-amber-600 font-bold' : policyVerified ? 'text-green-600 font-semibold' : 'text-slate-400'}`}>
                 {checking ? "Checking registry..." :
+                 verificationLoadFailed ? "Could not check registry. Please retry." :
                  policyVerified && (patientMatchStatus === "exact" || (patientMatchStatus as string) === "matched") ? "Verified master records registry" :
                  policyVerified && patientMatchStatus === "partial" ? "Partial match in registry" :
                  policyVerified && (patientMatchStatus === "none" || (patientMatchStatus as string) === "mismatch") ? "Policy found, patient name mismatch" :
@@ -117,6 +123,11 @@ export function PatientVerifyCard({
               </div>
             </div>
           </div>
+          {verificationLoadFailed && onRetryVerification && (
+            <button type="button" onClick={onRetryVerification} className="text-[10px] font-bold text-rose-700 underline underline-offset-2">
+              Retry registry check
+            </button>
+          )}
           <div 
             className="bg-slate-100 px-3 py-1.5 rounded-full text-[11px] font-bold text-slate-500 flex items-center gap-1 cursor-pointer hover:bg-slate-200 transition-colors"
             onClick={() => setShowFamily(!showFamily)}
@@ -134,16 +145,16 @@ export function PatientVerifyCard({
 
         {showFamily && (
           <div className="mt-3 border-t border-slate-100 pt-3 animate-in fade-in duration-200">
-            <div className={`flex items-start gap-2 p-3 rounded-xl mb-2 border ${policyVerified ? (patientMatchStatus === 'none' ? 'bg-amber-50 border-amber-100' : 'bg-slate-50 border-slate-100') : 'bg-red-50 border-red-100'}`}>
+            <div className={`flex items-start gap-2 p-3 rounded-xl mb-2 border ${verificationLoadFailed ? 'bg-rose-50 border-rose-100' : policyVerified ? (patientMatchStatus === 'none' ? 'bg-amber-50 border-amber-100' : 'bg-slate-50 border-slate-100') : 'bg-red-50 border-red-100'}`}>
               <div className={`text-[16px] mt-0.5 ${policyVerified ? (patientMatchStatus === 'none' ? 'text-amber-500' : 'text-green-500') : 'text-red-500'}`}>
                 {policyVerified ? (patientMatchStatus === 'none' ? "!" : "✓") : "✗"}
               </div>
               <div>
                 <strong className={`text-[12px] sm:text-[13px] block ${policyVerified ? (patientMatchStatus === 'none' ? 'text-amber-800' : 'text-slate-800') : 'text-red-800'}`}>
-                  {policyVerified ? "Policy number matched:" : "Policy number NOT found:"}
+                  {verificationLoadFailed ? "Policy lookup failed:" : policyVerified ? "Policy number matched:" : "Policy number NOT found:"}
                 </strong>
                 <p className={`text-[11px] sm:text-[12px] mt-0.5 ${policyVerified ? (patientMatchStatus === 'none' ? 'text-amber-700' : 'text-slate-500') : 'text-red-600'}`}>
-                  {policyVerified ? "Exact policy found in monthly NHIS Accredited List." : "This policy number is not in the active NHIS registry."}
+                  {verificationLoadFailed ? "The registry could not be reached. Retry the check before treating this as missing." : policyVerified ? "Exact policy found in monthly NHIS Accredited List." : "This policy number is not in the active NHIS registry."}
                 </p>
               </div>
             </div>

@@ -717,7 +717,9 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
                 {/* Patient registry NHIS verify card */}
                 <PatientVerifyCard
                   request={request}
-                  checking={verification.historyChecking}
+                  checking={verification.checking}
+                  verificationLoadFailed={verification.verificationLoadFailed}
+                  onRetryVerification={() => void verification.runVerificationSuite()}
                   patientMatchStatus={verification.patientMatchStatus}
                   matchedMemberId={verification.matchedMemberId}
                   policyVerified={verification.policyVerified}
@@ -742,7 +744,7 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
                   requestPatientName={requestPatientName}
                   requestPolicyNumber={requestPolicyNumber}
                   requestBeneficiaryNumber={verification.matchedBeneficiaryNumber || request?.beneficiary_number || null}
-                  checking={verification.checking}
+                  checking={verification.historyChecking}
                   historyLoadFailed={verification.historyLoadFailed}
                   onRetryHistory={() => void verification.runHistoryLookup()}
                 />
