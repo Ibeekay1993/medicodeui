@@ -109,7 +109,9 @@ export default function RequestsPage() {
           "deletion_status,patient_phone,patient_email," +
           "hospital_id,requesting_hospital_id,referred_hospital_id,claiming_hospital_id"
         )
-        .order("updated_at", { ascending: false });
+        // created_at has a production index. Sorting all 75k+ requests by updated_at
+        // caused PostgreSQL to choose a sequential scan and sort before applying LIMIT.
+        .order("created_at", { ascending: false });
       if (search) q = q.or(`patient_name.ilike.%${search}%,policy_number.ilike.%${search}%,request_id.ilike.%${search}%,authorization_code.ilike.%${search}%`);
       if (statusFilter === "action_required") {
         q = q.in("status", ["pending", "pending_referral", "pending_authorization", "info_provided"]);
