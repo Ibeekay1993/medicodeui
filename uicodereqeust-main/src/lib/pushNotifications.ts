@@ -16,6 +16,7 @@ const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY as string;
 const VAPID_KEY_STORAGE = "ronsberger_push_vapid_public_key";
 const PUSH_OPT_OUT_PREFIX = "ronsberger_push_opt_out:";
 const SERVICE_WORKER_START_TIMEOUT_MS = 20_000;
+const PUSH_PROMPT_DISMISSED_PREFIX = "ronsberger_push_prompt_dismissed:";
 
 function withTimeout<T>(promise: PromiseLike<T>, timeoutMs: number, message: string): Promise<T> {
   let timeoutId: ReturnType<typeof setTimeout>;
@@ -31,16 +32,29 @@ export function hasOptedOutOfPush(userId: string): boolean {
   return localStorage.getItem(`${PUSH_OPT_OUT_PREFIX}${userId}`) === "true";
 }
 
+export function hasDismissedPushPrompt(userId: string): boolean {
+  return sessionStorage.getItem(`${PUSH_PROMPT_DISMISSED_PREFIX}${userId}`) === "true";
+}
+
+export function dismissPushPromptForSession(userId: string): void {
+  sessionStorage.setItem(`${PUSH_PROMPT_DISMISSED_PREFIX}${userId}`, "true");
+}
+
 // ---------------------------------------------------------------------------
 // Feature detection
 // ---------------------------------------------------------------------------
 
 export function isPushNotificationSupported(): boolean {
+  if (typeof window === "undefined") return false;
+  const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  const isInstalledIOSApp = !isIOS || (navigator as Navigator & { standalone?: boolean }).standalone === true ||
+    window.matchMedia("(display-mode: standalone)").matches;
   return (
-    typeof window !== "undefined" &&
     "serviceWorker" in navigator &&
     "PushManager" in window &&
-    "Notification" in window
+    "Notification" in window &&
+    isInstalledIOSApp
   );
 }
 
@@ -202,6 +216,7 @@ export async function subscribeToPushNotifications(userId: string): Promise<{
 
   localStorage.setItem(VAPID_KEY_STORAGE, VAPID_PUBLIC_KEY);
   localStorage.removeItem(`${PUSH_OPT_OUT_PREFIX}${userId}`);
+  sessionStorage.removeItem(`${PUSH_PROMPT_DISMISSED_PREFIX}${userId}`);
 
   return { success: true };
 }
@@ -313,4 +328,38 @@ export async function notifyPendingAuthorizationRequest(input: {
   } catch (error) {
     console.error("Failed to dispatch pending-request push notification", error);
   }
+}
+
+/** Exercise the real server-to-browser Web Push path for the signed-in user. */
+export async function sendPushTestNotification(userId: string): Promise<{
+  success: boolean;
+  sentCount: number;
+  error?: string;
+}> {
+  if (!isPushNotificationSupported()) {
+    return { success: false, sentCount: 0, error: "Push notifications are not supported in this browser. On iPhone or iPad, install the portal to the Home Screen first." };
+  }
+  if (getNotificationPermission() !== "granted") {
+    return { success: false, sentCount: 0, error: "Allow notifications in your browser settings, then enable notifications here." };
+  }
+
+  const registered = await getRegisteredPushSubscription(userId);
+  if (!registered.registered) {
+    return { success: false, sentCount: 0, error: registered.error || "This device is not registered for this account yet. Turn notifications off and on to repair setup." };
+  }
+
+  const { data, error } = await supabase.functions.invoke("send-push-notification", {
+    body: {
+      target_user_ids: [userId],
+      title: "Ronsberger HMO Test Push",
+      body: "This test was sent through the portal push service. You can receive alerts while the app is in the background.",
+      url: "/backoffice/settings",
+      tag: `push-test-${userId}-${Date.now()}`,
+    },
+  });
+  if (error) return { success: false, sentCount: 0, error: error.message || "The portal could not contact the push service." };
+  if (!data?.success) return { success: false, sentCount: 0, error: data?.error || "The push service rejected the test notification." };
+  if (!data.sent_count) return { success: false, sentCount: 0, error: data?.message || "No registered device subscriptions were found for this account." };
+  if (data.failed_count > 0) return { success: false, sentCount: data.sent_count, error: `The push service accepted ${data.sent_count} device(s), but ${data.failed_count} device(s) failed.` };
+  return { success: true, sentCount: data.sent_count };
 }

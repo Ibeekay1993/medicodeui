@@ -41,7 +41,8 @@ interface DashboardLayoutProps {
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [actionableMessages, setActionableMessages] = useState(0);
+  // Support inbox is not in active use; avoid loading its queue on every dashboard visit.
+  const actionableMessages = 0;
   const { user, signOut, role, fullName } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -71,61 +72,6 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         console.warn("AudioContext chime failed:", e);
       }
     };
-
-    const refreshActionableMessages = async () => {
-      const { data: conversations } = await supabase
-        .from("support_conversations" as any)
-        .select("id,status,assigned_to,hospital_user_id,created_by,last_message_at")
-        .not("status", "in", "(closed,resolved)")
-        .order("last_message_at", { ascending: false, nullsFirst: false })
-        .limit(250);
-
-      const ids = (conversations || []).map((item: any) => item.id);
-      if (!ids.length) {
-        setActionableMessages(0);
-        return;
-      }
-
-      const { data: latestMessages } = await supabase
-        .from("support_messages" as any)
-        .select("id,conversation_id,sender_id,sender_role,is_internal,read_by,created_at")
-        .in("conversation_id", ids)
-        .order("created_at", { ascending: false })
-        .limit(500);
-
-      const latestByConversation = new Map<string, any>();
-      (latestMessages || []).forEach((msg: any) => {
-        if (!latestByConversation.has(msg.conversation_id)) latestByConversation.set(msg.conversation_id, msg);
-      });
-
-      const staffRoles = ["admin", "utilization_manager", "utilization_manager_lead", "claims", "finance"];
-      const needsAttentionStatuses = ["new", "open", "reopened", "waiting_internal_action", "pending"];
-      const hospitalWaitingStatuses = ["pending_customer_response", "open", "reopened"];
-      const count = (conversations || []).filter((conversation: any) => {
-        const status = String(conversation.status || "").toLowerCase();
-        const latest = latestByConversation.get(conversation.id);
-        const latestFromMe = latest?.sender_id === user.id;
-        const latestFromHospital = latest?.sender_role === "hospital";
-        const latestFromStaff = staffRoles.includes(latest?.sender_role || "");
-        const latestUnread = latest && (!Array.isArray(latest.read_by) || !latest.read_by.includes(user.id));
-
-        const currentRole = role as string;
-        if (currentRole === "hospital") {
-          const belongsToHospital = conversation.hospital_user_id === user.id || conversation.created_by === user.id;
-          return belongsToHospital && latestFromStaff && latestUnread && hospitalWaitingStatuses.includes(status);
-        }
-
-        if (!staffRoles.includes(currentRole)) return false;
-        const assignedToMe = conversation.assigned_to === user.id;
-        const unassigned = !conversation.assigned_to;
-        const staffActionStatus = needsAttentionStatuses.includes(status);
-        return staffActionStatus && !latestFromMe && (latestFromHospital || unassigned || assignedToMe);
-      }).length;
-
-      setActionableMessages(count);
-    };
-
-    refreshActionableMessages();
 
     const dashChannel = supabase.channel(`dashboard-events-${user.id}`);
 

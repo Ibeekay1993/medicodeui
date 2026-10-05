@@ -197,7 +197,37 @@ SELECT pg_temp.assert_resolution('A-unknown-base', 'PERSON D', '9999999-3',
 SELECT pg_temp.assert_resolution('A-no-reverse-guess', 'PERSON D', '1639554',
                                  'beneficiary_mismatch');
 
--- ── 3. Genuine ambiguity: duplicate rows must never be guessed ───────────────
+-- ── 3. Imported beneficiary IDs identify one member within the family ───────
+DELETE FROM public.nhis_beneficiaries;
+INSERT INTO public.nhis_beneficiaries (
+  policy_number, beneficiary_number, member_type, surname, first_name, full_name, gender, dob
+) VALUES
+  ('1639554', '1639554',   'PRINCIPAL', 'A', 'PERSON', 'PERSON A', 'M', '01/01/1980'),
+  ('1639554', '1639554-1', 'CHILD',     'B', 'PERSON', 'PERSON B', 'F', '02/02/1982'),
+  ('1639554', '1639554-2', 'CHILD',     'C', 'PERSON', 'PERSON C', 'M', '03/03/1984');
+
+-- Bare family policy resolves by exact name; a suffix must identify the same
+-- NHIS member as the supplied name.
+SELECT pg_temp.assert_resolution('ID-bare-family', 'PERSON C', '1639554',
+                                 NULL, 'PERSON C', '1639554');
+SELECT pg_temp.assert_resolution('ID-exact-member', 'PERSON C', '1639554-2',
+                                 NULL, 'PERSON C', '1639554');
+SELECT pg_temp.assert_resolution('ID-wrong-suffix', 'PERSON C', '1639554-1',
+                                 'beneficiary_mismatch');
+SELECT pg_temp.assert_resolution('ID-wrong-name', 'PERSON B', '1639554-2',
+                                 'beneficiary_mismatch');
+DO $$
+DECLARE ctx jsonb;
+BEGIN
+  ctx := public.resolve_whatsapp_authorization_context(
+    'family-test-msg-0001', 'PERSON C', '1639554-2'
+  );
+  IF ctx->>'beneficiary_number' <> '1639554-2' THEN
+    RAISE EXCEPTION 'canonical beneficiary number missing: %', ctx;
+  END IF;
+END $$;
+
+-- ── 4. Genuine ambiguity: duplicate rows must never be guessed ───────────────
 DELETE FROM public.nhis_beneficiaries;
 INSERT INTO public.nhis_beneficiaries (
   policy_number, member_type, surname, first_name, full_name, gender, dob
@@ -212,10 +242,10 @@ SELECT pg_temp.assert_resolution('AMB-dup', 'PERSON C', '1639554-2',
 -- hospitals row is needed because the trigger resolves hospital_name.
 DELETE FROM public.nhis_beneficiaries;
 INSERT INTO public.nhis_beneficiaries (
-  policy_number, member_type, surname, first_name, full_name, gender, dob
+  policy_number, beneficiary_number, member_type, surname, first_name, full_name, gender, dob
 ) VALUES
-  ('1639554', 'PRINCIPAL', 'A', 'PERSON', 'PERSON A', 'M', '01/01/1980'),
-  ('1639554', 'CHILD',     'C', 'PERSON', 'PERSON C', 'M', '03/03/1984');
+  ('1639554', '1639554',   'PRINCIPAL', 'A', 'PERSON', 'PERSON A', 'M', '01/01/1980'),
+  ('1639554', '1639554-2', 'CHILD',     'C', 'PERSON', 'PERSON C', 'M', '03/03/1984');
 
 INSERT INTO public.hospitals (id, name, code, is_active)
 VALUES ('00000000-0000-0000-0000-0000000000a2'::uuid,
@@ -227,6 +257,7 @@ CREATE TEMP TABLE _auth_out (
   id uuid,
   patient_name text,
   policy_number text,
+  beneficiary_number text,
   hospital_name text,
   clinical_notes text
 );
@@ -240,7 +271,7 @@ WITH ins AS (
     'whatsapp', 'family-test-msg-0001', '2348030000000',
     '{"source":"whatsapp","captured_at":"2026-09-07T00:00:00Z"}'::text
   )
-  RETURNING id, patient_name, policy_number, hospital_name, clinical_notes
+    RETURNING id, patient_name, policy_number, beneficiary_number, hospital_name, clinical_notes
 )
 INSERT INTO _auth_out SELECT * FROM ins;
 
@@ -250,7 +281,8 @@ DECLARE
   notes jsonb;
 BEGIN
   SELECT * INTO r FROM _auth_out LIMIT 1;
-  IF r.patient_name <> 'PERSON C' OR r.policy_number <> '1639554' THEN
+  IF r.patient_name <> 'PERSON C' OR r.policy_number <> '1639554'
+     OR r.beneficiary_number <> '1639554-2' THEN
     RAISE EXCEPTION 'trigger did not canonicalize identity: %', r;
   END IF;
   IF r.hospital_name <> 'TEST FAMILY HOSPITAL' THEN

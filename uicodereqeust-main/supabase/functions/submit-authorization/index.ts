@@ -102,6 +102,7 @@ serve(async (req) => {
   let phoneNumber = sanitize(body.phone_number, 32);
   let patientName = sanitize(body.patient_name, 200);
   let policyNumber = sanitize(body.policy_number, 80);
+  let beneficiaryNumber = sanitize(body.beneficiary_number, 80);
   let hospitalId: string | null = null;
   let hospitalName = "";
   let whatsappSenderPhone = "";
@@ -150,6 +151,7 @@ serve(async (req) => {
 
     patientName = sanitize(context.patient_name, 200);
     policyNumber = sanitize(context.policy_number, 80);
+    beneficiaryNumber = sanitize(context.beneficiary_number, 80);
     hospitalId = context.hospital_id ? String(context.hospital_id) : null;
     whatsappSenderPhone = normalizePhone(String(context.sender_phone || ""));
 
@@ -323,6 +325,7 @@ serve(async (req) => {
   const insertPayload: Record<string, unknown> = {
     patient_name: patientName,
     policy_number: policyNumber,
+    beneficiary_number: beneficiaryNumber || null,
     diagnosis,
     treatment,
     patient_phone: phoneNumber || null,

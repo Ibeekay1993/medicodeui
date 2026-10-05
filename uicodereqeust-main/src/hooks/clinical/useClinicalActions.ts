@@ -42,6 +42,16 @@ function parseClinicalNote(value: unknown): string {
   return trimmed;
 }
 
+function getAuthorizationCodeInitials(code: unknown): string | null {
+  const match = String(code || "").trim().match(/^(?:R|REF)\/([A-Z]{1,4})\//i);
+  return match?.[1]?.toUpperCase() || null;
+}
+
+function isGenericApproverName(value: unknown): boolean {
+  const name = String(value || "").trim();
+  return /^(?:(?:operation|super)\s+)?admin(?:istrator)?$|^utilization manager(?: lead)?$|^manager$|^staff$/i.test(name);
+}
+
 interface UseClinicalActionsProps {
   open: boolean;
   request: any;
@@ -92,6 +102,8 @@ export function useClinicalActions({
     treatment: string;
     items: TariffOption[];
     totalAmount: number;
+    authorizedByName: string;
+    authorizedByInitials: string;
   } | null>(null);
 
   const [declineResult, setDeclineResult] = useState<{
@@ -109,7 +121,16 @@ export function useClinicalActions({
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
 
-  const nurseDisplayName = fullName || user?.user_metadata?.full_name || user?.email || "Unknown Utilization Manager";
+  // Use the authenticated approver's identity for the approval receipt. The
+  // role/profile label can be a generic value (for example, "Operation Admin")
+  // and should not be presented as the person who approved the code.
+  // The staff profile is authoritative; auth metadata can be a generic role label.
+  const profileName = String(fullName || "").trim();
+  const metadataName = String(user?.user_metadata?.full_name || "").trim();
+  const emailName = String(user?.email || "").split("@")[0].replace(/[._-]+/g, " ").trim();
+  const nurseDisplayName =
+    [profileName, metadataName, emailName].find((name) => name && !isGenericApproverName(name)) ||
+    "Authorized Staff Member";
   const nurseInitials = getInitials(nurseDisplayName);
 
   const lastRequestIdRef = useRef<string | null>(null);
@@ -182,6 +203,8 @@ export function useClinicalActions({
 
       // If opening an already decided request, show the post-review template first
       if (request.status === "approved" || request.status === "partially_approved") {
+        const storedApproverName = String(request.authorized_by_name || "").trim();
+        const codeInitials = getAuthorizationCodeInitials(request.authorization_code);
         setApprovalResult({
           authCode: request.authorization_code || "Pending",
           patientName: cleanPatientName(request.patient_name),
@@ -195,7 +218,26 @@ export function useClinicalActions({
           treatment: request.treatment || "",
           items: parsedItems,
           totalAmount: resolvedTotal,
+          authorizedByName: storedApproverName && !isGenericApproverName(storedApproverName)
+            ? storedApproverName
+            : codeInitials ? `Approver ${codeInitials}` : "Ronsberger HMO Utilization Team",
+          authorizedByInitials: String(request.nurse_initials || codeInitials || "").trim(),
         });
+        const approverId = request.approved_by || request.decided_by;
+        if (approverId && (!storedApproverName || isGenericApproverName(storedApproverName))) {
+          void supabase
+            .from("user_roles")
+            .select("full_name")
+            .eq("user_id", approverId)
+            .maybeSingle()
+            .then(({ data }) => {
+              const resolvedName = String(data?.full_name || "").trim();
+              if (!resolvedName || isGenericApproverName(resolvedName)) return;
+              setApprovalResult((current) => current?.authCode === (request.authorization_code || "Pending")
+                ? { ...current, authorizedByName: resolvedName }
+                : current);
+            });
+        }
         setDeclineResult(null);
       } else if (request.status === "rejected") {
         setDeclineResult({
@@ -344,6 +386,15 @@ export function useClinicalActions({
         setProcessingAction(null);
         return false;
       }
+      if (targetStatus === "approved" && nurseDisplayName === "Authorized Staff Member") {
+        toast({
+          variant: "destructive",
+          title: "Approver name missing",
+          description: "Add the approver’s personal name to their staff profile before issuing an authorization code.",
+        });
+        setProcessingAction(null);
+        return false;
+      }
       setProcessing(true);
       try {
         let currentCode: string | null = null;
@@ -353,7 +404,8 @@ export function useClinicalActions({
           const isStage2 = request.status === "pending_referral" && request.source === "hospital_portal";
           if (isStage2) {
             dbStatus = "referral_approved";
-            if (request.authorization_code) {
+            const existingInitials = getAuthorizationCodeInitials(request.authorization_code);
+            if (request.authorization_code && (!existingInitials || existingInitials === nurseInitials)) {
               currentCode = request.authorization_code;
             } else {
               const { data: newCode, error: codeErr } = await supabase.rpc("generate_referral_code" as any, {
@@ -363,7 +415,12 @@ export function useClinicalActions({
               currentCode = String(newCode || "");
             }
           } else {
-            if (request.authorization_code && !request.authorization_code.startsWith("REF/")) {
+            const existingInitials = getAuthorizationCodeInitials(request.authorization_code);
+            if (
+              request.authorization_code &&
+              !request.authorization_code.startsWith("REF/") &&
+              (!existingInitials || existingInitials === nurseInitials)
+            ) {
               currentCode = request.authorization_code;
             } else {
               const { data: newCode, error: codeErr } = await supabase.rpc("generate_auth_code" as any, {
@@ -515,6 +572,8 @@ export function useClinicalActions({
             treatment: approvedSummary || editTreatment,
             items: approvedItems,
             totalAmount: approvedTotal,
+            authorizedByName: nurseDisplayName,
+            authorizedByInitials: nurseInitials,
           });
           setDeclineResult(null);
         }
@@ -936,7 +995,10 @@ export function useClinicalActions({
     const closing = isPartial
       ? "Please proceed only with the approved services listed above. Declined services must not be provided under this authorization. For clarification, please contact Ronsberger HMO before treatment."
       : "Please proceed with the approved services listed above. For clarification, please contact Ronsberger HMO before treatment.";
-    const msg = `${approvalHeading}\n\nPatient: ${approvalResult.patientName}\nPolicy No: ${approvalResult.policyNumber}\nAuth Code: ${approvalResult.authCode}\nHospital: ${approvalResult.hospitalName}${referralLine}\nDiagnosis: ${approvalResult.diagnosis}\n\n${serviceLines}\nDate: ${dateStr}\n\n${closing}\n\nRonsberger HMO UI Desk`;
+    const authorizedBy = approvalResult.authorizedByInitials
+      ? `${approvalResult.authorizedByName} (${approvalResult.authorizedByInitials})`
+      : approvalResult.authorizedByName;
+    const msg = `${approvalHeading}\n\nPatient: ${approvalResult.patientName}\nPolicy No: ${approvalResult.policyNumber}\nAuth Code: ${approvalResult.authCode}\nAuthorized by: ${authorizedBy}\nHospital: ${approvalResult.hospitalName}${referralLine}\nDiagnosis: ${approvalResult.diagnosis}\n\n${serviceLines}\nDate: ${dateStr}\n\n${closing}\n\nRonsberger HMO UI Desk`;
     try {
       await writeClipboardText(msg);
       toast({ title: "Copied! Ready to paste to WhatsApp" });

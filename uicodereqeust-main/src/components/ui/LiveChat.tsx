@@ -90,15 +90,18 @@ export function LiveChat() {
     ensureConversation();
   }, [open, user?.id, isHospital]);
 
-  // Robust JS-filtered postgres changes listener for support messages
+  // Subscribe only to the open conversation so other chats do not fan out here.
   useEffect(() => {
     if (!conversation?.id) return;
     const channel = supabase
       .channel(`support-chat-${conversation.id}`)
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "support_messages" }, (payload) => {
-        if (payload.new.conversation_id === conversation.id) {
-          loadMessages(conversation.id);
-        }
+      .on("postgres_changes", {
+        event: "INSERT",
+        schema: "public",
+        table: "support_messages",
+        filter: `conversation_id=eq.${conversation.id}`,
+      }, () => {
+        loadMessages(conversation.id);
       })
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "support_conversations", filter: `id=eq.${conversation.id}` }, (payload) => {
         setConversation((prev: any) => prev ? { ...prev, ...(payload.new as any) } : prev);

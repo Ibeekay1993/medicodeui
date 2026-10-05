@@ -273,6 +273,7 @@ export type Database = {
           is_unlocked: boolean | null
           nurse_initials: string | null
           patient_email: string | null
+          beneficiary_number: string | null
           patient_name: string
           patient_phone: string | null
           policy_number: string
@@ -339,6 +340,7 @@ export type Database = {
           is_unlocked?: boolean | null
           nurse_initials?: string | null
           patient_email?: string | null
+          beneficiary_number?: string | null
           patient_name: string
           patient_phone?: string | null
           policy_number: string
@@ -405,6 +407,7 @@ export type Database = {
           is_unlocked?: boolean | null
           nurse_initials?: string | null
           patient_email?: string | null
+          beneficiary_number?: string | null
           patient_name?: string
           patient_phone?: string | null
           policy_number?: string

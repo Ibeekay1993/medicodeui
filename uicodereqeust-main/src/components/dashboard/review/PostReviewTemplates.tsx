@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { writeClipboardText } from "@/lib/clipboard";
+import { getWhatsAppSendErrorMessage } from "@/lib/whatsappSendError";
 import {
   formatNaira,
   itemUnitPrice,
@@ -35,6 +36,8 @@ interface PostReviewTemplatesProps {
     treatment: string;
     items: any[];
     totalAmount: number;
+    authorizedByName: string;
+    authorizedByInitials: string;
   } | null;
   declineResult: {
     patientName: string;
@@ -53,8 +56,6 @@ interface PostReviewTemplatesProps {
   setDeleteConfirmOpen: (value: boolean) => void;
   processing: boolean;
   editReferralHospitalName: string;
-  nurseDisplayName: string;
-  nurseInitials: string;
 }
 
 export const PostReviewTemplates = React.memo(function PostReviewTemplates({
@@ -70,8 +71,6 @@ export const PostReviewTemplates = React.memo(function PostReviewTemplates({
   setDeleteConfirmOpen,
   processing,
   editReferralHospitalName,
-  nurseDisplayName,
-  nurseInitials,
 }: PostReviewTemplatesProps) {
   const { toast } = useToast();
   const [sendingHospital, setSendingHospital] = useState(false);
@@ -179,6 +178,39 @@ export const PostReviewTemplates = React.memo(function PostReviewTemplates({
     return "";
   };
 
+  const getAutomaticNoticeStatus = async (recipientType: "hospital" | "patient") => {
+    if (!request?.id || !request?.decided_at) return null;
+    const notificationType = request.status === "rejected"
+      ? "REJECTION"
+      : request.status === "partially_approved"
+        ? "PARTIAL_APPROVAL"
+        : "APPROVAL";
+    const { data, error } = await supabase
+      .from("whatsapp_notifications" as any)
+      .select("status")
+      .eq("authorization_request_id", request.id)
+      .eq("notification_type", notificationType)
+      .eq("recipient_type", recipientType)
+      .eq("decision_at", request.decided_at)
+      .maybeSingle();
+    if (error) throw error;
+    return String(data?.status || "") || null;
+  };
+
+  const stopIfAutomaticNoticeExists = async (recipientType: "hospital" | "patient") => {
+    const status = await getAutomaticNoticeStatus(recipientType);
+    if (!status || !["queued_v2", "processing_v2", "retry_v2", "sent_v2"].includes(status)) return false;
+
+    const sent = status === "sent_v2";
+    toast({
+      title: sent ? "Already sent automatically" : "Automatic WhatsApp queued",
+      description: sent
+        ? `The ${recipientType} already has the notification for this decision. No duplicate was sent.`
+        : `The ${recipientType} notification is ${status === "retry_v2" ? "being retried" : "in the delivery queue"}. No duplicate was sent.`,
+    });
+    return true;
+  };
+
   const getApprovalClosing = (isPartial: boolean) =>
     isPartial
       ? "Please proceed only with the approved services listed above. Declined services must not be provided under this authorization. For clarification, please contact Ronsberger HMO before treatment."
@@ -256,6 +288,7 @@ export const PostReviewTemplates = React.memo(function PostReviewTemplates({
     if (!approvalResult) return;
     setSendingHospital(true);
     try {
+      if (await stopIfAutomaticNoticeExists("hospital")) return;
       const formatted = formatPhoneNumber(hospitalPhone) || await getRequestingHospitalPhone();
       if (!formatted) throw new Error("Enter or select the hospital WhatsApp number before sending.");
       const dateStr = new Date().toLocaleDateString("en-GB");
@@ -270,14 +303,17 @@ export const PostReviewTemplates = React.memo(function PostReviewTemplates({
       const approvalHeading = isPartial
         ? "AUTHORIZATION PARTIALLY APPROVED"
         : "AUTHORIZATION APPROVED";
-      const msg = `${approvalHeading}\n\nPatient: ${approvalResult.patientName}\nPolicy No: ${approvalResult.policyNumber}\nAuth Code: ${approvalResult.authCode}\nHospital: ${approvalResult.hospitalName}${referralLine}\nDiagnosis: ${approvalResult.diagnosis}\n\n${serviceLines}\nDate: ${dateStr}\n\n${getApprovalClosing(isPartial)}\n\nRonsberger HMO UI Desk`;
+      const authorizedBy = approvalResult.authorizedByInitials
+        ? `${approvalResult.authorizedByName} (${approvalResult.authorizedByInitials})`
+        : approvalResult.authorizedByName;
+      const msg = `${approvalHeading}\n\nPatient: ${approvalResult.patientName}\nPolicy No: ${approvalResult.policyNumber}\nAuth Code: ${approvalResult.authCode}\nAuthorized by: ${authorizedBy}\nHospital: ${approvalResult.hospitalName}${referralLine}\nDiagnosis: ${approvalResult.diagnosis}\n\n${serviceLines}\nDate: ${dateStr}\n\n${getApprovalClosing(isPartial)}\n\nRonsberger HMO UI Desk`;
 
       const { data, error } = await supabase.functions.invoke("send-whatsapp", {
         body: { phone_number: formatted, message: msg },
       });
 
       if (error || !data?.success) {
-        throw new Error("WhatsApp delivery failed. Please verify the hospital number and try again.");
+        throw new Error(await getWhatsAppSendErrorMessage(data, error));
       } else {
         toast({ title: "WhatsApp Sent to Hospital!", description: `Response sent to ${formatted}` });
       }
@@ -293,6 +329,7 @@ export const PostReviewTemplates = React.memo(function PostReviewTemplates({
     if (!approvalResult) return;
     setSendingPatient(true);
     try {
+      if (await stopIfAutomaticNoticeExists("patient")) return;
       const rawPhone = request?.patient_phone || "";
       const formatted = formatPhoneNumber(rawPhone);
       const priorityStr = (request?.urgency || "ROUTINE").toUpperCase();
@@ -307,7 +344,10 @@ export const PostReviewTemplates = React.memo(function PostReviewTemplates({
             .join("\n")
         : (approvalResult.treatment ? `• *${approvalResult.treatment}*` : "• *Approved as prescribed*");
 
-      const msg = `*Ronsberger HMO*\n\n*AUTHORIZATION ${patientApprovalHeading}*\n\nHello *${approvalResult.patientName}*,\n\nWe are pleased to inform you that your treatment request submitted through *${approvalResult.hospitalName}* has been *${patientApprovalHeading.toLowerCase()}* by Ronsberger HMO.\n\nThe approved services are listed below.\n\n*Request Details*\n\nPatient: *${approvalResult.patientName}*\nPolicy No.: *${approvalResult.policyNumber}*\nHospital: *${approvalResult.hospitalName}*\nDiagnosis: *${approvalResult.diagnosis}*\nPriority: *${priorityStr}*\n\n*Approved Treatment / Services*\n\n${approvedItemsList}\n\n*Important Notice*\nPlease contact us immediately if these services were not fully rendered to you, or if you are asked to make any additional payments for the approved items listed above.\n\nThank you for choosing Ronsberger HMO.`;
+      const authorizedBy = approvalResult.authorizedByInitials
+        ? `${approvalResult.authorizedByName} (${approvalResult.authorizedByInitials})`
+        : approvalResult.authorizedByName;
+      const msg = `*Ronsberger HMO*\n\n*AUTHORIZATION ${patientApprovalHeading}*\n\nHello *${approvalResult.patientName}*,\n\nWe are pleased to inform you that your treatment request submitted through *${approvalResult.hospitalName}* has been *${patientApprovalHeading.toLowerCase()}* by Ronsberger HMO.\n\nThe approved services are listed below.\n\n*Request Details*\n\nPatient: *${approvalResult.patientName}*\nPolicy No.: *${approvalResult.policyNumber}*\nHospital: *${approvalResult.hospitalName}*\nDiagnosis: *${approvalResult.diagnosis}*\nAuthorized by: *${authorizedBy}*\nPriority: *${priorityStr}*\n\n*Approved Treatment / Services*\n\n${approvedItemsList}\n\n*Important Notice*\nPlease contact us immediately if these services were not fully rendered to you, or if you are asked to make any additional payments for the approved items listed above.\n\nThank you for choosing Ronsberger HMO.`;
 
       if (!formatted) {
         if (isWhatsAppRequest()) {
@@ -323,7 +363,7 @@ export const PostReviewTemplates = React.memo(function PostReviewTemplates({
       });
 
       if (error || !data?.success) {
-        throw new Error("WhatsApp delivery failed. Please verify the patient number and try again.");
+        throw new Error(await getWhatsAppSendErrorMessage(data, error));
       } else {
         toast({ title: "Patient notified", description: `Approval notice sent to ${formatted}` });
       }
@@ -351,7 +391,7 @@ export const PostReviewTemplates = React.memo(function PostReviewTemplates({
       });
 
       if (error || !data?.success) {
-        throw new Error("WhatsApp delivery failed. Please verify the hospital number and try again.");
+        throw new Error(await getWhatsAppSendErrorMessage(data, error));
       } else {
         toast({ title: "Decline Sent via WhatsApp!", description: `Decline notice sent to ${recipient}` });
       }
@@ -376,7 +416,7 @@ export const PostReviewTemplates = React.memo(function PostReviewTemplates({
             {approvalResult.authCode}
           </p>
           <p className="mt-2 text-[10px] font-semibold uppercase leading-relaxed tracking-[0.08em] text-emerald-800/70 sm:text-xs sm:tracking-[0.16em]">
-            Authorized by {nurseDisplayName} ({nurseInitials})
+            Authorized by {approvalResult.authorizedByName} ({approvalResult.authorizedByInitials})
           </p>
         </div>
 

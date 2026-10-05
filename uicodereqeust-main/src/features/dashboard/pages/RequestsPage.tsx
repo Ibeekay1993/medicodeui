@@ -15,7 +15,6 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   AlertDialog,
-  AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
@@ -36,6 +35,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 export default function RequestsPage() {
   const { role, user } = useAuth();
   const isClaimsRole = role === "claims";
+  const isAdmin = role === "admin";
   
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -94,12 +94,12 @@ export default function RequestsPage() {
     staleTime: 30_000, // treat data as fresh for 30 s — avoids redundant refetch if modal closes quickly
     queryFn: async () => {
       const from = (currentPage - 1) * rowsPerPage;
-      const to = from + rowsPerPage - 1;
+      // Pull one extra row to support Next without forcing a full-table exact count.
+      const to = from + rowsPerPage;
       let q = supabase
         .from("authorization_requests")
         .select(
-          // Only columns needed for list rendering — heavy JSON fields (approved_items,
-          // clinical_notes, decision_reason) are loaded on-demand when the modal opens.
+          // Only list fields are loaded here; request details load on demand in the modal.
           "id,request_id,patient_name,policy_number,diagnosis,status,source," +
           "hospital_name,requesting_hospital_name,referred_hospital_name," +
           "authorization_code,urgency,created_at,updated_at,decided_at," +
@@ -107,9 +107,7 @@ export default function RequestsPage() {
           "authorized_by_name,authorized_by_email,claiming_hospital_name," +
           "referring_hospital_name,is_historical,is_unlocked," +
           "deletion_status,patient_phone,patient_email," +
-          "hospital_id,requesting_hospital_id,referred_hospital_id,claiming_hospital_id," +
-          "treatment,decision_reason,clinical_notes,total_amount,approved_tariff_amount,approved_items",
-          { count: "exact" }
+          "hospital_id,requesting_hospital_id,referred_hospital_id,claiming_hospital_id"
         )
         .order("updated_at", { ascending: false });
       if (search) q = q.or(`patient_name.ilike.%${search}%,policy_number.ilike.%${search}%,request_id.ilike.%${search}%,authorization_code.ilike.%${search}%`);
@@ -118,12 +116,14 @@ export default function RequestsPage() {
       } else if (statusFilter !== "all") {
         q = q.eq("status", statusFilter);
       }
-      const { data: rowsData, error, count } = await q.range(from, to);
+      const { data: rowsData, error } = await q.range(from, to);
       if (error) {
         toast({ variant: "destructive", title: "Error", description: getErrorMessage(error, "Unable to load requests") });
         throw error;
       }
-      const rows = (rowsData || []) as RequestRow[];
+      const fetchedRows = (rowsData || []) as RequestRow[];
+      const hasMore = fetchedRows.length > rowsPerPage;
+      const rows = fetchedRows.slice(0, rowsPerPage);
       
       const approverIds = Array.from(new Set(
         rows
@@ -140,7 +140,7 @@ export default function RequestsPage() {
         names = Object.fromEntries((users || []).map((item: any) => [item.user_id, item.full_name]));
       }
 
-      return { rows, count: count ?? 0, approverNames: names };
+      return { rows, hasMore, approverNames: names };
     }
   });
 
@@ -194,7 +194,9 @@ export default function RequestsPage() {
       return 0;
     });
   }, [data?.rows, statusFilter]);
-  const totalCount = data?.count || 0;
+  const hasMore = data?.hasMore ?? false;
+  const visibleStart = requests.length === 0 ? 0 : (currentPage - 1) * rowsPerPage + 1;
+  const visibleEnd = (currentPage - 1) * rowsPerPage + requests.length;
   const approverNames = data?.approverNames || {};
 
   // Synchronize review modal with URL (?review=<id>) so modal survives browser refresh
@@ -453,8 +455,22 @@ export default function RequestsPage() {
       });
       if (error) throw error;
 
-      queryClient.invalidateQueries({ queryKey: ["requests"] });
-      toast({ title: "Awaiting Review", description: "The deletion request was sent to a Utilization Manager Lead or Super Admin." });
+      if (isAdmin) {
+        const { error: resolveError } = await (supabase as any).rpc("rpc_resolve_delete_request", {
+          p_request_id: deleteTarget.id,
+          p_action: "approved",
+        });
+        if (resolveError) throw resolveError;
+      }
+
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["requests"] }),
+        queryClient.invalidateQueries({ queryKey: ["delete-queue"] }),
+        queryClient.invalidateQueries({ queryKey: ["delete-archive"] }),
+      ]);
+      toast(isAdmin
+        ? { title: "Authorization deleted", description: "The deletion was recorded in the audit log." }
+        : { title: "Awaiting Review", description: "The deletion request was sent to a Utilization Manager Lead or Super Admin." });
       setDeleteTarget(null);
       setDeleteConfirmText("");
       setDeleteReason("");
@@ -469,20 +485,21 @@ export default function RequestsPage() {
   return (
     <div className="space-y-4 max-w-full overflow-x-hidden pb-10 animate-in fade-in duration-500">
 
-      <div className="premium-card bg-white/80 backdrop-blur-md p-4 rounded-xl border border-slate-100 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4 transition-all duration-300 hover:shadow-md">
-        <div className="flex items-center gap-2">
-          <Tabs value={statusFilter === 'action_required' ? 'action_required' : 'all'} onValueChange={(val) => { setStatusFilter(val); setCurrentPage(1); }} className="w-auto">
-            <TabsList className="h-9 bg-slate-100 rounded-lg">
-              <TabsTrigger value="action_required" className="text-xs font-bold px-4 rounded-md">Action Needed</TabsTrigger>
-              <TabsTrigger value="all" className="text-xs font-bold px-4 rounded-md">All Requests</TabsTrigger>
-            </TabsList>
-          </Tabs>
-        </div>
+      <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
+        <div className="flex flex-col items-stretch justify-between gap-3 md:flex-row md:items-center md:gap-4">
+          <div className="w-full min-w-0 md:w-auto">
+            <Tabs value={statusFilter === 'action_required' ? 'action_required' : 'all'} onValueChange={(val) => { setStatusFilter(val); setCurrentPage(1); }} className="w-full min-w-0 md:w-auto">
+              <TabsList aria-label="Filter authorization requests" className="grid h-10 w-full min-w-0 max-w-full grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-1 rounded-lg bg-slate-100 p-1 sm:inline-grid sm:w-auto sm:min-w-[280px]">
+                <TabsTrigger value="action_required" className="h-full min-h-0 min-w-0 w-full whitespace-nowrap rounded-md px-2 py-0 text-xs font-semibold text-slate-600 transition-colors data-[state=active]:bg-slate-800 data-[state=active]:text-white data-[state=active]:shadow-none data-[state=inactive]:bg-transparent data-[state=inactive]:text-slate-600 data-[state=inactive]:hover:bg-slate-200/70 active:bg-slate-200 sm:px-4">Action Needed</TabsTrigger>
+                <TabsTrigger value="all" className="h-full min-h-0 min-w-0 w-full whitespace-nowrap rounded-md px-2 py-0 text-xs font-semibold text-slate-600 transition-colors data-[state=active]:bg-slate-800 data-[state=active]:text-white data-[state=active]:shadow-none data-[state=inactive]:bg-transparent data-[state=inactive]:text-slate-600 data-[state=inactive]:hover:bg-slate-200/70 active:bg-slate-200 sm:px-4">All Requests</TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
 
-        <div className="flex flex-wrap items-center gap-3 w-full md:w-auto justify-end">
+        <div className="grid w-full grid-cols-1 gap-2 sm:flex sm:flex-wrap sm:items-center sm:justify-end md:w-auto">
           {statusFilter !== 'action_required' && (
             <Select value={statusFilter} onValueChange={(val: any) => { setStatusFilter(val); setCurrentPage(1); }}>
-              <SelectTrigger className="h-9 w-40 rounded-lg bg-slate-50 border border-slate-200 text-xs font-bold hover:bg-slate-100/50 transition-colors">
+              <SelectTrigger className="h-11 w-full rounded-lg border border-slate-200 bg-white text-xs font-medium text-slate-700 sm:h-9 sm:w-40">
                 <SelectValue placeholder="Filter by Status" />
               </SelectTrigger>
               <SelectContent className="rounded-xl border-slate-100 shadow-xl">
@@ -503,8 +520,9 @@ export default function RequestsPage() {
           )}
           <div className="relative w-full sm:w-56">
             <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
-            <Input placeholder="Search records..." value={search} onChange={e => { setSearch(e.target.value); setCurrentPage(1); }} className="h-9 rounded-lg border border-slate-200 bg-slate-50 pl-8 text-xs font-bold focus-visible:ring-1 focus-visible:ring-slate-300" />
+            <Input placeholder="Search records..." value={search} onChange={e => { setSearch(e.target.value); setCurrentPage(1); }} className="h-11 rounded-lg border border-slate-200 bg-white pl-8 text-sm font-medium focus-visible:ring-1 focus-visible:ring-slate-400 sm:h-9 sm:text-xs" />
           </div>
+        </div>
         </div>
       </div>
 
@@ -545,11 +563,11 @@ export default function RequestsPage() {
 
       <div className="flex items-center justify-between px-2">
         <p className="text-xs font-bold text-slate-500">
-          Showing {Math.min((currentPage - 1) * rowsPerPage + 1, totalCount)} to {Math.min(currentPage * rowsPerPage, totalCount)} of {totalCount}
+          Showing {visibleStart} to {visibleEnd}{hasMore ? " (more available)" : ""}
         </p>
         <div className="flex gap-1">
           <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1 || isLoading} className="h-7 px-3 text-xs rounded-lg">Prev</Button>
-          <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => p + 1)} disabled={currentPage * rowsPerPage >= totalCount || isLoading} className="h-7 px-3 text-xs rounded-lg">Next</Button>
+          <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => p + 1)} disabled={!hasMore || isLoading} className="h-7 px-3 text-xs rounded-lg">Next</Button>
         </div>
       </div>
 
@@ -563,13 +581,30 @@ export default function RequestsPage() {
 
       <AlertDialog open={!!deleteTarget} onOpenChange={open => !open && setDeleteTarget(null)}>
         <AlertDialogContent className="rounded-2xl">
-          <AlertDialogHeader><AlertDialogTitle>Request Record Deletion?</AlertDialogTitle><AlertDialogDescription>This will send the request to a Utilization Manager Lead or Super Admin for review. Type <span className="font-black">DELETE</span> to continue.</AlertDialogDescription></AlertDialogHeader>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{isAdmin ? "Delete Authorization?" : "Request Record Deletion?"}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {isAdmin
+                ? "This will permanently delete the authorization and record the action in the audit log. This cannot be undone."
+                : "This will send the request to a Utilization Manager Lead or Super Admin for review."} Type <span className="font-black">DELETE</span> to continue.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
           <Input value={deleteConfirmText} onChange={e => setDeleteConfirmText(e.target.value)} placeholder="DELETE" className="h-10 rounded-xl" />
           <div className="space-y-1">
             <Label className="text-xs font-black uppercase tracking-widest text-slate-500">Reason for deletion request</Label>
             <Input value={deleteReason} onChange={e => setDeleteReason(e.target.value)} placeholder="Explain why this should be deleted..." className="h-10 rounded-xl" />
           </div>
-          <AlertDialogFooter><AlertDialogCancel className="rounded-xl">Cancel</AlertDialogCancel><AlertDialogAction disabled={deleteConfirmText !== "DELETE" || !deleteReason.trim() || deleteProcessing} onClick={executeDelete} className="rounded-xl bg-rose-600">{deleteProcessing ? "Submitting…" : "Submit Request"}</AlertDialogAction></AlertDialogFooter>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="rounded-xl">Cancel</AlertDialogCancel>
+            <Button
+              type="button"
+              disabled={deleteConfirmText !== "DELETE" || !deleteReason.trim() || deleteProcessing}
+              onClick={() => void executeDelete()}
+              className="rounded-xl bg-rose-600 hover:bg-rose-700"
+            >
+              {deleteProcessing ? (isAdmin ? "Deleting…" : "Submitting…") : (isAdmin ? "Delete Authorization" : "Submit Request")}
+            </Button>
+          </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
     </div>

@@ -19,6 +19,7 @@ import {
   unsubscribeFromPushNotifications,
   getRegisteredPushSubscription,
   getPushServiceWorkerRegistration,
+  sendPushTestNotification,
 } from "@/lib/pushNotifications";
 
 export default function PushNotificationSettingsCard() {
@@ -28,6 +29,7 @@ export default function PushNotificationSettingsCard() {
   const [permission, setPermission] = useState<NotificationPermission>("default");
   const [isLoading, setIsLoading] = useState(false);
   const [setupIncomplete, setSetupIncomplete] = useState(false);
+  const [testingPush, setTestingPush] = useState(false);
   const [setupError, setSetupError] = useState<string | null>(null);
   const isSupported = isPushNotificationSupported();
 
@@ -87,25 +89,20 @@ export default function PushNotificationSettingsCard() {
   };
 
   const handleTestNotification = async () => {
-    if (!isSupported || !("serviceWorker" in navigator)) return;
+    if (!isSupported || !user?.id || testingPush) return;
+    setTestingPush(true);
     try {
-      const reg = await getPushServiceWorkerRegistration();
-      await reg.showNotification("Ronsberger HMO Alert", {
-        body: "This device can display portal notifications.",
-        icon: "/icon-192.png",
-        badge: "/icon-192.png",
-        tag: "test-alert",
-      });
-      toast({
-        title: "Test Alert Received",
-        description: "This device displayed the test notification.",
-      });
+      const result = await sendPushTestNotification(user.id);
+      if (!result.success) throw new Error(result.error || "The server push test failed.");
+      toast({ title: "Test push sent", description: `The production push service accepted the test for ${result.sentCount} registered device${result.sentCount === 1 ? "" : "s"}. Check this device's notifications.` });
     } catch (error: unknown) {
       toast({
         title: "Test Failed",
         description: error instanceof Error ? error.message : "Please check that browser notifications are allowed.",
         variant: "destructive",
       });
+    } finally {
+      setTestingPush(false);
     }
   };
 
@@ -151,7 +148,7 @@ export default function PushNotificationSettingsCard() {
       <CardContent className="p-4 sm:p-5 space-y-4">
         {!isSupported ? (
           <div className="rounded-xl bg-amber-50/70 border border-amber-100 p-3.5 text-xs text-amber-800 leading-relaxed">
-            Push notifications are not supported by this browser. Try opening the portal in <strong>Google Chrome</strong> or installing the app to your Home Screen.
+            Push notifications are not supported here. Try <strong>Google Chrome</strong>. On iPhone or iPad, add the portal to your Home Screen and open the installed app before enabling alerts.
           </div>
         ) : permission === "denied" ? (
           <div className="rounded-xl bg-rose-50 border border-rose-100 p-3.5 text-xs text-rose-800 space-y-1.5 leading-relaxed">
@@ -201,9 +198,10 @@ export default function PushNotificationSettingsCard() {
                   onClick={handleTestNotification}
                   className="text-xs h-9 px-3 text-slate-700 hover:text-slate-900 bg-white border-slate-200 flex-1 sm:flex-none"
                 >
-                  <RefreshCw className="h-3 w-3 mr-1.5" /> Test Alert
+                  <RefreshCw className={`h-3 w-3 mr-1.5 ${testingPush ? "animate-spin" : ""}`} />
+                  {testingPush ? "Sending test" : "Test push"}
                 </Button>
-                <Button type="button" variant="ghost" size="sm" onClick={() => handleToggle(false)} disabled={isLoading} className="text-xs h-9 px-3 text-slate-600">
+                <Button type="button" variant="ghost" size="sm" onClick={() => handleToggle(false)} disabled={isLoading || testingPush} className="text-xs h-9 px-3 text-slate-600">
                   Turn Off
                 </Button>
               </div>

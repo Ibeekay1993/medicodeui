@@ -215,8 +215,8 @@ export default function HospitalNewRequest() {
     queryFn: async () => {
       if (debouncedPatientSearch.length < 3) return [];
       const { data } = await supabase.from("nhis_beneficiaries")
-        .select("full_name, policy_number")
-        .or(`policy_number.ilike.%${debouncedPatientSearch}%,full_name.ilike.%${debouncedPatientSearch}%`)
+        .select("full_name, policy_number, beneficiary_number")
+        .or(`policy_number.ilike.%${debouncedPatientSearch}%,beneficiary_number.ilike.%${debouncedPatientSearch}%,full_name.ilike.%${debouncedPatientSearch}%`)
         .limit(8);
       return data || [];
     },
@@ -457,6 +457,7 @@ export default function HospitalNewRequest() {
           request_id: `REQ-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
           patient_name: selectedPatient.full_name,
           policy_number: selectedPatient.policy_number,
+          beneficiary_number: selectedPatient.beneficiary_number || null,
           patient_email: patientEmail.trim(),
           diagnosis: diagnosisText,
           treatment: treatments.map(t => `${t.name} [Code: ${t.code}] (Qty: ${t.quantity} x NGN ${t.amount} = NGN ${t.quantity * Number(t.amount)})`).join("; "),

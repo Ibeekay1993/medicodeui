@@ -17,6 +17,8 @@ import {
   getNotificationPermission,
   subscribeToPushNotifications,
   hasOptedOutOfPush,
+  hasDismissedPushPrompt,
+  dismissPushPromptForSession,
 } from "@/lib/pushNotifications";
 
 const STAFF_ROLES = new Set(["admin", "utilization_manager", "utilization_manager_lead", "claims", "finance"]);
@@ -48,7 +50,7 @@ export function PushNotificationFirstTimePrompt() {
 
     const perm = getNotificationPermission();
 
-    if (hasOptedOutOfPush(user.id)) return;
+    if (hasOptedOutOfPush(user.id) || hasDismissedPushPrompt(user.id)) return;
 
     // Permission already granted — keep this account subscribed on this device.
     if (perm === "granted") {
@@ -107,7 +109,7 @@ export function PushNotificationFirstTimePrompt() {
   }, [user?.id, toast, registerThisDevice]);
 
   const handleDismiss = useCallback(() => {
-    if (user?.id) localStorage.setItem(`ronsberger_push_opt_out:${user.id}`, "true");
+    if (user?.id) dismissPushPromptForSession(user.id);
     setVisible(false);
   }, [user?.id]);
 
@@ -172,7 +174,7 @@ export function PushNotificationFirstTimePrompt() {
               onClick={handleDismiss}
               className="min-h-11 flex-1 text-xs text-slate-600 hover:bg-slate-100 hover:text-slate-900"
             >
-              Turn Off
+              Not now
             </Button>
             <Button
               type="button"

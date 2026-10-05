@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { format } from "date-fns";
-import { normalizePatientNameForMatch } from "@/lib/clinicalUtils";
-import { ChevronDown, ChevronUp, Loader2 } from "lucide-react";
+import { normalizePatientNameForMatch, normalizePolicyNumber, normalizePolicyRoot } from "@/lib/clinicalUtils";
+import { ChevronDown, ChevronUp, Clock3, Loader2 } from "lucide-react";
 
 interface ClinicalHistoryProps {
   request: any;
@@ -10,19 +10,24 @@ interface ClinicalHistoryProps {
   setHistoryPage: (page: number) => void;
   requestPatientName: string;
   requestPolicyNumber: string;
+  requestBeneficiaryNumber?: string | null;
   checking?: boolean;
+  historyLoadFailed?: boolean;
+  onRetryHistory?: () => void;
 }
 
-const HistoryCard = ({ record }: { record: any }) => {
+const HistoryCard = ({ record, showPatient }: { record: any; showPatient: boolean }) => {
   const [showFullNote, setShowFullNote] = useState(false);
-  
-  const status = (record.status || "APPROVED").toLowerCase();
-  let statusClasses = "bg-slate-100 text-slate-600 border-slate-200";
-  let cardBorderClasses = "border-slate-200/80";
 
+  const displayValue = (value: unknown, fallback = "Not recorded") => {
+    const text = String(value ?? "").trim();
+    return !text || /^(null|undefined|nil|none|n\/?a)$/i.test(text) ? fallback : text;
+  };
+  const statusLabel = displayValue(record.status, "APPROVED");
+  const status = statusLabel.toLowerCase();
+  let statusClasses = "bg-slate-100 text-slate-600 border-slate-200";
   if (status.includes("reject") || status.includes("decline")) {
     statusClasses = "bg-red-100 text-red-700 border-red-200";
-    cardBorderClasses = "border-red-200 bg-red-50/30";
   } else if (status.includes("approve")) {
     statusClasses = "bg-emerald-100 text-emerald-700 border-emerald-200";
   } else if (status.includes("pending") || status.includes("defer")) {
@@ -37,16 +42,18 @@ const HistoryCard = ({ record }: { record: any }) => {
       try {
         const p = JSON.parse(t);
         const parts: string[] = [];
-        if (p.review_decision) parts.push(p.review_decision);
-        else if (p.decision_reason) parts.push(p.decision_reason);
-        if (p.notes) parts.push(p.notes);
+        const decision = p.review_decision || p.decision_reason;
+        if (decision && !/^(null|undefined|nil|none|n\/?a)$/i.test(String(decision).trim())) parts.push(String(decision).trim());
+        if (p.notes && !/^(null|undefined|nil|none|n\/?a)$/i.test(String(p.notes).trim())) parts.push(String(p.notes).trim());
         return parts.join(" • ");
       } catch { return t; }
     }
     return t;
   }
 
-  const note = parseNote(record.decision_reason) || parseNote(record.note) || parseNote(record.clinical_notes) || "";
+  const note = [record.decision_reason, record.note, record.clinical_notes]
+    .map(parseNote)
+    .find((value) => value && !/^(null|undefined|nil|none|n\/?a)$/i.test(value.trim())) || "";
   const isLongNote = note.length > 80;
   const displayNote = showFullNote ? note : (isLongNote ? note.substring(0, 80) + "..." : note);
 
@@ -62,92 +69,60 @@ const HistoryCard = ({ record }: { record: any }) => {
     }
   }
 
-  return (
-    <div className={`rounded-xl p-3.5 border ${cardBorderClasses} shadow-sm transition-all mb-3 bg-slate-50`}>
-      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 mb-3 pb-3 border-b border-slate-200">
-        <div className="flex flex-col gap-2">
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="flex items-center gap-1.5">
-              <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Date</div>
-              <div className="text-[11px] sm:text-[12px] font-extrabold text-slate-900">
-                {displayDate}
-              </div>
-            </div>
-            {(record.patient_name || record.name) && (
-              <div className="flex items-center gap-1.5">
-                <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Patient</div>
-                <div className="bg-slate-200 text-slate-800 px-2 py-0.5 rounded-md text-[9px] font-extrabold uppercase tracking-wide">
-                  {record.patient_name || record.name}
-                </div>
-              </div>
-            )}
-            {record.authorization_code && record.authorization_code !== "-" && (
-              <div className="flex items-center gap-1.5">
-                <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Auth Code</div>
-                <div className="text-[11px] sm:text-[12px] font-extrabold text-slate-900 tracking-wide bg-white px-2 py-0.5 rounded border border-slate-200 shadow-sm">
-                  {record.authorization_code}
-                </div>
-              </div>
-            )}
-          </div>
-          {record.hospital_name && (
-            <div className="flex items-center gap-1.5">
-              <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Hospital</div>
-              <div className="text-[11px] sm:text-[12px] font-bold text-slate-700">
-                {record.hospital_name}
-              </div>
-            </div>
-          )}
-        </div>
-        <div className="flex flex-col items-end gap-1.5 shrink-0">
-          <div className={`px-2.5 py-1 rounded-full text-[9px] font-extrabold uppercase tracking-widest border w-fit shadow-sm ${statusClasses}`}>
-            {record.status || "APPROVED"}
-          </div>
-          {/* Historical badge for legacy imported records; live records need no duplicate badge */}
-          {(record.is_historical || record.source === "sheet_history" || record.source === "historical") && (
-            <div className="px-2 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-widest bg-indigo-50 text-indigo-700 border border-indigo-200 w-fit">
-              Historical
-            </div>
-          )}
-        </div>
-      </div>
-      
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div className="bg-white p-2.5 rounded-lg border border-slate-100 shadow-sm">
-          <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1">Diagnosis</div>
-          <div className="text-[12px] sm:text-[13px] font-extrabold text-slate-900 leading-snug">{record.diagnosis || "Not recorded"}</div>
-        </div>
-        <div className="bg-white p-2.5 rounded-lg border border-slate-100 shadow-sm">
-          <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1">Treatment & Quantity</div>
-          <div className="text-[12px] sm:text-[13px] font-extrabold text-slate-900 leading-snug">{record.treatment || "Not recorded"}</div>
-        </div>
-      </div>
+  const markerTone = status.includes("reject") || status.includes("decline")
+    ? "bg-rose-500 ring-rose-100"
+    : status.includes("pending") || status.includes("defer")
+      ? "bg-amber-500 ring-amber-100"
+      : "bg-emerald-600 ring-emerald-100";
 
-      {note && (
-        <div className="mt-3 pt-3 border-t border-slate-200">
-          <div className="flex justify-between items-start gap-2">
-            <div>
-              <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1">Clinical Note / Reason</div>
-              <div className="text-[11px] sm:text-[12px] font-bold text-slate-700 leading-relaxed break-words">
-                {displayNote}
-              </div>
-            </div>
-            {isLongNote && (
-              <button 
-                onClick={() => setShowFullNote(!showFullNote)}
-                className="text-[10px] font-bold text-blue-600 hover:text-blue-800 bg-blue-50 px-2 py-1 rounded-md transition-colors shrink-0 flex items-center gap-1"
-              >
-                {showFullNote ? (
-                  <>Show Less <ChevronUp className="w-3 h-3" /></>
-                ) : (
-                  <>Show More <ChevronDown className="w-3 h-3" /></>
-                )}
-              </button>
+  return (
+    <article className="relative pb-9 pl-7 last:pb-0 sm:pl-8">
+      <span aria-hidden="true" className={`absolute left-0 top-1.5 h-3.5 w-3.5 rounded-full ring-4 ${markerTone}`} />
+      <span aria-hidden="true" className="absolute bottom-0 left-[6px] top-5 w-px bg-slate-200" />
+      <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] sm:gap-6">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+            <time className="text-sm font-bold tabular-nums text-slate-900">{displayValue(displayDate, "Date unavailable")}</time>
+            <span className={`rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${statusClasses}`}>{statusLabel}</span>
+            {record.authorization_code && record.authorization_code !== "-" && (
+              <span className="font-mono text-xs font-semibold text-slate-600">{record.authorization_code}</span>
+            )}
+            {(record.is_historical || record.source === "sheet_history" || record.source === "historical") && (
+              <span className="text-[10px] font-medium text-slate-500">Imported record</span>
             )}
           </div>
+          {showPatient && (record.patient_name || record.name) && (
+            <p className="mt-2 text-sm font-semibold text-slate-800">{displayValue(record.patient_name || record.name)}</p>
+          )}
+          {record.hospital_name && (
+            <p className="mt-1.5 text-sm leading-relaxed text-slate-600">{displayValue(record.hospital_name)}</p>
+          )}
+          <section className="mt-3 min-w-0">
+            <h4 className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">Diagnosis</h4>
+            <p className="mt-1 break-words text-sm font-semibold leading-relaxed text-slate-900">{displayValue(record.diagnosis)}</p>
+          </section>
         </div>
-      )}
-    </div>
+        <section className="min-w-0 border-t border-slate-100 pt-3 sm:border-l sm:border-t-0 sm:pl-5 sm:pt-0">
+          <h4 className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">Treatment &amp; quantity</h4>
+          <p className="mt-1 break-words text-sm leading-relaxed text-slate-800">{displayValue(record.treatment)}</p>
+        </section>
+      </div>
+        {note && (
+          <section className="mt-3 border-t border-slate-100 pt-3">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <h4 className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">Clinical note</h4>
+                <p className="mt-1 break-words text-sm leading-relaxed text-slate-700">{displayNote}</p>
+              </div>
+              {isLongNote && (
+                <button type="button" aria-expanded={showFullNote} onClick={() => setShowFullNote(!showFullNote)} className="inline-flex min-h-11 shrink-0 items-center gap-1 rounded-lg px-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700">
+                  {showFullNote ? <>Show less <ChevronUp className="h-3.5 w-3.5" /></> : <>Read note <ChevronDown className="h-3.5 w-3.5" /></>}
+                </button>
+              )}
+            </div>
+          </section>
+        )}
+    </article>
   );
 };
 
@@ -158,42 +133,65 @@ export function ClinicalHistory({
   setHistoryPage,
   requestPatientName,
   requestPolicyNumber,
+  requestBeneficiaryNumber,
   checking = false,
+  historyLoadFailed = false,
+  onRetryHistory,
 }: ClinicalHistoryProps) {
   const [expanded, setExpanded] = useState(true);
-  const [includeDependents, setIncludeDependents] = useState(true);
+  const [includeDependents, setIncludeDependents] = useState(false);
 
   // Filter history based on includeDependents toggle
   const currentPatientClean = normalizePatientNameForMatch(requestPatientName || "");
-  const currentPatientWords = currentPatientClean.split(/\s+/).filter(Boolean);
+  const currentBeneficiaryNumber = normalizePolicyNumber(
+    requestBeneficiaryNumber || request?.beneficiary_number || "",
+  ).toUpperCase();
+  const familyPolicyRoot = normalizePolicyRoot(requestPolicyNumber).toUpperCase();
 
   const filteredHistory = visibleHistory.filter((record) => {
-    if (includeDependents) return true;
+    if (includeDependents) {
+      const recordPolicyRoot = normalizePolicyRoot(record.policy_number || "").toUpperCase();
+      return Boolean(familyPolicyRoot && recordPolicyRoot === familyPolicyRoot);
+    }
     const recordPatientClean = normalizePatientNameForMatch(record.patient_name || record.name || "");
-    if (!recordPatientClean || !currentPatientClean) return true;
-    if (recordPatientClean === currentPatientClean) return true;
-    if (recordPatientClean.includes(currentPatientClean) || currentPatientClean.includes(recordPatientClean)) return true;
-    
-    const recordWords = recordPatientClean.split(/\s+/).filter(Boolean);
-    const commonWords = currentPatientWords.filter(w => recordWords.includes(w));
-    return commonWords.length >= Math.min(2, Math.max(1, currentPatientWords.length));
+    const storedBeneficiaryNumber = normalizePolicyNumber(record.beneficiary_number || "").toUpperCase();
+    const storedPolicyNumber = normalizePolicyNumber(record.policy_number || "").toUpperCase();
+    const inferredBeneficiaryNumber = storedBeneficiaryNumber || (
+      storedPolicyNumber && normalizePolicyRoot(storedPolicyNumber).toUpperCase() === familyPolicyRoot &&
+      storedPolicyNumber !== familyPolicyRoot
+        ? storedPolicyNumber
+        : ""
+    );
+    if (currentBeneficiaryNumber && inferredBeneficiaryNumber) {
+      return inferredBeneficiaryNumber === currentBeneficiaryNumber;
+    }
+    // Legacy requests often have the family policy but no individual ID.
+    // Use exact normalized names only for those rows, never substring matches.
+    if (!storedBeneficiaryNumber && (!storedPolicyNumber || storedPolicyNumber === familyPolicyRoot) && currentPatientClean) {
+      return recordPatientClean === currentPatientClean;
+    }
+    // If a row has no patient name, use its distinct beneficiary ID when
+    // available. Otherwise don't attribute it to this patient by assumption.
+    return Boolean(currentBeneficiaryNumber && inferredBeneficiaryNumber && inferredBeneficiaryNumber === currentBeneficiaryNumber);
   });
 
   return (
     <div className="w-full">
       <div className="bg-white rounded-2xl p-4 mb-3 border border-slate-100 shadow-sm">
-        <div className="text-[13px] sm:text-[14px] font-extrabold text-slate-800 uppercase tracking-wide mb-3">
-          Patient Clinical History
+        <div className="mb-3 text-sm font-bold text-slate-900 sm:text-base">
+          Patient clinical history
         </div>
 
-        <div 
-          className="flex justify-between items-center p-3.5 bg-white rounded-xl border border-slate-100 mb-3 cursor-pointer"
+        <button
+          type="button"
+          aria-expanded={expanded}
           onClick={() => setExpanded(!expanded)}
+          className="mb-3 flex min-h-12 w-full items-center justify-between rounded-xl border border-slate-200 bg-white p-3.5 text-left transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600"
         >
           <div className="flex items-center gap-2">
-            <div className="text-[16px]">🕒</div>
+            <Clock3 className="h-4 w-4 text-emerald-700" aria-hidden="true" />
             <div className="text-[12px] sm:text-[13px] font-extrabold text-slate-800">
-              PATIENT AUTHORIZATION HISTORY
+              Patient authorization history
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -204,56 +202,80 @@ export function ClinicalHistory({
                   <span>SEARCHING...</span>
                 </>
               ) : (
-                <span>{filteredHistory.length} RECORDS</span>
+                <span aria-live="polite">{filteredHistory.length} {filteredHistory.length === 1 ? "record" : "records"}</span>
               )}
             </div>
-            <span className="text-slate-400">{expanded ? '▴' : '▾'}</span>
+            {expanded ? <ChevronUp className="h-4 w-4 text-slate-500" /> : <ChevronDown className="h-4 w-4 text-slate-500" />}
           </div>
-        </div>
+        </button>
 
         {expanded && (
-          <div className="bg-white rounded-xl p-4 border border-slate-100 mb-3">
-            <div className="flex justify-between items-center mb-3">
-              <div className="flex items-center gap-1.5">
-                <div className="text-[10px] text-slate-400">Patient Name:</div>
-                <div className="bg-slate-50 px-2.5 py-1 rounded-full text-[11px] font-bold text-slate-800">
+          <div className="mb-2 bg-white px-1 py-2 sm:px-2">
+            <div className="mb-3 grid grid-cols-1 gap-2 border-b border-slate-100 pb-3 sm:grid-cols-3">
+              {currentBeneficiaryNumber && <div className="min-w-0">
+                <div className="text-[10px] font-medium text-slate-500">Beneficiary ID</div>
+                <div className="mt-0.5 truncate font-mono text-xs font-semibold text-slate-900">
+                  {currentBeneficiaryNumber}
+                </div>
+              </div>}
+              <div className="min-w-0">
+                <div className="text-[10px] font-medium text-slate-500">Patient name</div>
+                <div className="mt-0.5 truncate text-xs font-semibold text-slate-900">
                   {requestPatientName || "Unknown"}
                 </div>
               </div>
-              <div className="flex items-center gap-1.5">
-                <div className="text-[10px] text-slate-400">Policy Number:</div>
-                <div className="bg-slate-50 px-2.5 py-1 rounded-full text-[11px] font-bold text-slate-800">
+              <div className="min-w-0">
+                <div className="text-[10px] font-medium text-slate-500">Policy number</div>
+                <div className="mt-0.5 truncate text-xs font-semibold text-slate-900">
                   {requestPolicyNumber || "Unknown"}
                 </div>
               </div>
             </div>
 
-            <div className="flex items-center gap-2 mb-3 pb-3 border-b border-slate-100">
-              <div 
-                className="w-9 h-5 rounded-full relative cursor-pointer transition-colors"
-                style={{ backgroundColor: includeDependents ? '#10b981' : '#cbd5e1' }}
-                onClick={() => setIncludeDependents(!includeDependents)}
+            <div className="mb-3 border-b border-slate-100 pb-3">
+              <button
+                type="button"
+                role="switch"
+                aria-checked={includeDependents}
+                aria-label="Include authorization history for other dependents"
+                className="group flex min-h-11 w-full items-center gap-3 rounded-lg px-2 text-left transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2"
+                onClick={() => setIncludeDependents((value) => !value)}
               >
-                <div 
-                  className="absolute w-4 h-4 bg-white rounded-full top-0.5 transition-transform" 
-                  style={{ left: includeDependents ? '18px' : '2px' }}
-                />
-              </div>
-              <div className="text-[11px] font-semibold text-slate-400">
-                Include records from other dependents
-              </div>
+                <span aria-hidden="true" className={`relative block h-6 w-11 shrink-0 rounded-full transition-colors ${includeDependents ? "bg-emerald-600" : "bg-slate-300"}`}>
+                  <span className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform ${includeDependents ? "translate-x-5" : "translate-x-0"}`} />
+                </span>
+                <span className="text-xs text-slate-700 group-hover:text-slate-900">
+                  <span className="block font-semibold">Include records from other dependents</span>
+                  <span className="mt-0.5 block text-[11px] text-slate-500">
+                    {includeDependents ? "Showing this patient and other dependents" : "Showing this patient only"}
+                  </span>
+                </span>
+              </button>
             </div>
 
-            <div className="max-h-[350px] overflow-y-auto pr-1">
+            <div className="max-h-[min(60vh,560px)] overflow-y-auto overscroll-contain pl-1 pr-1 sm:max-h-[560px]">
               {checking ? (
                 <div className="rounded-xl border border-dashed border-slate-200 p-6 text-center bg-slate-50/50 animate-pulse">
                   <Loader2 className="w-5 h-5 animate-spin text-emerald-600 mx-auto mb-2" />
                   <p className="text-[12px] font-bold text-slate-700">Checking patient clinical records...</p>
                   <p className="text-[10px] text-slate-400 mt-0.5">Searching authorization registry for policy and family history</p>
                 </div>
+              ) : historyLoadFailed ? (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-center text-[12px] font-semibold text-amber-900">
+                  <p>Authorization history could not be loaded. Your records have not been changed.</p>
+                  {onRetryHistory && (
+                    <button
+                      type="button"
+                      onClick={onRetryHistory}
+                      className="mt-2 inline-flex min-h-11 items-center justify-center rounded-lg border border-amber-300 bg-white px-4 font-bold text-amber-900 hover:bg-amber-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-600 focus-visible:ring-offset-2"
+                    >
+                      Retry history lookup
+                    </button>
+                  )}
+                </div>
               ) : filteredHistory.length > 0 ? (
                 filteredHistory.map((record, i) => (
-                  <HistoryCard key={i} record={record} />
+                  <HistoryCard key={record.id || record.authorization_code || i} record={record} showPatient={includeDependents} />
                 ))
               ) : (
                 <div className="rounded-xl border border-dashed border-slate-200 p-4 text-center text-[12px] font-semibold text-slate-500">

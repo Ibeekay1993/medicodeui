@@ -83,7 +83,12 @@ export default function PatientSection({
               >
                 <div>
                   <p className="text-sm font-bold text-slate-900 group-hover:text-emerald-700">{p.full_name}</p>
-                  <p className="text-xs text-slate-400 uppercase tracking-widest">{p.policy_number}</p>
+                  <p className="text-xs text-slate-500 font-mono">
+                    {p.beneficiary_number || p.policy_number}
+                    {p.beneficiary_number && p.beneficiary_number !== p.policy_number && (
+                      <span className="ml-2 text-slate-400">Family {p.policy_number}</span>
+                    )}
+                  </p>
                 </div>
                 <Plus className="h-4 w-4 text-emerald-400 opacity-0 group-hover:opacity-100 transition-opacity" />
               </button>
@@ -102,6 +107,11 @@ export default function PatientSection({
               <p className="text-xs font-bold text-emerald-500 uppercase tracking-widest">
                 {selectedPatient.policy_number}
               </p>
+              {selectedPatient.beneficiary_number && (
+                <p className="mt-0.5 text-xs font-mono text-slate-600">
+                  Beneficiary ID: {selectedPatient.beneficiary_number}
+                </p>
+              )}
             </div>
           </div>
           <button

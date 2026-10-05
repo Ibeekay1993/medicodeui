@@ -6,7 +6,7 @@
    - skipWaiting + clients.claim for seamless version transitions
    ===================================================================== */
 
-const SW_VERSION = "ronsberger-sw-v3";
+const SW_VERSION = "ronsberger-sw-v4";
 const STATIC_CACHE = SW_VERSION + "-static";
 const RUNTIME_CACHE = SW_VERSION + "-runtime";
 
@@ -122,7 +122,9 @@ self.addEventListener("push", (event) => {
     icon: data.icon || "/icon-192.png",
     badge: data.badge || "/icon-192.png",
     tag: data.tag || "ronsberger-push",
-    renotify: true,
+    // A retry or duplicate dispatch with the same request tag should update the
+    // existing alert quietly instead of showing/vibrating a second toast.
+    renotify: false,
     requireInteraction: true,
     vibrate: [200, 100, 200],
     data: { url: data.url || "/" },

@@ -32,6 +32,7 @@ export function PatientVerifyCard({
   requestingHospitalCode = "",
 }: PatientVerifyCardProps) {
   const [showFamily, setShowFamily] = useState(false);
+  const matchedMember = familyMembers.find((member) => member.id === matchedMemberId);
 
   return (
     <div className="w-full">
@@ -123,6 +124,13 @@ export function PatientVerifyCard({
             {familyMembers.length || 0} FAMILY MEMBERS {showFamily ? '▴' : '▾'}
           </div>
         </div>
+          {matchedMember?.beneficiary_number && (
+            <div className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+              <span className="text-[10px] font-medium text-slate-500">Matched beneficiary</span>
+              <span className="font-mono text-xs font-semibold text-slate-800">{matchedMember.beneficiary_number}</span>
+              <span className="text-[10px] text-slate-500">Family policy {matchedMember.policy_number}</span>
+            </div>
+          )}
 
         {showFamily && (
           <div className="mt-3 border-t border-slate-100 pt-3 animate-in fade-in duration-200">
@@ -171,6 +179,11 @@ export function PatientVerifyCard({
                         <div className="text-[13px] sm:text-[14px] font-bold text-slate-800">
                           {member.full_name}
                         </div>
+                        {member.beneficiary_number && (
+                          <div className="text-[10px] font-mono text-slate-600 mt-0.5">
+                            ID {member.beneficiary_number}
+                          </div>
+                        )}
                         <div className="text-[10px] text-slate-500 mt-0.5 font-medium">
                           {member.phone || "NO PHONE"}
                         </div>

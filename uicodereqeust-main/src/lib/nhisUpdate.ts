@@ -1,4 +1,3 @@
-import * as XLSX from "xlsx";
 import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
 import pdfWorkerUrl from "pdfjs-dist/legacy/build/pdf.worker.min.mjs?url";
 
@@ -375,13 +374,25 @@ export async function extractNhisPdf(
    */
   let carryOver = "";
 
-  for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
-    const page = await pdf.getPage(pageNumber);
-    const content = await page.getTextContent();
+  // Fetch a few pages at once, but parse them in document order below. This
+  // overlaps PDF.js work without changing provider headings or page carry-over.
+  const pageBatchSize = 4;
+  for (let batchStart = 1; batchStart <= pdf.numPages; batchStart += pageBatchSize) {
+    const batchLength = Math.min(pageBatchSize, pdf.numPages - batchStart + 1);
+    const pageBatch = await Promise.all(
+      Array.from({ length: batchLength }, async (_, offset) => {
+        const pageNumber = batchStart + offset;
+        const page = await pdf.getPage(pageNumber);
+        const content = await page.getTextContent();
+        return { pageNumber, page, items: content.items as any[] };
+      }),
+    );
+
+    for (const { pageNumber, page, items } of pageBatch) {
 
     // Prepend any unmatched line from the previous page.
-    const rawLines = textContentToLines(content.items as any[]);
-    const wrappedRowRepairs = reconstructWrappedNhisRows(content.items as any[]);
+    const rawLines = textContentToLines(items);
+    const wrappedRowRepairs = reconstructWrappedNhisRows(items);
     const hasCarryOver = Boolean(carryOver);
     const lines = carryOver ? [carryOver, ...rawLines] : rawLines;
     carryOver = "";
@@ -546,13 +557,17 @@ export async function extractNhisPdf(
     }
 
     onProgress?.(Math.round((pageNumber / pdf.numPages) * 100));
+    page.cleanup();
+    }
   }
 
-  return {
+  const result = {
     records,
     summary: validateNhisRecords(records, expectedTotal, skippedRows, unclassifiedRows),
     processingMs: Math.round(performance.now() - started),
   };
+  await pdf.destroy();
+  return result;
 }
 
 // ---------------------------------------------------------------------------
@@ -653,7 +668,8 @@ export function recordsToCsv(records: NhisBeneficiaryRecord[]): string {
   ].join("\n");
 }
 
-export function recordsToXlsxBlob(records: NhisBeneficiaryRecord[]): Blob {
+export async function recordsToXlsxBlob(records: NhisBeneficiaryRecord[]): Promise<Blob> {
+  const XLSX = await import("xlsx");
   const worksheet = XLSX.utils.json_to_sheet(records, { header: FIELDS });
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, "Beneficiaries");

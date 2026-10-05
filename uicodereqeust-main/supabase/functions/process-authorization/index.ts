@@ -142,7 +142,9 @@ serve(async (req) => {
       .select("full_name")
       .eq("user_id", user.id)
       .maybeSingle();
-    const utilization_managerName = utilization_managerProfile?.full_name || user.user_metadata?.full_name || user.email || "Unknown utilization_manager";
+    // The approval receipt must identify the person who authenticated, not a
+    // generic role label stored in the profile row.
+    const utilization_managerName = user.user_metadata?.full_name || utilization_managerProfile?.full_name || user.email || "Unknown utilization_manager";
     const utilization_managerInitials = getInitials(utilization_managerName);
 
     if (action === "approve") {

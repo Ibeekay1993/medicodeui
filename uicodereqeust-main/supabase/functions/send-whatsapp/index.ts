@@ -41,6 +41,8 @@ const EVOLUTION_API_KEY = Deno.env.get("EVOLUTION_API_KEY") || "";
 const EVOLUTION_INSTANCE_NAME = Deno.env.get("EVOLUTION_INSTANCE_NAME") || "medicode-test";
 const INTERNAL_API_KEY = Deno.env.get("INTERNAL_API_KEY") || "";
 const WHATSAPP_WORKER_SECRET = Deno.env.get("WHATSAPP_WORKER_SECRET") || "";
+// Keep staff-initiated sends fail-closed until outbound is explicitly resumed.
+const WHATSAPP_OUTBOUND_PAUSED = Deno.env.get("WHATSAPP_OUTBOUND_PAUSED") !== "false";
 // Hard cap on outbound text size. WhatsApp itself truncates around 65k chars.
 const MAX_MESSAGE_CHARS = 4000;
 
@@ -69,7 +71,7 @@ function constantTimeEqual(a: string, b: string): boolean {
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return bad(405, "method_not_allowed");
-
+  if (WHATSAPP_OUTBOUND_PAUSED) return bad(503, "whatsapp_outbound_paused");
   // ── 1) Authenticate ────────────────────────────────────────────────────
   // Authenticate by:
   // A) Server-to-server credentials (X-Api-Key / X-Worker-Secret)

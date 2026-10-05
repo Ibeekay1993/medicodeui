@@ -21,6 +21,7 @@ import { AlertTriangle, Building2, ChevronDown, ChevronUp, ChevronRight, Trash2,
 import { supabase } from "@/integrations/supabase/client";
 import { areHospitalNamesMatching } from "@/lib/authorizations-helpers";
 import { writeClipboardText } from "@/lib/clipboard";
+import { getWhatsAppSendErrorMessage } from "@/lib/whatsappSendError";
 
 
 // Custom Hooks
@@ -76,6 +77,9 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
       const diagnosis = request.diagnosis || "Not specified";
       const priority = request.urgency || "ROUTINE";
       const pin = otpValue || request.auth_code || "";
+      const approverName = String(request.authorized_by_name || "Ronsberger HMO Utilization Team").trim();
+      const approverInitials = String(request.nurse_initials || "").trim();
+      const authorizedBy = approverInitials ? `${approverName} (${approverInitials})` : approverName;
 
       let itemsText = "";
       const itemsList = request.approved_items || request.items;
@@ -87,7 +91,7 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
         }).join("\n");
       }
 
-      const messageText = `*Ronsberger HMO*\n\n*AUTHORIZATION APPROVED*\n\nHello *${patientName}*,\n\nWe are pleased to inform you that your treatment request submitted through *${hospitalName}* has been *approved* by Ronsberger HMO.\n\nYour requested treatment has been authorized based on the diagnosis and request details below.\n\n*Request Details*\n\nPatient: *${patientName}*\nPolicy No.: *${policyNo}*\nHospital: *${hospitalName}*\nDiagnosis: *${diagnosis}*\nPriority: *${priority}*${itemsText}\n\n*Your Patient Arrival PIN*\n\n*${pin}*\n\nPlease provide this PIN to the reception at *${hospitalName}* when you arrive. The PIN will be used to confirm your authorization and finalize your approved treatment.\n\n*Important Notice*\nPlease contact us immediately if these services were not fully rendered to you, or if you are asked to make any additional payments for the approved items listed above.\n\nThank you for choosing Ronsberger HMO.`;
+      const messageText = `*Ronsberger HMO*\n\n*AUTHORIZATION APPROVED*\n\nHello *${patientName}*,\n\nWe are pleased to inform you that your treatment request submitted through *${hospitalName}* has been *approved* by Ronsberger HMO.\n\nYour requested treatment has been authorized based on the diagnosis and request details below.\n\n*Request Details*\n\nPatient: *${patientName}*\nPolicy No.: *${policyNo}*\nHospital: *${hospitalName}*\nDiagnosis: *${diagnosis}*\nAuthorized by: *${authorizedBy}*\nPriority: *${priority}*${itemsText}\n\n*Your Patient Arrival PIN*\n\n*${pin}*\n\nPlease provide this PIN to the reception at *${hospitalName}* when you arrive. The PIN will be used to confirm your authorization and finalize your approved treatment.\n\n*Important Notice*\nPlease contact us immediately if these services were not fully rendered to you, or if you are asked to make any additional payments for the approved items listed above.\n\nThank you for choosing Ronsberger HMO.`;
 
       // Format phone number
       const phoneStr = String(request.patient_phone || "");
@@ -108,11 +112,8 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
       });
 
       if (sendError || !sendResult?.success) {
-        // Fallback to wa.me if Evolution outbound fails
-        console.warn("Evolution direct send failed, opening wa.me fallback", sendError);
-        const whatsappUrl = `https://wa.me/${formattedNumber}?text=${encodeURIComponent(messageText)}`;
-        window.open(whatsappUrl, "_blank");
-        toast({ title: "Opening WhatsApp...", description: "Switched to direct chat" });
+        const reason = await getWhatsAppSendErrorMessage(sendResult, sendError);
+        toast({ variant: "destructive", title: "WhatsApp not sent", description: reason });
       } else {
         toast({ title: "WhatsApp Sent!", description: `Arrival PIN sent to ${formattedNumber}` });
       }
@@ -173,7 +174,7 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
 
     supabase
       .from("nhis_beneficiaries")
-      .select("id, hcp_name, hcp_code, member_type, policy_number")
+      .select("id, hcp_name, hcp_code, member_type, policy_number, beneficiary_number")
       .or(conds.join(","))
       .limit(20)
       .then(async ({ data, error }: { data: any[] | null; error: unknown }) => {
@@ -708,8 +709,6 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
               setDeleteConfirmOpen={actions.setDeleteConfirmOpen}
               processing={actions.processing}
               editReferralHospitalName={actions.editReferralHospitalName}
-              nurseDisplayName={actions.nurseDisplayName}
-              nurseInitials={actions.nurseInitials}
             />
           ) : (
             <>
@@ -718,7 +717,7 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
                 {/* Patient registry NHIS verify card */}
                 <PatientVerifyCard
                   request={request}
-                  checking={verification.checking}
+                  checking={verification.historyChecking}
                   patientMatchStatus={verification.patientMatchStatus}
                   matchedMemberId={verification.matchedMemberId}
                   policyVerified={verification.policyVerified}
@@ -742,7 +741,10 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
                   setHistoryPage={setHistoryPage}
                   requestPatientName={requestPatientName}
                   requestPolicyNumber={requestPolicyNumber}
+                  requestBeneficiaryNumber={verification.matchedBeneficiaryNumber || request?.beneficiary_number || null}
                   checking={verification.checking}
+                  historyLoadFailed={verification.historyLoadFailed}
+                  onRetryHistory={() => void verification.runHistoryLookup()}
                 />
 
                 {/* Tab 1 footer: Close + Next */}

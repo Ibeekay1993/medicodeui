@@ -37,7 +37,62 @@ import {
 } from "@/lib/nhisUpdate";
 import { readSessionJSON, removeSessionItem, writeSessionJSON } from "@/lib/sessionState";
 
-const CHUNK_SIZE = 1000;
+// Smaller, idempotent writes avoid Postgres statement timeouts on large monthly
+// files. Upsert makes retrying a chunk safe if the server committed but the
+// client timed out before receiving its response.
+const CHUNK_SIZE = 750;
+const STAGING_CONCURRENCY = 3;
+const STAGING_ATTEMPTS = 3;
+
+async function stageChunkWithRetry(chunk: Record<string, unknown>[]) {
+  let lastError: unknown;
+  for (let attempt = 0; attempt < STAGING_ATTEMPTS; attempt += 1) {
+    const { error } = await supabase
+      .from("nhis_update_staging" as any)
+      .upsert(chunk as any, { onConflict: "run_id,row_number" });
+    if (!error) return;
+    lastError = error;
+    const isTransient = /timeout|canceling statement|temporar|network|fetch|gateway|\b(502|503|504)\b/i.test(
+      `${error.message || ""} ${error.details || ""}`,
+    );
+    if (!isTransient || attempt === STAGING_ATTEMPTS - 1) break;
+    await new Promise((resolve) => setTimeout(resolve, 500 * (2 ** attempt)));
+  }
+  throw lastError;
+}
+
+async function stageRecordsInParallel(
+  records: NhisBeneficiaryRecord[],
+  runId: string,
+  onProgress: (completedRecords: number) => void,
+) {
+  const chunks: Record<string, unknown>[][] = [];
+  for (let index = 0; index < records.length; index += CHUNK_SIZE) {
+    chunks.push(records.slice(index, index + CHUNK_SIZE).map((record, offset) => ({
+      run_id: runId,
+      row_number: index + offset + 1,
+      ...record,
+    })));
+  }
+
+  let nextChunk = 0;
+  let completedRecords = 0;
+  const worker = async () => {
+    while (nextChunk < chunks.length) {
+      const chunk = chunks[nextChunk];
+      nextChunk += 1;
+      await stageChunkWithRetry(chunk);
+      completedRecords += chunk.length;
+      onProgress(completedRecords);
+    }
+  };
+
+  const results = await Promise.allSettled(
+    Array.from({ length: Math.min(STAGING_CONCURRENCY, chunks.length) }, worker),
+  );
+  const failure = results.find((result): result is PromiseRejectedResult => result.status === "rejected");
+  if (failure) throw failure.reason;
+}
 
 type UpdateRun = {
   id: string;
@@ -93,9 +148,11 @@ export default function NhisBeneficiaryUpdatePage() {
   const [history, setHistory] = useState<UpdateRun[]>([]);
   const [extracting, setExtracting] = useState(false);
   const [replacing, setReplacing] = useState(false);
+  const [exportingExcel, setExportingExcel] = useState(false);
   const [allowIncompleteReplacement, setAllowIncompleteReplacement] = useState(false);
   const [incompleteReplacementReason, setIncompleteReplacementReason] = useState("");
   const [progress, setProgress] = useState(0);
+  const [replacePhase, setReplacePhase] = useState<"staging" | "activating" | null>(null);
   const [processingMs, setProcessingMs] = useState(0);
   const [activeCount, setActiveCount] = useState<number | null>(null);
   const [sourceFileName, setSourceFileName] = useState<string | null>(null);
@@ -106,8 +163,6 @@ export default function NhisBeneficiaryUpdatePage() {
   const draftKey = user?.id ? `ronsberger:nhis-update:${user.id}` : null;
 
   const previewRows = useMemo(() => records.slice(0, 25), [records]);
-  const csvBlob = useMemo(() => new Blob([recordsToCsv(records)], { type: "text/csv;charset=utf-8" }), [records]);
-  const xlsxBlob = useMemo(() => recordsToXlsxBlob(records), [records]);
   const topHcps = useMemo(() => Object.entries(summary?.hcpSummary || {}).sort((a, b) => b[1] - a[1]).slice(0, 8), [summary]);
   const { page, setPage, pageSize, totalPages, pageItems, start, end, total } = useDataPagination(history);
   const recordDifference = summary && activeCount !== null ? summary.totalRecords - activeCount : null;
@@ -165,6 +220,14 @@ export default function NhisBeneficiaryUpdatePage() {
       return;
     }
 
+    // Large monthly lists exceed the browser's small synchronous session store
+    // and serializing 75k rows can freeze the page. The source PDF must be
+    // selected again after refresh, so do not persist a misleading partial draft.
+    if (records.length > 5_000) {
+      removeSessionItem(draftKey);
+      return;
+    }
+
     writeSessionJSON(draftKey, {
       records,
       summary,
@@ -206,11 +269,12 @@ export default function NhisBeneficiaryUpdatePage() {
     setExtracting(true);
     setProgress(1);
     try {
-      const result = await extractNhisPdf(file, setProgress);
+      const result = await extractNhisPdf(file, (pageProgress) => setProgress(Math.min(95, Math.round(pageProgress * 0.95))));
       setRecords(result.records);
       setSummary(result.summary);
       setProcessingMs(result.processingMs);
       setSourceFileName(file.name);
+      setProgress(100);
       toast({
         title: "Extraction Complete",
         description: `${formatNumber(result.summary.totalRecords)} records extracted from ${file.name}.`,
@@ -219,6 +283,18 @@ export default function NhisBeneficiaryUpdatePage() {
       toast({ variant: "destructive", title: "Extraction Failed", description: getErrorMessage(error, "Unable to extract this PDF") });
     } finally {
       setExtracting(false);
+    }
+  };
+
+  const handleExcelDownload = async () => {
+    if (!records.length || exportingExcel) return;
+    setExportingExcel(true);
+    try {
+      downloadBlob(await recordsToXlsxBlob(records), "extracted_beneficiaries.xlsx");
+    } catch (error) {
+      toast({ variant: "destructive", title: "Excel Export Failed", description: getErrorMessage(error, "Unable to prepare the Excel file") });
+    } finally {
+      setExportingExcel(false);
     }
   };
 
@@ -248,6 +324,8 @@ export default function NhisBeneficiaryUpdatePage() {
     const overrideAuthorized = allowIncompleteReplacement && canOverride && incompleteReplacementReason.trim().length >= 10;
     if (!complete && !overrideAuthorized) return;
     setReplacing(true);
+    setReplacePhase("staging");
+    setProgress(0);
     try {
       const { data: run, error: runError } = await supabase
         .from("nhis_update_runs" as any)
@@ -276,17 +354,12 @@ export default function NhisBeneficiaryUpdatePage() {
       if (runError) throw runError;
       const runId = (run as any).id as string;
 
-      for (let index = 0; index < records.length; index += CHUNK_SIZE) {
-        const chunk = records.slice(index, index + CHUNK_SIZE).map((record, offset) => ({
-          run_id: runId,
-          row_number: index + offset + 1,
-          ...record,
-        }));
-        const { error } = await supabase.from("nhis_update_staging" as any).insert(chunk);
-        if (error) throw error;
-        setProgress(Math.round(((index + chunk.length) / records.length) * 100));
-      }
+      await stageRecordsInParallel(records, runId, (completed) => {
+        setProgress(Math.round((completed / records.length) * 90));
+      });
 
+      setReplacePhase("activating");
+      setProgress(95);
       const { data: replacement, error: replaceError } = await supabase.rpc("replace_nhis_beneficiaries" as any, { _run_id: runId });
       if (replaceError) throw replaceError;
 
@@ -312,9 +385,18 @@ export default function NhisBeneficiaryUpdatePage() {
       setProcessingMs(0);
       await fetchHistory();
     } catch (error) {
-      toast({ variant: "destructive", title: "Replacement Failed", description: getErrorMessage(error, "The previous dataset was not replaced") });
+      const detail = getErrorMessage(error, "The previous dataset was not replaced");
+      const timedOut = /statement timeout|canceling statement|timeout/i.test(detail);
+      toast({
+        variant: "destructive",
+        title: timedOut ? "Upload timed out" : "Replacement Failed",
+        description: timedOut
+          ? "The active beneficiary list was not replaced. The database timed out while saving or activating this upload. Please wait for the revised upload flow before retrying."
+          : detail,
+      });
     } finally {
       setReplacing(false);
+      setReplacePhase(null);
     }
   };
 
@@ -424,7 +506,9 @@ export default function NhisBeneficiaryUpdatePage() {
           {(extracting || replacing || progress > 0) && (
             <div className="mt-4 rounded-xl border border-slate-100 bg-slate-50 p-3">
               <div className="mb-2 flex items-center justify-between">
-                <p className="text-xs font-black uppercase tracking-widest text-slate-500">{replacing ? "Replacing Database" : "Extraction Progress"}</p>
+                <p className="text-xs font-black uppercase tracking-widest text-slate-500">
+                  {replacing ? (replacePhase === "activating" ? "Activating verified list" : "Saving verified records") : "Extraction Progress"}
+                </p>
                 <span className="text-xs font-black text-slate-700">{progress}%</span>
               </div>
               <Progress value={progress} />
@@ -546,11 +630,12 @@ export default function NhisBeneficiaryUpdatePage() {
                   ))}
                 </div>
                 <div className="grid grid-cols-1 gap-2">
-                  <Button onClick={() => downloadBlob(csvBlob, "extracted_beneficiaries.csv")} variant="outline" className="h-9 rounded-xl text-xs font-black uppercase tracking-widest">
+                  <Button onClick={() => downloadBlob(new Blob([recordsToCsv(records)], { type: "text/csv;charset=utf-8" }), "extracted_beneficiaries.csv")} variant="outline" className="h-9 rounded-xl text-xs font-black uppercase tracking-widest">
                     <Download className="mr-2 h-4 w-4" /> Download CSV
                   </Button>
-                  <Button onClick={() => downloadBlob(xlsxBlob, "extracted_beneficiaries.xlsx")} variant="outline" className="h-9 rounded-xl text-xs font-black uppercase tracking-widest">
-                    <Download className="mr-2 h-4 w-4" /> Download Excel
+                  <Button onClick={handleExcelDownload} disabled={exportingExcel} variant="outline" className="h-9 rounded-xl text-xs font-black uppercase tracking-widest">
+                    {exportingExcel ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+                    {exportingExcel ? "Preparing Excel" : "Download Excel"}
                   </Button>
                   <Button
                     onClick={replaceDatabase}
