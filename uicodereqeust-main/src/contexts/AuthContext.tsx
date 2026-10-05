@@ -80,29 +80,38 @@ function getSessionInactivityTimeout(role: AppRole | null) {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
-function resolveUserRole(user: User): Promise<{ role: AppRole | null; fullName: string | null; hospitalId: string | null }> {
+type ResolvedUserRole = {
+  role: AppRole | null;
+  fullName: string | null;
+  hospitalId: string | null;
+  accessStatus: string | null;
+};
+
+function resolveUserRole(user: User, touchLastSignIn = true): Promise<ResolvedUserRole> {
   return (async () => {
     const fallbackName = (user.user_metadata as any)?.full_name || user.email || null;
 
     try {
       const { data: userRoleRow, error: userRoleError } = await supabase
         .from("user_roles")
-        .select("role, full_name, hospital_id")
+        .select("role, full_name, hospital_id, access_status")
         .eq("user_id", user.id)
         .maybeSingle();
 
       if (userRoleError) throw userRoleError;
       if (userRoleRow?.role) {
-        // Touch last_sign_in timestamp asynchronously
-        void supabase
-          .from("user_roles")
-          .update({ last_sign_in: new Date().toISOString() } as any)
-          .eq("user_id", user.id);
+        if (touchLastSignIn) {
+          void supabase
+            .from("user_roles")
+            .update({ last_sign_in: new Date().toISOString() } as any)
+            .eq("user_id", user.id);
+        }
 
         return {
-          role: userRoleRow.role as AppRole,
+          role: userRoleRow.access_status === "active" ? userRoleRow.role as AppRole : null,
           fullName: (userRoleRow.full_name as string) || fallbackName,
           hospitalId: userRoleRow.hospital_id,
+          accessStatus: userRoleRow.access_status || null,
         };
       }
 
@@ -117,23 +126,24 @@ function resolveUserRole(user: User): Promise<{ role: AppRole | null; fullName: 
 
       const { data: retryRow, error: retryError } = await supabase
         .from("user_roles")
-        .select("role, full_name, hospital_id")
+        .select("role, full_name, hospital_id, access_status")
         .eq("user_id", user.id)
         .maybeSingle();
 
       if (retryError) throw retryError;
       if (retryRow?.role) {
         return {
-          role: retryRow.role as AppRole,
+          role: retryRow.access_status === "active" ? retryRow.role as AppRole : null,
           fullName: (retryRow.full_name as string) || fallbackName,
           hospitalId: retryRow.hospital_id,
+          accessStatus: retryRow.access_status || null,
         };
       }
     } catch (error) {
       console.error("AuthContext: failed to resolve user role", error);
     }
 
-    return { role: null, fullName: fallbackName, hospitalId: null };
+    return { role: null, fullName: fallbackName, hospitalId: null, accessStatus: null };
   })();
 }
 
@@ -190,49 +200,95 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
+    const currentUserId = nextSession.user.id;
+    const sameUser = userIdRef.current === currentUserId;
+    const cachedRole = (window.sessionStorage.getItem("ronsberger-role-" + currentUserId) as AppRole) || null;
+    const cachedHospitalId = window.sessionStorage.getItem("ronsberger-hosp-" + currentUserId) || null;
+    const cachedFullName = window.sessionStorage.getItem("ronsberger-name-" + currentUserId) || null;
+    const immediateRole = (sameUser ? roleRef.current : null) || cachedRole;
+    const immediateHospitalId = (sameUser ? hospitalIdRef.current : null) || cachedHospitalId;
+    const immediateFullName = (sameUser ? fullNameRef.current : null) || cachedFullName ||
+      (nextSession.user.user_metadata as any)?.full_name || nextSession.user.email || null;
+
     setSession(nextSession);
     setUser(nextSession.user);
-    userIdRef.current = nextSession.user.id;
+    userIdRef.current = currentUserId;
 
-    const currentUserId = nextSession.user.id;
-    const cachedRole = typeof window !== "undefined"
-      ? (window.sessionStorage.getItem(onsberger-role- + currentUserId) as AppRole) || null
-      : null;
-    const cachedHospitalId = typeof window !== "undefined"
-      ? window.sessionStorage.getItem(onsberger-hosp- + currentUserId) || null
-      : null;
-    const cachedFullName = typeof window !== "undefined"
-      ? window.sessionStorage.getItem(onsberger-name- + currentUserId) || null
-      : null;
+    // A cached profile lets an already signed-in user reopen the portal immediately.
+    // Refresh authorization in the background so a suspended account is still rejected.
+    if (immediateRole) {
+      const now = Date.now();
+      const lastActivity = Number(window.localStorage.getItem(lastActivityStorageKey) || now);
+      const startedAt = Number(window.sessionStorage.getItem(sessionStartStorageKey) || now);
+      const inactivityTimeout = getSessionInactivityTimeout(immediateRole);
+      if (now - lastActivity >= inactivityTimeout || now - startedAt >= maxSessionLifetime) {
+        setSession(null);
+        setUser(null);
+        userIdRef.current = null;
+        roleRef.current = null;
+        hospitalIdRef.current = null;
+        fullNameRef.current = null;
+        setRole(null);
+        setFullName(null);
+        setHospitalId(null);
+        window.localStorage.removeItem(lastActivityStorageKey);
+        window.sessionStorage.removeItem(sessionStartStorageKey);
+        void supabase.auth.signOut({ scope: "local" });
+        if (!silent) setLoading(false);
+        return;
+      }
 
-    const { role: resolvedRole, fullName: resolvedFullName, hospitalId: resolvedHospitalId } = await withAuthTimeout(resolveUserRole(nextSession.user)).catch((error) => {
-      console.warn("AuthContext: role resolution timed out or failed (preserving active role):", error);
-      const fallbackName = (nextSession.user.user_metadata as any)?.full_name || nextSession.user.email || null;
-      return { role: null, fullName: fallbackName, hospitalId: null };
-    });
+      roleRef.current = immediateRole;
+      hospitalIdRef.current = immediateHospitalId;
+      fullNameRef.current = immediateFullName;
+      setRole(immediateRole);
+      setHospitalId(immediateHospitalId);
+      setFullName(immediateFullName);
+      if (!silent) setLoading(false);
 
-    if (!mountedRef.current) return;
-
-    // Resilient fallback: If role resolution failed due to temporary network/DB timeout,
-    // NEVER wipe an already authenticated user's role to null! Keep the active or cached role.
-    const effectiveRole = resolvedRole || roleRef.current || cachedRole;
-    const effectiveHospitalId = resolvedHospitalId || hospitalIdRef.current || cachedHospitalId;
-    const effectiveFullName = resolvedFullName || fullNameRef.current || cachedFullName;
-
-    if (effectiveRole && typeof window !== "undefined") {
-      window.sessionStorage.setItem(onsberger-role- + currentUserId, effectiveRole);
-      if (effectiveHospitalId) window.sessionStorage.setItem(onsberger-hosp- + currentUserId, effectiveHospitalId);
-      if (effectiveFullName) window.sessionStorage.setItem(onsberger-name- + currentUserId, effectiveFullName);
+      void withAuthTimeout(resolveUserRole(nextSession.user, false)).then((profile) => {
+        if (!mountedRef.current || userIdRef.current !== currentUserId) return;
+        if (profile.accessStatus && profile.accessStatus !== "active") {
+          setSession(null);
+          setUser(null);
+          userIdRef.current = null;
+          roleRef.current = null;
+          hospitalIdRef.current = null;
+          fullNameRef.current = null;
+          setRole(null);
+          setFullName(null);
+          setHospitalId(null);
+          window.sessionStorage.removeItem("ronsberger-role-" + currentUserId);
+          window.sessionStorage.removeItem("ronsberger-hosp-" + currentUserId);
+          window.sessionStorage.removeItem("ronsberger-name-" + currentUserId);
+          void supabase.auth.signOut({ scope: "local" });
+          return;
+        }
+        if (!profile.role) return;
+        roleRef.current = profile.role;
+        hospitalIdRef.current = profile.hospitalId;
+        fullNameRef.current = profile.fullName;
+        setRole(profile.role);
+        setHospitalId(profile.hospitalId);
+        setFullName(profile.fullName);
+        window.sessionStorage.setItem("ronsberger-role-" + currentUserId, profile.role);
+        if (profile.hospitalId) window.sessionStorage.setItem("ronsberger-hosp-" + currentUserId, profile.hospitalId);
+        else window.sessionStorage.removeItem("ronsberger-hosp-" + currentUserId);
+        if (profile.fullName) window.sessionStorage.setItem("ronsberger-name-" + currentUserId, profile.fullName);
+      }).catch((error) => {
+        console.warn("AuthContext: background role refresh failed; retaining cached role:", error);
+      });
+      return;
     }
 
-    // Check session expiry on load before activating the user role
-    const now = Date.now();
-    const lastActivity = Number(window.localStorage.getItem(lastActivityStorageKey) || now);
-    const startedAt = Number(window.sessionStorage.getItem(sessionStartStorageKey) || now);
-    const inactivityTimeout = sessionInactivityTimeoutByRole[effectiveRole as AppRole] || defaultSessionInactivityTimeout;
+    const profile = await withAuthTimeout(resolveUserRole(nextSession.user)).catch((error) => {
+      console.warn("AuthContext: role resolution timed out or failed:", error);
+      const fallbackName = (nextSession.user.user_metadata as any)?.full_name || nextSession.user.email || null;
+      return { role: null, fullName: fallbackName, hospitalId: null, accessStatus: null };
+    });
 
-    if (now - lastActivity >= inactivityTimeout || now - startedAt >= maxSessionLifetime) {
-      console.log("handleSession: Session expired on mount. Performing local sign out.");
+    if (!mountedRef.current || userIdRef.current !== currentUserId) return;
+    if (profile.accessStatus && profile.accessStatus !== "active") {
       setSession(null);
       setUser(null);
       userIdRef.current = null;
@@ -242,15 +298,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setRole(null);
       setFullName(null);
       setHospitalId(null);
-      if (typeof window !== "undefined") {
-        window.localStorage.removeItem(lastActivityStorageKey);
-        window.sessionStorage.removeItem(sessionStartStorageKey);
-      }
-      try {
-        await supabase.auth.signOut({ scope: "local" });
-      } catch (err) {
-        console.error("handleSession signOut failed", err);
-      }
+      void supabase.auth.signOut({ scope: "local" });
+      if (!silent) setLoading(false);
+      return;
+    }
+
+    const effectiveRole = profile.role || (sameUser ? roleRef.current : null) || cachedRole;
+    const effectiveHospitalId = profile.hospitalId || (sameUser ? hospitalIdRef.current : null) || cachedHospitalId;
+    const effectiveFullName = profile.fullName || (sameUser ? fullNameRef.current : null) || cachedFullName;
+    const now = Date.now();
+    const lastActivity = Number(window.localStorage.getItem(lastActivityStorageKey) || now);
+    const startedAt = Number(window.sessionStorage.getItem(sessionStartStorageKey) || now);
+    const inactivityTimeout = getSessionInactivityTimeout(effectiveRole);
+
+    if (now - lastActivity >= inactivityTimeout || now - startedAt >= maxSessionLifetime) {
+      setSession(null);
+      setUser(null);
+      userIdRef.current = null;
+      roleRef.current = null;
+      hospitalIdRef.current = null;
+      fullNameRef.current = null;
+      setRole(null);
+      setFullName(null);
+      setHospitalId(null);
+      window.localStorage.removeItem(lastActivityStorageKey);
+      window.sessionStorage.removeItem(sessionStartStorageKey);
+      void supabase.auth.signOut({ scope: "local" });
       if (!silent) setLoading(false);
       return;
     }
@@ -258,10 +331,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     roleRef.current = effectiveRole;
     hospitalIdRef.current = effectiveHospitalId || null;
     fullNameRef.current = effectiveFullName;
-
     setRole(effectiveRole);
     setFullName(effectiveFullName);
     setHospitalId(effectiveHospitalId || null);
+    if (effectiveRole) window.sessionStorage.setItem("ronsberger-role-" + currentUserId, effectiveRole);
+    if (effectiveHospitalId) window.sessionStorage.setItem("ronsberger-hosp-" + currentUserId, effectiveHospitalId);
+    if (effectiveFullName) window.sessionStorage.setItem("ronsberger-name-" + currentUserId, effectiveFullName);
     if (!silent) setLoading(false);
   }, []);
   const refreshProfile = useCallback(async () => {
@@ -326,7 +401,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const checkSessionExpiry = () => {
       const currentLastActivity = Number(window.localStorage.getItem(lastActivityStorageKey) || Date.now());
       const inactivityTimeout = getSessionInactivityTimeout(role);
-      
+
       if (Date.now() - currentLastActivity >= inactivityTimeout || Date.now() - startedAt >= maxSessionLifetime) {
         signOutForInactivity();
         return true;

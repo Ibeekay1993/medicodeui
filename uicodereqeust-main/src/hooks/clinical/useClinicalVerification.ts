@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useCallback } from "react";
+﻿import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import {
   cleanPatientName,
@@ -17,6 +17,22 @@ function withTimeout<T>(promise: PromiseLike<T>, ms: number = 4000): Promise<T> 
   ]);
 }
 
+function withAbortTimeout<T>(request: (signal: AbortSignal) => PromiseLike<T>, ms: number): Promise<T> {
+  const controller = new AbortController();
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  return Promise.race([
+    Promise.resolve(request(controller.signal)),
+    new Promise<T>((_, reject) => {
+      timeoutId = setTimeout(() => {
+        controller.abort();
+        reject(new Error(`Timeout of ${ms}ms exceeded`));
+      }, ms);
+    }),
+  ]).finally(() => {
+    if (timeoutId) clearTimeout(timeoutId);
+  });
+}
+
 export function useClinicalVerification(
   open: boolean,
   request: any
@@ -33,11 +49,13 @@ export function useClinicalVerification(
   const [localHistory, setLocalHistory] = useState<any[]>([]);
   const [historyLoadFailed, setHistoryLoadFailed] = useState(false);
   const [historyChecking, setHistoryChecking] = useState(false);
+  const historyLookupGenerationRef = useRef(0);
   // Kept for backward compatibility; all records now load from localHistory (single source of truth)
   const [sheetHistory, setSheetHistory] = useState<any[]>([]);
   const [familyMembers, setFamilyMembers] = useState<any[]>([]);
 
   const runHistoryLookup = useCallback(async () => {
+    const generation = ++historyLookupGenerationRef.current;
     const policy = normalizePolicyNumber(request?.policy_number);
     const patientName = String(request?.patient_name || "").trim();
     const policyRoot = normalizePolicyRoot(policy);
@@ -55,30 +73,33 @@ export function useClinicalVerification(
 
       // ── Step 1: Try the indexed RPC. It runs as the caller so table RLS still applies. ──
       let rpcSucceeded = false;
-      try {
-        const { data: rpcData, error: rpcError } = await withTimeout(
-          (supabase as any).rpc("get_patient_authorization_history", {
+      let rpcUnavailable = !policy && !beneficiaryNum;
+      if (!rpcUnavailable) {
+        const { data: rpcData, error: rpcError } = await withAbortTimeout(
+          (signal) => (supabase as any).rpc("get_patient_authorization_history", {
             p_policy_number: policy || null,
             p_policy_root: policyRoot || null,
             p_beneficiary_number: beneficiaryNum || null,
             p_limit: 100,
-          }),
+          }).abortSignal(signal),
           8000,
         );
-        if (!rpcError && Array.isArray(rpcData)) {
+        if (rpcError) {
+          // Only fall back when the RPC is not installed. A timeout/network error
+          // must not launch another history query while the original is still running.
+          rpcUnavailable = rpcError.code === "PGRST202" || rpcError.code === "42883";
+          if (!rpcUnavailable) throw rpcError;
+        } else if (Array.isArray(rpcData)) {
           history = rpcData;
           rpcSucceeded = true;
         }
-      } catch {
-        // RPC not deployed yet or timed out; will fall back to direct query below
       }
-
       // ── Step 2: Fallback direct query (if RPC not available) ──
       // IMPORTANT: DO NOT add .order("created_at") in the SQL query!
       // On Postgres, ORDER BY created_at with LIMIT forces a full sequential scan
       // over 75k+ rows on Nano compute, triggering statement timeouts.
       // We query by indexed policy/beneficiary filters and sort in JavaScript memory instead.
-      if (!rpcSucceeded && policy) {
+      if (!rpcSucceeded && rpcUnavailable && (policy || beneficiaryNum)) {
         const conditions = new Set<string>();
         if (policyRoot) {
           conditions.add("policy_number.eq." + policyRoot);
@@ -87,12 +108,13 @@ export function useClinicalVerification(
         if (policy !== policyRoot) conditions.add("policy_number.eq." + policy);
         if (beneficiaryNum) conditions.add("beneficiary_number.eq." + beneficiaryNum);
 
-        const { data, error } = await withTimeout(
-          supabase
+        const { data, error } = await withAbortTimeout(
+          (signal) => supabase
             .from("authorization_requests")
             .select("id, request_id, patient_name, policy_number, beneficiary_number, diagnosis, treatment, hospital_name, status, authorization_code, decision_reason, clinical_notes, decided_at, created_at, source, is_historical")
             .or([...conditions].join(","))
-            .limit(100),
+            .limit(100)
+            .abortSignal(signal),
           12000,
         );
         if (error) throw error;
@@ -100,18 +122,19 @@ export function useClinicalVerification(
       }
 
       // Name fallback: for legacy requests that have no policy attached
-      if (!rpcSucceeded && !policy && patientName.length >= 3) {
+      if (!rpcSucceeded && rpcUnavailable && !policy && patientName.length >= 3) {
         const namePrefixes = [...new Set(cleanPatientName(patientName)
           .split(/\s+/)
           .map((word) => word.replace(/[^a-z0-9]/gi, ""))
           .filter((word) => word.length >= 3))];
         if (namePrefixes.length) {
-          const { data, error } = await withTimeout(
-            supabase
+          const { data, error } = await withAbortTimeout(
+            (signal) => supabase
               .from("authorization_requests")
               .select("id, request_id, patient_name, policy_number, beneficiary_number, diagnosis, treatment, hospital_name, status, authorization_code, decision_reason, clinical_notes, decided_at, created_at, source, is_historical")
               .or(namePrefixes.map((word) => "patient_name.ilike." + word + "%").join(","))
-              .limit(50),
+              .limit(50)
+              .abortSignal(signal),
             12000,
           );
           if (error) throw error;
@@ -137,6 +160,8 @@ export function useClinicalVerification(
         date: record.date || record.decided_at || record.created_at,
       }));
 
+      if (generation !== historyLookupGenerationRef.current) return;
+
       setLocalHistory(matchingHistory);
 
       const latestDecision = matchingHistory.find((record) => record.decided_at);
@@ -147,12 +172,13 @@ export function useClinicalVerification(
         setEarlyRefill(null);
       }
     } catch (historyErr) {
+      if (generation !== historyLookupGenerationRef.current) return;
       console.warn("History query warning:", historyErr);
       setHistoryLoadFailed(true);
       setLocalHistory([]);
       setEarlyRefill(null);
     } finally {
-      setHistoryChecking(false);
+      if (generation === historyLookupGenerationRef.current) setHistoryChecking(false);
     }
   }, [request?.policy_number, request?.patient_name, request?.beneficiary_number]);
   const runVerificationSuite = useCallback(async () => {

@@ -44,15 +44,8 @@ const money = (value: number) =>
     maximumFractionDigits: 0,
   }).format(value || 0);
 
-const formatSlaDuration = (minutes: number) => {
-  if (minutes < 60) return `${Math.round(minutes)} min`;
-  const hours = Math.floor(minutes / 60);
-  const remainder = Math.round(minutes % 60);
-  return remainder ? `${hours}h ${remainder}m` : `${hours}h`;
-};
-
 export default function DashboardHome() {
-  const { role, user } = useAuth();
+  const { role } = useAuth();
   const [stats, setStats] = useState<any>({ total: 0, approved: 0, rejected: 0, pending: 0, hospitals: 0, users: 0 });
   const [claimStats, setClaimStats] = useState<any>({ submitted: 0, approved: 0, partiallyApproved: 0, rejected: 0, contested: 0, paid: 0, claimedValue: 0, approvedValue: 0, declinedValue: 0 });
   const [financeStats, setFinanceStats] = useState<any>({
@@ -66,61 +59,11 @@ export default function DashboardHome() {
     totalBatchesValue: 0,
   });
   const [loading, setLoading] = useState(true);
-  const [personalSla, setPersonalSla] = useState<{ loading: boolean; averageMinutes: number | null; decisions: number }>({
-    loading: false,
-    averageMinutes: null,
-    decisions: 0,
-  });
   const [chartData, setChartData] = useState<any[]>([]);
   const [claimChartData, setClaimChartData] = useState<any[]>([]);
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
-
-  useEffect(() => {
-    const decisionRoles = new Set(["admin", "nurse", "medical_officer", "doctor", "utilization_manager", "utilization_manager_lead"]);
-    if (!user?.id || !role || !decisionRoles.has(role)) {
-      setPersonalSla({ loading: false, averageMinutes: null, decisions: 0 });
-      return;
-    }
-
-    let active = true;
-    const since = new Date();
-    since.setDate(since.getDate() - 30);
-    setPersonalSla({ loading: true, averageMinutes: null, decisions: 0 });
-    supabase
-      .from("authorization_requests")
-      .select("treatment_submitted_at,created_at,decided_at,is_historical")
-      .or(`approved_by.eq.${user.id},decided_by.eq.${user.id}`)
-      .in("status", ["approved", "partially_approved", "rejected", "referral_approved"])
-      .gte("decided_at", since.toISOString())
-      .not("decided_at", "is", null)
-      .order("decided_at", { ascending: false })
-      .limit(1000)
-      .then(({ data, error }) => {
-        if (!active) return;
-        if (error) {
-          console.error("Could not load personal SLA summary:", error.message);
-          setPersonalSla({ loading: false, averageMinutes: null, decisions: 0 });
-          return;
-        }
-
-        const durations = (data || []).flatMap((record) => {
-          if (record.is_historical) return [];
-          const start = Date.parse(record.treatment_submitted_at || record.created_at);
-          const end = Date.parse(record.decided_at || "");
-          if (!Number.isFinite(start) || !Number.isFinite(end) || end < start) return [];
-          return [(end - start) / 60_000];
-        });
-        setPersonalSla({
-          loading: false,
-          averageMinutes: durations.length ? durations.reduce((sum, value) => sum + value, 0) / durations.length : null,
-          decisions: durations.length,
-        });
-      });
-
-    return () => { active = false; };
-  }, [user?.id, role]);
 
   const lastFetchedRef = useRef(0);
 
@@ -563,19 +506,6 @@ export default function DashboardHome() {
           ]} />
         </section>
       )}
-      {personalSla.loading || personalSla.averageMinutes !== null ? (
-        <Card className="flex min-w-0 items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-3 sm:p-4" aria-live="polite">
-          <div>
-            <p className="text-xs font-medium text-slate-500">Your average decision time · 30 days</p>
-            {personalSla.loading ? (
-              <span className="mt-1 block h-5 w-20 animate-pulse rounded bg-slate-200" aria-label="Loading average decision time" />
-            ) : (
-              <p className="mt-1 text-lg font-semibold tabular-nums text-slate-900">{formatSlaDuration(personalSla.averageMinutes!)}</p>
-            )}
-          </div>
-          {!personalSla.loading && <p className="text-xs text-slate-500">{personalSla.decisions} decisions</p>}
-        </Card>
-      ) : null}
       {/* ── CHART SECTION ── */}
       {role === "admin" ? (
         // Admin: two charts side by side
