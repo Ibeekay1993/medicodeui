@@ -6,7 +6,6 @@ import ScrollToTop from "@/components/ScrollToTop";
 import { DeployVersionWatcher } from "@/components/DeployVersionWatcher";
 import { CookieConsent } from "@/components/CookieConsent";
 import { InstallAppPrompt } from "@/components/pwa/InstallAppPrompt";
-import { PushNotificationFirstTimePrompt } from "@/components/notifications/PushNotificationFirstTimePrompt";
 
 import { TabStatePreserver } from "@/components/TabStatePreserver";
 import { RootRedirect } from "./RootRedirect";
@@ -39,7 +38,6 @@ export function AppRoutes() {
       <DeployVersionWatcher />
       <CookieConsent />
       <InstallAppPrompt />
-      <PushNotificationFirstTimePrompt />
 
       <TabStatePreserver />
 

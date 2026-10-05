@@ -4,7 +4,6 @@ import ProfileSettingsCard from "@/components/settings/ProfileSettingsCard";
 import MfaSettingsCard from "@/components/settings/MfaSettingsCard";
 import AdminControlsCard from "@/components/settings/AdminControlsCard";
 import ConsentSettingsCard from "@/components/settings/ConsentSettingsCard";
-import PushNotificationSettingsCard from "@/components/settings/PushNotificationSettingsCard";
 import { ArrowRight, Bell, LockKeyhole, Shield, UserRound } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -53,7 +52,11 @@ export default function SettingsPage() {
 
       <section aria-live="polite" className="min-w-0 space-y-4">
         {section === "account" && <ProfileSettingsCard user={user} fullName={fullName} role={role} refreshProfile={refreshProfile} />}
-        {section === "notifications" && <PushNotificationSettingsCard />}
+        {section === "notifications" && (
+          <div className="rounded-xl border border-slate-200 bg-white p-5 text-sm text-slate-600">
+            Browser push notifications are temporarily paused to reduce background load. WhatsApp request intake and decision messages continue through their separate queue.
+          </div>
+        )}
         {section === "privacy" && <ConsentSettingsCard />}
         {section === "security" && role !== "hospital" && <MfaSettingsCard user={user} fullName={fullName} role={role} />}
         {section === "admin" && role === "admin" && <AdminControlsCard user={user} />}

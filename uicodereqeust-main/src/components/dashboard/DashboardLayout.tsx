@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate, useLocation, Outlet } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -27,11 +27,7 @@ import {
   FileSpreadsheet,
   Megaphone
 } from "lucide-react";
-import { LiveChat } from "@/components/ui/LiveChat";
 import { NavItem } from "@/components/dashboard/NavItem";
-import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
-import { queryClient } from "@/providers/AppProviders";
 import { SidebarInstallButton } from "@/components/pwa/InstallAppPrompt";
 
 interface DashboardLayoutProps {
@@ -43,71 +39,9 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   // Support inbox is not in active use; avoid loading its queue on every dashboard visit.
   const actionableMessages = 0;
-  const { user, signOut, role, fullName } = useAuth();
+  const { signOut, role, fullName } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const { toast } = useToast();
-
-  useEffect(() => {
-    if (!user || !role) return;
-
-    const playNotificationSound = () => {
-      try {
-        const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
-        const playChime = (frequency: number, startTime: number, duration: number) => {
-          const osc = audioCtx.createOscillator();
-          const gainNode = audioCtx.createGain();
-          osc.type = "sine";
-          osc.frequency.setValueAtTime(frequency, startTime);
-          gainNode.gain.setValueAtTime(0.15, startTime);
-          gainNode.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
-          osc.connect(gainNode);
-          gainNode.connect(audioCtx.destination);
-          osc.start(startTime);
-          osc.stop(startTime + duration);
-        };
-        playChime(523.25, audioCtx.currentTime, 0.4);
-        playChime(659.25, audioCtx.currentTime + 0.12, 0.5);
-      } catch (e) {
-        console.warn("AudioContext chime failed:", e);
-      }
-    };
-
-    const dashChannel = supabase.channel(`dashboard-events-${user.id}`);
-
-    if (role === "admin") {
-      dashChannel.on("postgres_changes", { event: "INSERT", schema: "public", table: "profile_name_update_requests" }, (payload) => {
-        const req = payload.new as any;
-        if (req?.status === "pending") {
-          playNotificationSound();
-          toast({ title: "Profile Name Approval Request", description: `"${req.current_name}" is requesting display name update to "${req.requested_name}".` });
-        }
-      });
-    }
-
-    if (role === "admin" || role === "utilization_manager" || role === "utilization_manager_lead") {
-      dashChannel.on("postgres_changes", { event: "INSERT", schema: "public", table: "authorization_requests" }, (payload) => {
-        const req = payload.new as any;
-        void queryClient.invalidateQueries({ queryKey: ["requests"] });
-        playNotificationSound();
-        toast({ title: "New Authorization Request", description: `${req?.hospital_name || "A hospital"} submitted a request for ${req?.patient_name || "a patient"}.` });
-      });
-    } else if (role === "hospital") {
-      dashChannel.on("postgres_changes", { event: "UPDATE", schema: "public", table: "authorization_requests" }, (payload) => {
-        const req = payload.new as any;
-        if (payload.old && (payload.old as any).status !== req?.status) {
-          playNotificationSound();
-          toast({ title: "Authorization Request Updated", description: `Your request for ${req?.patient_name} has been ${(req?.status || "").toUpperCase()}.` });
-        }
-      });
-    }
-
-    dashChannel.subscribe();
-
-    return () => {
-      supabase.removeChannel(dashChannel);
-    };
-  }, [user?.id, role, toast]);
 
   const getBasePath = () => {
     if (role === "hospital") return "/dashboard";
@@ -500,7 +434,6 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           </div>
         </SheetContent>
       </Sheet>
-      <LiveChat />
     </div>
   );
 }

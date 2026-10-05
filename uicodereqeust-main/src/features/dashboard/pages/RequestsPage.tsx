@@ -33,7 +33,7 @@ import { useTabVisibilityRefresh } from "@/hooks/use-tab-visibility-refresh";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 export default function RequestsPage() {
-  const { role, user, hospitalId } = useAuth();
+  const { role } = useAuth();
   const isClaimsRole = role === "claims";
   const isAdmin = role === "admin";
   
@@ -42,9 +42,6 @@ export default function RequestsPage() {
   const reviewIdFromUrl = searchParams.get("review");
   const [search, setSearch] = useState(() => sessionStorage.getItem("req_search") || "");
   const [selectedRequest, setSelectedRequest] = useState<any | null>(null);
-  const selectedRequestRef = useRef<any | null>(null);
-  selectedRequestRef.current = selectedRequest;
-  const requestRefreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [statusFilter, setStatusFilter] = useState(() => sessionStorage.getItem("req_status_filter") || "action_required");
   const [dateFilter, _setDateFilter] = useState(() => sessionStorage.getItem("req_date_filter") || "all");
   const [currentPage, setCurrentPage] = useState(() => {
@@ -85,11 +82,11 @@ export default function RequestsPage() {
   const { data, isLoading, isError, error, refetch: fetchRequests } = useQuery({
     queryKey: ["requests", currentPage, search, statusFilter, rowsPerPage, role],
     // ✅ Best Practice: Queue always loads once on mount (fixes blank queue after closing modal).
-    // Background polling is eliminated via refetchInterval:false + refetchOnWindowFocus:false.
-    // Decisions inside the modal do NOT re-trigger this query — see handleRequestUpdated.
-    // The queue only re-syncs with the server when the user explicitly closes the modal.
+    // Avoid realtime subscriptions. Refresh the visible request queue at a modest
+    // cadence so new WhatsApp requests appear without keeping a CDC connection open.
     enabled: Boolean(role),
-    refetchInterval: false,
+    refetchInterval: () => (document.visibilityState === "visible" ? 60_000 : false),
+    refetchIntervalInBackground: false,
     refetchOnWindowFocus: false,
     staleTime: 30_000, // treat data as fresh for 30 s — avoids redundant refetch if modal closes quickly
     queryFn: async () => {
@@ -145,51 +142,6 @@ export default function RequestsPage() {
       return { rows, hasMore, approverNames: names };
     }
   });
-
-  useEffect(() => {
-    if (!user?.id || !role) return;
-
-    // For hospital role, filter by hospital_id so Supabase only evaluates RLS
-    // for that hospital's rows — reduces compute load on nano instances.
-    const realtimeFilter: Parameters<typeof channel.on>[1] =
-      role === "hospital" && hospitalId
-        ? { event: "*", schema: "public", table: "authorization_requests", filter: `hospital_id=eq.${hospitalId}` }
-        : { event: "*", schema: "public", table: "authorization_requests" };
-
-    const channel = supabase
-      .channel("authorization-requests:" + user.id)
-      .on(
-        "postgres_changes",
-        realtimeFilter,
-        (payload) => {
-          const change = payload as any;
-          const changedRow = change.eventType === "DELETE" ? change.old : change.new;
-          const changedId = changedRow?.id;
-          if (!changedId) return;
-
-          if (change.eventType === "UPDATE" && selectedRequestRef.current?.id === changedId) {
-            setSelectedRequest((current) =>
-              current?.id === changedId ? { ...current, ...change.new } : current
-            );
-          }
-
-          if (requestRefreshTimerRef.current) clearTimeout(requestRefreshTimerRef.current);
-          requestRefreshTimerRef.current = setTimeout(() => {
-            void queryClient.invalidateQueries({ queryKey: ["requests"] });
-            requestRefreshTimerRef.current = null;
-          }, 250);
-        }
-      )
-      .subscribe();
-
-    return () => {
-      if (requestRefreshTimerRef.current) {
-        clearTimeout(requestRefreshTimerRef.current);
-        requestRefreshTimerRef.current = null;
-      }
-      void supabase.removeChannel(channel);
-    };
-  }, [user?.id, role, queryClient]);
 
   const requests = useMemo(() => {
     const raw = data?.rows || [];

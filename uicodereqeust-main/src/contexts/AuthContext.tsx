@@ -456,41 +456,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, [handleSession]);
 
-  useEffect(() => {
-    if (!user) return;
-
-    console.log("AuthProvider: Subscribing to user_roles updates for user:", user.id);
-    const channel = supabase
-      .channel(`user-role-change-${user.id}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "user_roles",
-          filter: `user_id=eq.${user.id}`,
-        },
-        async (payload) => {
-          console.log("AuthProvider: Realtime user_role row updated:", payload.new);
-          const updated = payload.new as any;
-          if (updated) {
-            setRole(updated.role as AppRole);
-            setFullName(updated.full_name);
-            setHospitalId(updated.hospital_id);
-            
-            if (updated.access_status === "inactive" || updated.access_status === "suspended") {
-              signOut();
-            }
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [user, signOut]);
-
   const value = useAuthContextValue(session, user, role, fullName, hospitalId, loading, signOut, refreshProfile);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

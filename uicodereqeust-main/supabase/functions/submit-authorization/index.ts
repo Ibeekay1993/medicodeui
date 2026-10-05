@@ -391,42 +391,6 @@ serve(async (req) => {
       .eq("message_id", whatsappMessageId);
   }
 
-  // Push the approver team for every newly created WhatsApp request. This is
-  // best-effort so notification delivery cannot roll back a valid request.
-  try {
-    const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
-    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
-    if (supabaseUrl && serviceKey && WORKER_SHARED_SECRET) {
-      const pushResponse = await fetch(`${supabaseUrl}/functions/v1/send-push-notification`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${serviceKey}`,
-          apikey: serviceKey,
-          "x-worker-secret": WORKER_SHARED_SECRET,
-        },
-        body: JSON.stringify({
-          target_roles: ["admin", "utilization_manager", "utilization_manager_lead"],
-          title: "New WhatsApp Authorization Request",
-          body: `A new pending request from ${hospitalName || "a hospital"} is ready for review.`,
-          url_by_role: {
-            admin: "/backoffice/admin/requests",
-            utilization_manager: "/backoffice/utilization-manager/requests",
-            utilization_manager_lead: "/backoffice/utilization-manager/requests",
-          },
-          tag: `auth-request-${row.id}`,
-        }),
-      });
-      if (!pushResponse.ok) {
-        console.error("submit-authorization: approver push failed", pushResponse.status);
-      }
-    } else {
-      console.warn("submit-authorization: push skipped because server credentials are missing");
-    }
-  } catch (error) {
-    console.error("submit-authorization: approver push failed", error instanceof Error ? error.message : error);
-  }
-
   return new Response(
     JSON.stringify({
       id: row.id,
