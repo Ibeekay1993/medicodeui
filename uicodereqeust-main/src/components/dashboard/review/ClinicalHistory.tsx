@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+﻿import React, { useState } from "react";
 import { format } from "date-fns";
 import { normalizePatientNameForMatch, normalizePolicyNumber, normalizePolicyRoot } from "@/lib/clinicalUtils";
 import { ChevronDown, ChevronUp, Clock3, Loader2 } from "lucide-react";
@@ -148,33 +148,48 @@ export function ClinicalHistory({
   ).toUpperCase();
   const familyPolicyRoot = normalizePolicyRoot(requestPolicyNumber).toUpperCase();
 
+  // Clean beneficiary ID by standardizing suffix (e.g. 2871167-02 -> 2871167-2)
+  const normBenId = (val: string) => String(val || "").replace(/[^\dA-Za-z-]/g, "").replace(/-0+([1-9])/g, "-$1").toUpperCase();
+
   const filteredHistory = visibleHistory.filter((record) => {
+    const recordPolicy = normalizePolicyNumber(record.policy_number || "").toUpperCase();
+    const recordBen = normalizePolicyNumber(record.beneficiary_number || "").toUpperCase();
+    const recordPolicyRoot = normalizePolicyRoot(recordPolicy || recordBen).toUpperCase();
+
     if (includeDependents) {
-      const recordPolicyRoot = normalizePolicyRoot(record.policy_number || "").toUpperCase();
-      return Boolean(familyPolicyRoot && recordPolicyRoot === familyPolicyRoot);
+      // Include any record belonging to the same family policy root
+      if (familyPolicyRoot && recordPolicyRoot === familyPolicyRoot) return true;
+      if (familyPolicyRoot && (recordPolicy.includes(familyPolicyRoot) || recordBen.includes(familyPolicyRoot))) return true;
+      return false;
     }
+
     const recordPatientClean = normalizePatientNameForMatch(record.patient_name || record.name || "");
-    const storedBeneficiaryNumber = normalizePolicyNumber(record.beneficiary_number || "").toUpperCase();
-    const storedPolicyNumber = normalizePolicyNumber(record.policy_number || "").toUpperCase();
+    const storedBeneficiaryNumber = normBenId(record.beneficiary_number || "");
+    const storedPolicyNumber = normBenId(record.policy_number || "");
+    const cleanCurrentBen = normBenId(currentBeneficiaryNumber);
+
     const inferredBeneficiaryNumber = storedBeneficiaryNumber || (
       storedPolicyNumber && normalizePolicyRoot(storedPolicyNumber).toUpperCase() === familyPolicyRoot &&
       storedPolicyNumber !== familyPolicyRoot
         ? storedPolicyNumber
         : ""
     );
-    if (currentBeneficiaryNumber && inferredBeneficiaryNumber) {
-      return inferredBeneficiaryNumber === currentBeneficiaryNumber;
-    }
-    // Legacy requests often have the family policy but no individual ID.
-    // Use exact normalized names only for those rows, never substring matches.
-    if (!storedBeneficiaryNumber && (!storedPolicyNumber || storedPolicyNumber === familyPolicyRoot) && currentPatientClean) {
-      return recordPatientClean === currentPatientClean;
-    }
-    // If a row has no patient name, use its distinct beneficiary ID when
-    // available. Otherwise don't attribute it to this patient by assumption.
-    return Boolean(currentBeneficiaryNumber && inferredBeneficiaryNumber && inferredBeneficiaryNumber === currentBeneficiaryNumber);
-  });
 
+    // 1. Direct normalized beneficiary ID match (e.g. 2871167-2 === 2871167-2)
+    if (cleanCurrentBen && inferredBeneficiaryNumber && inferredBeneficiaryNumber === cleanCurrentBen) {
+      return true;
+    }
+
+    // 2. Exact patient name match within the same family policy
+    if (currentPatientClean && recordPatientClean === currentPatientClean) {
+      if (!familyPolicyRoot || recordPolicyRoot === familyPolicyRoot || !recordPolicyRoot) {
+        return true;
+      }
+    }
+
+    // 3. Fallback: if record has matching beneficiary ID
+    return Boolean(cleanCurrentBen && inferredBeneficiaryNumber && inferredBeneficiaryNumber === cleanCurrentBen);
+  });
   return (
     <div className="w-full">
       <div className="bg-white rounded-2xl p-4 mb-3 border border-slate-100 shadow-sm">

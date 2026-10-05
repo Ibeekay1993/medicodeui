@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useMemo } from "react";
+﻿import { useEffect, useRef, useState, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -33,7 +33,7 @@ import { useTabVisibilityRefresh } from "@/hooks/use-tab-visibility-refresh";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 export default function RequestsPage() {
-  const { role, user } = useAuth();
+  const { role, user, hospitalId } = useAuth();
   const isClaimsRole = role === "claims";
   const isAdmin = role === "admin";
   
@@ -149,11 +149,18 @@ export default function RequestsPage() {
   useEffect(() => {
     if (!user?.id || !role) return;
 
+    // For hospital role, filter by hospital_id so Supabase only evaluates RLS
+    // for that hospital's rows — reduces compute load on nano instances.
+    const realtimeFilter: Parameters<typeof channel.on>[1] =
+      role === "hospital" && hospitalId
+        ? { event: "*", schema: "public", table: "authorization_requests", filter: hospital_id=eq. }
+        : { event: "*", schema: "public", table: "authorization_requests" };
+
     const channel = supabase
-      .channel(`authorization-requests:${user.id}`)
+      .channel(uthorization-requests:)
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "authorization_requests" },
+        realtimeFilter,
         (payload) => {
           const change = payload as any;
           const changedRow = change.eventType === "DELETE" ? change.old : change.new;

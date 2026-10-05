@@ -7,9 +7,20 @@ const metaPath = resolve(publicDir, "build-meta.json");
 
 mkdirSync(dirname(metaPath), { recursive: true });
 
-const buildId = process.env.BUILD_ID || new Date().toISOString();
+import { execSync } from "node:child_process";
+
+let gitCommit = "unknown";
+let gitBranch = "unknown";
+try {
+  gitCommit = execSync("git rev-parse --short HEAD", { stdio: ["ignore", "pipe", "ignore"] }).toString().trim();
+  gitBranch = execSync("git rev-parse --abbrev-ref HEAD", { stdio: ["ignore", "pipe", "ignore"] }).toString().trim();
+} catch {}
+
+const buildId = process.env.BUILD_ID || `${new Date().toISOString()}_${gitCommit}`;
 const payload = {
   buildId,
+  gitCommit,
+  gitBranch,
   generatedAt: new Date().toISOString(),
 };
 

@@ -84,17 +84,21 @@ export function normalizePolicyRoot(value: unknown) {
 }
 
 export function recordMatchesPolicy(record: any, policy: string) {
-  const recordRawPolicy = String(record?.policy_number || record?.nhis_no || record?.plan_code || "").trim();
-  if (!recordRawPolicy && !policy) return false;
+  const recordRawPolicy = String(record?.policy_number || record?.beneficiary_number || record?.nhis_no || record?.plan_code || "").trim();
+  const recordRawBen = String(record?.beneficiary_number || "").trim();
+  if (!recordRawPolicy && !recordRawBen && !policy) return false;
 
   const recordPolicy = normalizePolicyNumber(recordRawPolicy);
+  const recordBen = normalizePolicyNumber(recordRawBen);
   const normalizedPolicy = normalizePolicyNumber(policy);
-  const recordRoot = normalizePolicyRoot(recordRawPolicy);
+  const recordRoot = normalizePolicyRoot(recordRawPolicy || recordRawBen);
   const policyRoot = normalizePolicyRoot(policy);
 
   if (recordPolicy && normalizedPolicy && recordPolicy === normalizedPolicy) return true;
+  if (recordBen && normalizedPolicy && recordBen === normalizedPolicy) return true;
   if (recordRoot && policyRoot && recordRoot === policyRoot) return true;
   if (recordPolicy && policyRoot && (recordPolicy.startsWith(policyRoot) || recordPolicy.includes(policyRoot))) return true;
+  if (recordBen && policyRoot && (recordBen.startsWith(policyRoot) || recordBen.includes(policyRoot))) return true;
   if (normalizedPolicy && recordRoot && (normalizedPolicy.startsWith(recordRoot) || normalizedPolicy.includes(recordRoot))) return true;
 
   // Name fallback match for same patient if policy numbers are slightly dissimilar
