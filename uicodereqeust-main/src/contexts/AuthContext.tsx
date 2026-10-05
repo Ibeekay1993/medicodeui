@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+﻿import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Session, User } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
@@ -164,6 +164,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [hospitalId, setHospitalId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const userIdRef = useRef<string | null>(null);
+  const roleRef = useRef<AppRole | null>(null);
+  const hospitalIdRef = useRef<string | null>(null);
+  const fullNameRef = useRef<string | null>(null);
 
   const handleSession = useCallback(async (nextSession: Session | null, silent = false) => {
     if (!mountedRef.current) return;
@@ -173,6 +176,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setSession(null);
       setUser(null);
       userIdRef.current = null;
+      roleRef.current = null;
+      hospitalIdRef.current = null;
+      fullNameRef.current = null;
       setRole(null);
       setFullName(null);
       setHospitalId(null);
@@ -188,25 +194,51 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(nextSession.user);
     userIdRef.current = nextSession.user.id;
 
+    const currentUserId = nextSession.user.id;
+    const cachedRole = typeof window !== "undefined"
+      ? (window.sessionStorage.getItem(onsberger-role- + currentUserId) as AppRole) || null
+      : null;
+    const cachedHospitalId = typeof window !== "undefined"
+      ? window.sessionStorage.getItem(onsberger-hosp- + currentUserId) || null
+      : null;
+    const cachedFullName = typeof window !== "undefined"
+      ? window.sessionStorage.getItem(onsberger-name- + currentUserId) || null
+      : null;
+
     const { role: resolvedRole, fullName: resolvedFullName, hospitalId: resolvedHospitalId } = await withAuthTimeout(resolveUserRole(nextSession.user)).catch((error) => {
-      console.error("AuthContext: role resolution timed out or failed", error);
+      console.warn("AuthContext: role resolution timed out or failed (preserving active role):", error);
       const fallbackName = (nextSession.user.user_metadata as any)?.full_name || nextSession.user.email || null;
       return { role: null, fullName: fallbackName, hospitalId: null };
     });
 
     if (!mountedRef.current) return;
 
+    // Resilient fallback: If role resolution failed due to temporary network/DB timeout,
+    // NEVER wipe an already authenticated user's role to null! Keep the active or cached role.
+    const effectiveRole = resolvedRole || roleRef.current || cachedRole;
+    const effectiveHospitalId = resolvedHospitalId || hospitalIdRef.current || cachedHospitalId;
+    const effectiveFullName = resolvedFullName || fullNameRef.current || cachedFullName;
+
+    if (effectiveRole && typeof window !== "undefined") {
+      window.sessionStorage.setItem(onsberger-role- + currentUserId, effectiveRole);
+      if (effectiveHospitalId) window.sessionStorage.setItem(onsberger-hosp- + currentUserId, effectiveHospitalId);
+      if (effectiveFullName) window.sessionStorage.setItem(onsberger-name- + currentUserId, effectiveFullName);
+    }
+
     // Check session expiry on load before activating the user role
     const now = Date.now();
     const lastActivity = Number(window.localStorage.getItem(lastActivityStorageKey) || now);
     const startedAt = Number(window.sessionStorage.getItem(sessionStartStorageKey) || now);
-    const inactivityTimeout = sessionInactivityTimeoutByRole[resolvedRole as AppRole] || defaultSessionInactivityTimeout;
+    const inactivityTimeout = sessionInactivityTimeoutByRole[effectiveRole as AppRole] || defaultSessionInactivityTimeout;
 
     if (now - lastActivity >= inactivityTimeout || now - startedAt >= maxSessionLifetime) {
       console.log("handleSession: Session expired on mount. Performing local sign out.");
       setSession(null);
       setUser(null);
       userIdRef.current = null;
+      roleRef.current = null;
+      hospitalIdRef.current = null;
+      fullNameRef.current = null;
       setRole(null);
       setFullName(null);
       setHospitalId(null);
@@ -223,12 +255,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    setRole(resolvedRole);
-    setFullName(resolvedFullName);
-    setHospitalId(resolvedHospitalId || null);
+    roleRef.current = effectiveRole;
+    hospitalIdRef.current = effectiveHospitalId || null;
+    fullNameRef.current = effectiveFullName;
+
+    setRole(effectiveRole);
+    setFullName(effectiveFullName);
+    setHospitalId(effectiveHospitalId || null);
     if (!silent) setLoading(false);
   }, []);
-
   const refreshProfile = useCallback(async () => {
     const { data } = await supabase.auth.getSession();
     await handleSession(data.session, true);
