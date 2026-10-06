@@ -360,19 +360,19 @@ export default function Login() {
     setIsLoading(true);
 
     try {
-      const { data: factors } = await supabase.auth.mfa.listFactors();
+      const { data: factors } = await withAuthTimeout(supabase.auth.mfa.listFactors());
       const factor = factors?.all.find((f) => f.status === "verified");
 
       if (factor) {
         const { data: challengeData, error: challengeError } =
-          await supabase.auth.mfa.challenge({ factorId: factor.id });
+          await withAuthTimeout(supabase.auth.mfa.challenge({ factorId: factor.id }));
         if (challengeError) throw challengeError;
 
-        const { error: verifyError } = await supabase.auth.mfa.verify({
+        const { error: verifyError } = await withAuthTimeout(supabase.auth.mfa.verify({
           factorId: factor.id,
           challengeId: challengeData.id,
           code: mfaCode,
-        });
+        }));
 
         if (!verifyError) {
           if (pendingAdminRole) {
@@ -389,7 +389,9 @@ export default function Login() {
 
       setError("MFA enrollment required for this account.");
     } catch (err: any) {
-      setError(err.message || "MFA verification failed. Please try again.");
+      setError(isTransientAuthError(err)
+        ? "Connection error. Supabase did not respond. Please wait a moment and try again."
+        : err.message || "MFA verification failed. Please try again.");
     } finally {
       setIsLoading(false);
     }
