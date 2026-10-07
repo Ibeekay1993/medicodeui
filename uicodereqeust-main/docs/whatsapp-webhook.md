@@ -65,7 +65,16 @@ supabase secrets set WHATSAPP_TEMPLATE_LANG=en
 supabase secrets set WHATSAPP_WORKER_SECRET=<random-32-char-string>
 supabase secrets set WHATSAPP_MAX_ATTEMPTS=5
 supabase secrets set WHATSAPP_WORKER_BATCH=10
+supabase secrets set WHATSAPP_MAX_AUTO_PROCESS_AGE_MINUTES=30
 ```
+
+`WHATSAPP_MAX_AUTO_PROCESS_AGE_MINUTES` is an operational replay-safety window,
+not a clinical expiry. The default is 30 minutes (bounded to 1–1440 minutes).
+Messages older than the configured window are held as `stale`; the worker does
+not create an authorization from them and asks the hospital to resend if the
+request is still needed. Existing authorization rows are preserved, and any
+approved, declined, partially approved, expired, or otherwise non-pending state
+is treated as final during a replay.
 
 Apply the migrations:
 

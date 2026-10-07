@@ -140,7 +140,7 @@ async function resolveAccessClass(
     return { accessClass: "GENERAL_CUSTOMER", authorized: false, hospitalId: null };
   }
 
-  return { accessClass: "REGISTERED_HOSPITAL", authorized: true, hospitalId: hospitals[0] };
+  return { accessClass: "REGISTERED_HOSPITAL", authorized: true, hospitalId: String(hospitals[0]) };
 }
 
 // ── WhatsApp Outbound Send ───────────────────────────────────────────────────
@@ -631,6 +631,16 @@ serve(async (req) => {
   if (insErr && !String(insErr.message || "").toLowerCase().includes("duplicate")) {
     console.error("evolution-webhook: insert failed", insErr.message);
     return jsonResponse({ error: "insert_failed", detail: insErr.message }, 500);
+  }
+  if (insErr) {
+    // Evolution may redeliver the same event. The unique message_id already
+    // represents its processing attempt; waking the worker here would replay
+    // an old authorization or send a second acknowledgment.
+    console.info(JSON.stringify({
+      stage: "duplicate_webhook_event_ignored",
+      message_id: evolutionMessageId,
+    }));
+    return jsonResponse({ ok: true, access: "registered_hospital", duplicate: true });
   }
 
   // ── STEP 4: ROUTE BY ACCESS CLASS ────────────────────────────────────────

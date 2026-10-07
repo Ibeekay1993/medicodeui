@@ -9,6 +9,7 @@ export const WHATSAPP_MESSAGE_STATUSES = [
   "completed",
   "failed",
   "retry",
+  "stale",
 ] as const;
 
 export function normalizeStatus(value?: string | null): string {
@@ -81,6 +82,9 @@ export function classifyRetryFailure(
   ];
 
   const retryPatterns = [
+    "identity_lookup_failed",
+    "database",
+    "connection",
     "db_timeout",
     "timeout",
     "timed out",
@@ -150,6 +154,21 @@ export function getQueuePlan<T extends { status?: string | null; received_at?: s
     .slice(0, retryLimit);
 
   return [...fresh, ...retry].slice(0, batchSize);
+}
+
+export function getStaleQueueCandidates<T extends { message_id: string; status?: string | null; received_at?: string | null; created_at?: string | null }>(
+  rows: T[],
+  batchSize: number,
+): T[] {
+  if (!rows.length || batchSize <= 0) return [];
+  return rows
+    .filter((row) => ["received", "queued", "retry"].includes(normalizeStatus(row.status)))
+    .sort((a, b) => {
+      const left = new Date(a.received_at || a.created_at || 0).getTime();
+      const right = new Date(b.received_at || b.created_at || 0).getTime();
+      return left - right;
+    })
+    .slice(0, batchSize);
 }
 
 export type OutboundState =

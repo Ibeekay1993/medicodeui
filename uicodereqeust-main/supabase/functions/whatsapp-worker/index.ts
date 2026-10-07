@@ -23,11 +23,18 @@ import {
 import {
   classifyRetryFailure,
   getQueuePlan,
+  getStaleQueueCandidates,
   isOutboundAmbiguous,
   isProcessingStale,
   normalizeStatus,
   shouldSendOutbound,
 } from "./queue-hardening.ts";
+import {
+  getMessageAgeMs,
+  isClinicallyDecidedAuthorization,
+  isPastAutoProcessAgeLimit,
+  parseAutoProcessAgeLimitMinutes,
+} from "../_shared/authorization-state.ts";
 import { ensureArrivalPin } from "../_shared/arrival-pin.ts";
 import { schedulePendingAuthorizationPush } from "../_shared/pending-auth-push.ts";
 
@@ -52,6 +59,11 @@ const EVOLUTION_INSTANCE_NAME =
 const WORKER_SECRET = Deno.env.get("WHATSAPP_WORKER_SECRET") || "";
 const MAX_ATTEMPTS = Number(Deno.env.get("WHATSAPP_MAX_ATTEMPTS") || "5");
 const WORKER_BATCH = Number(Deno.env.get("WHATSAPP_WORKER_BATCH") || "10");
+// This is an operational auto-processing window, not a clinical expiry. Old
+// messages are held for a fresh hospital submission; no authorization expires.
+const MAX_AUTO_PROCESS_AGE_MINUTES = parseAutoProcessAgeLimitMinutes(
+  Deno.env.get("WHATSAPP_MAX_AUTO_PROCESS_AGE_MINUTES"),
+);
 const OUTBOUND_DELAY_MS = Number(Deno.env.get("WHATSAPP_OUTBOUND_DELAY_MS") || "3000");
 const PROCESSING_LEASE_MS = Number(Deno.env.get("WHATSAPP_PROCESSING_LEASE_MS") || "300000");
 const UNREGISTERED_WINDOW_MS = 60_000;
@@ -89,7 +101,7 @@ const queuedProcessingLogs: Array<{
   status: "ok" | "error" | "skipped";
   detail: unknown;
 }> = [];
-let processingLogFlushTimer: number | null = null;
+let processingLogFlushTimer: ReturnType<typeof setTimeout> | null = null;
 
 function flushQueuedProcessingLogs() {
   if (!queuedProcessingLogs.length) return;
@@ -132,6 +144,22 @@ function log(
   }
 }
 
+async function writeProcessingAudit(
+  supabase: ReturnType<typeof getServiceClient>,
+  messageId: string,
+  stage: string,
+  status: "ok" | "error" | "skipped",
+  detail: Record<string, unknown>,
+) {
+  const { error } = await supabase.from("whatsapp_processing_log").insert({
+    message_id: messageId,
+    stage,
+    status,
+    detail,
+  });
+  if (error) throw new Error(`processing_audit_failed: ${error.message}`);
+}
+
 function getNowIso() {
   return new Date().toISOString();
 }
@@ -147,13 +175,14 @@ async function setMessageStatus(
   updates: Record<string, unknown> = {},
   owner?: string | null,
 ) {
-  const next = {
+  const next: Record<string, unknown> = {
     ...updates,
     status,
     status_updated_at: getNowIso(),
   };
-  if (status === "completed" || status === "failed") {
+  if (["completed", "failed", "stale"].includes(status)) {
     next.processed_at = next.status_updated_at;
+    next.next_attempt_at = null;
     next.processing_owner = null;
     next.processing_lease_expires_at = null;
     next.processing_heartbeat_at = null;
@@ -194,40 +223,72 @@ async function touchProcessingLease(
 async function recoverStaleProcessingRows(
   supabase: ReturnType<typeof getServiceClient>,
 ) {
-  const { data: rows, error } = await supabase
-    .from("whatsapp_messages")
-    .select("message_id, status, status_updated_at, received_at, created_at, last_error, processing_owner, processing_lease_expires_at, processing_heartbeat_at")
-    .eq("status", "processing")
-    .lt("processing_lease_expires_at", new Date().toISOString())
-    .limit(200);
-  if (error) {
-    log("stale_recovery", "worker", "error", { error: error.message });
-    return;
+  const now = new Date();
+  const nowIso = now.toISOString();
+  const oldEnoughIso = new Date(now.getTime() - 10 * 60_000).toISOString();
+  const selectColumns = "message_id, status, status_updated_at, received_at, created_at, last_error, processing_owner, processing_lease_expires_at, processing_heartbeat_at";
+  const [expiredLeases, leaseLessRows] = await Promise.all([
+    supabase
+      .from("whatsapp_messages")
+      .select(selectColumns)
+      .eq("status", "processing")
+      .lt("processing_lease_expires_at", nowIso)
+      .limit(200),
+    supabase
+      .from("whatsapp_messages")
+      .select(selectColumns)
+      .eq("status", "processing")
+      .is("processing_lease_expires_at", null)
+      .lt("received_at", oldEnoughIso)
+      .limit(200),
+  ]);
+  for (const result of [expiredLeases, leaseLessRows]) {
+    if (result.error) {
+      log("stale_recovery", "worker", "error", { error: result.error.message });
+    }
   }
-  for (const row of rows || []) {
+  type StaleProcessingRow = NonNullable<Parameters<typeof isProcessingStale>[0]> & {
+    message_id: string;
+    last_error?: string | null;
+  };
+  const rowsById = new Map<string, StaleProcessingRow>();
+  for (const row of [...(expiredLeases.data || []), ...(leaseLessRows.data || [])]) {
+    rowsById.set(String(row.message_id), row as StaleProcessingRow);
+  }
+  for (const row of [...rowsById.values()].slice(0, 200)) {
     if (!isProcessingStale(row, 10)) continue;
     const reason = row.last_error
       ? String(row.last_error).slice(0, 500)
       : "reset from stuck processing";
     try {
-      const { data: reset } = await supabase
+      let resetQuery = supabase
         .from("whatsapp_messages")
         .update({
           status: "retry",
-          status_updated_at: getNowIso(),
-          next_attempt_at: new Date(Date.now() + 30_000).toISOString(),
+          status_updated_at: nowIso,
+          next_attempt_at: nowIso,
           last_error: reason,
           processing_owner: null,
           processing_lease_expires_at: null,
           processing_heartbeat_at: null,
         })
         .eq("message_id", row.message_id)
-        .eq("status", "processing")
-        .select("message_id")
-        .maybeSingle();
+        .eq("status", "processing");
+      if (row.processing_lease_expires_at) {
+        resetQuery = resetQuery.eq("processing_lease_expires_at", row.processing_lease_expires_at);
+      } else {
+        resetQuery = resetQuery.is("processing_lease_expires_at", null);
+      }
+      if (row.status_updated_at) {
+        resetQuery = resetQuery.eq("status_updated_at", row.status_updated_at);
+      } else {
+        resetQuery = resetQuery.is("status_updated_at", null);
+      }
+      const { data: reset, error: resetError } = await resetQuery.select("message_id").maybeSingle();
+      if (resetError) throw resetError;
       if (!reset?.message_id) continue;
-      log("stale_recovery", row.message_id, "ok", {
-        reason: "processing_stale",
+      await writeProcessingAudit(supabase, row.message_id, "stale_recovery", "ok", {
+        reason: row.processing_lease_expires_at ? "expired_lease" : "missing_lease",
         stale_since: row.status_updated_at || row.received_at || row.created_at,
       });
     } catch (error) {
@@ -240,7 +301,13 @@ async function recoverStaleProcessingRows(
 
 async function findExistingAuthorizationForMessage(
   supabase: ReturnType<typeof getServiceClient>,
-  row: { message_id: string; authorization_request_id?: string | null; internal_request_id?: string | null },
+  row: {
+    message_id: string;
+    authorization_request_id?: string | null;
+    internal_request_id?: string | null;
+    received_at?: string | null;
+    created_at?: string | null;
+  },
 ) {
   const candidateIds = [
     row.authorization_request_id,
@@ -248,43 +315,59 @@ async function findExistingAuthorizationForMessage(
   ].filter((value): value is string => Boolean(value));
 
   if (candidateIds.length) {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("authorization_requests")
       .select(
-        "id, request_id, patient_name, policy_number, diagnosis, treatment, status, source, clinical_notes, whatsapp_message_id",
+        "id, request_id, patient_name, policy_number, diagnosis, treatment, status, source, clinical_notes, whatsapp_message_id, authorization_code, approved_by, decided_at, decided_by, decision_reason, created_at",
       )
       .in("id", candidateIds)
       .limit(20);
+    if (error) throw error;
     if (data?.[0]) return data[0];
   }
 
   const messageId = String(row.message_id || "").trim();
   if (messageId) {
-    const { data: directMatch } = await supabase
+    const { data: directMatch, error: directMatchError } = await supabase
       .from("authorization_requests")
       .select(
-        "id, request_id, patient_name, policy_number, diagnosis, treatment, status, source, clinical_notes, whatsapp_message_id",
+        "id, request_id, patient_name, policy_number, diagnosis, treatment, status, source, clinical_notes, whatsapp_message_id, authorization_code, approved_by, decided_at, decided_by, decision_reason, created_at",
       )
       .eq("whatsapp_message_id", messageId)
       .limit(20);
+    if (directMatchError) throw directMatchError;
     if (directMatch?.[0]) return directMatch[0];
   }
 
-  const { data: recent } = await supabase
+  // The JSON-note lookup exists only for legacy rows that predate the indexed
+  // whatsapp_message_id column. Avoid reading a page of recent authorizations
+  // for every normal inbound message.
+  if (!isPastAutoProcessAgeLimit(row, MAX_AUTO_PROCESS_AGE_MINUTES)) return null;
+
+  const { data: recent, error: recentError } = await supabase
     .from("authorization_requests")
     .select(
-      "id, request_id, patient_name, policy_number, diagnosis, treatment, status, source, clinical_notes, whatsapp_message_id",
+      "id, request_id, patient_name, policy_number, diagnosis, treatment, status, source, clinical_notes, whatsapp_message_id, authorization_code, approved_by, decided_at, decided_by, decision_reason, created_at",
     )
     .eq("source", "whatsapp")
     .order("created_at", { ascending: false })
     .limit(200);
+  if (recentError) throw recentError;
 
-  const matching = (recent || []).find((candidate: any) => {
-    const clinical = candidate.clinical_notes && typeof candidate.clinical_notes === "object"
-      ? candidate.clinical_notes
+  const matching = (recent || []).find((candidate) => {
+    let clinical: Record<string, unknown> = candidate.clinical_notes && typeof candidate.clinical_notes === "object"
+      ? candidate.clinical_notes as Record<string, unknown>
       : {};
+    if (typeof candidate.clinical_notes === "string") {
+      try {
+        const parsed: unknown = JSON.parse(candidate.clinical_notes);
+        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+          clinical = parsed as Record<string, unknown>;
+        }
+      } catch { clinical = {}; }
+    }
     const exactMessageId = String(candidate.whatsapp_message_id || "");
-    const noteMessageId = String(clinical?.whatsapp_message_id || "");
+    const noteMessageId = String(clinical.whatsapp_message_id || "");
     return exactMessageId === String(row.message_id) || noteMessageId === String(row.message_id);
   });
 
@@ -295,27 +378,13 @@ async function resumeExistingAuthorization(
   supabase: ReturnType<typeof getServiceClient>,
   row: {
     message_id: string;
-    phone_number: string;
     authorization_request_id?: string | null;
     internal_request_id?: string | null;
+    received_at?: string | null;
+    created_at?: string | null;
   },
-  owner?: string | null,
 ) {
-  const existing = await findExistingAuthorizationForMessage(supabase, row);
-  if (!existing) return null;
-  let query = supabase
-    .from("whatsapp_messages")
-    .update({
-      authorization_request_id: existing.id,
-      internal_request_id: existing.id,
-      status: "authorization_created",
-      status_updated_at: getNowIso(),
-      last_error: null,
-    })
-    .eq("message_id", row.message_id);
-  if (owner) query = query.eq("processing_owner", owner);
-  await query;
-  return existing;
+  return await findExistingAuthorizationForMessage(supabase, row);
 }
 
 function normalizeDraftName(value: unknown) {
@@ -380,8 +449,9 @@ async function getOutboundLedger(
     .select(    "id, message_id, status, outbound_state, provider_message_id, authorization_request_id, sent_at, attempt_count, lease_owner, lease_expires_at, last_error, operation_key, destination_phone, content_hash")
     .eq("message_id", messageId)
     .maybeSingle();
-  if (error && !String(error.message || "").includes("does not exist")) {
+  if (error) {
     log("outbound_ledger", messageId, "error", { error: error.message });
+    throw new Error(`outbound_ledger_lookup_failed: ${error.message}`);
   }
   return data || null;
 }
@@ -702,6 +772,12 @@ async function postAuthorization(
         })
         .eq("message_id", whatsappMessageId);
     }
+    if (
+      String(payload.source || "").toLowerCase() === "whatsapp" &&
+      !isClinicallyDecidedAuthorization(existingAuth)
+    ) {
+      await ensureArrivalPin(supabase, existingAuth.id);
+    }
     return {
       id: String(existingAuth.id),
       request_id: existingAuth.request_id ? String(existingAuth.request_id) : undefined,
@@ -747,26 +823,29 @@ async function postAuthorization(
     const { data: existing } = whatsappMessageId
       ? await supabase
         .from("authorization_requests")
-        .select("id, request_id, status")
+        .select("id, request_id, status, authorization_code, approved_by, decided_at, decided_by, decision_reason")
         .eq("whatsapp_message_id", whatsappMessageId)
         .maybeSingle()
       : { data: null };
-    if (existing) return { id: existing.id, request_id: existing.request_id, status: existing.status };
+    if (existing) {
+      if (
+        String(payload.source || "").toLowerCase() === "whatsapp" &&
+        !isClinicallyDecidedAuthorization(existing)
+      ) {
+        await ensureArrivalPin(supabase, existing.id);
+      }
+      return { id: existing.id, request_id: existing.request_id, status: existing.status };
+    }
   }
   if (error || !row)
     throw new Error(
       `Direct DB fallback failed: ${error?.message || "unknown"}`,
     );
   if (String(payload.source || "").toLowerCase() === "whatsapp") {
-    try {
-      await ensureArrivalPin(supabase, row.id);
-    } catch (error) {
-      await supabase.from("authorization_requests").delete().eq("id", row.id);
-      throw error;
-    }
     if (row.status === "pending") {
       schedulePendingAuthorizationPush(supabase, row.id, hospitalName);
     }
+    await ensureArrivalPin(supabase, row.id);
   }
   return { id: row.id, request_id: row.request_id, status: row.status };
 }
@@ -1424,6 +1503,38 @@ async function processMessageBody(
         priority = Math.max(priority, 3);
         continue;
       }
+
+      const persistedAuthorization = result?.id
+        ? await findExistingAuthorizationForMessage(supabase, {
+          message_id: messageId,
+          authorization_request_id: result.id,
+        })
+        : null;
+      if (persistedAuthorization && isClinicallyDecidedAuthorization(persistedAuthorization)) {
+        await supabase
+          .from("whatsapp_messages")
+          .update({
+            authorization_request_id: persistedAuthorization.id,
+            internal_request_id: persistedAuthorization.id,
+            status: "authorization_created",
+            status_updated_at: getNowIso(),
+          })
+          .eq("message_id", messageId);
+        await updateConversation(supabase, row.phone_number, {
+          pending_data: {},
+          active_intent: "COMPLETED",
+          last_patient_name: patientName,
+          last_policy_number: policyNumber,
+          active_authorization_id: persistedAuthorization.id,
+        });
+        await writeProcessingAudit(supabase, messageId, "authorization_replay_guard", "skipped", {
+          reason: "authorization_decided_before_receipt_response",
+          authorization_request_id: persistedAuthorization.id,
+          authorization_status: persistedAuthorization.status || "unknown",
+        });
+        continue;
+      }
+
       await supabase
         .from("whatsapp_messages")
         .update({
@@ -1469,7 +1580,7 @@ async function processOne(
   const { data: row, error } = await supabase
     .from("whatsapp_messages")
     .select(
-      "id, message_id, phone_number, message_type, message_body, attempts, status, raw_message, authorization_request_id, internal_request_id, status_updated_at, received_at, created_at, last_error",
+      "id, message_id, phone_number, message_type, message_body, attempts, status, raw_message, authorization_request_id, internal_request_id, status_updated_at, received_at, created_at, last_error, next_attempt_at",
     )
     .eq("message_id", messageId)
     .maybeSingle();
@@ -1478,7 +1589,12 @@ async function processOne(
     return;
   }
   const currentStatus = normalizeStatus(row.status);
-  if (["completed", "failed"].includes(currentStatus)) return;
+  if (["completed", "failed", "stale"].includes(currentStatus)) return;
+  if (!["queued", "retry", "received"].includes(currentStatus)) return;
+  if (currentStatus === "retry" && row.next_attempt_at) {
+    const nextAttemptMs = Date.parse(String(row.next_attempt_at));
+    if (Number.isFinite(nextAttemptMs) && nextAttemptMs > Date.now()) return;
+  }
 
   const leaseOwner = getProcessingLeaseOwner();
   const { data: claimed, error: claimError } = await supabase
@@ -1493,7 +1609,7 @@ async function processOne(
       next_attempt_at: getNowIso(),
     })
     .eq("message_id", messageId)
-    .in("status", ["queued", "retry", "received"])
+    .eq("status", currentStatus)
     .select("message_id");
   if (claimError || !claimed?.length) {
     if (claimError)
@@ -1501,86 +1617,183 @@ async function processOne(
     return;
   }
 
-  await touchProcessingLease(supabase, messageId, leaseOwner, PROCESSING_LEASE_MS);
+  try {
+    await touchProcessingLease(supabase, messageId, leaseOwner, PROCESSING_LEASE_MS);
 
-  const existingAuthorization = await resumeExistingAuthorization(supabase, row as any, leaseOwner);
-  if (existingAuthorization) {
-    const ledger = await getOutboundLedger(supabase, messageId);
-    if (ledger?.status === "sent") {
-      await setMessageStatus(supabase, messageId, "completed", {
-        authorization_request_id: existingAuthorization.id,
-        internal_request_id: existingAuthorization.id,
-        last_error: null,
-        template_sent_at: getNowIso(),
-      }, leaseOwner);
-      return;
-    }
-    const finalReply = `Your medical authorization request for ${String(existingAuthorization.patient_name || "patient")} has been received successfully.\n\nOur team will review it and update you here once a decision is available.\n\n— Ronsberger HMO`;
-    await setMessageStatus(supabase, messageId, "response_pending", {
-      authorization_request_id: existingAuthorization.id,
-      internal_request_id: existingAuthorization.id,
-      last_error: null,
-    }, leaseOwner);
-    const outbound = await sendOutboundReply(
-      supabase,
-      row.phone_number,
-      finalReply,
-      messageId,
-      existingAuthorization.id,
-    );
-    if (outbound.ambiguous) return;
-    await setMessageStatus(supabase, messageId, "response_sent", {
-      authorization_request_id: existingAuthorization.id,
-      internal_request_id: existingAuthorization.id,
-      last_error: null,
-      template_sent_at: getNowIso(),
-    }, leaseOwner);
-    await setMessageStatus(supabase, messageId, "completed", {
-      authorization_request_id: existingAuthorization.id,
-      internal_request_id: existingAuthorization.id,
-      last_error: null,
-      processed_at: getNowIso(),
-      template_sent_at: getNowIso(),
-    }, leaseOwner);
-    return;
-  }
-
-  // Defense-in-depth: Ensure the message sender is an active registered hospital contact
-  const sender = await resolveHospitalSender(supabase, row.phone_number);
-  if (!sender.authorized) {
-    if (sender.reason === "unregistered_sender") {
-      const cutoff = new Date(Date.now() - UNREGISTERED_WINDOW_MS).toISOString();
-      const { count } = await supabase
+    const existingAuthorization = await resumeExistingAuthorization(supabase, row);
+    if (existingAuthorization) {
+      const linkResult = await supabase
         .from("whatsapp_messages")
-        .select("id", { count: "exact", head: true })
-        .eq("phone_number", row.phone_number)
-        .gte("received_at", cutoff);
+        .update({
+          authorization_request_id: existingAuthorization.id,
+          internal_request_id: existingAuthorization.id,
+          last_error: null,
+        })
+        .eq("message_id", messageId)
+        .eq("processing_owner", leaseOwner)
+        .select("message_id")
+        .maybeSingle();
+      if (linkResult.error) throw linkResult.error;
+      if (!linkResult.data?.message_id) throw new Error("processing lease lost");
 
-      if ((count || 0) > UNREGISTERED_MAX_MESSAGES) {
-        log("rate_limit", messageId, "skipped", {
-          reason: "unregistered_sender_rate_limit",
-          phone: row.phone_number ? String(row.phone_number).slice(-4) : "none",
+      if (isClinicallyDecidedAuthorization(existingAuthorization)) {
+        await writeProcessingAudit(supabase, messageId, "authorization_replay_guard", "skipped", {
+          reason: "authorization_already_decided",
+          authorization_request_id: existingAuthorization.id,
+          authorization_status: existingAuthorization.status || "unknown",
         });
-        await setMessageStatus(supabase, messageId, "failed", {
-          last_error: "Rate limited unregistered sender",
-          next_attempt_at: null,
+        await setMessageStatus(supabase, messageId, "completed", {
+          authorization_request_id: existingAuthorization.id,
+          internal_request_id: existingAuthorization.id,
+          last_error: null,
         }, leaseOwner);
         return;
       }
-    }
-    log("auth_guard", messageId, "skipped", {
-      reason: sender.reason,
-      phone: row.phone_number ? String(row.phone_number).slice(-4) : "none",
-    });
-    await setMessageStatus(supabase, messageId, "failed", {
-      last_error: `Dropped by auth guard: ${sender.reason}`,
-      next_attempt_at: null,
-    }, leaseOwner);
-    return;
-  }
 
-  try {
-    await touchProcessingLease(supabase, messageId, leaseOwner, PROCESSING_LEASE_MS);
+      if (String(existingAuthorization.source || "").toLowerCase() === "whatsapp") {
+        await ensureArrivalPin(supabase, existingAuthorization.id);
+      }
+
+      // Refresh the decision before any replay response. This avoids sending
+      // a pending acknowledgement after a concurrent approval or decline.
+      const latestAuthorization = await findExistingAuthorizationForMessage(supabase, {
+        message_id: messageId,
+        authorization_request_id: existingAuthorization.id,
+      });
+      if (!latestAuthorization) throw new Error("existing_authorization_disappeared");
+      if (isClinicallyDecidedAuthorization(latestAuthorization)) {
+        await writeProcessingAudit(supabase, messageId, "authorization_replay_guard", "skipped", {
+          reason: "authorization_decided_before_replay_response",
+          authorization_request_id: latestAuthorization.id,
+          authorization_status: latestAuthorization.status || "unknown",
+        });
+        await setMessageStatus(supabase, messageId, "completed", {
+          authorization_request_id: latestAuthorization.id,
+          internal_request_id: latestAuthorization.id,
+          last_error: null,
+        }, leaseOwner);
+        return;
+      }
+
+      const messageIsOld = isPastAutoProcessAgeLimit(
+        row,
+        MAX_AUTO_PROCESS_AGE_MINUTES,
+      );
+      const ledger = await getOutboundLedger(supabase, messageId);
+      const canSendResponse = !ledger || shouldSendOutbound(
+        ledger.outbound_state,
+        ledger.lease_expires_at,
+      );
+      if (messageIsOld || !canSendResponse) {
+        await writeProcessingAudit(supabase, messageId, "authorization_replay_guard", "skipped", {
+          reason: messageIsOld ? "old_message_existing_request" : "outbound_already_recorded_or_uncertain",
+          authorization_request_id: latestAuthorization.id,
+          authorization_status: latestAuthorization.status || "unknown",
+          message_age_ms: getMessageAgeMs(row),
+          outbound_state: ledger?.outbound_state || "not_started",
+        });
+        await setMessageStatus(supabase, messageId, "completed", {
+          authorization_request_id: latestAuthorization.id,
+          internal_request_id: latestAuthorization.id,
+          last_error: null,
+        }, leaseOwner);
+        return;
+      }
+
+      await writeProcessingAudit(supabase, messageId, "authorization_replay_guard", "ok", {
+        reason: "existing_request_reused_without_new_authorization",
+        authorization_request_id: latestAuthorization.id,
+        authorization_status: latestAuthorization.status || "unknown",
+      });
+      const replayReply =
+        "An authorization request is already linked to this WhatsApp message. No duplicate request was created. Our team will send the decision update in this chat.\n\n— Ronsberger HMO";
+      const outbound = await sendOutboundReply(
+        supabase,
+        row.phone_number,
+        replayReply,
+        messageId,
+        latestAuthorization.id,
+      );
+      await setMessageStatus(supabase, messageId, "completed", {
+        authorization_request_id: latestAuthorization.id,
+        internal_request_id: latestAuthorization.id,
+        last_error: outbound.ambiguous
+          ? "Existing authorization is preserved; outbound delivery is uncertain."
+          : null,
+        template_sent_at: outbound.ambiguous ? null : getNowIso(),
+      }, leaseOwner);
+      return;
+    }
+
+    // Verify the sender before a stale-message response or any request work.
+    const sender = await resolveHospitalSender(supabase, row.phone_number);
+    if (!sender.authorized && sender.reason === "identity_lookup_failed") {
+      throw new Error("identity_lookup_failed");
+    }
+    if (!sender.authorized) {
+      if (sender.reason === "unregistered_sender") {
+        const cutoff = new Date(Date.now() - UNREGISTERED_WINDOW_MS).toISOString();
+        const { count, error: countError } = await supabase
+          .from("whatsapp_messages")
+          .select("id", { count: "exact", head: true })
+          .eq("phone_number", row.phone_number)
+          .gte("received_at", cutoff);
+        if (countError) throw countError;
+
+        if ((count || 0) > UNREGISTERED_MAX_MESSAGES) {
+          log("rate_limit", messageId, "skipped", { reason: "unregistered_sender_rate_limit" });
+          await setMessageStatus(supabase, messageId, "failed", {
+            last_error: "Rate limited unregistered sender",
+            next_attempt_at: null,
+          }, leaseOwner);
+          return;
+        }
+      }
+      log("auth_guard", messageId, "skipped", { reason: sender.reason });
+      await setMessageStatus(supabase, messageId, "failed", {
+        last_error: `Dropped by auth guard: ${sender.reason}`,
+        next_attempt_at: null,
+      }, leaseOwner);
+      return;
+    }
+
+    if (isPastAutoProcessAgeLimit(row, MAX_AUTO_PROCESS_AGE_MINUTES)) {
+      const ageMs = getMessageAgeMs(row);
+      await writeProcessingAudit(supabase, messageId, "stale_message_hold", "skipped", {
+        reason: "outside_automatic_processing_window",
+        age_limit_minutes: MAX_AUTO_PROCESS_AGE_MINUTES,
+        message_age_ms: ageMs,
+      });
+      const ledger = await getOutboundLedger(supabase, messageId);
+      const canSendHoldNotice = !ledger || shouldSendOutbound(
+        ledger.outbound_state,
+        ledger.lease_expires_at,
+      );
+      let deliveryUncertain = Boolean(ledger && isOutboundAmbiguous(
+        ledger.outbound_state,
+        ledger.lease_expires_at,
+      ));
+      if (canSendHoldNotice) {
+        const holdNotice =
+          "We could not safely process this older authorization message automatically. No new authorization request was created. If the request is still needed, please resend it as a new message.\n\n— Ronsberger HMO";
+        const outbound = await sendOutboundReply(
+          supabase,
+          row.phone_number,
+          holdNotice,
+          messageId,
+          null,
+          "stale_message_hold",
+        );
+        deliveryUncertain = outbound.ambiguous;
+      }
+      await setMessageStatus(supabase, messageId, "stale", {
+        last_error: deliveryUncertain
+          ? "Message held safely; delivery of the hold notice is uncertain."
+          : null,
+      }, leaseOwner);
+      return;
+    }
+
     await processMessageBody(supabase, {
       ...row,
       authorization_request_id: row.authorization_request_id || null,
@@ -1813,16 +2026,54 @@ async function processNotifications(
 async function pollAndProcess(supabase: ReturnType<typeof getServiceClient>) {
   await recoverStaleProcessingRows(supabase);
   const now = new Date();
-  const { data: rows } = await supabase
-    .from("whatsapp_messages")
-    .select("message_id,status,received_at,next_attempt_at")
-    .in("status", ["received", "queued", "retry"])
-    .order("received_at", { ascending: true })
-    .limit(WORKER_BATCH * 3);
+  const nowIso = now.toISOString();
+  const ageCutoff = new Date(now.getTime() - MAX_AUTO_PROCESS_AGE_MINUTES * 60_000).toISOString();
+  const [freshResult, retryResult, staleResult] = await Promise.all([
+    supabase
+      .from("whatsapp_messages")
+      .select("message_id,status,received_at,created_at,next_attempt_at")
+      .in("status", ["received", "queued"])
+      .gte("received_at", ageCutoff)
+      .order("received_at", { ascending: true })
+      .limit(WORKER_BATCH),
+    supabase
+      .from("whatsapp_messages")
+      .select("message_id,status,received_at,created_at,next_attempt_at")
+      .eq("status", "retry")
+      .gte("received_at", ageCutoff)
+      .lte("next_attempt_at", nowIso)
+      .order("next_attempt_at", { ascending: true })
+      .limit(WORKER_BATCH),
+    supabase
+      .from("whatsapp_messages")
+      .select("message_id,status,received_at,created_at,next_attempt_at")
+      .in("status", ["received", "queued", "retry"])
+      .lt("received_at", ageCutoff)
+      .or(`status.neq.retry,next_attempt_at.is.null,next_attempt_at.lte.${nowIso}`)
+      .order("received_at", { ascending: true })
+      .limit(WORKER_BATCH),
+  ]);
+  for (const result of [freshResult, retryResult, staleResult]) {
+    if (result.error) throw result.error;
+  }
 
-  const queuePlan = getQueuePlan(rows || [], WORKER_BATCH, now);
+  // Separate indexed scans keep the oldest retry backlog from hiding newly
+  // received requests. Old items get only the remaining batch slots and are
+  // held by processOne without creating an authorization.
+  const queuePlan = getQueuePlan(
+    [...(freshResult.data || []), ...(retryResult.data || [])],
+    WORKER_BATCH,
+    now,
+  );
+  const selected = new Set(queuePlan.map((row) => row.message_id));
+  const stalePlan = getStaleQueueCandidates(
+    staleResult.data || [],
+    Math.max(0, WORKER_BATCH - queuePlan.length),
+  ).filter((row) => !selected.has(row.message_id));
+
   await processNotifications(supabase);
   for (const r of queuePlan) await processOne(supabase, r.message_id);
+  for (const r of stalePlan) await processOne(supabase, r.message_id);
 }
 serve(async (req) => {
   if (req.method === "OPTIONS")

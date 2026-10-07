@@ -2,11 +2,18 @@ import { describe, expect, it } from "vitest";
 import {
   classifyRetryFailure,
   getQueuePlan,
+  getStaleQueueCandidates,
   isOutboundAmbiguous,
   isProcessingStale,
   normalizeStatus,
   shouldSendOutbound,
 } from "./queue-hardening.ts";
+import {
+  getMessageAgeMs,
+  isClinicallyDecidedAuthorization,
+  isPastAutoProcessAgeLimit,
+  parseAutoProcessAgeLimitMinutes,
+} from "../_shared/authorization-state.ts";
 
 describe("queue hardening helpers", () => {
   it("classifies permanent validation failures as failed", () => {
@@ -20,6 +27,7 @@ describe("queue hardening helpers", () => {
     expect(result.kind).toBe("retry");
     expect(result.category).toContain("timeout");
     expect(result.delayMs).toBeGreaterThan(0);
+    expect(classifyRetryFailure("identity_lookup_failed").kind).toBe("retry");
   });
 
   it("identifies stale processing rows by durable timestamp", () => {
@@ -70,5 +78,53 @@ describe("queue hardening helpers", () => {
     expect(shouldSendOutbound("send_failed")).toBe(true);
     expect(shouldSendOutbound("retry_pending")).toBe(true);
     expect(isOutboundAmbiguous("send_in_progress", new Date(Date.now() + 60_000).toISOString())).toBe(false);
+  });
+
+  it("classifies approved and otherwise decided authorizations as immutable", () => {
+    for (const status of [
+      "approved",
+      "partially_approved",
+      "referral_approved",
+      "rejected",
+      "declined",
+      "cancelled",
+      "expired",
+      "superseded",
+      "unknown_future_status",
+    ]) {
+      expect(isClinicallyDecidedAuthorization({ status })).toBe(true);
+    }
+    expect(isClinicallyDecidedAuthorization({
+      status: "pending",
+      authorization_code: "R/AG/011010696BD",
+    })).toBe(true);
+    expect(isClinicallyDecidedAuthorization({ status: "pending", approved_by: "admin-id" })).toBe(true);
+    expect(isClinicallyDecidedAuthorization({ status: "pending", authorization_code: "Pending" })).toBe(false);
+    expect(isClinicallyDecidedAuthorization({ status: "pending_referral" })).toBe(false);
+    expect(isClinicallyDecidedAuthorization(null)).toBe(true);
+  });
+
+  it("holds old or invalid-timestamp inbound messages from automatic authorization creation", () => {
+    const now = new Date("2026-10-07T12:00:00.000Z");
+    expect(isPastAutoProcessAgeLimit({ received_at: "2026-10-07T11:29:59.999Z" }, 30, now)).toBe(true);
+    expect(isPastAutoProcessAgeLimit({ received_at: "2026-10-07T11:30:00.000Z" }, 30, now)).toBe(false);
+    expect(isPastAutoProcessAgeLimit({ received_at: "not-a-date" }, 30, now)).toBe(true);
+    expect(getMessageAgeMs({ received_at: "2026-10-07T12:01:00.000Z" }, now)).toBe(0);
+  });
+
+  it("uses a bounded configurable auto-processing age limit", () => {
+    expect(parseAutoProcessAgeLimitMinutes("45")).toBe(45);
+    expect(parseAutoProcessAgeLimitMinutes("0")).toBe(30);
+    expect(parseAutoProcessAgeLimitMinutes("1441")).toBe(30);
+    expect(parseAutoProcessAgeLimitMinutes("bad", 20)).toBe(20);
+  });
+
+  it("selects oldest stale items only from processable statuses", () => {
+    const candidates = getStaleQueueCandidates([
+      { message_id: "newer", status: "queued", received_at: "2026-10-07T10:00:00Z" },
+      { message_id: "oldest", status: "retry", received_at: "2026-10-07T08:00:00Z" },
+      { message_id: "already-held", status: "stale", received_at: "2026-10-07T07:00:00Z" },
+    ], 1);
+    expect(candidates.map((row) => row.message_id)).toEqual(["oldest"]);
   });
 });

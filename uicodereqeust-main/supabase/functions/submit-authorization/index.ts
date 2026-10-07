@@ -14,6 +14,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { ensureArrivalPin } from "../_shared/arrival-pin.ts";
+import { isClinicallyDecidedAuthorization } from "../_shared/authorization-state.ts";
 import { schedulePendingAuthorizationPush } from "../_shared/pending-auth-push.ts";
 
 const corsHeaders = {
@@ -361,11 +362,27 @@ serve(async (req) => {
     const { data: existing } = whatsappMessageId
       ? await supabase
         .from("authorization_requests")
-        .select("id, request_id, status")
+        .select("id, request_id, status, authorization_code, approved_by, decided_at, decided_by, decision_reason")
         .eq("whatsapp_message_id", whatsappMessageId)
         .maybeSingle()
       : { data: null };
-    if (existing) return ok({ ok: true, id: existing.id, request_id: existing.request_id, status: existing.status });
+    if (existing) {
+      if (
+        source === "whatsapp" &&
+        !isClinicallyDecidedAuthorization(existing)
+      ) {
+        try {
+          await ensureArrivalPin(supabase, existing.id);
+        } catch (error) {
+          console.error(
+            "submit-authorization: existing request PIN repair failed",
+            error instanceof Error ? error.message : error,
+          );
+          return bad(500, "arrival_pin_creation_failed");
+        }
+      }
+      return ok({ ok: true, id: existing.id, request_id: existing.request_id, status: existing.status });
+    }
   }
   if (insErr || !row) {
     console.error("submit-authorization: insert failed", insErr);
@@ -373,12 +390,17 @@ serve(async (req) => {
   }
 
   if (source === "whatsapp") {
+    if (row.status === "pending") {
+      // Push from the durable authorization row even if arrival-PIN setup
+      // encounters a transient failure. A retry repairs the PIN without
+      // recreating the request or dispatching a second push.
+      schedulePendingAuthorizationPush(supabase, row.id, hospitalName);
+    }
     try {
       await ensureArrivalPin(supabase, row.id);
     } catch (error) {
-      await supabase.from("authorization_requests").delete().eq("id", row.id);
       console.error(
-        "submit-authorization: arrival PIN creation failed",
+        "submit-authorization: authorization kept; arrival PIN creation failed",
         error instanceof Error ? error.message : error,
       );
       return bad(500, "arrival_pin_creation_failed");
@@ -390,10 +412,6 @@ serve(async (req) => {
       .from("whatsapp_messages")
       .update({ internal_request_id: row.id })
       .eq("message_id", whatsappMessageId);
-  }
-
-  if (source === "whatsapp" && row.status === "pending") {
-    schedulePendingAuthorizationPush(supabase, row.id, hospitalName);
   }
 
   return new Response(
