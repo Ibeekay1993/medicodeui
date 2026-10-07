@@ -172,7 +172,7 @@ export function RequestList({
                           <>
                             <span>{formatNigeriaDate(timestamp)}</span>
                             <span className="mt-0.5 text-[11px] font-semibold text-slate-400">
-                              {label} {formatNigeriaTime(timestamp)}
+                              {label} at {formatNigeriaTime(timestamp)}
                             </span>
                           </>
                         );
@@ -370,7 +370,7 @@ export function RequestList({
                           <>
                             <span>{formatNigeriaDate(timestamp)}</span>
                             <span className="mt-0.5 text-[11px] font-semibold">
-                              {label} {formatNigeriaTime(timestamp)}
+                              {label} at {formatNigeriaTime(timestamp)}
                             </span>
                           </>
                         );

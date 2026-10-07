@@ -147,7 +147,7 @@ export default function AuthorizationsTable({
                               <>
                                 <span>{formatNigeriaDate(timestamp)}</span>
                                 <span className="mt-0.5 text-[11px] font-semibold text-slate-400">
-                                  {label} {formatNigeriaTime(timestamp)}
+                                  {label} at {formatNigeriaTime(timestamp)}
                                 </span>
                               </>
                             );
@@ -349,7 +349,7 @@ export default function AuthorizationsTable({
                             <>
                               <span className="text-[11px] text-slate-400">{formatNigeriaDate(timestamp)}</span>
                               <span className="mt-0.5 text-[11px] font-semibold text-slate-400">
-                                {label} {formatNigeriaTime(timestamp)}
+                                {label} at {formatNigeriaTime(timestamp)}
                               </span>
                             </>
                           );
