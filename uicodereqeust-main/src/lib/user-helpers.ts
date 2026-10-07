@@ -1,5 +1,5 @@
 export const availableRoles = [
-  { value: "admin", label: "Super Admin" },
+  { value: "admin", label: "Admin" },
   { value: "hospital", label: "Hospital Admin" },
   { value: "utilization_manager", label: "Utilization Manager" },
   { value: "utilization_manager_lead", label: "Utilization Manager Lead" },

@@ -168,7 +168,7 @@ export function InviteUserModal({
           </Select>
           {newUser.role === "utilization_manager_lead" && (
             <p className="-mt-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs leading-relaxed text-emerald-900">
-              This assigns the Utilization team lead. Only this person, alongside Super Admins, can unlock records, resolve deletion requests, and replace NHIS lists. Regular Utilization Managers do not get these permissions.
+              Admins and the Utilization Manager Lead can unlock records, resolve deletion requests, and replace NHIS lists. Regular Utilization Managers do not have these permissions.
             </p>
           )}
           {["hospital", "claims", "finance"].includes(newUser.role) && (

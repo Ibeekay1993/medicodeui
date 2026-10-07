@@ -431,7 +431,7 @@ export default function RequestsPage() {
       ]);
       toast(isDeleteApprover
         ? { title: "Authorization deleted", description: "The deletion was recorded in the audit log." }
-        : { title: "Awaiting Review", description: "The deletion request was sent to a Utilization Manager Lead or Super Admin." });
+        : { title: "Awaiting Review", description: "The deletion request was sent to a Utilization Manager Lead or Admin." });
       setDeleteTarget(null);
       setDeleteConfirmText("");
       setDeleteReason("");
@@ -547,7 +547,7 @@ export default function RequestsPage() {
             <AlertDialogDescription>
               {isDeleteApprover
                 ? "This will permanently delete the authorization and record the action in the audit log. This cannot be undone."
-                : "This will send the request to a Utilization Manager Lead or Super Admin for review."} Type <span className="font-black">DELETE</span> to continue.
+                : "This will send the request to a Utilization Manager Lead or Admin for review."} Type <span className="font-black">DELETE</span> to continue.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <Input value={deleteConfirmText} onChange={e => setDeleteConfirmText(e.target.value)} placeholder="DELETE" className="h-10 rounded-xl" />

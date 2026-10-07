@@ -1026,7 +1026,7 @@ export function useClinicalActions({
       toast({
         variant: "destructive",
         title: "Access Denied",
-        description: "A Utilization Manager Lead or Super Admin is required to unlock decided records.",
+        description: "A Utilization Manager Lead or Admin is required to unlock decided records.",
       });
       return;
     }

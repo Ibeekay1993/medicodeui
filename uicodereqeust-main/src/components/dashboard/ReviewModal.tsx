@@ -831,7 +831,7 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
                         </p>
                         <p className="font-medium text-slate-500 text-[11px] mt-0.5">
                           This authorization has been decided and is locked for clinical data integrity.
-                          {role === "admin" || role === "utilization_manager_lead" ? " A Utilization Manager Lead or Super Admin can unlock this record for revision." : " A Utilization Manager Lead must unlock this record before it can be revised."}
+                          {role === "admin" || role === "utilization_manager_lead" ? " A Utilization Manager Lead or Admin can unlock this record for revision." : " A Utilization Manager Lead must unlock this record before it can be revised."}
                         </p>
                       </div>
                     </div>
