@@ -12,6 +12,16 @@ export const WHATSAPP_MESSAGE_STATUSES = [
   "stale",
 ] as const;
 
+export function getWorkerBatchSize(
+  value?: string | null,
+  fallback = 2,
+  maximum = 2,
+): number {
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < 1) return fallback;
+  return Math.min(parsed, maximum);
+}
+
 export function normalizeStatus(value?: string | null): string {
   return String(value || "").trim().toLowerCase() || "received";
 }

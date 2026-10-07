@@ -64,7 +64,7 @@ supabase secrets set WHATSAPP_TEMPLATE_LANG=en
 # Optional worker hardening
 supabase secrets set WHATSAPP_WORKER_SECRET=<random-32-char-string>
 supabase secrets set WHATSAPP_MAX_ATTEMPTS=5
-supabase secrets set WHATSAPP_WORKER_BATCH=10
+supabase secrets set WHATSAPP_WORKER_BATCH=2
 supabase secrets set WHATSAPP_MAX_AUTO_PROCESS_AGE_MINUTES=30
 ```
 
@@ -75,6 +75,10 @@ not create an authorization from them and asks the hospital to resend if the
 request is still needed. Existing authorization rows are preserved, and any
 approved, declined, partially approved, expired, or otherwise non-pending state
 is treated as final during a replay.
+
+The scheduled backstop processes at most two items per invocation, even if a
+higher `WHATSAPP_WORKER_BATCH` value is configured. New webhook-triggered
+messages still use the immediate single-message worker path.
 
 Apply the migrations:
 

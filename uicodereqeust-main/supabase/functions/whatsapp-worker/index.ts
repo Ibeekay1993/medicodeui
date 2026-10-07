@@ -22,10 +22,10 @@ import {
 } from "./providers.ts";
 import {
   classifyRetryFailure,
+  getWorkerBatchSize,
   getQueuePlan,
   getStaleQueueCandidates,
   isOutboundAmbiguous,
-  isProcessingStale,
   normalizeStatus,
   shouldSendOutbound,
 } from "./queue-hardening.ts";
@@ -58,13 +58,18 @@ const EVOLUTION_INSTANCE_NAME =
   Deno.env.get("EVOLUTION_INSTANCE_NAME") || "medicode-test";
 const WORKER_SECRET = Deno.env.get("WHATSAPP_WORKER_SECRET") || "";
 const MAX_ATTEMPTS = Number(Deno.env.get("WHATSAPP_MAX_ATTEMPTS") || "5");
-const WORKER_BATCH = Number(Deno.env.get("WHATSAPP_WORKER_BATCH") || "10");
+// Cron is only a backstop; webhook-triggered requests are processed one at a
+// time. Keep each scheduled invocation bounded to avoid long Edge requests.
+const WORKER_BATCH = getWorkerBatchSize(
+  Deno.env.get("WHATSAPP_WORKER_BATCH"),
+);
 // This is an operational auto-processing window, not a clinical expiry. Old
 // messages are held for a fresh hospital submission; no authorization expires.
 const MAX_AUTO_PROCESS_AGE_MINUTES = parseAutoProcessAgeLimitMinutes(
   Deno.env.get("WHATSAPP_MAX_AUTO_PROCESS_AGE_MINUTES"),
 );
 const OUTBOUND_DELAY_MS = Number(Deno.env.get("WHATSAPP_OUTBOUND_DELAY_MS") || "3000");
+const OUTBOUND_REQUEST_TIMEOUT_MS = 12_000;
 const PROCESSING_LEASE_MS = Number(Deno.env.get("WHATSAPP_PROCESSING_LEASE_MS") || "300000");
 const UNREGISTERED_WINDOW_MS = 60_000;
 const UNREGISTERED_MAX_MESSAGES = 3;
@@ -223,79 +228,14 @@ async function touchProcessingLease(
 async function recoverStaleProcessingRows(
   supabase: ReturnType<typeof getServiceClient>,
 ) {
-  const now = new Date();
-  const nowIso = now.toISOString();
-  const oldEnoughIso = new Date(now.getTime() - 10 * 60_000).toISOString();
-  const selectColumns = "message_id, status, status_updated_at, received_at, created_at, last_error, processing_owner, processing_lease_expires_at, processing_heartbeat_at";
-  const [expiredLeases, leaseLessRows] = await Promise.all([
-    supabase
-      .from("whatsapp_messages")
-      .select(selectColumns)
-      .eq("status", "processing")
-      .lt("processing_lease_expires_at", nowIso)
-      .limit(200),
-    supabase
-      .from("whatsapp_messages")
-      .select(selectColumns)
-      .eq("status", "processing")
-      .is("processing_lease_expires_at", null)
-      .lt("received_at", oldEnoughIso)
-      .limit(200),
-  ]);
-  for (const result of [expiredLeases, leaseLessRows]) {
-    if (result.error) {
-      log("stale_recovery", "worker", "error", { error: result.error.message });
-    }
+  const { data, error } = await supabase.rpc("recover_stale_whatsapp_processing");
+  if (error) {
+    log("stale_recovery", "worker", "error", { error: error.message });
+    return;
   }
-  type StaleProcessingRow = NonNullable<Parameters<typeof isProcessingStale>[0]> & {
-    message_id: string;
-    last_error?: string | null;
-  };
-  const rowsById = new Map<string, StaleProcessingRow>();
-  for (const row of [...(expiredLeases.data || []), ...(leaseLessRows.data || [])]) {
-    rowsById.set(String(row.message_id), row as StaleProcessingRow);
-  }
-  for (const row of [...rowsById.values()].slice(0, 200)) {
-    if (!isProcessingStale(row, 10)) continue;
-    const reason = row.last_error
-      ? String(row.last_error).slice(0, 500)
-      : "reset from stuck processing";
-    try {
-      let resetQuery = supabase
-        .from("whatsapp_messages")
-        .update({
-          status: "retry",
-          status_updated_at: nowIso,
-          next_attempt_at: nowIso,
-          last_error: reason,
-          processing_owner: null,
-          processing_lease_expires_at: null,
-          processing_heartbeat_at: null,
-        })
-        .eq("message_id", row.message_id)
-        .eq("status", "processing");
-      if (row.processing_lease_expires_at) {
-        resetQuery = resetQuery.eq("processing_lease_expires_at", row.processing_lease_expires_at);
-      } else {
-        resetQuery = resetQuery.is("processing_lease_expires_at", null);
-      }
-      if (row.status_updated_at) {
-        resetQuery = resetQuery.eq("status_updated_at", row.status_updated_at);
-      } else {
-        resetQuery = resetQuery.is("status_updated_at", null);
-      }
-      const { data: reset, error: resetError } = await resetQuery.select("message_id").maybeSingle();
-      if (resetError) throw resetError;
-      if (!reset?.message_id) continue;
-      await writeProcessingAudit(supabase, row.message_id, "stale_recovery", "ok", {
-        reason: row.processing_lease_expires_at ? "expired_lease" : "missing_lease",
-        stale_since: row.status_updated_at || row.received_at || row.created_at,
-      });
-    } catch (error) {
-      log("stale_recovery", row.message_id, "error", {
-        error: (error as Error).message,
-      });
-    }
+  const recoveredCount = Number(data || 0);
+  if (recoveredCount > 0) {
+    log("stale_recovery", "worker", "ok", { recovered_count: recoveredCount });
   }
 }
 
@@ -420,18 +360,29 @@ async function sendWhatsAppMessage(toPhone: string, text: string) {
   }
   const url = `${EVOLUTION_API_URL.replace(/\/$/, "")}/message/sendText/${encodeURIComponent(EVOLUTION_INSTANCE_NAME)}`;
   let res: Response;
+  let body: string;
+  const controller = new AbortController();
+  const timeout = setTimeout(
+    () => controller.abort(),
+    OUTBOUND_REQUEST_TIMEOUT_MS,
+  );
   try {
-    res = await fetch(url, {
-      method: "POST",
-      headers: { apikey: EVOLUTION_API_KEY, "Content-Type": "application/json" },
-      body: JSON.stringify({ number: toPhone, text }),
-    });
-  } catch (cause) {
-    const error = new Error(`Evolution delivery outcome is uncertain: ${(cause as Error).message || "network error"}`);
-    Object.assign(error, { deliveryAmbiguous: true });
-    throw error;
+    try {
+      res = await fetch(url, {
+        method: "POST",
+        headers: { apikey: EVOLUTION_API_KEY, "Content-Type": "application/json" },
+        body: JSON.stringify({ number: toPhone, text }),
+        signal: controller.signal,
+      });
+      body = await res.text();
+    } catch (cause) {
+      const error = new Error(`Evolution delivery outcome is uncertain: ${(cause as Error).message || "network error"}`);
+      Object.assign(error, { deliveryAmbiguous: true });
+      throw error;
+    }
+  } finally {
+    clearTimeout(timeout);
   }
-  const body = await res.text();
   if (!res.ok) {
     const error = new Error(`Evolution send ${res.status}: ${body.slice(0, 200)}`);
     if (res.status >= 500) Object.assign(error, { deliveryAmbiguous: true });

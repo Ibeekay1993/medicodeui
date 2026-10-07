@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   classifyRetryFailure,
+  getWorkerBatchSize,
   getQueuePlan,
   getStaleQueueCandidates,
   isOutboundAmbiguous,
@@ -16,6 +17,12 @@ import {
 } from "../_shared/authorization-state.ts";
 
 describe("queue hardening helpers", () => {
+  it("bounds the scheduled worker batch size", () => {
+    expect(getWorkerBatchSize("10")).toBe(2);
+    expect(getWorkerBatchSize("1")).toBe(1);
+    expect(getWorkerBatchSize("invalid")).toBe(2);
+  });
+
   it("classifies permanent validation failures as failed", () => {
     const result = classifyRetryFailure("beneficiary_mismatch");
     expect(result.kind).toBe("failed");
