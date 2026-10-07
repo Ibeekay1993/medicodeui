@@ -8,6 +8,7 @@ import { DataPagination } from "@/components/dashboard/DataPagination";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import { formatNigeriaDate, formatNigeriaTime, getAuthorizationListTimestamp } from "@/lib/authorizationTime";
 import {
   isReferralFor,
   claimOwnerNameFor,
@@ -24,19 +25,6 @@ const STATUS_COLORS: Record<string, { bg: string; text: string; border: string }
   pending: { bg: "bg-[#FEF3C7]", text: "text-[#D97706]", border: "border-[#FDE68A]" },
   rejected: { bg: "bg-[#FEE2E2]", text: "text-[#DC2626]", border: "border-[#FECACA]" },
 };
-
-function formatNigeriaDate(value: string) {
-  return new Date(value).toLocaleDateString("en-GB", { timeZone: "Africa/Lagos" });
-}
-
-function formatNigeriaTime(value: string) {
-  return new Date(value).toLocaleTimeString("en-NG", {
-    timeZone: "Africa/Lagos",
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-  });
-}
 
 interface AuthorizationsTableProps {
   paginatedRequests: any[];
@@ -153,10 +141,17 @@ export default function AuthorizationsTable({
                     <tr key={r.id} className="hover:bg-slate-50/50 transition-colors text-sm">
                       <td className="px-4 py-2 font-mono font-bold text-slate-600">
                         <div className="flex flex-col">
-                          <span>{(isApproved(r) && r.decided_at ? formatNigeriaDate(r.decided_at) : r.created_at ? formatNigeriaDate(r.created_at) : "—")}</span>
-                          {isApproved(r) && r.decided_at && (
-                            <span className="mt-0.5 text-[10px] font-medium text-slate-400">{formatNigeriaTime(r.decided_at)}</span>
-                          )}
+                          {(() => {
+                            const { label, timestamp } = getAuthorizationListTimestamp(r);
+                            return (
+                              <>
+                                <span>{formatNigeriaDate(timestamp)}</span>
+                                <span className="mt-0.5 text-[11px] font-semibold text-slate-400">
+                                  {label} {formatNigeriaTime(timestamp)}
+                                </span>
+                              </>
+                            );
+                          })()}
                         </div>
                       </td>
                       <td className="py-2 pr-4">
@@ -348,10 +343,17 @@ export default function AuthorizationsTable({
                     <div className="flex-1 min-w-0 flex items-center gap-2">
                       <p className="text-xs text-slate-500 truncate">{r.diagnosis || "No diagnosis"}</p>
                       <span className="flex shrink-0 flex-col text-right">
-                        <span className="text-[11px] text-slate-400">{(isApproved(r) && r.decided_at ? formatNigeriaDate(r.decided_at) : r.created_at ? formatNigeriaDate(r.created_at) : "—")}</span>
-                        {isApproved(r) && r.decided_at && (
-                          <span className="mt-0.5 text-[10px] text-slate-400">{formatNigeriaTime(r.decided_at)}</span>
-                        )}
+                        {(() => {
+                          const { label, timestamp } = getAuthorizationListTimestamp(r);
+                          return (
+                            <>
+                              <span className="text-[11px] text-slate-400">{formatNigeriaDate(timestamp)}</span>
+                              <span className="mt-0.5 text-[11px] font-semibold text-slate-400">
+                                {label} {formatNigeriaTime(timestamp)}
+                              </span>
+                            </>
+                          );
+                        })()}
                       </span>
                     </div>
   

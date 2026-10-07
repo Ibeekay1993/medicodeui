@@ -22,6 +22,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { areHospitalNamesMatching } from "@/lib/authorizations-helpers";
 import { writeClipboardText } from "@/lib/clipboard";
 import { getWhatsAppSendErrorMessage } from "@/lib/whatsappSendError";
+import {
+  authorizationSlaColor,
+  formatAuthorizationSla,
+  getAuthorizationDecisionLabel,
+  formatNigeriaDateTime,
+  getAuthorizationSlaMinutes,
+} from "@/lib/authorizationTime";
 
 
 // Custom Hooks
@@ -378,6 +385,10 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
   const isPending = ["pending", "pending_referral", "pending_authorization", "info_provided"].includes(request?.status || "");
   const isDecided = !isPending;
   const isLocked = isDecided && !request?.is_unlocked;
+  const authorizationSlaMinutes = request && (isPending || request.decided_at)
+    ? getAuthorizationSlaMinutes(request)
+    : null;
+  const decisionLabel = getAuthorizationDecisionLabel(request?.status) || "Decision";
 
   if (!request) return null;
 
@@ -461,6 +472,38 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
                   )}
                 </div>
               )}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-x-3 gap-y-2 rounded-lg border border-slate-200 bg-slate-50/80 px-3 py-2 sm:grid-cols-4 sm:gap-x-4">
+            <div className="min-w-0">
+              <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Submitted</div>
+              <div className="mt-0.5 break-words text-xs font-medium leading-4 text-slate-800">{formatNigeriaDateTime(request.created_at)}</div>
+            </div>
+            {request.treatment_submitted_at && (
+              <div className="min-w-0">
+                <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Treatment submitted</div>
+                <div className="mt-0.5 break-words text-xs font-medium leading-4 text-slate-800">{formatNigeriaDateTime(request.treatment_submitted_at)}</div>
+              </div>
+            )}
+            <div className="min-w-0">
+              <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">{decisionLabel}</div>
+              <div className="mt-0.5 break-words text-xs font-medium leading-4 text-slate-800">
+                {request.decided_at
+                  ? formatNigeriaDateTime(request.decided_at)
+                  : isPending ? "Awaiting decision" : "Decision time unavailable"}
+              </div>
+            </div>
+            <div className="min-w-0">
+              <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">{request.decided_at || !isPending ? "Turnaround" : "SLA elapsed"}</div>
+              <div className={cn(
+                "mt-0.5 text-xs font-bold leading-4",
+                authorizationSlaMinutes === null ? "text-slate-500" : authorizationSlaColor(authorizationSlaMinutes),
+              )}>
+                {authorizationSlaMinutes === null
+                  ? "—"
+                  : `${formatAuthorizationSla(authorizationSlaMinutes)}${request.decided_at || !isPending ? "" : " so far"}`}
+              </div>
             </div>
           </div>
 

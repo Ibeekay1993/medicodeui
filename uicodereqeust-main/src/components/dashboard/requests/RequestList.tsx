@@ -7,19 +7,14 @@ import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { writeClipboardText } from "@/lib/clipboard";
-
-function formatNigeriaDate(value: string) {
-  return new Date(value).toLocaleDateString("en-GB", { timeZone: "Africa/Lagos" });
-}
-
-function formatNigeriaTime(value: string) {
-  return new Date(value).toLocaleTimeString("en-NG", {
-    timeZone: "Africa/Lagos",
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-  });
-}
+import {
+  authorizationSlaColor,
+  formatAuthorizationSla,
+  formatNigeriaDate,
+  formatNigeriaTime,
+  getAuthorizationListTimestamp,
+  getAuthorizationSlaMinutes,
+} from "@/lib/authorizationTime";
 
 interface RequestListProps {
   requests: any[];
@@ -171,10 +166,17 @@ export function RequestList({
                 <tr key={r.id} className="cursor-pointer text-sm transition-colors hover:bg-slate-50/70" onClick={() => onSelectRequest(r)}>
                   <td className="p-4 font-mono text-sm font-bold text-slate-600">
                     <div className="flex flex-col">
-                      <span>{isApproved(r) && r.decided_at ? formatNigeriaDate(r.decided_at) : formatNigeriaDate(r.created_at)}</span>
-                      {isApproved(r) && r.decided_at && (
-                        <span className="mt-0.5 text-[10px] font-medium text-slate-400">{formatNigeriaTime(r.decided_at)}</span>
-                      )}
+                      {(() => {
+                        const { label, timestamp } = getAuthorizationListTimestamp(r);
+                        return (
+                          <>
+                            <span>{formatNigeriaDate(timestamp)}</span>
+                            <span className="mt-0.5 text-[11px] font-semibold text-slate-400">
+                              {label} {formatNigeriaTime(timestamp)}
+                            </span>
+                          </>
+                        );
+                      })()}
                     </div>
                   </td>
                   <td className="px-4 py-4">
@@ -278,15 +280,12 @@ export function RequestList({
                   <td className="px-4 py-4">
                     <div className="flex flex-col items-start gap-1.5">
                       {(() => {
-                        const created = r.treatment_submitted_at ? new Date(r.treatment_submitted_at).getTime() : new Date(r.created_at).getTime();
-                        const resolved = r.decided_at ? new Date(r.decided_at).getTime() : Date.now();
-                        const diffMins = Math.round((resolved - created) / (1000 * 60));
-                        const slaType = diffMins <= 15 ? "good" : diffMins <= 30 ? "warning" : "danger";
-                        const timeStr = diffMins >= 60 ? `${Math.floor(diffMins / 60)}h ${diffMins % 60}m` : `${diffMins}m`;
-                        const timeColor = slaType === "good" ? "text-emerald-600" : slaType === "warning" ? "text-amber-600 font-bold" : "text-rose-600 font-bold";
+                        const slaMinutes = getAuthorizationSlaMinutes(r);
                         return (
                           <div className="flex items-center gap-2">
-                            <span className={cn("text-xs font-mono font-bold w-14", timeColor)}>{timeStr}</span>
+                            <span className={cn("text-xs font-mono font-bold w-14", slaMinutes === null ? "text-slate-400" : authorizationSlaColor(slaMinutes))}>
+                              {slaMinutes === null ? "—" : formatAuthorizationSla(slaMinutes)}
+                            </span>
                             <Badge variant="outline" className="max-w-[150px] rounded-md border-slate-200 bg-slate-50 px-2 py-1 text-[10px] font-black uppercase tracking-wide text-slate-700">
                               <span className="truncate">{approverLabel(r)}</span>
                             </Badge>
@@ -365,10 +364,17 @@ export function RequestList({
                 <div className="flex justify-between items-end gap-3 mt-1 pt-3 border-t border-slate-100">
                   <div className="flex flex-col gap-1 min-w-0">
                     <span className="flex flex-col text-[11px] font-medium text-slate-400">
-                      <span>{isApproved(r) && r.decided_at ? formatNigeriaDate(r.decided_at) : formatNigeriaDate(r.created_at)}</span>
-                      {isApproved(r) && r.decided_at && (
-                        <span className="mt-0.5 text-[10px]">{formatNigeriaTime(r.decided_at)}</span>
-                      )}
+                      {(() => {
+                        const { label, timestamp } = getAuthorizationListTimestamp(r);
+                        return (
+                          <>
+                            <span>{formatNigeriaDate(timestamp)}</span>
+                            <span className="mt-0.5 text-[11px] font-semibold">
+                              {label} {formatNigeriaTime(timestamp)}
+                            </span>
+                          </>
+                        );
+                      })()}
                     </span>
                     <span className={cn(
                       "mt-1 text-[11px] font-mono font-bold",
@@ -378,6 +384,18 @@ export function RequestList({
                     )}>
                       {codeOrDecisionText(r)}
                     </span>
+                    {(() => {
+                      const slaMinutes = getAuthorizationSlaMinutes(r);
+                      return slaMinutes === null ? null : (
+                        <span className="mt-1 flex items-center gap-1 text-[11px] leading-tight">
+                          <span className="font-semibold uppercase tracking-wide text-slate-400">SLA</span>
+                          <span className={cn("font-mono font-bold", authorizationSlaColor(slaMinutes))}>
+                            {formatAuthorizationSla(slaMinutes)}
+                          </span>
+                          {!r.decided_at && <span className="text-slate-400">elapsed</span>}
+                        </span>
+                      );
+                    })()}
                   </div>
 
                   <div className="flex shrink-0 items-center gap-1.5">
