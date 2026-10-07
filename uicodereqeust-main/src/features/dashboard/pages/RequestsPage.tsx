@@ -35,7 +35,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 export default function RequestsPage() {
   const { role } = useAuth();
   const isClaimsRole = role === "claims";
-  const isAdmin = role === "admin";
+  const isDeleteApprover = role === "admin" || role === "utilization_manager_lead";
   
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -416,7 +416,7 @@ export default function RequestsPage() {
       });
       if (error) throw error;
 
-      if (isAdmin) {
+      if (isDeleteApprover) {
         const { error: resolveError } = await (supabase as any).rpc("rpc_resolve_delete_request", {
           p_request_id: deleteTarget.id,
           p_action: "approved",
@@ -429,7 +429,7 @@ export default function RequestsPage() {
         queryClient.invalidateQueries({ queryKey: ["delete-queue"] }),
         queryClient.invalidateQueries({ queryKey: ["delete-archive"] }),
       ]);
-      toast(isAdmin
+      toast(isDeleteApprover
         ? { title: "Authorization deleted", description: "The deletion was recorded in the audit log." }
         : { title: "Awaiting Review", description: "The deletion request was sent to a Utilization Manager Lead or Super Admin." });
       setDeleteTarget(null);
@@ -543,9 +543,9 @@ export default function RequestsPage() {
       <AlertDialog open={!!deleteTarget} onOpenChange={open => !open && setDeleteTarget(null)}>
         <AlertDialogContent className="rounded-2xl">
           <AlertDialogHeader>
-            <AlertDialogTitle>{isAdmin ? "Delete Authorization?" : "Request Record Deletion?"}</AlertDialogTitle>
+            <AlertDialogTitle>{isDeleteApprover ? "Delete Authorization?" : "Request Record Deletion?"}</AlertDialogTitle>
             <AlertDialogDescription>
-              {isAdmin
+              {isDeleteApprover
                 ? "This will permanently delete the authorization and record the action in the audit log. This cannot be undone."
                 : "This will send the request to a Utilization Manager Lead or Super Admin for review."} Type <span className="font-black">DELETE</span> to continue.
             </AlertDialogDescription>
@@ -563,7 +563,7 @@ export default function RequestsPage() {
               onClick={() => void executeDelete()}
               className="rounded-xl bg-rose-600 hover:bg-rose-700"
             >
-              {deleteProcessing ? (isAdmin ? "Deleting…" : "Submitting…") : (isAdmin ? "Delete Authorization" : "Submit Request")}
+              {deleteProcessing ? (isDeleteApprover ? "Deleting…" : "Submitting…") : (isDeleteApprover ? "Delete Authorization" : "Submit Request")}
             </Button>
           </AlertDialogFooter>
         </AlertDialogContent>

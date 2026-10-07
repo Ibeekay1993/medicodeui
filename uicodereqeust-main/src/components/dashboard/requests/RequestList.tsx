@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Copy, Loader2, Trash2, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { writeClipboardText } from "@/lib/clipboard";
 import {
@@ -44,6 +45,7 @@ export function RequestList({
   isLoading
 }: RequestListProps) {
   const { toast } = useToast();
+  const { user, hospitalId } = useAuth();
   const [unlockingReqId, setUnlockingReqId] = useState<string | null>(null);
   const [unlockOtpInput, setUnlockOtpInput] = useState("");
 
@@ -66,6 +68,9 @@ export function RequestList({
   };
 
   const isAwaitingDelete = (r: any) => r.deletion_status === "awaiting_admin_approval";
+  const canRequestDeletion = (r: any) =>
+    !isClaimsRole &&
+    (role !== "hospital" || (r.submitted_by === user?.id && r.hospital_id === hospitalId));
   const displayStatus = (r: any) => isAwaitingDelete(r) ? "Awaiting Delete" : r.status;
   const rejectionReason = (r: any) => String(r.decision_reason || r.rejection_reason || r.clinical_notes || "").trim();
   const isRejected = (r: any) => ["rejected", "declined", "denied"].includes(String(r.status || "").toLowerCase());
@@ -294,7 +299,7 @@ export function RequestList({
                       })()}
                     </div>
                   </td>
-                  {!isClaimsRole && (
+                  {canRequestDeletion(r) && (
                     <td className="px-4 py-4 text-right">
                       {!isAwaitingDelete(r) && (
                         <Button variant="ghost" size="icon" onClick={e => { e.stopPropagation(); onDeleteRequest(r); }} className="h-8 w-8 text-slate-400 hover:text-rose-600 hover:bg-rose-50">
@@ -409,7 +414,7 @@ export function RequestList({
                         </span>
                       </Button>
                     )}
-                    {!isClaimsRole && !isAwaitingDelete(r) && (
+                    {canRequestDeletion(r) && !isAwaitingDelete(r) && (
                       <Button variant="ghost" size="icon" aria-label="Request record deletion" title="Request record deletion" onClick={(e) => { e.stopPropagation(); onDeleteRequest(r); }} className="h-11 w-11 rounded-lg text-rose-600 hover:bg-rose-50 hover:text-rose-700">
                         <Trash2 className="h-4 w-4" />
                       </Button>
