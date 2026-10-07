@@ -8,6 +8,19 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { writeClipboardText } from "@/lib/clipboard";
 
+function formatNigeriaDate(value: string) {
+  return new Date(value).toLocaleDateString("en-GB", { timeZone: "Africa/Lagos" });
+}
+
+function formatNigeriaTime(value: string) {
+  return new Date(value).toLocaleTimeString("en-NG", {
+    timeZone: "Africa/Lagos",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+}
+
 interface RequestListProps {
   requests: any[];
   role: string | undefined;
@@ -156,7 +169,14 @@ export function RequestList({
             ) : (
               requests.map((r) => (
                 <tr key={r.id} className="cursor-pointer text-sm transition-colors hover:bg-slate-50/70" onClick={() => onSelectRequest(r)}>
-                  <td className="p-4 font-mono text-sm font-bold text-slate-600">{new Date(r.created_at).toLocaleDateString("en-GB")}</td>
+                  <td className="p-4 font-mono text-sm font-bold text-slate-600">
+                    <div className="flex flex-col">
+                      <span>{isApproved(r) && r.decided_at ? formatNigeriaDate(r.decided_at) : formatNigeriaDate(r.created_at)}</span>
+                      {isApproved(r) && r.decided_at && (
+                        <span className="mt-0.5 text-[10px] font-medium text-slate-400">{formatNigeriaTime(r.decided_at)}</span>
+                      )}
+                    </div>
+                  </td>
                   <td className="px-4 py-4">
                     <p className="text-sm font-black uppercase leading-snug text-slate-950">{r.patient_name}</p>
                     <p className="mt-1 max-w-[360px] text-xs font-semibold leading-snug text-slate-600">{r.diagnosis || "No diagnosis recorded"}</p>
@@ -344,8 +364,11 @@ export function RequestList({
                 {/* Body / Actions */}
                 <div className="flex justify-between items-end gap-3 mt-1 pt-3 border-t border-slate-100">
                   <div className="flex flex-col gap-1 min-w-0">
-                    <span className="text-[11px] font-medium text-slate-400">
-                      {new Date(r.created_at).toLocaleDateString("en-GB", { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                    <span className="flex flex-col text-[11px] font-medium text-slate-400">
+                      <span>{isApproved(r) && r.decided_at ? formatNigeriaDate(r.decided_at) : formatNigeriaDate(r.created_at)}</span>
+                      {isApproved(r) && r.decided_at && (
+                        <span className="mt-0.5 text-[10px]">{formatNigeriaTime(r.decided_at)}</span>
+                      )}
                     </span>
                     <span className={cn(
                       "mt-1 text-[11px] font-mono font-bold",
