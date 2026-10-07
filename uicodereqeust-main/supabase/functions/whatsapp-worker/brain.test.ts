@@ -150,6 +150,27 @@ describe("extractAuthFieldsFromRaw", () => {
     );
   });
 
+  it("accepts semicolon after diagnosis and extracts the complete drug list", () => {
+    const msg = [
+      "Full Name: BRAIMAH SAIBU",
+      "NHIS No: 1638073-1",
+      "HMO: Ronsberger Nigeria Ltd.",
+      "Sex: Male",
+      "Date of birth: 08 Dec 1955 (70 yrs)",
+      "Phone no: +234703273766",
+      "",
+      "Diagnosis; HTN",
+      "Drugs: Amlodipine Tablet (Besylate) · 10mg · Tab. x30, Lisinopril Tablet · 5mg · Tablet x30, Hydrochlorothiazide Tablet · 25mg · Tab. x30",
+      "",
+      "FROM UNIVERSITY HEALTH SERVICE",
+    ].join("\n");
+    const fields = extractAuthFieldsFromRaw(msg);
+    expect(fields.diagnosis).toBe("HTN");
+    expect(fields.treatment).toContain("Amlodipine Tablet (Besylate)");
+    expect(fields.treatment).toContain("Hydrochlorothiazide Tablet");
+    expect(hasStrongAuthIndicators(msg)).toBe(true);
+  });
+
   it("supports procedures, investigations and services as requested services", () => {
     const proc = extractAuthFieldsFromRaw(
       "Full Name: Hamdallah Oladejo\nNHIS No: 2173578-1\nDiagnosis: ? Fibroadenoma\nProcedures: Breast Scan x2",

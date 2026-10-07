@@ -95,7 +95,7 @@ export function extractAuthFieldsFromRaw(
       "policyNumber",
       /^(?:\*?\s*(?:nhia\s*(?:no|number)?|nhis\s*(?:no|number)?|policy\s*(?:no|number)?)\s*\*?\s*:\s*)(.+)$/i,
     ],
-    ["diagnosis", /^(?:\*?\s*diagnosis\s*\*?\s*(?:(?::|-)\s*|\s+))(.+)$/i],
+    ["diagnosis", /^(?:\*?\s*diagnosis\s*\*?\s*(?:(?::|;|-)\s*|\s+))(.+)$/i],
     ["treatment", /^(?:\*?\s*(?:drugs?|treatment)\s*\*?\s*(?:(?::|-)\s*|\s+))(.+)$/i],
     ["procedure", /^(?:\*?\s*procedures?\s*\*?\s*(?:(?::|-)\s*|\s+))(.+)$/i],
     ["investigation", /^(?:\*?\s*investigations?\s*\*?\s*(?:(?::|-)\s*|\s+))(.+)$/i],
@@ -162,7 +162,7 @@ export function combineRequestedServices(
 export const AUTH_HEADER_PATTERNS = [
   /(?:^|\n)\s*(?:full\s*name|patient\s*name|name)\s*:\s*[^\n\r]+/i,
   /(?:^|\n)\s*(?:nhia\s*(?:no|number)?|nhis\s*(?:no|number)?|policy\s*(?:no|number)?)\s*:\s*[^\n\r]+/i,
-  /(?:^|\n)\s*diagnosis\s*:\s*[^\n\r]+/i,
+  /(?:^|\n)\s*diagnosis\s*(?::|;)\s*[^\n\r]+/i,
   /(?:^|\n)\s*(?:drugs?|treatment|procedures?|investigations?|services?|consultation)\s*:\s*[^\n\r]+/i,
 ];
 
