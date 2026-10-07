@@ -38,10 +38,11 @@ try {
   }
 } catch {}
 
-// 4. Run TypeScript check
-console.log("🔍 Checking TypeScript types (tsc --noEmit)...");
+// 4. Check the app and Vite config explicitly. The root tsconfig only contains
+// project references, so `tsc --noEmit` alone can pass without checking src/.
+console.log("🔍 Checking TypeScript types (npm run typecheck)...");
 try {
-  execSync("npx tsc --noEmit", { stdio: "inherit" });
+  execSync("npm run typecheck", { stdio: "inherit" });
   console.log("✅ TypeScript check passed.\n");
 } catch (err) {
   console.error("\n❌ [Deploy Guard] TypeScript compilation failed! Fix type errors before deploying.");
