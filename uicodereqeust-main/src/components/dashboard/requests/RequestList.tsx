@@ -11,8 +11,8 @@ import { writeClipboardText } from "@/lib/clipboard";
 import {
   authorizationSlaColor,
   formatAuthorizationSla,
-  formatAuthorizationListEvent,
   formatNigeriaDate,
+  formatNigeriaTime,
   getAuthorizationListTimestamp,
   getAuthorizationSlaMinutes,
 } from "@/lib/authorizationTime";
@@ -176,8 +176,8 @@ export function RequestList({
                         return (
                           <>
                             <span className="whitespace-nowrap tabular-nums">{formatNigeriaDate(timestamp)}</span>
-                            <span className="mt-0.5 whitespace-nowrap text-[9px] font-semibold text-slate-500 tabular-nums">
-                              {formatAuthorizationListEvent(label, timestamp)}
+                            <span className="mt-0.5 whitespace-nowrap font-sans text-[9px] font-medium leading-3 text-slate-500 tabular-nums">
+                              {label} at {formatNigeriaTime(timestamp)}
                             </span>
                           </>
                         );
@@ -374,8 +374,8 @@ export function RequestList({
                         return (
                           <>
                             <span className="whitespace-nowrap tabular-nums">{formatNigeriaDate(timestamp)}</span>
-                            <span className="mt-0.5 whitespace-nowrap text-[10px] font-semibold text-slate-500 tabular-nums">
-                              {formatAuthorizationListEvent(label, timestamp)}
+                            <span className="mt-0.5 whitespace-nowrap font-sans text-[9px] font-medium leading-3 text-slate-500 tabular-nums">
+                              {label} at {formatNigeriaTime(timestamp)}
                             </span>
                           </>
                         );

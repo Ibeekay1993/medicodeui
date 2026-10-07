@@ -61,12 +61,6 @@ export function getAuthorizationListTimestamp(request: AuthorizationTimeRecord) 
   };
 }
 
-export function formatAuthorizationListEvent(label: string, timestamp?: string | null) {
-  const compactLabel = label === "Partially approved" ? "Partial" : label === "Submitted" ? "Sent" : label;
-  const compactTime = formatNigeriaTime(timestamp).replace(/\s+(?=[ap]m$)/i, "");
-  return `${compactLabel} ${compactTime}`;
-}
-
 export function getAuthorizationSlaMinutes(
   request: AuthorizationTimeRecord,
   now = Date.now(),

@@ -8,7 +8,7 @@ import { DataPagination } from "@/components/dashboard/DataPagination";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
-import { formatAuthorizationListEvent, formatNigeriaDate, getAuthorizationListTimestamp } from "@/lib/authorizationTime";
+import { formatNigeriaDate, formatNigeriaTime, getAuthorizationListTimestamp } from "@/lib/authorizationTime";
 import {
   isReferralFor,
   claimOwnerNameFor,
@@ -146,8 +146,8 @@ export default function AuthorizationsTable({
                             return (
                               <>
                                 <span className="whitespace-nowrap tabular-nums">{formatNigeriaDate(timestamp)}</span>
-                                <span className="mt-0.5 whitespace-nowrap text-[9px] font-semibold text-slate-500 tabular-nums">
-                                  {formatAuthorizationListEvent(label, timestamp)}
+                                <span className="mt-0.5 whitespace-nowrap font-sans text-[9px] font-medium leading-3 text-slate-500 tabular-nums">
+                                  {label} at {formatNigeriaTime(timestamp)}
                                 </span>
                               </>
                             );
@@ -348,8 +348,8 @@ export default function AuthorizationsTable({
                           return (
                             <>
                               <span className="whitespace-nowrap text-[10px] text-slate-500 tabular-nums">{formatNigeriaDate(timestamp)}</span>
-                              <span className="mt-0.5 whitespace-nowrap text-[9px] font-semibold text-slate-500 tabular-nums">
-                                {formatAuthorizationListEvent(label, timestamp)}
+                              <span className="mt-0.5 whitespace-nowrap font-sans text-[9px] font-medium leading-3 text-slate-500 tabular-nums">
+                                {label} at {formatNigeriaTime(timestamp)}
                               </span>
                             </>
                           );
