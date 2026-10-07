@@ -475,7 +475,10 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-x-3 gap-y-2 rounded-lg border border-slate-200 bg-slate-50/80 px-3 py-2 sm:grid-cols-4 sm:gap-x-4">
+          <div className={cn(
+            "grid grid-cols-2 gap-x-3 gap-y-2 rounded-lg border border-slate-200 bg-slate-50/80 px-3 py-2 sm:gap-x-4",
+            request.treatment_submitted_at ? "sm:grid-cols-4" : "sm:grid-cols-3",
+          )}>
             <div className="min-w-0">
               <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Submitted</div>
               <div className="mt-0.5 break-words text-xs font-medium leading-4 text-slate-800">{formatNigeriaDateTime(request.created_at)}</div>
@@ -494,7 +497,7 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
                   : isPending ? "Awaiting decision" : "Decision time unavailable"}
               </div>
             </div>
-            <div className="min-w-0">
+            <div className={cn("min-w-0", !request.treatment_submitted_at && "col-span-2 sm:col-span-1")}>
               <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">{request.decided_at || !isPending ? "Turnaround" : "SLA elapsed"}</div>
               <div className={cn(
                 "mt-0.5 text-xs font-bold leading-4",
