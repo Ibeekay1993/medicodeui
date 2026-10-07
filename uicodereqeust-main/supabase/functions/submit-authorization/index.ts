@@ -14,6 +14,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { ensureArrivalPin } from "../_shared/arrival-pin.ts";
+import { schedulePendingAuthorizationPush } from "../_shared/pending-auth-push.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -389,6 +390,10 @@ serve(async (req) => {
       .from("whatsapp_messages")
       .update({ internal_request_id: row.id })
       .eq("message_id", whatsappMessageId);
+  }
+
+  if (source === "whatsapp" && row.status === "pending") {
+    schedulePendingAuthorizationPush(supabase, row.id, hospitalName);
   }
 
   return new Response(

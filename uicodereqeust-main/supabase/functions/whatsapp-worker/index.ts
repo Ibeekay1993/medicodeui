@@ -29,6 +29,7 @@ import {
   shouldSendOutbound,
 } from "./queue-hardening.ts";
 import { ensureArrivalPin } from "../_shared/arrival-pin.ts";
+import { schedulePendingAuthorizationPush } from "../_shared/pending-auth-push.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -762,6 +763,9 @@ async function postAuthorization(
     } catch (error) {
       await supabase.from("authorization_requests").delete().eq("id", row.id);
       throw error;
+    }
+    if (row.status === "pending") {
+      schedulePendingAuthorizationPush(supabase, row.id, hospitalName);
     }
   }
   return { id: row.id, request_id: row.request_id, status: row.status };
