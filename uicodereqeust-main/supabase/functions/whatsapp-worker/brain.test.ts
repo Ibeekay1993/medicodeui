@@ -115,6 +115,15 @@ describe("hasStrongAuthIndicators", () => {
 });
 
 describe("extractAuthFieldsFromRaw", () => {
+  it.each([
+    "Diagnosis;Refractive error",
+    "Diagnosis; Refractive error",
+  ])("extracts any diagnosis text from %s", (diagnosisLine) => {
+    expect(extractAuthFieldsFromRaw(diagnosisLine).diagnosis).toBe(
+      "Refractive error",
+    );
+  });
+
   it("extracts diagnosis and procedures when labels omit colons", () => {
     const fields = extractAuthFieldsFromRaw(
       "Full Name: VICTORIA FOYE\nNHIS No: 3381755-1\nDiagnosis Presbyopia\nProcedures Initial consultation, Auto Refraction",
