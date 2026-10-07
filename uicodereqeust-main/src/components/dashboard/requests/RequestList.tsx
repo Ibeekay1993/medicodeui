@@ -11,8 +11,8 @@ import { writeClipboardText } from "@/lib/clipboard";
 import {
   authorizationSlaColor,
   formatAuthorizationSla,
+  formatAuthorizationListEvent,
   formatNigeriaDate,
-  formatNigeriaTime,
   getAuthorizationListTimestamp,
   getAuthorizationSlaMinutes,
 } from "@/lib/authorizationTime";
@@ -140,7 +140,7 @@ export function RequestList({
         <table className="w-full min-w-[760px] border-collapse text-left">
           <thead className="table-heading">
             <tr>
-              <th className="p-4 w-[110px]">Date</th>
+              <th className="p-4 w-[170px] min-w-[170px]">Date</th>
               <th className="px-4 py-4 min-w-[220px]">Patient / Diagnosis</th>
               <th className="px-4 py-4 w-[130px]">Policy</th>
               <th className="px-4 py-4 min-w-[180px]">Auth Code</th>
@@ -170,14 +170,14 @@ export function RequestList({
               requests.map((r) => (
                 <tr key={r.id} className="cursor-pointer text-sm transition-colors hover:bg-slate-50/70" onClick={() => onSelectRequest(r)}>
                   <td className="p-4 font-mono text-sm font-bold text-slate-600">
-                    <div className="flex flex-col">
+                    <div className="flex min-w-[138px] flex-col">
                       {(() => {
                         const { label, timestamp } = getAuthorizationListTimestamp(r);
                         return (
                           <>
-                            <span>{formatNigeriaDate(timestamp)}</span>
-                            <span className="mt-0.5 text-[11px] font-semibold text-slate-400">
-                              {label} at {formatNigeriaTime(timestamp)}
+                            <span className="whitespace-nowrap tabular-nums">{formatNigeriaDate(timestamp)}</span>
+                            <span className="mt-0.5 whitespace-nowrap text-[9px] font-semibold text-slate-500 tabular-nums">
+                              {formatAuthorizationListEvent(label, timestamp)}
                             </span>
                           </>
                         );
@@ -368,14 +368,14 @@ export function RequestList({
                 {/* Body / Actions */}
                 <div className="flex justify-between items-end gap-3 mt-1 pt-3 border-t border-slate-100">
                   <div className="flex flex-col gap-1 min-w-0">
-                    <span className="flex flex-col text-[11px] font-medium text-slate-400">
+                    <span className="flex min-w-0 flex-col text-[11px] font-medium text-slate-400">
                       {(() => {
                         const { label, timestamp } = getAuthorizationListTimestamp(r);
                         return (
                           <>
-                            <span>{formatNigeriaDate(timestamp)}</span>
-                            <span className="mt-0.5 text-[11px] font-semibold">
-                              {label} at {formatNigeriaTime(timestamp)}
+                            <span className="whitespace-nowrap tabular-nums">{formatNigeriaDate(timestamp)}</span>
+                            <span className="mt-0.5 whitespace-nowrap text-[10px] font-semibold text-slate-500 tabular-nums">
+                              {formatAuthorizationListEvent(label, timestamp)}
                             </span>
                           </>
                         );

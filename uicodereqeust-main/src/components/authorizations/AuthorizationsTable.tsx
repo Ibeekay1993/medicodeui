@@ -8,7 +8,7 @@ import { DataPagination } from "@/components/dashboard/DataPagination";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
-import { formatNigeriaDate, formatNigeriaTime, getAuthorizationListTimestamp } from "@/lib/authorizationTime";
+import { formatAuthorizationListEvent, formatNigeriaDate, getAuthorizationListTimestamp } from "@/lib/authorizationTime";
 import {
   isReferralFor,
   claimOwnerNameFor,
@@ -120,7 +120,7 @@ export default function AuthorizationsTable({
           <table className="w-full text-left border-collapse min-w-[800px]">
             <thead className="table-heading">
               <tr>
-                <th className="px-4 py-2">Date</th>
+                <th className="w-[170px] min-w-[170px] px-4 py-2">Date</th>
                 <th className="py-2 pr-4">Patient</th>
                 <th className="py-2 pr-4">Code</th>
                 <th className="py-2 pr-4">Status</th>
@@ -140,14 +140,14 @@ export default function AuthorizationsTable({
                   return (
                     <tr key={r.id} className="hover:bg-slate-50/50 transition-colors text-sm">
                       <td className="px-4 py-2 font-mono font-bold text-slate-600">
-                        <div className="flex flex-col">
+                        <div className="flex min-w-[138px] flex-col">
                           {(() => {
                             const { label, timestamp } = getAuthorizationListTimestamp(r);
                             return (
                               <>
-                                <span>{formatNigeriaDate(timestamp)}</span>
-                                <span className="mt-0.5 text-[11px] font-semibold text-slate-400">
-                                  {label} at {formatNigeriaTime(timestamp)}
+                                <span className="whitespace-nowrap tabular-nums">{formatNigeriaDate(timestamp)}</span>
+                                <span className="mt-0.5 whitespace-nowrap text-[9px] font-semibold text-slate-500 tabular-nums">
+                                  {formatAuthorizationListEvent(label, timestamp)}
                                 </span>
                               </>
                             );
@@ -347,9 +347,9 @@ export default function AuthorizationsTable({
                           const { label, timestamp } = getAuthorizationListTimestamp(r);
                           return (
                             <>
-                              <span className="text-[11px] text-slate-400">{formatNigeriaDate(timestamp)}</span>
-                              <span className="mt-0.5 text-[11px] font-semibold text-slate-400">
-                                {label} at {formatNigeriaTime(timestamp)}
+                              <span className="whitespace-nowrap text-[10px] text-slate-500 tabular-nums">{formatNigeriaDate(timestamp)}</span>
+                              <span className="mt-0.5 whitespace-nowrap text-[9px] font-semibold text-slate-500 tabular-nums">
+                                {formatAuthorizationListEvent(label, timestamp)}
                               </span>
                             </>
                           );
