@@ -187,7 +187,9 @@ async function setMessageStatus(
   };
   if (["completed", "failed", "stale"].includes(status)) {
     next.processed_at = next.status_updated_at;
-    next.next_attempt_at = null;
+    // next_attempt_at is NOT NULL in the production schema. Terminal rows are
+    // excluded from retry scans, so retain the terminal transition time.
+    next.next_attempt_at = next.status_updated_at;
     next.processing_owner = null;
     next.processing_lease_expires_at = null;
     next.processing_heartbeat_at = null;
@@ -390,7 +392,9 @@ async function sendWhatsAppMessage(toPhone: string, text: string) {
     if (res.status >= 500) Object.assign(error, { deliveryAmbiguous: true });
     throw error;
   }
-  return body;
+  // A 2xx response means Evolution accepted the message. Avoid storing its
+  // response payload, which may include recipient identifiers.
+  return null;
 }
 
 async function getOutboundLedger(
@@ -1697,7 +1701,6 @@ async function processOne(
           log("rate_limit", messageId, "skipped", { reason: "unregistered_sender_rate_limit" });
           await setMessageStatus(supabase, messageId, "failed", {
             last_error: "Rate limited unregistered sender",
-            next_attempt_at: getNowIso(),
           }, leaseOwner);
           return;
         }
@@ -1705,7 +1708,6 @@ async function processOne(
       log("auth_guard", messageId, "skipped", { reason: sender.reason });
       await setMessageStatus(supabase, messageId, "failed", {
         last_error: `Dropped by auth guard: ${sender.reason}`,
-        next_attempt_at: getNowIso(),
       }, leaseOwner);
       return;
     }
@@ -1771,14 +1773,12 @@ async function processOne(
     if (classification.kind === "failed") {
       await setMessageStatus(supabase, messageId, "failed", {
         last_error: msg.slice(0, 500),
-        next_attempt_at: getNowIso(),
       }, leaseOwner);
       return;
     }
     if (Number(row.attempts || 0) + 1 >= MAX_ATTEMPTS) {
       await setMessageStatus(supabase, messageId, "failed", {
         last_error: `Maximum retry attempts reached: ${msg.slice(0, 400)}`,
-        next_attempt_at: getNowIso(),
       }, leaseOwner);
       return;
     }
