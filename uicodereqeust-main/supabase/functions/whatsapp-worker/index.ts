@@ -1697,7 +1697,7 @@ async function processOne(
           log("rate_limit", messageId, "skipped", { reason: "unregistered_sender_rate_limit" });
           await setMessageStatus(supabase, messageId, "failed", {
             last_error: "Rate limited unregistered sender",
-            next_attempt_at: null,
+            next_attempt_at: getNowIso(),
           }, leaseOwner);
           return;
         }
@@ -1705,7 +1705,7 @@ async function processOne(
       log("auth_guard", messageId, "skipped", { reason: sender.reason });
       await setMessageStatus(supabase, messageId, "failed", {
         last_error: `Dropped by auth guard: ${sender.reason}`,
-        next_attempt_at: null,
+        next_attempt_at: getNowIso(),
       }, leaseOwner);
       return;
     }
@@ -1771,14 +1771,14 @@ async function processOne(
     if (classification.kind === "failed") {
       await setMessageStatus(supabase, messageId, "failed", {
         last_error: msg.slice(0, 500),
-        next_attempt_at: null,
+        next_attempt_at: getNowIso(),
       }, leaseOwner);
       return;
     }
     if (Number(row.attempts || 0) + 1 >= MAX_ATTEMPTS) {
       await setMessageStatus(supabase, messageId, "failed", {
         last_error: `Maximum retry attempts reached: ${msg.slice(0, 400)}`,
-        next_attempt_at: null,
+        next_attempt_at: getNowIso(),
       }, leaseOwner);
       return;
     }
@@ -1803,7 +1803,9 @@ async function processNotifications(
     notificationQuery = notificationQuery.eq("authorization_request_id", authorizationRequestId);
   }
   const { data: notes, error: notesError } = await notificationQuery;
-  if (notesError) throw notesError;
+  if (notesError) {
+    throw new Error(`decision_outbox_select_failed: ${notesError.message}`);
+  }
 
   for (const candidate of notes || []) {
     const leaseOwner = `decision-${crypto.randomUUID()}`;
@@ -1985,57 +1987,84 @@ async function processNotifications(
   }
 }
 
-async function pollAndProcess(supabase: ReturnType<typeof getServiceClient>) {
-  await recoverStaleProcessingRows(supabase);
-  const now = new Date();
-  const nowIso = now.toISOString();
-  const ageCutoff = new Date(now.getTime() - MAX_AUTO_PROCESS_AGE_MINUTES * 60_000).toISOString();
-  const [freshResult, retryResult, staleResult] = await Promise.all([
-    supabase
-      .from("whatsapp_messages")
-      .select("message_id,status,received_at,created_at,next_attempt_at")
-      .in("status", ["received", "queued"])
-      .gte("received_at", ageCutoff)
-      .order("received_at", { ascending: true })
-      .limit(WORKER_BATCH),
-    supabase
-      .from("whatsapp_messages")
-      .select("message_id,status,received_at,created_at,next_attempt_at")
-      .eq("status", "retry")
-      .gte("received_at", ageCutoff)
-      .lte("next_attempt_at", nowIso)
-      .order("next_attempt_at", { ascending: true })
-      .limit(WORKER_BATCH),
-    supabase
-      .from("whatsapp_messages")
-      .select("message_id,status,received_at,created_at,next_attempt_at")
-      .in("status", ["received", "queued", "retry"])
-      .lt("received_at", ageCutoff)
-      .or(`status.neq.retry,next_attempt_at.is.null,next_attempt_at.lte.${nowIso}`)
-      .order("received_at", { ascending: true })
-      .limit(WORKER_BATCH),
-  ]);
-  for (const result of [freshResult, retryResult, staleResult]) {
-    if (result.error) throw result.error;
-  }
-
-  // Separate indexed scans keep the oldest retry backlog from hiding newly
-  // received requests. Old items get only the remaining batch slots and are
-  // held by processOne without creating an authorization.
-  const queuePlan = getQueuePlan(
-    [...(freshResult.data || []), ...(retryResult.data || [])],
-    WORKER_BATCH,
-    now,
-  );
-  const selected = new Set(queuePlan.map((row) => row.message_id));
-  const stalePlan = getStaleQueueCandidates(
-    staleResult.data || [],
-    Math.max(0, WORKER_BATCH - queuePlan.length),
-  ).filter((row) => !selected.has(row.message_id));
-
+async function pollAndProcess(
+  supabase: ReturnType<typeof getServiceClient>,
+): Promise<{ ok: true; inbound_poll: "processed" | "deferred"; detail?: string }> {
+  // Decision notices have their own durable outbox. Drain it before polling
+  // inbound submissions so an inbound query failure cannot block a decision.
   await processNotifications(supabase);
-  for (const r of queuePlan) await processOne(supabase, r.message_id);
-  for (const r of stalePlan) await processOne(supabase, r.message_id);
+
+  try {
+    await recoverStaleProcessingRows(supabase);
+    const now = new Date();
+    const nowIso = now.toISOString();
+    const ageCutoff = new Date(now.getTime() - MAX_AUTO_PROCESS_AGE_MINUTES * 60_000).toISOString();
+    const [freshResult, retryResult, staleResult] = await Promise.all([
+      supabase
+        .from("whatsapp_messages")
+        .select("message_id,status,received_at,created_at,next_attempt_at")
+        .in("status", ["received", "queued"])
+        .gte("received_at", ageCutoff)
+        .order("received_at", { ascending: true })
+        .limit(WORKER_BATCH),
+      supabase
+        .from("whatsapp_messages")
+        .select("message_id,status,received_at,created_at,next_attempt_at")
+        .eq("status", "retry")
+        .gte("received_at", ageCutoff)
+        .lte("next_attempt_at", nowIso)
+        .order("next_attempt_at", { ascending: true })
+        .limit(WORKER_BATCH),
+      supabase
+        .from("whatsapp_messages")
+        .select("message_id,status,received_at,created_at,next_attempt_at")
+        .in("status", ["received", "queued", "retry"])
+        .lt("received_at", ageCutoff)
+        .or(`status.neq.retry,next_attempt_at.is.null,next_attempt_at.lte.${nowIso}`)
+        .order("received_at", { ascending: true })
+        .limit(WORKER_BATCH),
+    ]);
+    if (freshResult.error) {
+      throw new Error(`whatsapp_poll_fresh_select_failed: ${freshResult.error.message}`);
+    }
+    if (retryResult.error) {
+      throw new Error(`whatsapp_poll_retry_select_failed: ${retryResult.error.message}`);
+    }
+    if (staleResult.error) {
+      throw new Error(`whatsapp_poll_stale_select_failed: ${staleResult.error.message}`);
+    }
+
+    // Separate indexed scans keep the oldest retry backlog from hiding newly
+    // received requests. Old items get only the remaining batch slots and are
+    // held by processOne without creating an authorization.
+    const queuePlan = getQueuePlan(
+      [...(freshResult.data || []), ...(retryResult.data || [])],
+      WORKER_BATCH,
+      now,
+    );
+    const selected = new Set(queuePlan.map((row) => row.message_id));
+    const stalePlan = getStaleQueueCandidates(
+      staleResult.data || [],
+      Math.max(0, WORKER_BATCH - queuePlan.length),
+    ).filter((row) => !selected.has(row.message_id));
+
+    for (const row of queuePlan) await processOne(supabase, row.message_id);
+    for (const row of stalePlan) await processOne(supabase, row.message_id);
+    return { ok: true, inbound_poll: "processed" };
+  } catch (error) {
+    const record = error && typeof error === "object"
+      ? error as { code?: unknown; message?: unknown }
+      : null;
+    const detail = (error instanceof Error
+      ? error.message
+      : [record?.code, record?.message]
+          .filter((value): value is string => typeof value === "string" && value.length > 0)
+          .join(": ") || "unknown error")
+      .replace(/[\r\n]+/g, " ")
+      .slice(0, 300);
+    log("inbound_poll", "worker", "error", { detail });
+    return { ok: true, inbound_poll: "deferred", detail };
+  }
 }
 serve(async (req) => {
   if (req.method === "OPTIONS")
@@ -2055,19 +2084,42 @@ serve(async (req) => {
   } catch {
     body = {};
   }
-  if (body?.authorization_request_id) {
-    const authorizationRequestId = String(body.authorization_request_id).trim();
-    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(authorizationRequestId)) {
-      return new Response(JSON.stringify({ error: "invalid_authorization_request_id" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+  let responseBody: Record<string, unknown> = { ok: true };
+  try {
+    if (body?.authorization_request_id) {
+      const authorizationRequestId = String(body.authorization_request_id).trim();
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(authorizationRequestId)) {
+        return new Response(JSON.stringify({ error: "invalid_authorization_request_id" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      await processNotifications(supabase, authorizationRequestId);
+    } else if (body?.message_id) {
+      await processOne(supabase, String(body.message_id));
+    } else {
+      responseBody = await pollAndProcess(supabase);
     }
-    await processNotifications(supabase, authorizationRequestId);
-  } else if (body?.message_id) {
-    await processOne(supabase, String(body.message_id));
-  } else await pollAndProcess(supabase);
-  return new Response(JSON.stringify({ ok: true }), {
+  } catch (error) {
+    // Return only the top-level operational error to the private worker caller.
+    // Poll query failures otherwise become an opaque Edge Runtime 500.
+    const structuredError = error && typeof error === "object"
+      ? error as { code?: unknown; message?: unknown }
+      : null;
+    const errorParts = [structuredError?.code, structuredError?.message]
+      .filter((value): value is string => typeof value === "string" && value.length > 0);
+    const detail = (error instanceof Error
+      ? error.message
+      : errorParts.join(": ") || "unknown error")
+      .replace(/[\r\n]+/g, " ")
+      .slice(0, 300);
+    log("worker_invocation", "request", "error", { detail });
+    return new Response(JSON.stringify({ error: "worker_invocation_failed", detail }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+  return new Response(JSON.stringify(responseBody), {
     status: 200,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
