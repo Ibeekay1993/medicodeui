@@ -1789,13 +1789,14 @@ async function processOne(
 async function processNotifications(
   supabase: ReturnType<typeof getServiceClient>,
 ) {
-  const { data: notes } = await supabase
+  const { data: notes, error: notesError } = await supabase
     .from("whatsapp_notifications")
     .select("*")
     .in("status", ["queued_v2", "retry_v2"])
     .or(`attempts.lt.${MAX_ATTEMPTS},attempts.is.null`)
     .order("created_at", { ascending: true })
     .limit(WORKER_BATCH);
+  if (notesError) throw notesError;
 
   for (const candidate of notes || []) {
     const leaseOwner = `decision-${crypto.randomUUID()}`;
