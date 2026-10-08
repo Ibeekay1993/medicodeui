@@ -1788,14 +1788,19 @@ async function processOne(
 }
 async function processNotifications(
   supabase: ReturnType<typeof getServiceClient>,
+  authorizationRequestId?: string,
 ) {
-  const { data: notes, error: notesError } = await supabase
+  let notificationQuery = supabase
     .from("whatsapp_notifications")
     .select("*")
     .in("status", ["queued_v2", "retry_v2"])
     .or(`attempts.lt.${MAX_ATTEMPTS},attempts.is.null`)
     .order("created_at", { ascending: true })
     .limit(WORKER_BATCH);
+  if (authorizationRequestId) {
+    notificationQuery = notificationQuery.eq("authorization_request_id", authorizationRequestId);
+  }
+  const { data: notes, error: notesError } = await notificationQuery;
   if (notesError) throw notesError;
 
   for (const candidate of notes || []) {
@@ -2045,7 +2050,16 @@ serve(async (req) => {
   } catch {
     body = {};
   }
-  if (body?.message_id) {
+  if (body?.authorization_request_id) {
+    const authorizationRequestId = String(body.authorization_request_id).trim();
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(authorizationRequestId)) {
+      return new Response(JSON.stringify({ error: "invalid_authorization_request_id" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    await processNotifications(supabase, authorizationRequestId);
+  } else if (body?.message_id) {
     await processOne(supabase, String(body.message_id));
   } else await pollAndProcess(supabase);
   return new Response(JSON.stringify({ ok: true }), {
