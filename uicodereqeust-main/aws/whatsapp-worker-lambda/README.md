@@ -45,7 +45,7 @@ Transfer any optional worker configuration currently used by the Supabase Edge F
 4. Only after the consumer is verified, create/use the Lambda Function URL with its shared worker header and set `WHATSAPP_LAMBDA_WORKER_URL` on Supabase's `whatsapp-worker` function. The URL is public at the network layer, so use a newly rotated high-entropy worker secret before enabling it.
 5. Keep the five-minute Supabase recovery poll while observing production. If enqueueing or Lambda processing fails, remove `WHATSAPP_LAMBDA_WORKER_URL` from the Supabase function configuration to restore its prior in-Supabase execution path. Do not delete or purge queued messages during rollback.
 
-Failed targeted jobs return to SQS after their application retry delay. Repeated infrastructure failures go to the dead-letter queue after 20 receives for inspection; they are not automatically replayed from the DLQ. Decision delivery remains protected by the existing outbound ledger so uncertain provider acceptance is not automatically duplicated.
+Failed targeted jobs return to SQS after their application retry delay. Repeated infrastructure failures go to the dead-letter queue after five receives for inspection; they are not automatically replayed from the DLQ. Decision delivery remains protected by the existing outbound ledger so uncertain provider acceptance is not automatically duplicated.
 
 ## What this does not change
 

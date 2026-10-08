@@ -35,7 +35,7 @@ Resources:
       SqsManagedSseEnabled: true
       RedrivePolicy:
         deadLetterTargetArn: !GetAtt WhatsAppWorkerDeadLetterQueue.Arn
-        maxReceiveCount: 20
+        maxReceiveCount: 5
 
   WhatsAppWorkerExecutionPolicy:
     Type: AWS::IAM::Policy
