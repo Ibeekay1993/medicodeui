@@ -75,6 +75,23 @@ export function classifyRetryFailure(
   delayMs: number;
 } {
   const text = String(error || "").toLowerCase();
+  const providerStatus = Number(
+    (error as { providerStatus?: unknown } | null)?.providerStatus,
+  );
+
+  if (
+    Number.isInteger(providerStatus) &&
+    providerStatus >= 400 &&
+    providerStatus < 500 &&
+    ![408, 425, 429].includes(providerStatus)
+  ) {
+    return {
+      kind: "failed",
+      category: `provider_http_${providerStatus}`,
+      message: String(error || `provider_http_${providerStatus}`),
+      delayMs: 0,
+    };
+  }
 
   const permanentPatterns = [
     "beneficiary_mismatch",

@@ -360,7 +360,6 @@ async function sendWhatsAppMessage(toPhone: string, text: string) {
   }
   const url = `${EVOLUTION_API_URL.replace(/\/$/, "")}/message/sendText/${encodeURIComponent(EVOLUTION_INSTANCE_NAME)}`;
   let res: Response;
-  let body: string;
   const controller = new AbortController();
   const timeout = setTimeout(
     () => controller.abort(),
@@ -374,7 +373,7 @@ async function sendWhatsAppMessage(toPhone: string, text: string) {
         body: JSON.stringify({ number: toPhone, text }),
         signal: controller.signal,
       });
-      body = await res.text();
+      await res.text();
     } catch (cause) {
       const error = new Error(`Evolution delivery outcome is uncertain: ${(cause as Error).message || "network error"}`);
       Object.assign(error, { deliveryAmbiguous: true });
@@ -384,7 +383,10 @@ async function sendWhatsAppMessage(toPhone: string, text: string) {
     clearTimeout(timeout);
   }
   if (!res.ok) {
-    const error = new Error(`Evolution send ${res.status}: ${body.slice(0, 200)}`);
+    // Do not persist the provider response body: it can contain recipient
+    // identifiers. The HTTP status is enough to classify retry behavior.
+    const error = new Error(`Evolution send ${res.status}`);
+    Object.assign(error, { providerStatus: res.status });
     if (res.status >= 500) Object.assign(error, { deliveryAmbiguous: true });
     throw error;
   }
@@ -1961,10 +1963,13 @@ async function processNotifications(
       if (updateError) throw updateError;
     } catch (e) {
       const attempts = Number(note.attempts || 0);
+      const classification = classifyRetryFailure(e);
       const { error: updateError } = await supabase
         .from("whatsapp_notifications")
         .update({
-          status: attempts >= MAX_ATTEMPTS ? "failed_v2" : "retry_v2",
+          status: attempts >= MAX_ATTEMPTS || classification.kind === "failed"
+            ? "failed_v2"
+            : "retry_v2",
           last_error: ((e as Error).message || "Notification delivery failed.").slice(0, 500),
           processing_lease_owner: null,
           processing_lease_expires_at: null,
