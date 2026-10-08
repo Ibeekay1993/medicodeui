@@ -1,0 +1,82 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Bounded SQS queue and event source for the MedCode WhatsApp worker Lambda.
+
+Parameters:
+  WorkerFunctionName:
+    Type: String
+    Default: medicode-whatsapp-worker-pilot
+    Description: Existing Lambda function that enqueues and processes WhatsApp jobs.
+  WorkerExecutionRoleName:
+    Type: String
+    Description: Existing Lambda execution role name. The policy below grants access only to this queue.
+  EnableWorkerConsumer:
+    Type: String
+    AllowedValues: ["true", "false"]
+    Default: "false"
+    Description: Keep disabled until the Lambda environment and production gate are verified.
+
+Conditions:
+  EnableConsumer: !Equals [!Ref EnableWorkerConsumer, "true"]
+
+Resources:
+  WhatsAppWorkerDeadLetterQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: medicode-whatsapp-worker-dlq
+      MessageRetentionPeriod: 1209600
+      SqsManagedSseEnabled: true
+
+  WhatsAppWorkerQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: medicode-whatsapp-worker
+      VisibilityTimeout: 720
+      MessageRetentionPeriod: 1209600
+      SqsManagedSseEnabled: true
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt WhatsAppWorkerDeadLetterQueue.Arn
+        maxReceiveCount: 20
+
+  WhatsAppWorkerExecutionPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: medicode-whatsapp-worker-sqs
+      Roles:
+        - !Ref WorkerExecutionRoleName
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: EnqueueAndConsumeOnlyMedCodeWhatsAppJobs
+            Effect: Allow
+            Action:
+              - sqs:SendMessage
+              - sqs:ReceiveMessage
+              - sqs:DeleteMessage
+              - sqs:GetQueueAttributes
+              - sqs:ChangeMessageVisibility
+            Resource: !GetAtt WhatsAppWorkerQueue.Arn
+
+  WhatsAppWorkerEventSource:
+    Type: AWS::Lambda::EventSourceMapping
+    DependsOn: WhatsAppWorkerExecutionPolicy
+    Properties:
+      FunctionName: !Ref WorkerFunctionName
+      EventSourceArn: !GetAtt WhatsAppWorkerQueue.Arn
+      Enabled: !If [EnableConsumer, true, false]
+      BatchSize: 1
+      FunctionResponseTypes:
+        - ReportBatchItemFailures
+      ScalingConfig:
+        MaximumConcurrency: 2
+
+Outputs:
+  QueueUrl:
+    Description: Set this as WHATSAPP_WORKER_QUEUE_URL on the Lambda function.
+    Value: !Ref WhatsAppWorkerQueue
+  QueueArn:
+    Value: !GetAtt WhatsAppWorkerQueue.Arn
+  DeadLetterQueueUrl:
+    Value: !Ref WhatsAppWorkerDeadLetterQueue
+  ConsumerMappingUuid:
+    Description: Event source mapping starts disabled until explicitly enabled.
+    Value: !Ref WhatsAppWorkerEventSource

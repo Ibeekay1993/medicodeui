@@ -57,6 +57,7 @@ const EVOLUTION_API_KEY = Deno.env.get("EVOLUTION_API_KEY") || "";
 const EVOLUTION_INSTANCE_NAME =
   Deno.env.get("EVOLUTION_INSTANCE_NAME") || "medicode-test";
 const WORKER_SECRET = Deno.env.get("WHATSAPP_WORKER_SECRET") || "";
+const LAMBDA_WORKER_URL = Deno.env.get("WHATSAPP_LAMBDA_WORKER_URL") || "";
 const MAX_ATTEMPTS = Number(Deno.env.get("WHATSAPP_MAX_ATTEMPTS") || "5");
 // Cron is only a backstop; webhook-triggered requests are processed one at a
 // time. Keep each scheduled invocation bounded to avoid long Edge requests.
@@ -1530,10 +1531,12 @@ async function processMessageBody(
     );
   }
 }
+type WorkerRetryResult = { retryAfterMs?: number };
+
 async function processOne(
   supabase: ReturnType<typeof getServiceClient>,
   messageId: string,
-) {
+): Promise<WorkerRetryResult> {
   const { data: row, error } = await supabase
     .from("whatsapp_messages")
     .select(
@@ -1543,14 +1546,17 @@ async function processOne(
     .maybeSingle();
   if (error || !row) {
     log("load", messageId, "error", { error: error?.message });
-    return;
+    if (error) throw error;
+    return {};
   }
   const currentStatus = normalizeStatus(row.status);
-  if (["completed", "failed", "stale"].includes(currentStatus)) return;
-  if (!["queued", "retry", "received"].includes(currentStatus)) return;
+  if (["completed", "failed", "stale"].includes(currentStatus)) return {};
+  if (!["queued", "retry", "received"].includes(currentStatus)) return {};
   if (currentStatus === "retry" && row.next_attempt_at) {
     const nextAttemptMs = Date.parse(String(row.next_attempt_at));
-    if (Number.isFinite(nextAttemptMs) && nextAttemptMs > Date.now()) return;
+    if (Number.isFinite(nextAttemptMs) && nextAttemptMs > Date.now()) {
+      return { retryAfterMs: nextAttemptMs - Date.now() };
+    }
   }
 
   const leaseOwner = getProcessingLeaseOwner();
@@ -1569,9 +1575,11 @@ async function processOne(
     .eq("status", currentStatus)
     .select("message_id");
   if (claimError || !claimed?.length) {
-    if (claimError)
+    if (claimError) {
       log("claim", messageId, "error", { error: claimError.message });
-    return;
+      throw claimError;
+    }
+    return { retryAfterMs: PROCESSING_LEASE_MS };
   }
 
   try {
@@ -1604,7 +1612,7 @@ async function processOne(
           internal_request_id: existingAuthorization.id,
           last_error: null,
         }, leaseOwner);
-        return;
+        return {};
       }
 
       if (String(existingAuthorization.source || "").toLowerCase() === "whatsapp") {
@@ -1629,7 +1637,7 @@ async function processOne(
           internal_request_id: latestAuthorization.id,
           last_error: null,
         }, leaseOwner);
-        return;
+        return {};
       }
 
       const messageIsOld = isPastAutoProcessAgeLimit(
@@ -1654,7 +1662,7 @@ async function processOne(
           internal_request_id: latestAuthorization.id,
           last_error: null,
         }, leaseOwner);
-        return;
+        return {};
       }
 
       await writeProcessingAudit(supabase, messageId, "authorization_replay_guard", "ok", {
@@ -1679,7 +1687,7 @@ async function processOne(
           : null,
         template_sent_at: outbound.ambiguous ? null : getNowIso(),
       }, leaseOwner);
-      return;
+      return {};
     }
 
     // Verify the sender before a stale-message response or any request work.
@@ -1702,14 +1710,14 @@ async function processOne(
           await setMessageStatus(supabase, messageId, "failed", {
             last_error: "Rate limited unregistered sender",
           }, leaseOwner);
-          return;
+          return {};
         }
       }
       log("auth_guard", messageId, "skipped", { reason: sender.reason });
       await setMessageStatus(supabase, messageId, "failed", {
         last_error: `Dropped by auth guard: ${sender.reason}`,
       }, leaseOwner);
-      return;
+      return {};
     }
 
     if (isPastAutoProcessAgeLimit(row, MAX_AUTO_PROCESS_AGE_MINUTES)) {
@@ -1746,7 +1754,7 @@ async function processOne(
           ? "Message held safely; delivery of the hold notice is uncertain."
           : null,
       }, leaseOwner);
-      return;
+      return {};
     }
 
     await processMessageBody(supabase, {
@@ -1759,7 +1767,7 @@ async function processOne(
       await setMessageStatus(supabase, messageId, "response_pending", {
         last_error: "Outbound delivery is ambiguous and requires controlled reconciliation",
       }, leaseOwner);
-      return;
+      return {};
     }
     await setMessageStatus(supabase, messageId, "completed", {
       last_error: null,
@@ -1774,24 +1782,29 @@ async function processOne(
       await setMessageStatus(supabase, messageId, "failed", {
         last_error: msg.slice(0, 500),
       }, leaseOwner);
-      return;
+      return {};
     }
     if (Number(row.attempts || 0) + 1 >= MAX_ATTEMPTS) {
       await setMessageStatus(supabase, messageId, "failed", {
         last_error: `Maximum retry attempts reached: ${msg.slice(0, 400)}`,
       }, leaseOwner);
-      return;
+      return {};
     }
+    const retryAfterMs = classification.delayMs;
     await setMessageStatus(supabase, messageId, "retry", {
-      next_attempt_at: new Date(Date.now() + classification.delayMs).toISOString(),
+      next_attempt_at: new Date(Date.now() + retryAfterMs).toISOString(),
       last_error: msg.slice(0, 500),
     }, leaseOwner);
+    return { retryAfterMs };
   }
+
+  return {};
 }
 async function processNotifications(
   supabase: ReturnType<typeof getServiceClient>,
   authorizationRequestId?: string,
-) {
+): Promise<WorkerRetryResult> {
+  let retryAfterMs = 0;
   let notificationQuery = supabase
     .from("whatsapp_notifications")
     .select("*")
@@ -1821,7 +1834,7 @@ async function processNotifications(
       log("decision_notification_claim", String(candidate.id), "error", {
         error: claimError.message,
       });
-      continue;
+      throw claimError;
     }
     const note = Array.isArray(claimedRows) ? claimedRows[0] : claimedRows;
     if (!note) continue;
@@ -1966,10 +1979,11 @@ async function processNotifications(
     } catch (e) {
       const attempts = Number(note.attempts || 0);
       const classification = classifyRetryFailure(e);
+      const exhausted = attempts >= MAX_ATTEMPTS;
       const { error: updateError } = await supabase
         .from("whatsapp_notifications")
         .update({
-          status: attempts >= MAX_ATTEMPTS || classification.kind === "failed"
+          status: exhausted || classification.kind === "failed"
             ? "failed_v2"
             : "retry_v2",
           last_error: ((e as Error).message || "Notification delivery failed.").slice(0, 500),
@@ -1982,9 +1996,15 @@ async function processNotifications(
         log("decision_notification_state", String(note.id), "error", {
           error: updateError.message,
         });
+        throw updateError;
+      }
+      if (!exhausted && classification.kind === "retry") {
+        retryAfterMs = Math.max(retryAfterMs, classification.delayMs);
       }
     }
   }
+
+  return retryAfterMs > 0 ? { retryAfterMs } : {};
 }
 
 async function pollAndProcess(
@@ -2077,13 +2097,74 @@ serve(async (req) => {
     (!WORKER_SECRET || req.headers.get("x-worker-secret") !== WORKER_SECRET)
   )
     return new Response("forbidden", { status: 403 });
-  const supabase = getServiceClient();
   let body: any = {};
   try {
     body = await req.json();
   } catch {
     body = {};
   }
+
+  if (LAMBDA_WORKER_URL) {
+    if (!WORKER_SECRET) {
+      return new Response(JSON.stringify({ error: "lambda_worker_secret_missing" }), {
+        status: 503,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    let target: URL;
+    try {
+      target = new URL(LAMBDA_WORKER_URL);
+    } catch {
+      return new Response(JSON.stringify({ error: "lambda_worker_url_invalid" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    if (
+      target.protocol !== "https:" ||
+      !/^[a-z0-9-]+\.lambda-url\.eu-west-1\.on\.aws$/i.test(target.hostname) ||
+      target.pathname !== "/" ||
+      target.username !== "" ||
+      target.password !== "" ||
+      target.search !== "" ||
+      target.hash !== ""
+    ) {
+      return new Response(JSON.stringify({ error: "lambda_worker_url_not_allowed" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    try {
+      const response = await fetch(target.toString(), {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-worker-secret": WORKER_SECRET,
+        },
+        body: JSON.stringify(body),
+      });
+      const responseBody = await response.text();
+      return new Response(responseBody, {
+        status: response.status,
+        headers: {
+          ...corsHeaders,
+          "Content-Type": response.headers.get("Content-Type") || "application/json",
+        },
+      });
+    } catch (error) {
+      console.error("Lambda WhatsApp worker proxy failed", {
+        message: (error as Error)?.message || "unknown",
+      });
+      return new Response(JSON.stringify({ error: "lambda_worker_unavailable" }), {
+        status: 502,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+  }
+
+  const supabase = getServiceClient();
   let responseBody: Record<string, unknown> = { ok: true };
   try {
     if (body?.authorization_request_id) {
@@ -2094,9 +2175,15 @@ serve(async (req) => {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      await processNotifications(supabase, authorizationRequestId);
+      responseBody = {
+        ok: true,
+        ...await processNotifications(supabase, authorizationRequestId),
+      };
     } else if (body?.message_id) {
-      await processOne(supabase, String(body.message_id));
+      responseBody = {
+        ok: true,
+        ...await processOne(supabase, String(body.message_id)),
+      };
     } else {
       responseBody = await pollAndProcess(supabase);
     }
