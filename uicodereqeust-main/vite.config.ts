@@ -1,55 +1,66 @@
-import { defineConfig } from "vite";
+import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 
 // https://vitejs.dev/config/
-export default defineConfig(() => ({
-  server: {
-    host: "::",
-    port: 8080,
-    hmr: {
-      overlay: false,
+export default defineConfig(({ command, mode }) => {
+  if (command === "build") {
+    const env = loadEnv(mode, process.cwd(), "");
+    if (!env.VITE_SUPABASE_URL?.trim() || !env.VITE_SUPABASE_PUBLISHABLE_KEY?.trim()) {
+      throw new Error(
+        "Production build requires VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY. Refusing to build an app that cannot connect to Supabase."
+      );
+    }
+  }
+
+  return {
+    server: {
+      host: "::",
+      port: 8080,
+      hmr: {
+        overlay: false,
+      },
     },
-  },
-  plugins: [react()],
-  resolve: {
-    alias: {
-      "@": path.resolve(__dirname, "./src"),
+    plugins: [react()],
+    resolve: {
+      alias: {
+        "@": path.resolve(__dirname, "./src"),
+      },
     },
-  },
-  build: {
-    sourcemap: false,
-    rollupOptions: {
-      output: {
-        manualChunks(id) {
-          if (id.includes("node_modules")) {
-            if (id.includes("recharts") || id.includes("d3")) {
-              return "vendor-charts";
+    build: {
+      sourcemap: false,
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (id.includes("node_modules")) {
+              if (id.includes("recharts") || id.includes("d3")) {
+                return "vendor-charts";
+              }
+              if (id.includes("xlsx") || id.includes("exceljs")) {
+                return "vendor-excel";
+              }
+              if (id.includes("file-saver")) {
+                return "vendor-filesaver";
+              }
+              if (id.includes("@tanstack/react-query")) {
+                return "vendor-query";
+              }
+              if (id.includes("@radix-ui")) {
+                return "vendor-radix";
+              }
+              if (id.includes("@supabase") || id.includes("supabase-js")) {
+                return "vendor-supabase";
+              }
+              if (id.includes("lucide-react")) {
+                return "vendor-icons";
+              }
+              if (id.includes("react-dom") || id.includes("react-router-dom") || id.includes("react/")) {
+                return "vendor-react";
+              }
             }
-            if (id.includes("xlsx") || id.includes("exceljs")) {
-              return "vendor-excel";
-            }
-            if (id.includes("file-saver")) {
-              return "vendor-filesaver";
-            }
-            if (id.includes("@tanstack/react-query")) {
-              return "vendor-query";
-            }
-            if (id.includes("@radix-ui")) {
-              return "vendor-radix";
-            }
-            if (id.includes("@supabase") || id.includes("supabase-js")) {
-              return "vendor-supabase";
-            }
-            if (id.includes("lucide-react")) {
-              return "vendor-icons";
-            }
-            if (id.includes("react-dom") || id.includes("react-router-dom") || id.includes("react/")) {
-              return "vendor-react";
-            }
-          }
+          },
         },
       },
     },
-  },
-}));
+  };
+});
