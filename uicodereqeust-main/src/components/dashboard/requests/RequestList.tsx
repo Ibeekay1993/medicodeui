@@ -1,4 +1,4 @@
-import { Fragment, useState } from "react";
+import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -149,14 +149,14 @@ export function RequestList({
       <div className="hidden w-full md:block">
         <table className="w-full table-fixed border-collapse text-left">
           <colgroup>
-            <col className="w-[13%]" />
+            <col className="w-[12%]" />
             <col className="w-[20%]" />
             <col className="w-[9%]" />
-            <col className="w-[22%]" />
-            <col className="w-[12%]" />
-            <col className={isClaimsRole ? "w-[18%]" : "w-[10%]"} />
-            <col className="w-[6%]" />
-            {!isClaimsRole && <col className="w-[8%]" />}
+            <col className="w-[17%]" />
+            <col className="w-[13%]" />
+            <col className="w-[8%]" />
+            <col className={isClaimsRole ? "w-[21%]" : "w-[12%]"} />
+            {!isClaimsRole && <col className="w-[9%]" />}
           </colgroup>
           <thead className="table-heading">
             <tr>
@@ -165,8 +165,8 @@ export function RequestList({
               <th className="p-2">Policy</th>
               <th className="p-2">Auth Code</th>
               <th className="p-2">Status</th>
-              <th className="p-2">Approver</th>
               <th className="px-1.5 py-2">SLA</th>
+              <th className="p-2">Approver</th>
               {!isClaimsRole && <th className="p-2 text-right">Action</th>}
             </tr>
           </thead>
@@ -186,8 +186,7 @@ export function RequestList({
               </tr>
             ) : (
               requests.map((r) => (
-                <Fragment key={r.id}>
-                <tr className="cursor-pointer text-sm transition-colors hover:bg-slate-50/70" onClick={() => onSelectRequest(r)}>
+                <tr key={r.id} className="cursor-pointer text-sm transition-colors hover:bg-slate-50/70" onClick={() => onSelectRequest(r)}>
                   <td className="min-w-0 p-2 font-mono text-xs font-bold text-slate-600">
                     <div className="flex min-w-0 flex-col">
                       {(() => {
@@ -206,6 +205,15 @@ export function RequestList({
                   <td className="min-w-0 p-2">
                     <p className="break-words text-sm font-semibold normal-case leading-snug text-slate-950">{r.patient_name}</p>
                     <p className="mt-1 line-clamp-2 text-xs font-medium leading-snug text-slate-600">{r.diagnosis || "No diagnosis recorded"}</p>
+                    {r.referred_hospital_name && (
+                      <p
+                        className="mt-1 inline-block max-w-full whitespace-normal rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[11px] font-medium leading-snug text-slate-600 [overflow-wrap:anywhere]"
+                        title={`Referral: ${r.referred_hospital_name}`}
+                      >
+                        <span className="font-semibold text-slate-700">Referral:</span>{" "}
+                        {r.referred_hospital_name}
+                      </p>
+                    )}
                   </td>
                   <td className="min-w-0 break-all p-2 font-mono text-xs font-semibold text-slate-700">{r.policy_number || "-"}</td>
                   <td className="min-w-0 p-2">
@@ -239,7 +247,7 @@ export function RequestList({
                       )}>
                         {codeOrDecisionText(r) === "Locked" && <LockKeyhole className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />}
                         <span className="min-w-0 break-all">{codeOrDecisionText(r)}</span>
-                        {r.authorization_code && !isAwaitingDelete(r) && (
+                        {canShowAuthorizationCode(r) && (
                           <Button variant="ghost" size="icon" aria-label={`Copy authorization code for ${r.patient_name}`} title={`Copy authorization code for ${r.patient_name}`} onClick={(e) => { e.stopPropagation(); handleCopyCode(r.authorization_code); }} className="h-7 w-7 shrink-0 text-slate-600 hover:text-slate-800">
                             <Copy className="h-4 w-4" />
                           </Button>
@@ -258,15 +266,6 @@ export function RequestList({
                       )}
                     </div>
                   </td>
-                  <td className="min-w-0 p-2">
-                    <Badge
-                      variant="outline"
-                      title={approverLabel(r)}
-                      className="mx-auto inline-flex h-8 w-[96px] max-w-full min-w-0 items-center justify-center truncate rounded-md border-slate-200 bg-slate-50 px-2 py-1 text-center text-[10px] font-bold uppercase leading-tight tracking-wide text-slate-700"
-                    >
-                      {approverShortLabel(r)}
-                    </Badge>
-                  </td>
                   <td className="min-w-0 px-1.5 py-2 text-center">
                     {(() => {
                       const slaMinutes = getAuthorizationSlaMinutes(r);
@@ -276,6 +275,15 @@ export function RequestList({
                         </span>
                       );
                     })()}
+                  </td>
+                  <td className="min-w-0 p-2 text-center">
+                    <Badge
+                      variant="outline"
+                      title={approverLabel(r)}
+                      className="mx-auto inline-flex h-8 w-[96px] max-w-full min-w-0 items-center justify-center truncate rounded-md border-slate-200 bg-slate-50 px-2 py-1 text-center text-[10px] font-bold uppercase leading-tight tracking-wide text-slate-700"
+                    >
+                      {approverShortLabel(r)}
+                    </Badge>
                   </td>
                   {!isClaimsRole && (
                     <td className="px-1.5 py-2 text-right">
@@ -287,19 +295,6 @@ export function RequestList({
                     </td>
                   )}
                 </tr>
-                {r.referred_hospital_name && (
-                  <tr className="cursor-pointer bg-slate-50/40 text-xs hover:bg-slate-50/70" onClick={() => onSelectRequest(r)}>
-                    <td colSpan={isClaimsRole ? 7 : 8} className="px-2 pb-2 pt-0">
-                      <span
-                        className="ml-[13%] inline-block max-w-[min(28rem,70%)] break-words rounded border border-slate-200 bg-white px-1.5 py-0.5 font-medium text-slate-600"
-                        title={`Referral: ${r.referred_hospital_name}`}
-                      >
-                        Referral: {r.referred_hospital_name}
-                      </span>
-                    </td>
-                  </tr>
-                )}
-                </Fragment>
               ))
             )}
           </tbody>
@@ -320,7 +315,26 @@ export function RequestList({
         ) : (
           requests.map((r) => {
             const isRej = isRejected(r);
+            const isPartiallyApproved = String(displayStatus(r)).toLowerCase() === "partially_approved";
             const isPend = !isApproved(r) && !isRej;
+            const statusColor = isPartiallyApproved
+              ? "text-sky-700"
+              : isApproved(r)
+                ? "text-emerald-700"
+                : isRej
+                  ? "text-rose-700"
+                  : isPend
+                    ? "text-amber-700"
+                    : "text-slate-600";
+            const statusDotColor = isPartiallyApproved
+              ? "bg-sky-500"
+              : isApproved(r)
+                ? "bg-emerald-500"
+                : isRej
+                  ? "bg-rose-500"
+                  : isPend
+                    ? "bg-amber-500"
+                    : "bg-slate-400";
             
             return (
               <div key={r.id} className="flex cursor-pointer flex-col rounded-xl border border-slate-200 bg-white p-3 shadow-sm transition-colors hover:bg-slate-50 active:bg-slate-50" onClick={() => onSelectRequest(r)}>
@@ -328,14 +342,11 @@ export function RequestList({
                 <div className="mb-1 flex items-start justify-between gap-2">
                   <span className="min-w-0 flex-1 text-sm font-semibold normal-case leading-snug text-slate-900">{r.patient_name}</span>
                   <div className={cn(
-                    "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold shrink-0",
-                    isApproved(r) ? "bg-emerald-50 text-emerald-600" : isRej ? "bg-rose-50 text-rose-600" : "bg-slate-100 text-slate-600"
+                    "flex shrink-0 items-center gap-1.5 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[10px] font-semibold",
+                    statusColor
                   )}>
-                    <div className={cn(
-                      "w-1.5 h-1.5 rounded-full shrink-0",
-                      isApproved(r) ? "bg-emerald-500" : isRej ? "bg-rose-500" : "bg-slate-400"
-                    )} />
-                    {displayStatus(r).replace(/_/g, " ").replace(/^./, (letter) => letter.toUpperCase())}
+                    <div className={cn("h-1.5 w-1.5 shrink-0 rounded-full", statusDotColor)} />
+                    {displayStatus(r).replace(/_/g, " ").replace(/^./, (letter: string) => letter.toUpperCase())}
                   </div>
                 </div>
                 
@@ -347,7 +358,7 @@ export function RequestList({
                 {/* Referral */}
                 {r.referred_hospital_name && (
                   <div
-                    className="text-[11px] font-semibold text-purple-600 bg-purple-50 px-2 py-1 rounded-md inline-block max-w-full truncate mb-3"
+                    className="mb-3 inline-block max-w-full whitespace-normal break-words rounded-md bg-purple-50 px-2 py-1 text-[11px] font-semibold text-purple-600 [overflow-wrap:anywhere]"
                     title={`Referral: ${r.referred_hospital_name}`}
                   >
                     Referral to: {r.referred_hospital_name}

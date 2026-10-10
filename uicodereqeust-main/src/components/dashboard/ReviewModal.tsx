@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -15,9 +15,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { HospitalReferralField } from "@/components/HospitalReferralField";
-import { AlertTriangle, Building2, ChevronDown, ChevronUp, ChevronRight, Trash2, X, Loader2, Copy, Send, Lock, Unlock, XCircle, CheckCircle2 } from "lucide-react";
+import { AlertTriangle, ChevronDown, ChevronUp, X, Loader2, Copy, Send, Lock, Unlock, XCircle, CheckCircle2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { areHospitalNamesMatching } from "@/lib/authorizations-helpers";
 import { writeClipboardText } from "@/lib/clipboard";
@@ -680,49 +679,6 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
             </div>
           )}
 
-          {/* OTP Banner on Approved View */}
-          {actions.approvalResult && visibleOtpValue && (
-            <div className="mb-2 flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2 sm:mb-3 sm:px-3">
-              <div className="min-w-0">
-                <div className="text-[10px] font-medium uppercase tracking-wide text-slate-500">
-                  Patient OTP / Arrival PIN
-                </div>
-                <div className="font-mono text-base font-semibold tracking-wider text-slate-900 sm:text-lg">
-                  {visibleOtpValue}
-                </div>
-              </div>
-              <div className="flex shrink-0 items-center gap-1.5">
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="h-10 w-10 shrink-0 border-slate-300 bg-white text-slate-600 hover:bg-slate-100"
-                  aria-label="Copy patient OTP"
-                  onClick={async () => {
-                    try {
-                      await writeClipboardText(visibleOtpValue);
-                      toast({ title: "OTP Copied!" });
-                    } catch {
-                      toast({ variant: "destructive", title: "Copy failed", description: "Allow clipboard access or copy the OTP manually." });
-                    }
-                  }}
-                  title="Copy OTP"
-                >
-                  <Copy className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="default"
-                  className="h-10 min-w-0 bg-emerald-700 px-3 text-xs font-semibold text-white hover:bg-emerald-800"
-                  onClick={handleResendOtp}
-                  disabled={isResending}
-                  title="Resend OTP"
-                >
-                  {isResending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Send className="h-4 w-4 mr-2" />}
-                  Resend
-                </Button>
-              </div>
-            </div>
-          )}
-
           {/* Success template overlays after approval/decline */}
           {actions.approvalResult || actions.declineResult ? (
             <PostReviewTemplates
@@ -738,6 +694,9 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
               setDeleteConfirmOpen={actions.setDeleteConfirmOpen}
               processing={actions.processing}
               editReferralHospitalName={actions.editReferralHospitalName}
+              arrivalPin={visibleOtpValue ?? undefined}
+              isResendingPin={isResending}
+              onResendPin={handleResendOtp}
             />
           ) : (
             <>
@@ -866,7 +825,7 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
                 )}
 
                 {/* OTP Banner */}
-                {visibleOtpValue && (
+                {visibleOtpValue && !actions.approvalResult && (
                 <div className="mb-2 flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2 sm:mb-3 sm:px-3">
                     <div className="min-w-0">
                       <div className="text-[10px] font-medium uppercase tracking-wide text-slate-500">

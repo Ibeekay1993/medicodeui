@@ -8,7 +8,6 @@ import { RequestList } from "@/components/dashboard/requests/RequestList";
 
 type RequestRow = Database["public"]["Tables"]["authorization_requests"]["Row"];
 import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,9 +22,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, Trash2, Loader2, Copy } from "lucide-react";
+import { Search } from "lucide-react";
 import { ReviewModal } from "@/components/dashboard/ReviewModal";
-import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { getErrorMessage } from "@/lib/errors";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -95,18 +93,8 @@ export default function RequestsPage() {
       const to = from + rowsPerPage;
       let q = supabase
         .from("authorization_requests")
-        .select(
-          // Only list fields are loaded here; request details load on demand in the modal.
-          "id,request_id,patient_name,policy_number,diagnosis,status,source," +
-          "hospital_name,requesting_hospital_name,referred_hospital_name," +
-          "authorization_code,urgency,created_at,updated_at,decided_at," +
-          "treatment_submitted_at,approved_by,decided_by,nurse_initials," +
-          "authorized_by_name,authorized_by_email,claiming_hospital_name," +
-          "referring_hospital_name,is_historical,is_unlocked," +
-          "deletion_status,patient_phone,patient_email," +
-          "hospital_id,requesting_hospital_id,referred_hospital_id,claiming_hospital_id," +
-          "approved_items"
-        )
+        // Only list fields are loaded here; request details load on demand in the modal.
+        .select("id,request_id,patient_name,policy_number,diagnosis,status,source,hospital_name,requesting_hospital_name,referred_hospital_name,authorization_code,urgency,created_at,updated_at,decided_at,treatment_submitted_at,approved_by,decided_by,nurse_initials,authorized_by_name,authorized_by_email,claiming_hospital_name,referring_hospital_name,is_historical,is_unlocked,deletion_status,patient_phone,patient_email,hospital_id,requesting_hospital_id,referred_hospital_id,claiming_hospital_id,approved_items")
         // created_at has a production index. Sorting all 75k+ requests by updated_at
         // caused PostgreSQL to choose a sequential scan and sort before applying LIMIT.
         .order("created_at", { ascending: false });
@@ -121,7 +109,7 @@ export default function RequestsPage() {
         toast({ variant: "destructive", title: "Error", description: getErrorMessage(error, "Unable to load requests") });
         throw error;
       }
-      const fetchedRows = (rowsData || []) as RequestRow[];
+      const fetchedRows = rowsData || [];
       const hasMore = fetchedRows.length > rowsPerPage;
       const rows = fetchedRows.slice(0, rowsPerPage);
       
@@ -234,7 +222,7 @@ export default function RequestsPage() {
             });
             return;
           }
-          setSelectedRequest(current => current?.id === r.id ? data : current);
+          setSelectedRequest((current: RequestRow | null) => current?.id === r.id ? data : current);
         });
     }
   };
@@ -297,33 +285,46 @@ export default function RequestsPage() {
   // — in that scenario the bulk OTP effect never ran because requests[] was empty.
   useEffect(() => {
     if (!selectedRequest?.id) return;
-    if (role !== "nurse" && role !== "utilization_manager" && role !== "utilization_manager_lead" && role !== "admin" && role !== "hospital") return;
+    if (role !== "nurse" && role !== "admin") return;
     // Skip if already fetched
     if (fetchedOtpIdsRef.current.has(selectedRequest.id)) return;
 
     const id = selectedRequest.id;
     fetchedOtpIdsRef.current.add(id);
 
-    supabase.rpc("get_otp_value" as any, { p_request_id: id }).then(({ data, error }) => {
-      if (!error && data) {
-        const otpRow = Array.isArray(data) ? data[0] : data;
-        if (otpRow) {
-          if (role === "nurse" || role === "utilization_manager" || role === "utilization_manager_lead" || role === "admin") {
-            if (otpRow.otp_value) {
-              setOtpValues(prev => ({ ...prev, [id]: otpRow.otp_value }));
-              if (otpRow.verified || !!otpRow.consumed_at) {
-                setOtpVerifiedStatus(prev => ({ ...prev, [id]: true }));
-              }
+    const loadOtp = async () => {
+      try {
+        const { data, error } = await supabase.rpc("get_otp_value" as any, { p_request_id: id });
+        if (error) {
+          fetchedOtpIdsRef.current.delete(id);
+          toast({
+            variant: "destructive",
+            title: "Could not load arrival PIN",
+            description: error.message.toLowerCase().includes("mfa verification")
+              ? "Complete MFA verification to view arrival PINs."
+              : "The arrival PIN could not be loaded. Refresh the queue and try again.",
+          });
+          return;
+        }
+        if (data) {
+          const otpRow = Array.isArray(data) ? data[0] : data;
+          if (otpRow?.otp_value) {
+            setOtpValues(prev => ({ ...prev, [id]: otpRow.otp_value }));
+            if (otpRow.verified || otpRow.consumed_at) {
+              setOtpVerifiedStatus(prev => ({ ...prev, [id]: true }));
             }
-          } else if (role === "hospital") {
-            setOtpVerifiedStatus(prev => ({
-              ...prev,
-              [id]: otpRow.verified || !!otpRow.consumed_at,
-            }));
           }
         }
+      } catch {
+        fetchedOtpIdsRef.current.delete(id);
+        toast({
+          variant: "destructive",
+          title: "Could not load arrival PIN",
+          description: "The arrival PIN could not be loaded. Refresh the queue and try again.",
+        });
       }
-    });
+    };
+    void loadOtp();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedRequest?.id, role]); // fetchedOtpIdsRef intentionally omitted (ref, stable)
 
@@ -339,11 +340,8 @@ export default function RequestsPage() {
       if (fetchedOtpIdsRef.current.has(r.id)) return false;
       if (otpLoading[r.id]) return false;
 
-      if (role === "nurse" || role === "utilization_manager" || role === "utilization_manager_lead" || role === "admin") {
+      if (role === "nurse" || role === "admin") {
         return true;
-      }
-      if (role === "hospital") {
-        return r.status === "approved";
       }
       return false;
     });
@@ -359,58 +357,45 @@ export default function RequestsPage() {
       setOtpLoading(prev => ({ ...prev, ...updates }));
 
       try {
-        if (role === "nurse" || role === "utilization_manager" || role === "utilization_manager_lead" || role === "admin") {
+        if (role === "nurse" || role === "admin") {
           const ids = requestsToFetch.map(r => r.id);
           const { data, error } = await supabase.rpc("get_otp_values_batch" as any, {
             p_request_ids: ids,
           });
 
-          if (!error && data && Array.isArray(data)) {
-            const newValues: Record<string, string> = {};
-            const newVerified: Record<string, boolean> = {};
-            data.forEach((row: any) => {
-              if (row.otp_value && row.authorization_id) {
-                newValues[row.authorization_id] = row.otp_value;
-                if (row.verified) newVerified[row.authorization_id] = true;
-              }
+          if (error) {
+            requestsToFetch.forEach(r => fetchedOtpIdsRef.current.delete(r.id));
+            const requiresMfa = error.message.toLowerCase().includes("mfa verification");
+            toast({
+              variant: "destructive",
+              title: "Could not load arrival PINs",
+              description: requiresMfa
+                ? "Complete MFA verification to view arrival PINs."
+                : "The arrival PINs could not be loaded. Refresh the queue and try again.",
             });
-            if (Object.keys(newValues).length > 0) setOtpValues(prev => ({ ...prev, ...newValues }));
-            if (Object.keys(newVerified).length > 0) setOtpVerifiedStatus(prev => ({ ...prev, ...newVerified }));
             return;
           }
-        }
+          if (!Array.isArray(data)) {
+            requestsToFetch.forEach(r => fetchedOtpIdsRef.current.delete(r.id));
+            toast({
+              variant: "destructive",
+              title: "Could not load arrival PINs",
+              description: "The PIN service returned an invalid response. Refresh the queue and try again.",
+            });
+            return;
+          }
 
-        // Fallback: individual fetch (for hospitals or batch failure)
-        await Promise.all(
-          requestsToFetch.map(async (r) => {
-            try {
-              const { data, error } = await supabase.rpc("get_otp_value" as any, {
-                p_request_id: r.id,
-              });
-              if (!error && data) {
-                const otpRow = Array.isArray(data) ? data[0] : data;
-                if (otpRow) {
-                  if (role === "nurse" || role === "utilization_manager" || role === "utilization_manager_lead" || role === "admin") {
-                    if (otpRow.otp_value) {
-                      setOtpValues(prev => ({ ...prev, [r.id]: otpRow.otp_value }));
-                      if (otpRow.verified || !!otpRow.consumed_at) {
-                        setOtpVerifiedStatus(prev => ({ ...prev, [r.id]: true }));
-                      }
-                    }
-                  } else if (role === "hospital") {
-                    setOtpVerifiedStatus(prev => ({
-                      ...prev,
-                      [r.id]: otpRow.verified || !!otpRow.consumed_at,
-                    }));
-                  }
-                }
-              }
-            } catch {
-              // Silently fail individual fetch — remove from ref so it can retry next page load
-              fetchedOtpIdsRef.current.delete(r.id);
+          const newValues: Record<string, string> = {};
+          const newVerified: Record<string, boolean> = {};
+          data.forEach((row: any) => {
+            if (row.otp_value && row.authorization_id) {
+              newValues[row.authorization_id] = row.otp_value;
+              if (row.verified) newVerified[row.authorization_id] = true;
             }
-          })
-        );
+          });
+          if (Object.keys(newValues).length > 0) setOtpValues(prev => ({ ...prev, ...newValues }));
+          if (Object.keys(newVerified).length > 0) setOtpVerifiedStatus(prev => ({ ...prev, ...newVerified }));
+        }
       } finally {
         const loadingReset: Record<string, boolean> = {};
         requestsToFetch.forEach(r => loadingReset[r.id] = false);
@@ -418,7 +403,14 @@ export default function RequestsPage() {
       }
     };
 
-    fetchOtps().catch((err) => console.error("fetchOtps error:", err));
+    fetchOtps().catch(() => {
+      requestsToFetch.forEach(r => fetchedOtpIdsRef.current.delete(r.id));
+      toast({
+        variant: "destructive",
+        title: "Could not load arrival PINs",
+        description: "The arrival PINs could not be loaded. Refresh the queue and try again.",
+      });
+    });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [requests, role]); // otpValues & otpVerifiedStatus intentionally omitted — see comment above
 
@@ -522,7 +514,7 @@ export default function RequestsPage() {
         <>
         <RequestList 
           requests={requests}
-          role={role}
+          role={role ?? undefined}
           isClaimsRole={isClaimsRole}
           approverNames={approverNames}
           otpValues={otpValues}

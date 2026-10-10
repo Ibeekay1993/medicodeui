@@ -7,7 +7,6 @@ import {
   CheckCircle,
   XCircle,
   Copy,
-  Sparkles,
   Trash2,
   Send,
   Loader2,
@@ -18,6 +17,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { writeClipboardText } from "@/lib/clipboard";
 import { getWhatsAppSendErrorMessage } from "@/lib/whatsappSendError";
+import type { TariffOption } from "@/lib/clinicalUtils";
 import {
   formatNaira,
   itemUnitPrice,
@@ -34,7 +34,7 @@ interface PostReviewTemplatesProps {
     hospitalName: string;
     diagnosis: string;
     treatment: string;
-    items: any[];
+    items: ApprovalItem[];
     totalAmount: number;
     authorizedByName: string;
     authorizedByInitials: string;
@@ -56,7 +56,14 @@ interface PostReviewTemplatesProps {
   setDeleteConfirmOpen: (value: boolean) => void;
   processing: boolean;
   editReferralHospitalName: string;
+  arrivalPin?: string;
+  isResendingPin: boolean;
+  onResendPin: () => Promise<void>;
 }
+
+type ApprovalItem = TariffOption & {
+  linePriceKnown?: boolean;
+};
 
 export const PostReviewTemplates = React.memo(function PostReviewTemplates({
   request,
@@ -71,6 +78,9 @@ export const PostReviewTemplates = React.memo(function PostReviewTemplates({
   setDeleteConfirmOpen,
   processing,
   editReferralHospitalName,
+  arrivalPin,
+  isResendingPin,
+  onResendPin,
 }: PostReviewTemplatesProps) {
   const { toast } = useToast();
   const [sendingHospital, setSendingHospital] = useState(false);
@@ -142,7 +152,7 @@ export const PostReviewTemplates = React.memo(function PostReviewTemplates({
     if (hospitalId) {
       try {
         const { data: contact } = await supabase
-          .from("hospital_whatsapp_contacts" as any)
+          .from("hospital_whatsapp_contacts")
           .select("phone_number")
           .eq("hospital_id", hospitalId)
           .eq("status", "active")
@@ -190,11 +200,13 @@ export const PostReviewTemplates = React.memo(function PostReviewTemplates({
       .select("status")
       .eq("authorization_request_id", request.id)
       .eq("notification_type", notificationType)
-      .eq("recipient_type", recipientType)
-      .eq("decision_at", request.decided_at)
+      .filter("recipient_type", "eq", recipientType)
+      .filter("decision_at", "eq", request.decided_at)
       .maybeSingle();
     if (error) throw error;
-    return String(data?.status || "") || null;
+    const notice = data as unknown as { status?: unknown } | null;
+    const status = notice?.status;
+    return typeof status === "string" ? status : null;
   };
 
   const stopIfAutomaticNoticeExists = async (recipientType: "hospital" | "patient") => {
@@ -405,43 +417,104 @@ export const PostReviewTemplates = React.memo(function PostReviewTemplates({
 
   if (approvalResult) {
     const isPartiallyApproved = request?.status === "partially_approved";
-    const approvedItems = approvalResult.items.length
+    const authorizationCodeTone = isPartiallyApproved ? "text-sky-700" : "text-emerald-700";
+    const approvedItems: ApprovalItem[] = approvalResult.items.length
       ? approvalResult.items
-      : (approvalResult.treatment || request?.treatment || "")
+      : String(approvalResult.treatment || request?.treatment || "")
           .split(/;\s*|\r?\n/)
-          .map((entry) => entry.trim().replace(/^[•*-]\s*/, ""))
+          .map((entry: string) => entry.trim().replace(/^[•*-]\s*/, ""))
           .filter(Boolean)
-          .map((entry) => {
+          .map((entry: string) => {
             const match = entry.match(/^((?:NHIA[-/])?[\w./-]+)\s*[-–]\s*(.+)$/i);
             return {
               code: match?.[1] || null,
               name: match?.[2] || entry,
-              quantity: null,
-              unitPrice: null,
-              price: null,
+              category: null,
+              price: 0,
               linePriceKnown: false,
             };
           });
     return (
       <div className="space-y-3">
-        <div className="flex min-w-0 items-start gap-2.5 border-b border-slate-100 pb-2">
-          <CheckCircle className="mt-0.5 h-5 w-5 shrink-0 text-slate-500" />
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium leading-snug text-slate-700">
-              Authorization status: <span className={`font-semibold ${isPartiallyApproved ? "text-sky-900" : "text-emerald-900"}`}>{isPartiallyApproved ? "Partially approved" : "Approved"}</span>
+        <div className={`grid items-stretch rounded-xl border border-slate-200 bg-white shadow-sm ${arrivalPin ? "sm:grid-cols-[minmax(0,1.2fr)_minmax(220px,0.8fr)]" : "grid-cols-1"}`}>
+          <div className="min-w-0 px-3 py-2.5 sm:px-3.5 sm:py-3">
+            <p className="flex items-center gap-1.5 text-xs font-medium leading-snug text-slate-700">
+              <CheckCircle className="h-3.5 w-3.5 shrink-0 text-slate-500" />
+              Authorization status:
+              <span className={`font-semibold ${isPartiallyApproved ? "text-sky-800" : "text-emerald-800"}`}>
+                {isPartiallyApproved ? "Partially approved" : "Approved"}
+              </span>
             </p>
-            <p className="mt-1 break-words text-xs leading-snug text-slate-700">
-              Auth code: <span className="font-mono font-medium text-slate-900 [overflow-wrap:anywhere]">{approvalResult.authCode}</span>
-              <span className="px-1.5 text-slate-300">·</span>
-              Authorized by <span className="font-medium text-slate-800">{approvalResult.authorizedByName} ({approvalResult.authorizedByInitials})</span>
+            <div className="mt-1.5">
+              <div className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">Authorization code</div>
+              <div className="mt-0.5 flex min-w-0 items-center gap-1">
+                <span className={`min-w-0 break-all font-mono text-xl font-bold leading-tight tracking-wide sm:text-2xl ${authorizationCodeTone}`}>
+                  {approvalResult.authCode}
+                </span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleCopyCodeOnly}
+                  aria-label={`Copy authorization code ${approvalResult.authCode}`}
+                  title="Copy authorization code"
+                  className="h-7 w-7 shrink-0 rounded-md p-1 text-slate-500 hover:bg-slate-100 hover:text-slate-800"
+                >
+                  <Copy className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            </div>
+            <p className="mt-1.5 break-words text-xs leading-snug text-slate-600">
+              Authorized by: <span className="font-medium text-slate-800">{approvalResult.authorizedByName}{approvalResult.authorizedByInitials ? ` (${approvalResult.authorizedByInitials})` : ""}</span>
             </p>
           </div>
+          {arrivalPin && (
+            <div className="flex min-w-0 items-center justify-between gap-2 border-t border-slate-200 bg-slate-50/60 px-2.5 py-1.5 sm:border-l sm:border-t-0 sm:px-2.5">
+              <div className="min-w-0">
+                <div className="text-[9px] font-medium uppercase tracking-wide text-slate-500">
+                  Patient OTP / Arrival PIN
+                </div>
+                <div className="mt-0.5 break-all font-mono text-xs font-semibold tracking-wider text-slate-800">
+                  {arrivalPin}
+                </div>
+              </div>
+              <div className="flex shrink-0 items-center gap-1">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-6 w-6 shrink-0 border-slate-300 bg-white text-slate-600 hover:bg-slate-100"
+                  aria-label="Copy patient OTP"
+                  onClick={async () => {
+                    try {
+                      await writeClipboardText(arrivalPin);
+                      toast({ title: "OTP Copied!" });
+                    } catch {
+                      toast({ variant: "destructive", title: "Copy failed", description: "Allow clipboard access or copy the OTP manually." });
+                    }
+                  }}
+                  title="Copy OTP"
+                >
+                  <Copy className="h-3 w-3" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  className="h-6 min-w-0 rounded-full border border-slate-300 bg-white px-2 text-[10px] font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                  onClick={onResendPin}
+                  disabled={isResendingPin}
+                  title="Resend OTP"
+                >
+                  {isResendingPin ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <Send className="mr-1 h-3 w-3" />}
+                  Resend
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
 
-        <div className={`space-y-2 rounded-xl border bg-white p-3 font-sans text-xs sm:space-y-2.5 sm:p-4 ${isPartiallyApproved ? "border-sky-200" : "border-emerald-200"}`}>
+        <div className="space-y-2 rounded-xl border border-slate-200 bg-white p-3 font-sans text-xs sm:space-y-2.5 sm:p-4">
           <div className="flex items-center gap-2 pb-1">
-            <Badge className={`border-0 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide hover:opacity-90 ${isPartiallyApproved ? "bg-sky-700" : "bg-emerald-700"}`}>Clinical Record</Badge>
-            <div className="h-px flex-1 bg-slate-100" />
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-600">Clinical record</span>
+            <div className="h-px flex-1 bg-slate-200" />
           </div>
           <p className="flex min-w-0 flex-col gap-0.5 border-b border-slate-100 pb-2 sm:flex-row sm:justify-between sm:gap-3">
             <strong className="text-[10px] font-bold uppercase tracking-wide text-slate-500 sm:text-xs">Patient:</strong>
@@ -449,7 +522,7 @@ export const PostReviewTemplates = React.memo(function PostReviewTemplates({
           </p>
           <p className="flex min-w-0 flex-col gap-0.5 border-b border-slate-100 pb-2 sm:flex-row sm:justify-between sm:gap-3">
             <strong className="text-[10px] font-bold uppercase tracking-wide text-slate-500 sm:text-xs">Policy No:</strong>
-            <span className={`min-w-0 break-all font-mono font-semibold sm:text-right ${isPartiallyApproved ? "text-sky-800" : "text-emerald-800"}`}>{approvalResult.policyNumber}</span>
+            <span className="min-w-0 break-all font-mono font-semibold text-slate-800 sm:text-right">{approvalResult.policyNumber}</span>
           </p>
           <p className="flex min-w-0 flex-col gap-0.5 border-b border-slate-100 pb-2 sm:flex-row sm:justify-between sm:gap-3">
             <strong className="text-[10px] font-bold uppercase tracking-wide text-slate-500 sm:text-xs">Hospital:</strong>
@@ -475,7 +548,7 @@ export const PostReviewTemplates = React.memo(function PostReviewTemplates({
             <strong className="text-[10px] font-bold uppercase tracking-wide text-slate-500 sm:text-xs">Approved Items:</strong>
             <div className="rounded-xl border border-slate-100 bg-slate-50/50 overflow-hidden divide-y divide-slate-100">
               {approvedItems.length ? (
-                approvedItems.map((item, index) => {
+                approvedItems.map((item: ApprovalItem, index: number) => {
                   const isDeclined = !!item.declined;
                   const hasQuantity = item.quantity !== null && item.quantity !== undefined;
                   const hasLinePrice = item.linePriceKnown !== false &&
@@ -505,7 +578,7 @@ export const PostReviewTemplates = React.memo(function PostReviewTemplates({
                         </p>
                       </div>
                       {hasLinePrice && (
-                        <span className={`shrink-0 pt-0.5 text-xs font-semibold tabular-nums ${isDeclined ? "text-rose-700 line-through" : isPartiallyApproved ? "text-sky-700" : "text-emerald-700"}`}>
+                        <span className={`shrink-0 pt-0.5 text-xs font-semibold tabular-nums ${isDeclined ? "text-rose-700 line-through" : "text-slate-700"}`}>
                           {formatNaira(itemTotal(item))}
                         </span>
                       )}
@@ -525,24 +598,26 @@ export const PostReviewTemplates = React.memo(function PostReviewTemplates({
             </div>
           </div>
 
-          <p className="flex min-w-0 flex-col gap-0.5 border-b border-slate-100 pb-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
-            <strong className="text-[10px] font-bold uppercase tracking-wide text-slate-500 sm:text-xs">Total Approved:</strong>
-            <span className={`font-bold text-sm ${isPartiallyApproved ? "text-sky-700" : "text-emerald-700"}`}>
-              {formatNaira(
-                (approvalResult.items.length
-                  ? approvalResult.items
-                      .filter((i) => !i.declined)
-                      .reduce((sum, i) => sum + itemTotal(i), 0)
-                  : 0) ||
-                approvalResult.totalAmount ||
-                Number(request?.total_amount || request?.approved_tariff_amount || 0)
-              )}
-            </span>
-          </p>
-          <p className="flex min-w-0 flex-col gap-0.5 pb-1 sm:flex-row sm:justify-between sm:gap-3">
-            <strong className="text-[10px] font-bold uppercase tracking-wide text-slate-500 sm:text-xs">Registry Date:</strong>
-            <span className="font-semibold text-slate-800 sm:text-right">{new Date(request?.created_at || new Date()).toLocaleDateString("en-GB")}</span>
-          </p>
+          <div className="grid grid-cols-2 items-end gap-3 border-b border-slate-100 pb-2">
+            <p className="flex min-w-0 flex-col gap-0.5">
+              <strong className="text-[10px] font-bold uppercase tracking-wide text-slate-500 sm:text-xs">Registry Date:</strong>
+              <span className="font-semibold text-slate-800">{new Date(request?.created_at || new Date()).toLocaleDateString("en-GB")}</span>
+            </p>
+            <p className="flex min-w-0 flex-col items-end gap-0.5 text-right">
+              <strong className="text-[10px] font-bold uppercase tracking-wide text-slate-500 sm:text-xs">Total Approved:</strong>
+              <span className="text-sm font-bold text-slate-900">
+                {formatNaira(
+                  (approvalResult.items.length
+                    ? approvalResult.items
+                        .filter((i) => !i.declined)
+                        .reduce((sum, i) => sum + itemTotal(i), 0)
+                    : 0) ||
+                  approvalResult.totalAmount ||
+                  Number(request?.total_amount || request?.approved_tariff_amount || 0)
+                )}
+              </span>
+            </p>
+          </div>
         </div>
 
         <div className="flex flex-col gap-2.5">
