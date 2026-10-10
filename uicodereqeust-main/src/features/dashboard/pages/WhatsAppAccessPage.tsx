@@ -11,7 +11,6 @@ import {
   ShieldAlert,
   ShieldOff,
   Trash2,
-  XCircle,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { HospitalsAdminService } from "../services/hospitalsAdminService";
@@ -20,6 +19,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -76,6 +85,8 @@ export default function WhatsAppAccessPage() {
   const [open, setOpen] = useState(false);
   const [revokeOpen, setRevokeOpen] = useState(false);
   const [targetRevoke, setTargetRevoke] = useState<Contact | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Contact | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [editing, setEditing] = useState<Contact | null>(null);
 
   const [form, setForm] = useState<{
@@ -332,16 +343,23 @@ export default function WhatsAppAccessPage() {
     setTargetRevoke(null);
   };
 
-  const remove = async (contact: Contact) => {
-    if (!window.confirm(`Permanently delete record for ${contact.phone_number}? This will preserve historical audit logs.`)) return;
+  const remove = async () => {
+    if (!deleteTarget || deleting) return;
+    setDeleting(true);
     try {
-      await logAuditEvent(contact.id, contact.hospital_id, contact.phone_number, "deleted", contact.status, null);
-      const { error } = await supabase.from("hospital_whatsapp_contacts" as any).delete().eq("id", contact.id);
+      await logAuditEvent(deleteTarget.id, deleteTarget.hospital_id, deleteTarget.phone_number, "deleted", deleteTarget.status, null);
+      const { error } = await supabase
+        .from("hospital_whatsapp_contacts" as any)
+        .delete()
+        .eq("id", deleteTarget.id);
       if (error) throw error;
       toast({ title: "WhatsApp access record removed" });
+      setDeleteTarget(null);
       await load();
     } catch (error: any) {
       toast({ variant: "destructive", title: "Remove failed", description: error.message });
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -494,7 +512,7 @@ export default function WhatsAppAccessPage() {
                                 <ShieldAlert className="h-4 w-4 text-red-600" />
                               </Button>
                             )}
-                            <Button variant="ghost" size="icon" onClick={() => remove(contact)} title="Remove Record">
+                            <Button variant="ghost" size="icon" onClick={() => setDeleteTarget(contact)} title="Remove Record">
                               <Trash2 className="h-4 w-4 text-slate-400 hover:text-red-600" />
                             </Button>
                           </div>
@@ -725,6 +743,38 @@ export default function WhatsAppAccessPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog
+        open={!!deleteTarget}
+        onOpenChange={(isOpen) => {
+          if (!isOpen && !deleting) setDeleteTarget(null);
+        }}
+      >
+        <AlertDialogContent className="rounded-2xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-rose-700">Delete WhatsApp record?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Permanently remove <strong className="font-mono text-slate-900">+{deleteTarget?.phone_number}</strong>
+              {deleteTarget?.hospital?.name ? <> for <strong className="text-slate-900">{deleteTarget.hospital.name}</strong></> : ""}.
+              Historical audit logs will be kept. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting} className="rounded-xl">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(event) => {
+                event.preventDefault();
+                void remove();
+              }}
+              disabled={deleting}
+              className="rounded-xl bg-rose-600 text-white hover:bg-rose-700"
+            >
+              {deleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+              {deleting ? "Deleting…" : "Delete record"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
