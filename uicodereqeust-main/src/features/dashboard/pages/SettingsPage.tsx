@@ -4,7 +4,9 @@ import ProfileSettingsCard from "@/components/settings/ProfileSettingsCard";
 import MfaSettingsCard from "@/components/settings/MfaSettingsCard";
 import AdminControlsCard from "@/components/settings/AdminControlsCard";
 import ConsentSettingsCard from "@/components/settings/ConsentSettingsCard";
-import { ArrowRight, Bell, LockKeyhole, Shield, UserRound } from "lucide-react";
+import PushNotificationSettingsCard from "@/components/settings/PushNotificationSettingsCard";
+import { ArrowLeft, ArrowRight, Bell, LockKeyhole, Shield, UserRound } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 type Section = "account" | "notifications" | "privacy" | "security" | "admin";
@@ -12,6 +14,7 @@ type Section = "account" | "notifications" | "privacy" | "security" | "admin";
 export default function SettingsPage() {
   const { fullName, role, user, refreshProfile } = useAuth();
   const [section, setSection] = useState<Section>("account");
+  const [sectionOpen, setSectionOpen] = useState(false);
   const sections: { id: Section; label: string; description: string; icon: typeof UserRound }[] = [
     { id: "account", label: "Account", description: "Profile details", icon: UserRound },
     { id: "notifications", label: "Alerts", description: "Push notifications", icon: Bell },
@@ -28,12 +31,22 @@ export default function SettingsPage() {
       </header>
 
       <div className="grid gap-4 md:grid-cols-[220px_minmax(0,1fr)] md:items-start">
-      <nav aria-label="Settings sections" className="space-y-1 rounded-xl border border-slate-200 bg-white p-2">
+      <nav
+        aria-label="Settings sections"
+        className={cn(
+          "space-y-1 rounded-xl border border-slate-200 bg-white p-2",
+          sectionOpen ? "hidden md:block" : "block",
+        )}
+      >
         {sections.map(({ id, label, description, icon: Icon }) => (
           <button
             key={id}
             type="button"
-            onClick={() => setSection(id)}
+            onClick={() => {
+              setSection(id);
+              setSectionOpen(true);
+              window.scrollTo({ top: 0, behavior: "smooth" });
+            }}
             aria-current={section === id ? "page" : undefined}
             className={cn(
               "flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left transition-colors",
@@ -50,13 +63,22 @@ export default function SettingsPage() {
         ))}
       </nav>
 
-      <section aria-live="polite" className="min-w-0 space-y-4">
+      <section
+        aria-live="polite"
+        className={cn("min-w-0 space-y-4", sectionOpen ? "block" : "hidden md:block")}
+      >
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={() => setSectionOpen(false)}
+          className="h-9 gap-2 px-2 text-sm text-slate-600 hover:text-slate-900 md:hidden"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to Settings
+        </Button>
         {section === "account" && <ProfileSettingsCard user={user} fullName={fullName} role={role} refreshProfile={refreshProfile} />}
-        {section === "notifications" && (
-          <div className="rounded-xl border border-slate-200 bg-white p-5 text-sm text-slate-600">
-            Browser push notifications are temporarily paused to reduce background load. WhatsApp request intake and decision messages continue through their separate queue.
-          </div>
-        )}
+        {section === "notifications" && <PushNotificationSettingsCard />}
         {section === "privacy" && <ConsentSettingsCard />}
         {section === "security" && role !== "hospital" && <MfaSettingsCard user={user} fullName={fullName} role={role} />}
         {section === "admin" && role === "admin" && <AdminControlsCard user={user} />}
