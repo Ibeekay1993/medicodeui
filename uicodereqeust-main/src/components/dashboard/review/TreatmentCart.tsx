@@ -116,13 +116,13 @@ export const TreatmentCart = React.memo(function TreatmentCart({
   };
 
   return (
-    <div className="space-y-3.5 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[inset_0_1px_4px_rgba(0,0,0,0.02)] transition-all">
+    <div className="w-full min-w-0 space-y-2.5 rounded-xl border border-slate-200/80 bg-white p-2.5 shadow-[inset_0_1px_4px_rgba(0,0,0,0.02)] transition-all sm:p-3">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="min-w-0 flex-1">
-          <div className="text-xs font-black uppercase tracking-widest text-slate-800">
+          <div className="text-[11px] font-bold uppercase tracking-wide text-slate-800">
             Approved Treatment Cart
           </div>
-          <p className="mt-0.5 text-xs font-semibold text-slate-500">
+          <p className="mt-0.5 text-[11px] font-medium text-slate-500">
             {readOnly
               ? "Review approved clinical codes, quantities, and pricing."
               : cartCollapsed
@@ -166,7 +166,7 @@ export const TreatmentCart = React.memo(function TreatmentCart({
       </div>
 
       {!cartCollapsed && (
-        <div className="space-y-3.5 animate-in fade-in duration-200">
+        <div className="space-y-2.5 animate-in fade-in duration-200">
           {parseStatus && (
             <div className="flex items-center gap-2 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2.5 text-xs font-bold text-slate-600 shadow-sm break-words whitespace-normal flex-wrap">
               {parseLoading ? (
@@ -184,7 +184,7 @@ export const TreatmentCart = React.memo(function TreatmentCart({
                   <div
                     key={item.code}
                     className={cn(
-                      "p-3 transition-colors",
+                      "p-2 transition-colors",
                       item.declined
                         ? "bg-rose-50/20 hover:bg-rose-50/30"
                         : "bg-white hover:bg-slate-50/50"
@@ -193,7 +193,7 @@ export const TreatmentCart = React.memo(function TreatmentCart({
                     <div className="flex items-start justify-between gap-4">
                       <div className="min-w-0 flex-1">
                         <p className={cn(
-                          "text-xs font-bold leading-snug uppercase break-words break-all sm:break-normal",
+                          "text-[11px] font-semibold leading-snug uppercase break-words break-all sm:break-normal",
                           item.declined ? "line-through text-slate-400" : "text-slate-800"
                         )}>
                           {item.name}
@@ -400,7 +400,7 @@ export const TreatmentCart = React.memo(function TreatmentCart({
                   </div>
                 ))}
               </div>
-              <div className="flex items-center justify-between border-t border-slate-100 bg-slate-50 px-4 py-3">
+              <div className="flex items-center justify-between border-t border-slate-100 bg-slate-50 px-3 py-2.5">
                 <span className="text-xs font-black uppercase tracking-widest text-slate-700">
                   Total Approved Amount
                 </span>
@@ -410,7 +410,7 @@ export const TreatmentCart = React.memo(function TreatmentCart({
               </div>
             </div>
           ) : (
-            <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/50 p-5 text-center text-xs font-semibold text-slate-500 shadow-inner">
+            <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/50 p-4 text-center text-xs font-semibold text-slate-500 shadow-inner">
               No approved items in cart yet. Use auto-detect above or search below to manually append.
             </div>
           )}

@@ -319,6 +319,7 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
     editTreatment,
     setEditTreatment,
   });
+  const visibleOtpValue = otpValue || actions.arrivalOtp || actions.treatmentOtp;
 
   useEffect(() => {
     if (actions.approvalResult || actions.declineResult) {
@@ -395,76 +396,54 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent
-        className="w-[calc(100vw_-_1rem)] max-w-[calc(100vw_-_1rem)] max-h-[calc(100dvh_-_1rem)] rounded-xl border border-slate-200 bg-white p-0 shadow-xl ring-1 ring-slate-200 overflow-y-auto overflow-x-hidden min-w-0 sm:w-[94vw] sm:max-w-3xl sm:max-h-[92dvh] sm:rounded-2xl md:max-w-5xl lg:max-w-6xl [&_*]:min-w-0 [&>button.absolute.right-4]:hidden"
+        className="h-[calc(100dvh_-_0.5rem)] w-[calc(100vw_-_0.5rem)] max-w-[calc(100vw_-_0.5rem)] max-h-[calc(100dvh_-_0.5rem)] rounded-xl border border-slate-200 bg-white p-0 shadow-xl ring-1 ring-slate-200 overflow-y-auto overflow-x-hidden overscroll-contain min-w-0 sm:h-[92dvh] sm:w-[94vw] sm:max-w-4xl sm:max-h-[92dvh] sm:rounded-2xl md:max-w-4xl lg:max-h-[48rem] lg:max-w-4xl [&_*]:min-w-0 [&>button.absolute.right-4]:hidden"
         ref={scrollContainerRef}
         onScroll={(e) => setShowStickyName((e.target as HTMLElement).scrollTop > 60)}
       >
         <div className="sticky top-0 z-[100] w-full h-0 pointer-events-none">
           <div 
             className={cn(
-              "absolute top-0 left-0 right-0 bg-white/95 backdrop-blur-md border-b border-slate-200 px-5 py-2 shadow-sm transition-opacity duration-200 ease-in-out pointer-events-auto rounded-t-[1.5rem] sm:rounded-t-[2rem]",
+              "absolute top-0 left-0 right-0 rounded-t-xl border-b border-slate-200 bg-white px-5 py-2 transition-opacity duration-200 ease-in-out pointer-events-auto sm:rounded-t-2xl",
               showStickyName ? "opacity-100" : "opacity-0"
             )}
           >
-            <p className="text-[12px] sm:text-[13px] font-extrabold text-slate-900 uppercase tracking-wider truncate text-center">
+            <p className="break-words text-center text-xs font-semibold leading-snug text-slate-900 [overflow-wrap:anywhere] sm:text-[13px]">
               {requestPatientName || "Unknown Patient"}
             </p>
           </div>
         </div>
         <Tabs value={activeTab} onValueChange={setActiveTab as any} className="w-full min-w-0">
         {/* Fixed Header */}
-        <div className="relative z-30 flex w-full min-w-0 shrink-0 flex-col gap-3 border-b border-slate-200 px-3 pb-2 pt-3 sm:gap-4 sm:px-5 sm:pt-4">
+        <div className="relative z-30 flex w-full min-w-0 shrink-0 flex-col gap-2 border-b border-slate-200 px-2.5 pb-2 pt-2.5 sm:px-4 sm:pt-3">
           <button 
             onClick={onClose}
             type="button"
             aria-label="Close authorization review"
-            className="absolute top-4 right-4 h-11 w-11 inline-flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-full transition-colors z-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 focus-visible:ring-offset-2"
+            className="absolute right-3 top-3 z-40 inline-flex h-9 w-9 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 focus-visible:ring-offset-2"
           >
-            <X className="h-5 w-5 stroke-[2.5]" />
+            <X className="h-4 w-4" />
           </button>
           
-          <div className="flex min-w-0 items-start justify-between gap-2 pr-8 sm:gap-3 sm:pr-8">
+          <div className="flex min-w-0 flex-col gap-2 pr-14 sm:flex-row sm:items-start sm:justify-between sm:gap-3 sm:pr-14">
             <div className="min-w-0 flex-1 w-full">
               <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-slate-600 sm:text-[11px] sm:tracking-widest">
                 Clinical Review
               </div>
-              <h2 className="truncate text-base font-bold uppercase leading-tight text-slate-900 sm:text-xl">
+              <h2 className="break-words text-base font-semibold leading-tight text-slate-900 [overflow-wrap:anywhere] sm:text-xl">
                 {requestPatientName || "Unknown Patient"}
               </h2>
-              <div className="flex items-center gap-2 mt-1 flex-wrap text-slate-500 text-[11px]">
+              <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-slate-500">
                 <span>Policy: {requestPolicyNumber || "N/A"}</span>
-                {role !== "hospital" && (actions.otpLoading || actions.arrivalOtp || actions.treatmentOtp || otpValue || ["pending", "pending_authorization", "pending_referral", "info_provided"].includes(request?.status || "")) ? (
-                  <>
-                    <span className="text-slate-300">&bull;</span>
-                    <span>
-                      {actions.otpLoading ? (
-                        <span className="animate-pulse">Fetching OTPs...</span>
-                      ) : (actions.arrivalOtp || actions.treatmentOtp || otpValue) ? (
-                        <>
-                          {actions.arrivalOtp && (
-                            <span className="tracking-wider">
-                              OTP: {actions.arrivalOtp}
-                              {actions.arrivalOtpVerified && <span className="text-emerald-500 ml-1">✓</span>}
-                            </span>
-                          )}
-                          {!actions.arrivalOtp && !actions.treatmentOtp && otpValue && <span className="tracking-wider">OTP: {otpValue}</span>}
-                        </>
-                      ) : (
-                        <span>OTP: &bull;&bull;&bull;&bull;&bull;&bull;</span>
-                      )}
-                    </span>
-                  </>
-                ) : null}
               </div>
             </div>
 
-            <div className="mt-1 flex w-[42%] shrink-0 flex-col items-start text-left sm:mt-0 sm:w-full sm:max-w-[200px] sm:items-end sm:self-center sm:text-right">
-              <div className="mb-0.5 text-[9px] font-semibold uppercase tracking-wide text-slate-600 sm:text-[10px] sm:tracking-widest">Contact</div>
-              <div className="w-full truncate text-[11px] font-semibold text-slate-700 sm:text-xs" title={request?.patient_phone || undefined}>
+            <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 text-left text-[11px] sm:mt-0 sm:w-full sm:max-w-[200px] sm:shrink-0 sm:flex-col sm:items-end sm:text-right sm:text-xs">
+              <div className="font-medium text-slate-600">Contact</div>
+              <div className="min-w-0 break-words font-semibold text-slate-700 [overflow-wrap:anywhere]" title={request?.patient_phone || undefined}>
                 {request?.patient_phone ? `${request.patient_phone}` : "—"}
               </div>
               {request?.patient_email && (
-                <div className="mt-0.5 w-full truncate text-[10px] font-medium leading-tight text-slate-500 sm:text-[11px]" title={request.patient_email}>
+                <div className="min-w-0 break-words text-[10px] font-medium leading-tight text-slate-500 [overflow-wrap:anywhere] sm:mt-0.5 sm:text-[11px]" title={request.patient_email}>
                   {request.patient_email === "no-email@medicode.com" ? (
                     <span className="italic opacity-70">No email provided</span>
                   ) : (
@@ -476,7 +455,7 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
           </div>
 
           <div className={cn(
-            "grid grid-cols-2 gap-x-3 gap-y-2 rounded-lg border border-slate-200 bg-slate-50/80 px-3 py-2 sm:gap-x-4",
+            "grid grid-cols-3 gap-x-2 gap-y-2 rounded-lg border border-slate-200 bg-slate-50/80 px-2.5 py-2 sm:gap-x-4 sm:px-3",
             request.treatment_submitted_at ? "sm:grid-cols-4" : "sm:grid-cols-3",
           )}>
             <div className="min-w-0">
@@ -497,7 +476,7 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
                   : isPending ? "Awaiting decision" : "Decision time unavailable"}
               </div>
             </div>
-            <div className={cn("min-w-0", !request.treatment_submitted_at && "col-span-2 sm:col-span-1")}>
+            <div className="min-w-0">
               <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">{request.decided_at || !isPending ? "Turnaround" : "SLA elapsed"}</div>
               <div className={cn(
                 "mt-0.5 text-xs font-bold leading-4",
@@ -518,42 +497,44 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
               {/* Step 1: Referral */}
               <div className="flex flex-col items-center gap-1 min-w-0">
                 <div className={cn("w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full", ["pending_referral"].includes(request.status) ? "w-3.5 h-3.5 sm:w-4 sm:h-4 bg-white border-[3px] border-slate-800" : "bg-slate-800")} />
-                <span className={cn("text-[8px] sm:text-[10px] font-bold uppercase tracking-wider", ["pending_referral"].includes(request.status) ? "text-slate-800" : "text-slate-400")}>Referral</span>
+                <span className={cn("text-[10px] sm:text-xs font-medium normal-case", ["pending_referral"].includes(request.status) ? "text-slate-800" : "text-slate-400")}>Referral</span>
               </div>
               <div className={cn("h-0.5 sm:h-1 w-2 sm:w-4 flex-shrink-0 transition-colors duration-300", ["referral_approved", "referral_accepted", "pending_authorization", "approved", "authorization_approved"].includes(request.status) ? "bg-slate-800" : "bg-slate-200")} />
               
               {/* Step 2: Insurer */}
               <div className="flex flex-col items-center gap-1 min-w-0">
                 <div className={cn("w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full", ["referral_approved"].includes(request.status) ? "w-3.5 h-3.5 sm:w-4 sm:h-4 bg-white border-[3px] border-slate-800" : ["pending_referral"].includes(request.status) ? "bg-slate-200" : "bg-slate-800")} />
-                <span className={cn("text-[8px] sm:text-[10px] font-bold uppercase tracking-wider", ["referral_approved"].includes(request.status) ? "text-slate-800" : "text-slate-400")}>Insurer</span>
+                <span className={cn("text-[10px] sm:text-xs font-medium normal-case", ["referral_approved"].includes(request.status) ? "text-slate-800" : "text-slate-400")}>Insurer</span>
               </div>
               <div className={cn("h-0.5 sm:h-1 w-2 sm:w-4 flex-shrink-0 transition-colors duration-300", ["referral_accepted", "pending_authorization", "approved", "authorization_approved"].includes(request.status) ? "bg-slate-800" : "bg-slate-200")} />
               
               {/* Step 3: Hospital */}
               <div className="flex flex-col items-center gap-1 min-w-0">
                 <div className={cn("w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full", ["referral_accepted"].includes(request.status) ? "w-3.5 h-3.5 sm:w-4 sm:h-4 bg-white border-[3px] border-slate-800" : ["pending_referral", "referral_approved"].includes(request.status) ? "bg-slate-200" : "bg-slate-800")} />
-                <span className={cn("text-[8px] sm:text-[10px] font-bold uppercase tracking-wider", ["referral_accepted"].includes(request.status) ? "text-slate-800" : "text-slate-400")}>Hospital</span>
+                <span className={cn("text-[10px] sm:text-xs font-medium normal-case", ["referral_accepted"].includes(request.status) ? "text-slate-800" : "text-slate-400")}>Hospital</span>
               </div>
               <div className={cn("h-0.5 sm:h-1 w-2 sm:w-4 flex-shrink-0 transition-colors duration-300", ["pending_authorization", "approved", "authorization_approved"].includes(request.status) ? "bg-slate-800" : "bg-slate-200")} />
               
               {/* Step 4: Review */}
               <div className="flex flex-col items-center gap-1 min-w-0">
                 <div className={cn("w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full", ["pending_authorization"].includes(request.status) ? "w-3.5 h-3.5 sm:w-4 sm:h-4 bg-white border-[3px] border-slate-800" : ["approved", "partially_approved", "authorization_approved"].includes(request.status) ? "bg-slate-800" : "bg-slate-200")} />
-                <span className={cn("text-[8px] sm:text-[10px] font-bold uppercase tracking-wider", ["pending_authorization"].includes(request.status) ? "text-slate-800" : "text-slate-400")}>Review</span>
+                <span className={cn("text-[10px] sm:text-xs font-medium normal-case", ["pending_authorization"].includes(request.status) ? "text-slate-800" : "text-slate-400")}>Review</span>
               </div>
               <div className={cn("h-0.5 sm:h-1 w-2 sm:w-4 flex-shrink-0 transition-colors duration-300", ["approved", "partially_approved", "authorization_approved"].includes(request.status) ? "bg-slate-800" : "bg-slate-200")} />
               
               {/* Step 5: Authorized */}
               <div className="flex flex-col items-center gap-1 min-w-0">
                 <div className={cn("w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full", ["approved", "partially_approved", "authorization_approved"].includes(request.status) ? "w-3.5 h-3.5 sm:w-4 sm:h-4 bg-white border-[3px] border-slate-800" : "bg-slate-200")} />
-                <span className={cn("text-[8px] sm:text-[10px] font-bold uppercase tracking-wider", ["approved", "partially_approved", "authorization_approved"].includes(request.status) ? "text-slate-800" : "text-slate-400")}>Authorized</span>
+                <span className={cn("text-[10px] sm:text-xs font-medium normal-case", ["approved", "partially_approved", "authorization_approved"].includes(request.status) ? "text-slate-800" : "text-slate-400")}>Authorized</span>
               </div>
             </div>
           ) : (
             <div className="flex justify-center items-center gap-1 sm:gap-2 px-2 sm:px-6 py-2">
               {/* Step 1: Verify */}
-              <div 
-                className="flex flex-col items-center gap-1 cursor-pointer"
+              <button
+                type="button"
+                aria-pressed={activeTab === "verification"}
+                className="flex min-w-0 flex-col items-center gap-1 rounded-md bg-transparent p-1 text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                 onClick={() => setActiveTab("verification")}
               >
                 <div className={cn(
@@ -567,7 +548,7 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
                   {isDecided ? "✓" : null}
                 </div>
                 <span className={cn(
-                  "text-[8px] sm:text-[10px] font-bold uppercase tracking-wider",
+                  "text-[10px] sm:text-xs font-medium normal-case",
                   isDecided
                     ? "text-emerald-700"
                     : activeTab === "verification"
@@ -576,7 +557,7 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
                 )}>
                   Verify
                 </span>
-              </div>
+              </button>
 
               {/* Line 1-2 */}
               <div className={cn(
@@ -589,8 +570,10 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
               )} />
 
               {/* Step 2: Review */}
-              <div 
-                className="flex flex-col items-center gap-1 cursor-pointer"
+              <button
+                type="button"
+                aria-pressed={activeTab === "clinical"}
+                className="flex min-w-0 flex-col items-center gap-1 rounded-md bg-transparent p-1 text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                 onClick={() => setActiveTab("clinical")}
               >
                 <div className={cn(
@@ -604,7 +587,7 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
                   {isDecided ? "✓" : null}
                 </div>
                 <span className={cn(
-                  "text-[8px] sm:text-[10px] font-bold uppercase tracking-wider",
+                  "text-[10px] sm:text-xs font-medium normal-case",
                   isDecided
                     ? "text-emerald-700"
                     : activeTab === "clinical"
@@ -613,7 +596,7 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
                 )}>
                   Review
                 </span>
-              </div>
+              </button>
 
               {/* Line 2-3 */}
               <div className={cn(
@@ -634,7 +617,7 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
                   {isDecided ? (request?.status === "rejected" ? "✗" : "✓") : null}
                 </div>
                 <span className={cn(
-                  "text-[8px] sm:text-[10px] font-bold uppercase tracking-wider",
+                  "text-[10px] sm:text-xs font-medium normal-case",
                   isDecided
                     ? (request?.status === "rejected" ? "text-rose-700" : "text-emerald-700")
                     : "text-slate-400"
@@ -648,16 +631,16 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
           )}
 
           {/* TabsList */}
-          <TabsList className="flex w-full h-11 sm:h-12 bg-transparent p-0 gap-2 mt-4">
+          <TabsList className="flex w-full h-10 bg-slate-100/80 p-1 gap-1 mt-3 sm:h-11">
             <TabsTrigger
               value="verification"
-              className="flex-1 rounded-[0.5rem] sm:rounded-lg text-[10px] sm:text-[11px] font-black uppercase tracking-wider sm:tracking-widest data-[state=active]:bg-slate-900 data-[state=active]:text-white data-[state=inactive]:bg-slate-100 data-[state=inactive]:text-slate-400 data-[state=active]:shadow-none transition-all h-full border-0 whitespace-normal leading-tight px-1"
+              className="flex-1 rounded-md text-[11px] sm:text-xs font-medium data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=inactive]:bg-transparent data-[state=inactive]:text-slate-600 data-[state=active]:shadow-sm transition-colors h-full border-0 whitespace-normal leading-tight px-1"
             >
               Patient Verify & History
             </TabsTrigger>
             <TabsTrigger
               value="clinical"
-              className="flex-1 rounded-[0.5rem] sm:rounded-lg text-[10px] sm:text-[11px] font-black uppercase tracking-wider sm:tracking-widest data-[state=active]:bg-slate-900 data-[state=active]:text-white data-[state=inactive]:bg-slate-100 data-[state=inactive]:text-slate-400 data-[state=active]:shadow-none transition-all h-full border-0 whitespace-normal leading-tight px-1"
+              className="flex-1 rounded-md text-[11px] sm:text-xs font-medium data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=inactive]:bg-transparent data-[state=inactive]:text-slate-600 data-[state=active]:shadow-sm transition-colors h-full border-0 whitespace-normal leading-tight px-1"
             >
               Clinical Review
             </TabsTrigger>
@@ -667,14 +650,14 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
         </div>
 
                         {/* Modal body container (Scrollable) */}
-        <div className="w-full min-w-0 space-y-3 p-2.5 sm:space-y-4 sm:p-5">
+        <div className="w-full min-w-0 space-y-2.5 p-2 sm:space-y-3 sm:p-3.5">
           {/* Locked status warning */}
           {request?.deletion_status === "awaiting_admin_approval" && (
-            <div className="p-4 rounded-2xl text-xs border bg-rose-50 border-rose-200 flex items-center gap-3 text-rose-900 shadow-xs animate-in fade-in duration-350">
-              <AlertTriangle className="w-5 h-5 text-rose-500 shrink-0" />
+            <div className="rounded-lg border border-slate-200 border-l-4 border-l-rose-700 bg-slate-50 px-3 py-2.5 text-xs text-slate-800 flex items-start gap-2.5 animate-in fade-in duration-200">
+              <AlertTriangle className="mt-0.5 w-4 h-4 text-rose-800 shrink-0" />
               <div>
-                <p className="font-black uppercase tracking-wider text-xs text-rose-800">Awaiting Deletion Approval</p>
-                <p className="font-medium opacity-80 mt-0.5">
+                <p className="font-semibold text-sm text-slate-900">Awaiting deletion approval</p>
+                <p className="font-normal text-slate-600 mt-0.5">
                   This request has been requested for deletion and is awaiting admin approval. Modifications are disabled.
                 </p>
               </div>
@@ -683,14 +666,14 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
 
           {/* Referral declined status alert */}
           {request?.status === "referral_declined" && (
-            <div className="p-4 rounded-2xl text-xs border bg-amber-50 border-amber-200 flex items-center gap-3 text-amber-900 shadow-xs animate-in fade-in duration-350">
-              <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0" />
+            <div className="rounded-lg border border-slate-200 border-l-4 border-l-amber-700 bg-slate-50 px-3 py-2.5 text-xs text-slate-800 flex items-start gap-2.5 animate-in fade-in duration-200">
+              <AlertTriangle className="mt-0.5 w-4 h-4 text-amber-800 shrink-0" />
               <div>
-                <p className="font-black uppercase tracking-wider text-xs text-amber-800">Referral Declined by Hospital</p>
-                <p className="font-medium opacity-90 mt-0.5">
-                  Decline Reason: <span className="font-bold text-slate-800">{request.decision_reason || "No reason provided"}</span>
+                <p className="font-semibold text-sm text-slate-900">Referral declined by hospital</p>
+                <p className="font-normal text-slate-600 mt-0.5">
+                  Reason: <span className="font-medium text-slate-900">{request.decision_reason || "No reason provided"}</span>
                 </p>
-                <p className="font-semibold text-amber-800 mt-1">
+                <p className="font-medium text-slate-700 mt-1">
                   Please select a new referred hospital in the section below and click "Reassign Referral" to route it to another facility.
                 </p>
               </div>
@@ -698,25 +681,25 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
           )}
 
           {/* OTP Banner on Approved View */}
-          {actions.approvalResult && otpValue && (
-            <div className="mb-3 flex flex-col gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3 sm:mb-4 sm:flex-row sm:items-center sm:justify-between sm:rounded-2xl sm:p-5">
+          {actions.approvalResult && visibleOtpValue && (
+            <div className="mb-2 flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2 sm:mb-3 sm:px-3">
               <div className="min-w-0">
-                <div className="text-[10px] font-semibold uppercase tracking-wide text-emerald-700 sm:tracking-widest">
+                <div className="text-[10px] font-medium uppercase tracking-wide text-slate-500">
                   Patient OTP / Arrival PIN
                 </div>
-                <div className="mt-1 font-mono text-xl font-bold tracking-wider text-emerald-900 sm:text-2xl sm:tracking-widest">
-                  {otpValue}
+                <div className="font-mono text-base font-semibold tracking-wider text-slate-900 sm:text-lg">
+                  {visibleOtpValue}
                 </div>
               </div>
-              <div className="flex w-full items-center gap-2 sm:w-auto">
+              <div className="flex shrink-0 items-center gap-1.5">
                 <Button
                   variant="outline"
                   size="icon"
-                  className="h-11 w-11 shrink-0 border-emerald-200 bg-white text-emerald-700 hover:bg-emerald-100"
+                  className="h-10 w-10 shrink-0 border-slate-300 bg-white text-slate-600 hover:bg-slate-100"
                   aria-label="Copy patient OTP"
                   onClick={async () => {
                     try {
-                      await writeClipboardText(otpValue);
+                      await writeClipboardText(visibleOtpValue);
                       toast({ title: "OTP Copied!" });
                     } catch {
                       toast({ variant: "destructive", title: "Copy failed", description: "Allow clipboard access or copy the OTP manually." });
@@ -728,7 +711,7 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
                 </Button>
                 <Button
                   variant="default"
-                  className="h-11 min-w-0 flex-1 bg-emerald-700 px-3 text-xs font-semibold text-white hover:bg-emerald-800 sm:flex-none sm:px-4"
+                  className="h-10 min-w-0 bg-emerald-700 px-3 text-xs font-semibold text-white hover:bg-emerald-800"
                   onClick={handleResendOtp}
                   disabled={isResending}
                   title="Resend OTP"
@@ -883,25 +866,25 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
                 )}
 
                 {/* OTP Banner */}
-                {otpValue && (
-                <div className="mb-3 flex flex-col gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3 sm:mb-4 sm:flex-row sm:items-center sm:justify-between sm:rounded-2xl sm:p-5">
+                {visibleOtpValue && (
+                <div className="mb-2 flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2 sm:mb-3 sm:px-3">
                     <div className="min-w-0">
-                      <div className="text-[10px] font-semibold uppercase tracking-wide text-emerald-700 sm:tracking-widest">
+                      <div className="text-[10px] font-medium uppercase tracking-wide text-slate-500">
                         Patient OTP / Arrival PIN
                       </div>
-                      <div className="mt-1 font-mono text-xl font-bold tracking-wider text-emerald-900 sm:text-2xl sm:tracking-widest">
-                        {otpValue}
+                      <div className="font-mono text-base font-semibold tracking-wider text-slate-900 sm:text-lg">
+                        {visibleOtpValue}
                       </div>
                     </div>
-                    <div className="flex w-full items-center gap-2 sm:w-auto">
+                    <div className="flex shrink-0 items-center gap-1.5">
                       <Button
                         variant="outline"
                         size="icon"
-                        className="h-11 w-11 shrink-0 border-emerald-200 bg-white text-emerald-700 hover:bg-emerald-100"
+                        className="h-10 w-10 shrink-0 border-slate-300 bg-white text-slate-600 hover:bg-slate-100"
                         aria-label="Copy patient OTP"
                         onClick={async () => {
                           try {
-                            await writeClipboardText(otpValue);
+                            await writeClipboardText(visibleOtpValue);
                             toast({ title: "OTP Copied!" });
                           } catch {
                             toast({ variant: "destructive", title: "Copy failed", description: "Allow clipboard access or copy the OTP manually." });
@@ -913,7 +896,7 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
                       </Button>
                       <Button
                         variant="default"
-                        className="h-11 min-w-0 flex-1 bg-emerald-700 px-3 text-xs font-semibold text-white hover:bg-emerald-800 sm:flex-none sm:px-4"
+                        className="h-10 min-w-0 bg-emerald-700 px-3 text-xs font-semibold text-white hover:bg-emerald-800"
                         onClick={handleResendOtp}
                         disabled={isResending}
                         title="Resend OTP"
@@ -927,18 +910,18 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
 
                 {/* Standard Request Facility Banner (Non-Referral) */}
                 {!request?.referred_hospital_name && (request?.requesting_hospital_name || requestingHospitalName) && (
-                  <div className="bg-slate-50 rounded-2xl p-4 sm:p-5 mb-4 border border-slate-200 min-w-0 shadow-sm">
-                    <div className="inline-block bg-slate-200 text-slate-600 px-3 py-1 rounded-full text-[10px] font-bold tracking-widest uppercase">
+                  <div className="rounded-lg border border-slate-200 bg-slate-50/60 px-3 py-2.5 mb-3 min-w-0">
+                    <div className="text-[11px] font-medium text-slate-500">
                       Requesting Facility
                     </div>
-                    <div className="text-[16px] sm:text-[18px] font-extrabold text-slate-800 mt-2 leading-tight break-words [overflow-wrap:anywhere]">
+                    <div className="text-sm sm:text-base font-semibold text-slate-900 mt-1 leading-snug break-words [overflow-wrap:anywhere]">
                       {areHospitalNamesMatching(requestingHospitalName, primaryHospital?.hcp_name) && primaryHospital?.hcp_name
                         ? primaryHospital.hcp_name
                         : requestingHospitalName || "Unknown Hospital"}
                     </div>
                     {formattedNotes && (
-                      <div className="text-[13px] font-medium text-slate-500 mt-1.5 leading-relaxed break-words [overflow-wrap:anywhere]">
-                        <span className="font-bold text-slate-700">Clinical Notes:</span> {formattedNotes}
+                      <div className="text-xs font-normal text-slate-600 mt-1 leading-relaxed break-words [overflow-wrap:anywhere]">
+                        <span className="font-medium text-slate-700">Clinical notes:</span> {formattedNotes}
                       </div>
                     )}
                   </div>
@@ -946,46 +929,46 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
 
                 {/* Referral Banner */}
                 {request?.referred_hospital_name && (
-                  <div className="bg-blue-50 rounded-2xl p-4 sm:p-5 mb-4 border border-blue-100 min-w-0">
-                    <div className="inline-block bg-blue-500 text-white px-3 py-1 rounded-full text-[10px] font-bold tracking-widest uppercase">
+                  <div className="rounded-lg border border-slate-200 border-l-4 border-l-sky-700 bg-slate-50/60 px-3 py-2.5 mb-3 min-w-0">
+                    <div className="text-[11px] font-medium text-slate-500">
                       Referral Request
                     </div>
-                    <div className="text-[16px] sm:text-[18px] font-extrabold text-slate-800 mt-2 leading-tight break-words [overflow-wrap:anywhere]">
+                    <div className="text-sm sm:text-base font-semibold text-slate-900 mt-1 leading-snug break-words [overflow-wrap:anywhere]">
                       Referred to: {request.referred_hospital_name}
                     </div>
-                    <div className="text-[13px] font-medium text-slate-500 mt-1.5 leading-relaxed break-words [overflow-wrap:anywhere]">
+                    <div className="text-xs font-normal text-slate-600 mt-1 leading-relaxed break-words [overflow-wrap:anywhere]">
                       {formattedNotes ? `Notes from ${requestingHospitalName}: ${formattedNotes}` : `Patient referred by ${requestingHospitalName} for further clinical evaluation and management.`}
                     </div>
                   </div>
                 )}
 
                                 {/* Diagnosis Card */}
-                <div className="bg-white rounded-2xl p-4 border border-slate-100 mb-3 shadow-sm space-y-4">
+                <div className="bg-white rounded-lg p-3 border border-slate-200 mb-2.5 space-y-3">
                   <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2">
-                    <div className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wide flex flex-wrap items-center gap-2">
+                    <div className="text-[11px] sm:text-xs font-medium text-slate-600 flex flex-wrap items-center gap-2">
                       {request?.referred_hospital_name ? "Original Referral Diagnosis" : "Proposed Diagnosis"}
-                      {request?.referred_hospital_name && <span className="bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded text-[9px] uppercase font-bold tracking-widest">Referral</span>}
+                      {request?.referred_hospital_name && <span className="bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded text-[10px] font-medium">Referral</span>}
                     </div>
-                    <div className="bg-slate-50 px-2.5 py-1 rounded-full text-[9px] font-bold text-slate-500 tracking-wide w-fit">
+                    <div className="w-fit rounded-md bg-slate-50 px-2.5 py-1 text-[11px] font-medium text-slate-600">
                       {request?.diagnosis_code || "ICD-10"}
                     </div>
                   </div>
                   
                   <textarea 
-                    className="w-full p-3 border border-slate-100 rounded-xl text-[13px] sm:text-[14px] font-bold text-slate-800 bg-slate-50 min-h-[70px] focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-80" 
+                    className="w-full p-2.5 border border-slate-100 rounded-lg text-xs sm:text-[13px] font-semibold text-slate-800 bg-slate-50 min-h-[60px] focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-80"
                     placeholder="Diagnosis..."
                     value={actions.editDiagnosis}
                     onChange={(e) => actions.setEditDiagnosis(e.target.value)}
                     readOnly={isLocked || request?.deletion_status === "awaiting_admin_approval" || role === "hospital" || !!request?.referred_hospital_name}
                   />
 
-                  <div className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wide flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100">
+                  <div className="text-[11px] sm:text-xs font-medium text-slate-500 flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100">
                     {request?.referred_hospital_name ? "Current Treatment Request" : "Proposed Treatment"}
-                    {request?.referred_hospital_name && <span className="bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded text-[9px] uppercase font-bold tracking-widest">Referred Hospital</span>}
+                    {request?.referred_hospital_name && <span className="bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded text-[10px] font-medium">Referred Hospital</span>}
                   </div>
                   
                   <textarea 
-                    className="w-full p-3 border border-slate-100 rounded-xl text-[13px] sm:text-[14px] font-bold text-slate-800 bg-slate-50 min-h-[90px] focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-80" 
+                    className="w-full p-2.5 border border-slate-100 rounded-lg text-xs sm:text-[13px] font-semibold text-slate-800 bg-slate-50 min-h-[76px] focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-80"
                     placeholder="Treatment Plan..."
                     value={actions.editTreatment}
                     onChange={(e) => actions.setEditTreatment(e.target.value)}
@@ -997,10 +980,10 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
                   />
                   
                   {/* Referral details container */}
-                  <div className="space-y-3.5 overflow-hidden rounded-xl border border-slate-100 bg-slate-50 p-3 mt-3">
+                  <div className="space-y-2.5 overflow-hidden rounded-lg border border-slate-100 bg-slate-50 p-2.5 mt-2.5">
                     <div className="flex items-center justify-between gap-3">
                       <div className="min-w-0">
-                        <div className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wide">
+                        <div className="text-[11px] sm:text-xs font-medium text-slate-500">
                           Referral Hospital / Claim Owner
                         </div>
                         <p className="mt-1 text-[11px] sm:text-[12px] text-slate-400">
@@ -1055,7 +1038,7 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
 
                   <div className="flex flex-wrap gap-4 items-center justify-between mt-3 pt-3 border-t border-slate-100">
                     <div className="space-y-1 min-w-0 flex-1">
-                      <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wide">
+                      <span className="text-[11px] sm:text-xs font-medium text-slate-500">
                         Requesting Hospital
                       </span>
                       <p className="text-[13px] sm:text-[14px] font-bold text-slate-800 mt-1 break-words [overflow-wrap:anywhere]">
@@ -1063,7 +1046,7 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
                       </p>
                     </div>
                     <div className="space-y-1 text-right shrink-0">
-                      <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wide">
+                      <span className="text-[11px] sm:text-xs font-medium text-slate-500">
                         Priority
                       </span>
                       <div>

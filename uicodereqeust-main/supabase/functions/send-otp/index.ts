@@ -41,7 +41,7 @@ serve(async (req) => {
   }
 
   try {
-    const { user } = await validateUser(req, ["utilization_manager", "utilization_manager_lead", "admin", "hospital", "claims"]);
+    const { user } = await validateUser(req, ["nurse", "utilization_manager", "utilization_manager_lead", "admin", "hospital", "claims"]);
     const supabase = getServiceClient();
 
     // patient_email can be empty/missing for whatsapp parser requests
@@ -51,14 +51,17 @@ serve(async (req) => {
     
     // Default email if none provided
     const safeEmail = patient_email || "no-email@medicode.com";
+    const normalizedOtpType = String(otp_type || "ARRIVAL").toUpperCase();
 
-    const { data: existingPin } = await supabase
+    const { data: existingPin, error: lookupError } = await supabase
       .from("otp_verifications")
       .select("id, verified, expires_at, otp_value, otp_type")
       .eq("authorization_id", authorization_id)
+      .eq("otp_type", normalizedOtpType)
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
+    if (lookupError) throw lookupError;
 
     if (existingPin) {
       return new Response(
@@ -76,11 +79,13 @@ serve(async (req) => {
     // 10 years expiration
     const expiresAt = new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000).toISOString();
 
-    await supabase
+    const { error: deleteError } = await supabase
       .from("otp_verifications")
       .delete()
       .eq("authorization_id", authorization_id)
+      .eq("otp_type", normalizedOtpType)
       .eq("verified", false);
+    if (deleteError) throw deleteError;
 
     const { error: insertError } = await supabase
       .from("otp_verifications")
@@ -91,7 +96,7 @@ serve(async (req) => {
         email: safeEmail,
         expires_at: expiresAt,
         created_by: user.id,
-        otp_type: otp_type || "ARRIVAL",
+        otp_type: normalizedOtpType,
         hospital_id: hospital_id || null,
       });
 

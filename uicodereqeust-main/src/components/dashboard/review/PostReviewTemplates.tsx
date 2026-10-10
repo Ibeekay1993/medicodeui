@@ -405,37 +405,55 @@ export const PostReviewTemplates = React.memo(function PostReviewTemplates({
 
   if (approvalResult) {
     const isPartiallyApproved = request?.status === "partially_approved";
+    const approvedItems = approvalResult.items.length
+      ? approvalResult.items
+      : (approvalResult.treatment || request?.treatment || "")
+          .split(/;\s*|\r?\n/)
+          .map((entry) => entry.trim().replace(/^[•*-]\s*/, ""))
+          .filter(Boolean)
+          .map((entry) => {
+            const match = entry.match(/^((?:NHIA[-/])?[\w./-]+)\s*[-–]\s*(.+)$/i);
+            return {
+              code: match?.[1] || null,
+              name: match?.[2] || entry,
+              quantity: null,
+              unitPrice: null,
+              price: null,
+              linePriceKnown: false,
+            };
+          });
     return (
-      <div className="space-y-4 sm:space-y-6">
-        <div className="relative overflow-hidden rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-center sm:rounded-3xl sm:p-8">
-          <CheckCircle className="mx-auto mb-2 h-10 w-10 text-emerald-700 sm:mb-3 sm:h-14 sm:w-14" />
-          <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-800 sm:mb-2 sm:text-xs sm:tracking-widest">
-            {isPartiallyApproved ? "Partially Approved Auth Code" : "Approved Auth Code"}
-          </p>
-          <p className="mx-auto max-w-full whitespace-nowrap font-mono text-[clamp(1.125rem,6.8vw,2.25rem)] font-bold leading-tight tracking-tight tabular-nums text-emerald-800 sm:text-4xl">
-            {approvalResult.authCode}
-          </p>
-          <p className="mt-2 text-[10px] font-semibold uppercase leading-relaxed tracking-[0.08em] text-emerald-800/70 sm:text-xs sm:tracking-[0.16em]">
-            Authorized by {approvalResult.authorizedByName} ({approvalResult.authorizedByInitials})
-          </p>
+      <div className="space-y-3">
+        <div className="flex min-w-0 items-start gap-2.5 border-b border-slate-100 pb-2">
+          <CheckCircle className="mt-0.5 h-5 w-5 shrink-0 text-slate-500" />
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium leading-snug text-slate-700">
+              Authorization status: <span className={`font-semibold ${isPartiallyApproved ? "text-sky-900" : "text-emerald-900"}`}>{isPartiallyApproved ? "Partially approved" : "Approved"}</span>
+            </p>
+            <p className="mt-1 break-words text-xs leading-snug text-slate-700">
+              Auth code: <span className="font-mono font-medium text-slate-900 [overflow-wrap:anywhere]">{approvalResult.authCode}</span>
+              <span className="px-1.5 text-slate-300">·</span>
+              Authorized by <span className="font-medium text-slate-800">{approvalResult.authorizedByName} ({approvalResult.authorizedByInitials})</span>
+            </p>
+          </div>
         </div>
 
-        <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-3 font-sans text-xs sm:rounded-2xl sm:p-5">
-          <div className="flex items-center gap-2 mb-2">
-            <Badge className="bg-emerald-600 hover:bg-emerald-700 border-0 text-xs font-black uppercase tracking-wider">Clinical Record</Badge>
+        <div className={`space-y-2 rounded-xl border bg-white p-3 font-sans text-xs sm:space-y-2.5 sm:p-4 ${isPartiallyApproved ? "border-sky-200" : "border-emerald-200"}`}>
+          <div className="flex items-center gap-2 pb-1">
+            <Badge className={`border-0 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide hover:opacity-90 ${isPartiallyApproved ? "bg-sky-700" : "bg-emerald-700"}`}>Clinical Record</Badge>
             <div className="h-px flex-1 bg-slate-100" />
           </div>
-          <p className="flex flex-wrap justify-between gap-1 border-b border-slate-100 pb-2.5">
-            <strong className="text-slate-500 uppercase tracking-wider text-xs">Patient:</strong>
-            <span className="font-bold text-slate-800 text-right">{approvalResult.patientName}</span>
+          <p className="flex min-w-0 flex-col gap-0.5 border-b border-slate-100 pb-2 sm:flex-row sm:justify-between sm:gap-3">
+            <strong className="text-[10px] font-bold uppercase tracking-wide text-slate-500 sm:text-xs">Patient:</strong>
+            <span className="min-w-0 break-words font-bold text-slate-800 sm:text-right">{approvalResult.patientName}</span>
           </p>
-          <p className="flex flex-wrap justify-between gap-1 border-b border-slate-100 pb-2.5">
-            <strong className="text-slate-500 uppercase tracking-wider text-xs">Policy No:</strong>
-            <span className="max-w-full font-mono font-semibold text-emerald-800 [overflow-wrap:anywhere]">{approvalResult.policyNumber}</span>
+          <p className="flex min-w-0 flex-col gap-0.5 border-b border-slate-100 pb-2 sm:flex-row sm:justify-between sm:gap-3">
+            <strong className="text-[10px] font-bold uppercase tracking-wide text-slate-500 sm:text-xs">Policy No:</strong>
+            <span className={`min-w-0 break-all font-mono font-semibold sm:text-right ${isPartiallyApproved ? "text-sky-800" : "text-emerald-800"}`}>{approvalResult.policyNumber}</span>
           </p>
-          <p className="flex flex-wrap justify-between gap-1 border-b border-slate-100 pb-2.5">
-            <strong className="text-slate-500 uppercase tracking-wider text-xs">Hospital:</strong>
-            <span className="font-bold text-slate-800 text-right">{approvalResult.hospitalName}</span>
+          <p className="flex min-w-0 flex-col gap-0.5 border-b border-slate-100 pb-2 sm:flex-row sm:justify-between sm:gap-3">
+            <strong className="text-[10px] font-bold uppercase tracking-wide text-slate-500 sm:text-xs">Hospital:</strong>
+            <span className="min-w-0 break-words font-bold text-slate-800 sm:max-w-[75%] sm:text-right">{approvalResult.hospitalName}</span>
           </p>
 
           {editReferralHospitalName.trim() && (
@@ -448,40 +466,49 @@ export const PostReviewTemplates = React.memo(function PostReviewTemplates({
             </div>
           )}
 
-          <p className="flex flex-wrap justify-between gap-1 border-b border-slate-100 pb-2.5">
-            <strong className="text-slate-500 uppercase tracking-wider text-xs">Diagnosis:</strong>
-            <span className="font-bold text-slate-800 text-right">{approvalResult.diagnosis}</span>
+          <p className="flex min-w-0 flex-col gap-0.5 border-b border-slate-100 pb-2 sm:flex-row sm:justify-between sm:gap-3">
+            <strong className="text-[10px] font-bold uppercase tracking-wide text-slate-500 sm:text-xs">Diagnosis:</strong>
+            <span className="min-w-0 break-words font-bold text-slate-800 sm:max-w-[75%] sm:text-right">{approvalResult.diagnosis}</span>
           </p>
 
           <div className="space-y-2 border-b border-slate-100 pb-3">
-            <strong className="text-slate-500 uppercase tracking-wider text-xs">Approved Items:</strong>
+            <strong className="text-[10px] font-bold uppercase tracking-wide text-slate-500 sm:text-xs">Approved Items:</strong>
             <div className="rounded-xl border border-slate-100 bg-slate-50/50 overflow-hidden divide-y divide-slate-100">
-              {approvalResult.items.length ? (
-                approvalResult.items.map((item) => {
+              {approvedItems.length ? (
+                approvedItems.map((item, index) => {
                   const isDeclined = !!item.declined;
+                  const hasQuantity = item.quantity !== null && item.quantity !== undefined;
+                  const hasLinePrice = item.linePriceKnown !== false &&
+                    (item.unitPrice !== null && item.unitPrice !== undefined ||
+                      item.price !== null && item.price !== undefined);
                   return (
                     <div
-                      key={`${item.code}-${item.name}`}
-                      className={`flex flex-col gap-1 px-3 py-2 ${isDeclined ? "bg-rose-50/50" : "bg-white/40"}`}
+                      key={`${item.code || "item"}-${item.name}-${index}`}
+                      className={`flex items-start justify-between gap-3 px-3 py-2.5 ${isDeclined ? "bg-rose-50/50" : "bg-white"}`}
                     >
-                      <div className="flex items-start justify-between gap-2">
-                        <span className="min-w-0 flex-1">
-                          <span className={`block text-xs font-bold break-words ${isDeclined ? "line-through text-rose-900/60" : "text-slate-800"}`}>
-                            {item.code || "NHIA"} - {item.name}
-                            {isDeclined && (
-                              <Badge variant="outline" className="ml-1.5 border-rose-200 bg-rose-100/50 text-xs font-black uppercase tracking-wider text-rose-700 px-1 py-0 h-4">
-                                Declined
-                              </Badge>
-                            )}
-                          </span>
-                          <span className={`block text-xs font-semibold uppercase tracking-wider mt-0.5 ${isDeclined ? "text-rose-900/40" : "text-slate-400"}`}>
-                            {item.category || "NHIA item"} · Qty {itemQuantity(item)} · Unit {formatNaira(itemUnitPrice(item))}
-                          </span>
-                        </span>
-                        <span className={`shrink-0 font-black text-xs mt-0.5 ${isDeclined ? "text-rose-700 line-through" : "text-emerald-700"}`}>
+                      <div className="min-w-0 flex-1">
+                        {item.code && (
+                          <p className="font-mono text-[10px] font-semibold leading-tight text-slate-500">{item.code}</p>
+                        )}
+                        <p className={`mt-0.5 break-words text-xs font-semibold leading-snug ${isDeclined ? "line-through text-rose-900/60" : "text-slate-800"}`}>
+                          {item.name || "Approved item"}
+                          {isDeclined && (
+                            <Badge variant="outline" className="ml-1.5 h-4 border-rose-200 bg-rose-100/50 px-1 py-0 text-[9px] font-bold uppercase text-rose-700">
+                              Declined
+                            </Badge>
+                          )}
+                        </p>
+                        <p className={`mt-1 text-[10px] font-medium leading-snug ${isDeclined ? "text-rose-900/50" : "text-slate-500"}`}>
+                          {hasQuantity && hasLinePrice
+                            ? <>Qty {itemQuantity(item)} <span className="px-1 text-slate-300">·</span> Unit {formatNaira(itemUnitPrice(item))}</>
+                            : "Quantity and line price not recorded"}
+                        </p>
+                      </div>
+                      {hasLinePrice && (
+                        <span className={`shrink-0 pt-0.5 text-xs font-semibold tabular-nums ${isDeclined ? "text-rose-700 line-through" : isPartiallyApproved ? "text-sky-700" : "text-emerald-700"}`}>
                           {formatNaira(itemTotal(item))}
                         </span>
-                      </div>
+                      )}
                       {isDeclined && item.decline_reason && (
                         <div className="text-xs text-rose-700 font-medium bg-rose-100/30 rounded-md px-2 py-1 border border-rose-200/40 mt-1">
                           <span className="font-bold text-rose-800">Reason:</span> {item.decline_reason}
@@ -498,9 +525,9 @@ export const PostReviewTemplates = React.memo(function PostReviewTemplates({
             </div>
           </div>
 
-          <p className="flex flex-wrap justify-between gap-1 border-b border-slate-100 pb-2.5">
-            <strong className="text-slate-500 uppercase tracking-wider text-xs">Total Approved:</strong>
-            <span className="font-black text-emerald-700 text-sm">
+          <p className="flex min-w-0 flex-col gap-0.5 border-b border-slate-100 pb-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+            <strong className="text-[10px] font-bold uppercase tracking-wide text-slate-500 sm:text-xs">Total Approved:</strong>
+            <span className={`font-bold text-sm ${isPartiallyApproved ? "text-sky-700" : "text-emerald-700"}`}>
               {formatNaira(
                 (approvalResult.items.length
                   ? approvalResult.items
@@ -512,9 +539,9 @@ export const PostReviewTemplates = React.memo(function PostReviewTemplates({
               )}
             </span>
           </p>
-          <p className="flex flex-wrap justify-between gap-1 pb-1">
-            <strong className="text-slate-500 uppercase tracking-wider text-xs">Registry Date:</strong>
-            <span className="font-bold text-slate-800">{new Date(request?.created_at || new Date()).toLocaleDateString("en-GB")}</span>
+          <p className="flex min-w-0 flex-col gap-0.5 pb-1 sm:flex-row sm:justify-between sm:gap-3">
+            <strong className="text-[10px] font-bold uppercase tracking-wide text-slate-500 sm:text-xs">Registry Date:</strong>
+            <span className="font-semibold text-slate-800 sm:text-right">{new Date(request?.created_at || new Date()).toLocaleDateString("en-GB")}</span>
           </p>
         </div>
 
@@ -621,41 +648,45 @@ export const PostReviewTemplates = React.memo(function PostReviewTemplates({
 
   if (declineResult) {
     return (
-      <div className="space-y-6 animate-in fade-in zoom-in-95 duration-300">
-        <div className="text-center p-6 sm:p-8 bg-rose-50/70 rounded-3xl border border-rose-100 relative overflow-hidden shadow-xs">
-          <XCircle className="w-12 h-12 sm:w-14 sm:h-14 mx-auto mb-3 text-rose-600" />
-          <p className="text-xs uppercase font-black tracking-widest text-rose-800/60 mb-2">Decline Note</p>
-          <p className="text-xl sm:text-2xl font-black text-rose-700 tracking-tight">
-            {declineResult.reason}
-          </p>
+      <div className="space-y-4 animate-in fade-in duration-200">
+        <div className="flex min-w-0 items-start gap-2.5 rounded-lg border border-slate-200 bg-white px-3 py-2.5">
+          <XCircle className="mt-0.5 h-5 w-5 shrink-0 text-slate-500" />
+          <div className="min-w-0">
+            <p className="text-sm font-medium leading-snug text-slate-700">
+              Authorization status: <span className="font-semibold text-rose-900">Declined</span>
+            </p>
+            <p className="mt-1 break-words text-xs leading-snug text-slate-700 sm:text-sm">
+              Reason: <span className="font-medium text-slate-900">{declineResult.reason}</span>
+            </p>
+          </div>
         </div>
 
-        <div className="bg-white rounded-2xl p-5 text-xs space-y-3 font-sans border border-rose-100 shadow-xs">
-          <div className="flex items-center gap-2 mb-2">
-            <Badge variant="destructive" className="border-0 text-xs font-black uppercase tracking-wider bg-rose-600 hover:bg-rose-700">Clinical Record</Badge>
+        <div className="space-y-2 rounded-xl border border-rose-200 bg-white p-3 font-sans text-xs shadow-xs sm:space-y-2.5 sm:p-4">
+          <div className="flex items-center gap-2 pb-1">
+            <Badge variant="destructive" className="border-0 bg-rose-700 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide hover:bg-rose-700">Clinical Record</Badge>
             <div className="h-px flex-1 bg-slate-100" />
           </div>
-          <p className="flex justify-between border-b border-slate-100 pb-2.5">
-            <strong className="text-slate-500 uppercase tracking-wider text-xs">Patient:</strong>
-            <span className="font-bold text-slate-800">{declineResult.patientName}</span>
+          <p className="flex min-w-0 flex-col gap-0.5 border-b border-slate-100 pb-2 sm:flex-row sm:justify-between sm:gap-3">
+            <strong className="text-[10px] font-bold uppercase tracking-wide text-slate-500 sm:text-xs">Patient:</strong>
+            <span className="min-w-0 break-words font-bold text-slate-800 sm:text-right">{declineResult.patientName}</span>
           </p>
-          <p className="flex justify-between border-b border-slate-100 pb-2.5">
-            <strong className="text-slate-500 uppercase tracking-wider text-xs">Policy No:</strong>
-            <span className="font-mono text-rose-700 font-bold break-all">{declineResult.policyNumber}</span>
+          <p className="flex min-w-0 flex-col gap-0.5 border-b border-slate-100 pb-2 sm:flex-row sm:justify-between sm:gap-3">
+            <strong className="text-[10px] font-bold uppercase tracking-wide text-slate-500 sm:text-xs">Policy No:</strong>
+            <span className="min-w-0 break-all font-mono font-bold text-rose-700 sm:text-right">{declineResult.policyNumber}</span>
           </p>
-          <p className="flex justify-between border-b border-slate-100 pb-2.5">
-            <strong className="text-slate-500 uppercase tracking-wider text-xs">Hospital:</strong>
-            <span className="font-bold text-slate-800">{declineResult.hospitalName}</span>
+          <p className="flex min-w-0 flex-col gap-0.5 border-b border-slate-100 pb-2 sm:flex-row sm:justify-between sm:gap-3">
+            <strong className="text-[10px] font-bold uppercase tracking-wide text-slate-500 sm:text-xs">Hospital:</strong>
+            <span className="min-w-0 break-words font-bold text-slate-800 sm:max-w-[75%] sm:text-right">{declineResult.hospitalName}</span>
           </p>
-          <p className="flex justify-between border-b border-slate-100 pb-2.5">
-            <strong className="text-slate-500 uppercase tracking-wider text-xs">Requested For:</strong>
-            <span className="font-semibold text-slate-700 text-right leading-snug">
+          <p className="flex min-w-0 flex-col gap-0.5 border-b border-slate-100 pb-2 sm:flex-row sm:justify-between sm:gap-3">
+            <strong className="text-[10px] font-bold uppercase tracking-wide text-slate-500 sm:text-xs">Requested For:</strong>
+            <span className="min-w-0 break-words font-semibold leading-snug text-slate-700 sm:max-w-[75%] sm:text-right">
               {declineResult.diagnosis} - {declineResult.treatment}
             </span>
           </p>
-          <p className="flex justify-between pb-1">
-            <strong className="text-slate-500 uppercase tracking-wider text-xs">Reason:</strong>
-            <span className="font-bold text-rose-700">{declineResult.reason}</span>
+          <p className="flex min-w-0 flex-col gap-0.5 pb-1 sm:flex-row sm:justify-between sm:gap-3">
+            <strong className="text-[10px] font-bold uppercase tracking-wide text-slate-500 sm:text-xs">Reason:</strong>
+            <span className="min-w-0 break-words font-bold text-rose-700 sm:max-w-[75%] sm:text-right">{declineResult.reason}</span>
           </p>
         </div>
 
@@ -663,7 +694,7 @@ export const PostReviewTemplates = React.memo(function PostReviewTemplates({
           <Button
             onClick={handleSendDeclineToHospital}
             disabled={sendingDecline || loadingHospitalPhone || (!isWhatsAppRequest() && !formatPhoneNumber(hospitalPhone))}
-            className="w-full h-14 rounded-2xl bg-rose-600 hover:bg-rose-700 text-white font-black text-sm gap-2 shadow-lg shadow-rose-100 uppercase tracking-widest transition-transform hover:scale-[1.01]"
+            className="h-12 w-full gap-2 rounded-lg bg-rose-700 text-sm font-semibold text-white transition-colors hover:bg-rose-800"
           >
             {sendingDecline ? <Loader2 className="w-4.5 h-4.5 animate-spin" /> : <Send className="w-4.5 h-4.5" />}
             Send Decline Response via WhatsApp

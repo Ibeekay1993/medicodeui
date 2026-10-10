@@ -81,7 +81,7 @@ export default function RequestsPage() {
 
   const { data, isLoading, isError, error, refetch: fetchRequests } = useQuery({
     queryKey: ["requests", currentPage, search, statusFilter, rowsPerPage, role],
-    // ✅ Best Practice: Queue always loads once on mount (fixes blank queue after closing modal).
+    // Load the visible queue on mount so it remains available after closing a request.
     // Avoid realtime subscriptions. Refresh the visible request queue at a modest
     // cadence so new WhatsApp requests appear without keeping a CDC connection open.
     enabled: Boolean(role),
@@ -104,7 +104,8 @@ export default function RequestsPage() {
           "authorized_by_name,authorized_by_email,claiming_hospital_name," +
           "referring_hospital_name,is_historical,is_unlocked," +
           "deletion_status,patient_phone,patient_email," +
-          "hospital_id,requesting_hospital_id,referred_hospital_id,claiming_hospital_id"
+          "hospital_id,requesting_hospital_id,referred_hospital_id,claiming_hospital_id," +
+          "approved_items"
         )
         // created_at has a production index. Sorting all 75k+ requests by updated_at
         // caused PostgreSQL to choose a sequential scan and sort before applying LIMIT.
@@ -168,14 +169,6 @@ export default function RequestsPage() {
     }
     if (selectedRequest?.id === reviewIdFromUrl) return;
 
-    // Check if item is already present in loaded rows
-    const cachedItem = requests.find((r: any) => r.id === reviewIdFromUrl);
-    if (cachedItem) {
-      setSelectedRequest(cachedItem);
-      return;
-    }
-
-    // If not in loaded page, fetch the single request by ID directly from DB
     let cancelled = false;
     supabase
       .from("authorization_requests")
@@ -183,12 +176,27 @@ export default function RequestsPage() {
       .eq("id", reviewIdFromUrl)
       .maybeSingle()
       .then(({ data, error }) => {
-        if (!cancelled && !error && data) {
-          setSelectedRequest(data);
+        if (cancelled) return;
+        if (error) {
+          toast({
+            variant: "destructive",
+            title: "Unable to open request",
+            description: getErrorMessage(error, "Could not load the full authorization record."),
+          });
+          return;
         }
+        if (!data) {
+          toast({
+            variant: "destructive",
+            title: "Request not found",
+            description: "The authorization record could not be found.",
+          });
+          return;
+        }
+        setSelectedRequest(data);
       });
     return () => { cancelled = true; };
-  }, [reviewIdFromUrl, requests, selectedRequest?.id]);
+  }, [reviewIdFromUrl, selectedRequest?.id, toast]);
 
   const handleSelectRequest = (r: any) => {
     const requestLoadGeneration = ++requestLoadGenerationRef.current;
@@ -201,19 +209,32 @@ export default function RequestsPage() {
         return next;
       }, { replace: true });
 
-      // 2. Immediately fetch the full row (select *) in the background.
-      //    The queue query only selects a lightweight column set for list rendering,
-      //    so heavy fields (approved_items, treatment_plan, clinical_notes, etc.)
-      //    are absent from `r`. This fetch supplies them to the modal within milliseconds.
+      // 2. Immediately fetch the full row (select *) in the background for secondary details.
+      //    approved_items is included in the queue query so saved cart details render immediately.
       supabase
         .from("authorization_requests")
         .select("*")
         .eq("id", r.id)
         .maybeSingle()
-        .then(({ data }) => {
-          if (data && requestLoadGeneration === requestLoadGenerationRef.current) {
-            setSelectedRequest(current => current?.id === r.id ? data : current);
+        .then(({ data, error }) => {
+          if (requestLoadGeneration !== requestLoadGenerationRef.current) return;
+          if (error) {
+            toast({
+              variant: "destructive",
+              title: "Unable to load authorization details",
+              description: getErrorMessage(error, "Could not load the complete request."),
+            });
+            return;
           }
+          if (!data) {
+            toast({
+              variant: "destructive",
+              title: "Request not found",
+              description: "The authorization record could not be found.",
+            });
+            return;
+          }
+          setSelectedRequest(current => current?.id === r.id ? data : current);
         });
     }
   };
@@ -226,14 +247,13 @@ export default function RequestsPage() {
       next.delete("review");
       return next;
     }, { replace: true });
-    // ✅ Best Practice: sync the queue with the server ONLY when the user closes the modal.
-    // This is the single point where fresh queue data is needed — NOT during decisions inside the modal.
+    // Refresh the queue after the review modal closes, not during its decision flow.
     queryClient.invalidateQueries({ queryKey: ["requests"] });
   };
 
   const handleRequestUpdated = () => {
-    // ✅ Best Practice: when a decision is made inside the modal (Approve / Decline / Defer),
-    // we DO NOT invalidate the entire 50-row queue. Instead we:
+    // After a decision in the modal, update only the affected request instead of
+    // invalidating the entire queue. This:
     //   1. Re-fetch ONLY the single open request from the DB (1 lightweight query).
     //   2. Update it in-place in the React Query cache so the queue table reflects the change if visible.
     // The full queue server-sync happens only when the user closes the modal (handleCloseReview).
@@ -272,12 +292,12 @@ export default function RequestsPage() {
     }
   });
 
-  // ✅ Fix: Fetch OTP for the single open request whenever the modal opens.
+  // Fetch the OTP for the open request whenever its review modal opens.
   // This covers the case where the user loads directly from ?review=<id> (URL deep-link or page refresh)
   // — in that scenario the bulk OTP effect never ran because requests[] was empty.
   useEffect(() => {
     if (!selectedRequest?.id) return;
-    if (role !== "utilization_manager" && role !== "utilization_manager_lead" && role !== "admin" && role !== "hospital") return;
+    if (role !== "nurse" && role !== "utilization_manager" && role !== "utilization_manager_lead" && role !== "admin" && role !== "hospital") return;
     // Skip if already fetched
     if (fetchedOtpIdsRef.current.has(selectedRequest.id)) return;
 
@@ -288,7 +308,7 @@ export default function RequestsPage() {
       if (!error && data) {
         const otpRow = Array.isArray(data) ? data[0] : data;
         if (otpRow) {
-          if (role === "utilization_manager" || role === "utilization_manager_lead" || role === "admin") {
+          if (role === "nurse" || role === "utilization_manager" || role === "utilization_manager_lead" || role === "admin") {
             if (otpRow.otp_value) {
               setOtpValues(prev => ({ ...prev, [id]: otpRow.otp_value }));
               if (otpRow.verified || !!otpRow.consumed_at) {
@@ -319,8 +339,8 @@ export default function RequestsPage() {
       if (fetchedOtpIdsRef.current.has(r.id)) return false;
       if (otpLoading[r.id]) return false;
 
-      if (role === "utilization_manager" || role === "utilization_manager_lead" || role === "admin") {
-        return ["pending", "pending_referral", "pending_authorization", "info_provided", "approved", "referral_approved", "referral_accepted"].includes(r.status);
+      if (role === "nurse" || role === "utilization_manager" || role === "utilization_manager_lead" || role === "admin") {
+        return true;
       }
       if (role === "hospital") {
         return r.status === "approved";
@@ -339,7 +359,7 @@ export default function RequestsPage() {
       setOtpLoading(prev => ({ ...prev, ...updates }));
 
       try {
-        if (role === "utilization_manager" || role === "utilization_manager_lead" || role === "admin") {
+        if (role === "nurse" || role === "utilization_manager" || role === "utilization_manager_lead" || role === "admin") {
           const ids = requestsToFetch.map(r => r.id);
           const { data, error } = await supabase.rpc("get_otp_values_batch" as any, {
             p_request_ids: ids,
@@ -370,7 +390,7 @@ export default function RequestsPage() {
               if (!error && data) {
                 const otpRow = Array.isArray(data) ? data[0] : data;
                 if (otpRow) {
-                  if (role === "utilization_manager" || role === "utilization_manager_lead" || role === "admin") {
+                  if (role === "nurse" || role === "utilization_manager" || role === "utilization_manager_lead" || role === "admin") {
                     if (otpRow.otp_value) {
                       setOtpValues(prev => ({ ...prev, [r.id]: otpRow.otp_value }));
                       if (otpRow.verified || !!otpRow.consumed_at) {
@@ -487,7 +507,7 @@ export default function RequestsPage() {
         </div>
       </div>
 
-      <Card className="premium-card overflow-hidden rounded-xl border border-slate-100 bg-white shadow-sm transition-all duration-300 hover:shadow-md">
+      <Card className="overflow-hidden rounded-xl border border-slate-200 bg-white">
         {isError ? (
           <Alert variant="destructive" className="m-4">
             <AlertTitle>Could not load authorization requests</AlertTitle>

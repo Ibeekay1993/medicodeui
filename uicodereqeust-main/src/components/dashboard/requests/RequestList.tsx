@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Copy, Loader2, Trash2, CheckCircle2 } from "lucide-react";
+import { Copy, Loader2, Trash2, LockKeyhole } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
@@ -36,8 +36,6 @@ export function RequestList({
   role,
   isClaimsRole,
   approverNames,
-  otpValues,
-  otpLoading,
   otpVerifiedStatus,
   onSelectRequest,
   onDeleteRequest,
@@ -53,6 +51,7 @@ export function RequestList({
     const key = String(s || "").toLowerCase();
     const map: Record<string, string> = {
       approved: "border-emerald-200 text-emerald-700 bg-emerald-50",
+      partially_approved: "border-sky-200 text-sky-700 bg-sky-50",
       referral_approved: "border-slate-200 text-slate-700 bg-slate-100",
       referral_accepted: "border-slate-200 text-slate-700 bg-slate-100",
       referral_declined: "border-rose-200 text-rose-700 bg-rose-50",
@@ -64,7 +63,17 @@ export function RequestList({
       "awaiting delete": "border-amber-200 text-amber-800 bg-amber-50"
     };
     const formattedText = String(s || "").replace(/_/g, " ");
-    return <Badge variant="outline" className={cn("rounded-md px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider whitespace-normal text-center leading-[1.2] max-w-[120px] w-fit", map[key] || "border-slate-200 bg-slate-50 text-slate-600")}>{formattedText}</Badge>;
+    return (
+      <Badge
+        variant="outline"
+        className={cn(
+          "inline-flex items-center justify-center w-[124px] h-[26px] whitespace-nowrap rounded-full px-2 text-[11px] font-semibold tracking-tight capitalize leading-none shadow-none border",
+          map[key] || "border-slate-200 bg-slate-50 text-slate-600"
+        )}
+      >
+        {formattedText}
+      </Badge>
+    );
   };
 
   const isAwaitingDelete = (r: any) => r.deletion_status === "awaiting_admin_approval";
@@ -79,7 +88,7 @@ export function RequestList({
   
   const codeOrDecisionText = (r: any) => {
     if (isAwaitingDelete(r)) return "Code revoked - Awaiting Delete";
-    if (role === "hospital" && isApproved(r) && !r.is_unlocked && !otpVerifiedStatus[r.id]) return "🔒 Locked";
+    if (role === "hospital" && isApproved(r) && !r.is_unlocked && !otpVerifiedStatus[r.id]) return "Locked";
     if (r.authorization_code) return r.authorization_code;
     if (isRejected(r)) return rejectionReason(r) || "Declined";
     return "Pending";
@@ -95,6 +104,7 @@ export function RequestList({
     if (String(r.status || "").toLowerCase() === "approved") return "Unknown UM";
     return "Unassigned";
   };
+  const approverShortLabel = (r: any) => approverLabel(r).split(/\s+/)[0];
 
   const handleCopyCode = async (code: string) => {
     if (!code) return;
@@ -136,47 +146,56 @@ export function RequestList({
   return (
     <>
       {/* Desktop Table */}
-      <div className="hidden md:block overflow-x-auto w-full">
-        <table className="w-full min-w-[760px] border-collapse text-left">
+      <div className="hidden w-full md:block">
+        <table className="w-full table-fixed border-collapse text-left">
+          <colgroup>
+            <col className="w-[13%]" />
+            <col className="w-[20%]" />
+            <col className="w-[9%]" />
+            <col className="w-[22%]" />
+            <col className="w-[12%]" />
+            <col className={isClaimsRole ? "w-[18%]" : "w-[10%]"} />
+            <col className="w-[6%]" />
+            {!isClaimsRole && <col className="w-[8%]" />}
+          </colgroup>
           <thead className="table-heading">
             <tr>
-              <th className="p-4 w-[170px] min-w-[170px]">Date</th>
-              <th className="px-4 py-4 min-w-[220px]">Patient / Diagnosis</th>
-              <th className="px-4 py-4 w-[130px]">Policy</th>
-              <th className="px-4 py-4 min-w-[180px]">Auth Code</th>
-              {!isClaimsRole && !["hospital"].includes(role || "") && (
-                <th className="px-4 py-4 w-[90px] text-center">OTP</th>
-              )}
-              <th className="px-4 py-4 w-[130px]">Status</th>
-              <th className="px-4 py-4 min-w-[200px]">Approver & SLA</th>
-              {!isClaimsRole && <th className="px-4 py-4 w-[60px] text-right">Action</th>}
+              <th className="p-2">Date</th>
+              <th className="p-2">Patient / Diagnosis</th>
+              <th className="p-2">Policy</th>
+              <th className="p-2">Auth Code</th>
+              <th className="p-2">Status</th>
+              <th className="p-2">Approver</th>
+              <th className="px-1.5 py-2">SLA</th>
+              {!isClaimsRole && <th className="p-2 text-right">Action</th>}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {isLoading && requests.length === 0 ? (
               <tr>
-                <td colSpan={isClaimsRole ? 6 : 8} className="py-12 text-center text-xs font-black uppercase tracking-widest text-slate-400">
+                <td colSpan={isClaimsRole ? 7 : 8} className="py-12 text-center text-xs font-black uppercase tracking-widest text-slate-400">
                   <Loader2 className="mx-auto mb-3 h-6 w-6 animate-spin text-brand-700" />
                   Loading requests...
                 </td>
               </tr>
             ) : requests.length === 0 ? (
               <tr>
-                <td colSpan={isClaimsRole ? 6 : 8} className="py-12 text-center text-xs font-black uppercase tracking-widest text-slate-400">
+                <td colSpan={isClaimsRole ? 7 : 8} className="py-12 text-center text-xs font-black uppercase tracking-widest text-slate-400">
                   No authorization requests found.
                 </td>
               </tr>
             ) : (
               requests.map((r) => (
-                <tr key={r.id} className="cursor-pointer text-sm transition-colors hover:bg-slate-50/70" onClick={() => onSelectRequest(r)}>
-                  <td className="p-4 font-mono text-sm font-bold text-slate-600">
-                    <div className="flex min-w-[138px] flex-col">
+                <Fragment key={r.id}>
+                <tr className="cursor-pointer text-sm transition-colors hover:bg-slate-50/70" onClick={() => onSelectRequest(r)}>
+                  <td className="min-w-0 p-2 font-mono text-xs font-bold text-slate-600">
+                    <div className="flex min-w-0 flex-col">
                       {(() => {
                         const { label, timestamp } = getAuthorizationListTimestamp(r);
                         return (
                           <>
                             <span className="whitespace-nowrap tabular-nums">{formatNigeriaDate(timestamp)}</span>
-                            <span className="mt-0.5 whitespace-nowrap font-sans text-[9px] font-medium leading-3 text-slate-500 tabular-nums">
+                            <span className="mt-0.5 whitespace-nowrap font-sans text-[10px] font-medium leading-3 text-slate-600 tabular-nums">
                               {label} at {formatNigeriaTime(timestamp)}
                             </span>
                           </>
@@ -184,17 +203,12 @@ export function RequestList({
                       })()}
                     </div>
                   </td>
-                  <td className="px-4 py-4">
-                    <p className="text-sm font-black uppercase leading-snug text-slate-950">{r.patient_name}</p>
-                    <p className="mt-1 max-w-[360px] text-xs font-semibold leading-snug text-slate-600">{r.diagnosis || "No diagnosis recorded"}</p>
-                    {r.referred_hospital_name ? (
-                      <p className="mt-1.5 inline-flex rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[9.5px] font-black uppercase tracking-wider text-slate-500">
-                        Referral To: {r.referred_hospital_name}
-                      </p>
-                    ) : null}
+                  <td className="min-w-0 p-2">
+                    <p className="break-words text-sm font-semibold normal-case leading-snug text-slate-950">{r.patient_name}</p>
+                    <p className="mt-1 line-clamp-2 text-xs font-medium leading-snug text-slate-600">{r.diagnosis || "No diagnosis recorded"}</p>
                   </td>
-                  <td className="px-4 py-4 font-mono text-sm font-bold text-slate-700">{r.policy_number || "-"}</td>
-                  <td className="px-4 py-4">
+                  <td className="min-w-0 break-all p-2 font-mono text-xs font-semibold text-slate-700">{r.policy_number || "-"}</td>
+                  <td className="min-w-0 p-2">
                     {role === "hospital" && isApproved(r) && !r.is_unlocked && !otpVerifiedStatus[r.id] ? (
                       <div className="flex flex-col gap-1.5" onClick={e => e.stopPropagation()}>
                         {unlockingReqId === r.id ? (
@@ -211,104 +225,81 @@ export function RequestList({
                           </div>
                         ) : (
                           <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); setUnlockingReqId(r.id); }} className="h-8 w-fit text-xs border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100">
-                            🔒 Unlock Code
+                            <LockKeyhole className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />Unlock code
                           </Button>
                         )}
                       </div>
                     ) : (
-                      <div className={cn("flex items-center font-mono text-sm font-black leading-snug", 
-                        (isRejected(r) || isAwaitingDelete(r)) 
-                          ? "max-w-[260px] text-rose-700" 
+                      <div className={cn("flex min-w-0 items-center gap-1 font-mono text-xs font-bold leading-snug",
+                        (isRejected(r) || isAwaitingDelete(r))
+                          ? "text-rose-700"
                           : r.authorization_code 
                           ? "text-slate-800" 
                           : "text-slate-500"
                       )}>
-                        {codeOrDecisionText(r)}
+                        {codeOrDecisionText(r) === "Locked" && <LockKeyhole className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />}
+                        <span className="min-w-0 break-all">{codeOrDecisionText(r)}</span>
                         {r.authorization_code && !isAwaitingDelete(r) && (
-                          <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleCopyCode(r.authorization_code); }} className="ml-2 h-8 w-8 text-slate-400 hover:text-slate-600">
+                          <Button variant="ghost" size="icon" aria-label={`Copy authorization code for ${r.patient_name}`} title={`Copy authorization code for ${r.patient_name}`} onClick={(e) => { e.stopPropagation(); handleCopyCode(r.authorization_code); }} className="h-7 w-7 shrink-0 text-slate-600 hover:text-slate-800">
                             <Copy className="h-4 w-4" />
                           </Button>
                         )}
                       </div>
                     )}
                   </td>
-                    {!isClaimsRole && !["hospital"].includes(role || "") && (
-                      <td className="px-4 py-4 font-mono text-sm font-bold">
-                        {r.is_historical ? (
-                          <span className="text-slate-400 font-black tracking-wider text-xs">N/A</span>
-                        ) : r.status === "pending" ? (
-                          <span className="text-slate-400 font-black tracking-wider text-xs">N/A</span>
-                        ) : (r.source === "whatsapp" || r.source === "whatsapp_parser") ? (
-                          <span className="text-emerald-600 font-black flex items-center justify-center" title="Verified via WhatsApp"><CheckCircle2 className="w-4 h-4" /></span>
-                        ) : otpLoading[r.id] ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin text-slate-400" />
-                        ) : otpVerifiedStatus[r.id] ? (
-                          <span className="text-emerald-600 font-black flex items-center justify-center" title="OTP successfully consumed"><CheckCircle2 className="w-4 h-4" /></span>
-                        ) : otpValues[r.id] ? (
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-amber-700 font-black tracking-wider">{otpValues[r.id]}</span>
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
-                              onClick={async (e) => {
-                                e.stopPropagation();
-                                try {
-                                  await writeClipboardText(otpValues[r.id]);
-                                  toast({ title: "OTP Copied" });
-                                } catch {
-                                  toast({ variant: "destructive", title: "Copy failed", description: "Allow clipboard access or copy the OTP manually." });
-                                }
-                              }}
-                              className="h-5 w-5 text-slate-400 hover:text-amber-700"
-                            >
-                              <Copy className="h-3 w-3" />
-                            </Button>
-                          </div>
-                        ) : ["pending", "pending_authorization", "pending_referral", "info_provided"].includes(r.status) ? (
-                          <span className="text-amber-700">••••••</span>
-                        ) : (
-                          <span className="text-slate-400 font-black tracking-wider text-xs">N/A</span>
-                        )}
-                      </td>
-                    )}
-                  <td className="px-4 py-4">
+                  <td className="min-w-0 p-2">
                     <div className="flex flex-col items-start gap-1">
-                      {statusBadge(displayStatus(r))}
+                      <div className="max-w-full">{statusBadge(displayStatus(r))}</div>
                       {r.is_historical && (
-                        <Badge variant="outline" className="rounded-md border-indigo-200 bg-indigo-50 px-2 py-1 text-xs font-black uppercase text-indigo-700">Historical</Badge>
+                        <Badge variant="outline" className="inline-flex items-center justify-center w-[124px] h-5 rounded-full border-indigo-200 bg-indigo-50 px-2 text-[10px] font-bold uppercase tracking-wider text-indigo-700">Historical</Badge>
                       )}
                       {isAwaitingDelete(r) && (
-                        <Badge variant="outline" className="rounded-md border-amber-200 bg-amber-50 px-2 py-1 text-xs font-black uppercase text-amber-700">Delete pending</Badge>
+                        <Badge variant="outline" className="inline-flex items-center justify-center w-[124px] h-5 rounded-full border-amber-200 bg-amber-50 px-2 text-[10px] font-bold uppercase tracking-wider text-amber-700">Delete pending</Badge>
                       )}
                     </div>
                   </td>
-                  <td className="px-4 py-4">
-                    <div className="flex flex-col items-start gap-1.5">
-                      {(() => {
-                        const slaMinutes = getAuthorizationSlaMinutes(r);
-                        return (
-                          <div className="flex items-center gap-2">
-                            <span className={cn("text-xs font-mono font-bold w-14", slaMinutes === null ? "text-slate-400" : authorizationSlaColor(slaMinutes))}>
-                              {slaMinutes === null ? "—" : formatAuthorizationSla(slaMinutes)}
-                            </span>
-                            <Badge variant="outline" className="max-w-[150px] rounded-md border-slate-200 bg-slate-50 px-2 py-1 text-[10px] font-black uppercase tracking-wide text-slate-700">
-                              <span className="truncate">{approverLabel(r)}</span>
-                            </Badge>
-                          </div>
-                        );
-                      })()}
-                    </div>
+                  <td className="min-w-0 p-2">
+                    <Badge
+                      variant="outline"
+                      title={approverLabel(r)}
+                      className="mx-auto inline-flex h-8 w-[96px] max-w-full min-w-0 items-center justify-center truncate rounded-md border-slate-200 bg-slate-50 px-2 py-1 text-center text-[10px] font-bold uppercase leading-tight tracking-wide text-slate-700"
+                    >
+                      {approverShortLabel(r)}
+                    </Badge>
                   </td>
-                  {canRequestDeletion(r) && (
-                    <td className="px-4 py-4 text-right">
-                      {!isAwaitingDelete(r) && (
-                        <Button variant="ghost" size="icon" onClick={e => { e.stopPropagation(); onDeleteRequest(r); }} className="h-8 w-8 text-slate-400 hover:text-rose-600 hover:bg-rose-50">
+                  <td className="min-w-0 px-1.5 py-2 text-center">
+                    {(() => {
+                      const slaMinutes = getAuthorizationSlaMinutes(r);
+                      return (
+                        <span className={cn("whitespace-nowrap text-xs font-mono font-bold", slaMinutes === null ? "text-slate-400" : authorizationSlaColor(slaMinutes))}>
+                          {slaMinutes === null ? "—" : formatAuthorizationSla(slaMinutes)}
+                        </span>
+                      );
+                    })()}
+                  </td>
+                  {!isClaimsRole && (
+                    <td className="px-1.5 py-2 text-right">
+                      {canRequestDeletion(r) && !isAwaitingDelete(r) && (
+                        <Button variant="ghost" size="icon" aria-label={`Request deletion for ${r.patient_name}`} title={`Request deletion for ${r.patient_name}`} onClick={e => { e.stopPropagation(); onDeleteRequest(r); }} className="h-8 w-8 text-slate-600 hover:text-rose-700 hover:bg-rose-50">
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       )}
                     </td>
                   )}
                 </tr>
+                {r.referred_hospital_name && (
+                  <tr className="cursor-pointer bg-slate-50/40 text-xs hover:bg-slate-50/70" onClick={() => onSelectRequest(r)}>
+                    <td colSpan={isClaimsRole ? 7 : 8} className="px-2 pb-2 pt-0">
+                      <span
+                        className="ml-[13%] inline-block max-w-[min(28rem,70%)] break-words rounded border border-slate-200 bg-white px-1.5 py-0.5 font-medium text-slate-600"
+                        title={`Referral: ${r.referred_hospital_name}`}
+                      >
+                        Referral: {r.referred_hospital_name}
+                      </span>
+                    </td>
+                  </tr>
+                )}
+                </Fragment>
               ))
             )}
           </tbody>
@@ -335,16 +326,16 @@ export function RequestList({
               <div key={r.id} className="flex cursor-pointer flex-col rounded-xl border border-slate-200 bg-white p-3 shadow-sm transition-colors hover:bg-slate-50 active:bg-slate-50" onClick={() => onSelectRequest(r)}>
                 {/* Header Row */}
                 <div className="mb-1 flex items-start justify-between gap-2">
-                  <span className="min-w-0 flex-1 text-sm font-semibold uppercase leading-snug text-slate-900">{r.patient_name}</span>
+                  <span className="min-w-0 flex-1 text-sm font-semibold normal-case leading-snug text-slate-900">{r.patient_name}</span>
                   <div className={cn(
-                    "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider shrink-0",
+                    "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold shrink-0",
                     isApproved(r) ? "bg-emerald-50 text-emerald-600" : isRej ? "bg-rose-50 text-rose-600" : "bg-slate-100 text-slate-600"
                   )}>
                     <div className={cn(
                       "w-1.5 h-1.5 rounded-full shrink-0",
                       isApproved(r) ? "bg-emerald-500" : isRej ? "bg-rose-500" : "bg-slate-400"
                     )} />
-                    {displayStatus(r).replace(/_/g, " ")}
+                    {displayStatus(r).replace(/_/g, " ").replace(/^./, (letter) => letter.toUpperCase())}
                   </div>
                 </div>
                 
@@ -355,7 +346,10 @@ export function RequestList({
 
                 {/* Referral */}
                 {r.referred_hospital_name && (
-                  <div className="text-[11px] font-semibold text-purple-600 bg-purple-50 px-2 py-1 rounded-md inline-block max-w-full truncate mb-3">
+                  <div
+                    className="text-[11px] font-semibold text-purple-600 bg-purple-50 px-2 py-1 rounded-md inline-block max-w-full truncate mb-3"
+                    title={`Referral: ${r.referred_hospital_name}`}
+                  >
                     Referral to: {r.referred_hospital_name}
                   </div>
                 )}
@@ -374,7 +368,7 @@ export function RequestList({
                         return (
                           <>
                             <span className="whitespace-nowrap tabular-nums">{formatNigeriaDate(timestamp)}</span>
-                            <span className="mt-0.5 whitespace-nowrap font-sans text-[9px] font-medium leading-3 text-slate-500 tabular-nums">
+                            <span className="mt-0.5 whitespace-nowrap font-sans text-[10px] font-medium leading-3 text-slate-600 tabular-nums">
                               {label} at {formatNigeriaTime(timestamp)}
                             </span>
                           </>
@@ -387,7 +381,7 @@ export function RequestList({
                         ? "inline-flex w-fit max-w-full items-center rounded border border-slate-200 bg-slate-50 px-1.5 py-px font-semibold leading-tight text-slate-700"
                         : (isRej || isAwaitingDelete(r)) ? "text-rose-600" : "text-slate-400"
                     )}>
-                      {codeOrDecisionText(r)}
+                      {codeOrDecisionText(r) === "Locked" && <LockKeyhole className="mr-1 h-3.5 w-3.5 shrink-0" aria-hidden="true" />}{codeOrDecisionText(r)}
                     </span>
                     {(() => {
                       const slaMinutes = getAuthorizationSlaMinutes(r);
@@ -431,7 +425,7 @@ export function RequestList({
                       </div>
                     ) : (
                       <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); setUnlockingReqId(r.id); }} className="h-8 px-3 text-xs border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 rounded-md font-semibold">
-                        🔒 Unlock Code
+                        <LockKeyhole className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />Unlock code
                       </Button>
                     )}
                   </div>

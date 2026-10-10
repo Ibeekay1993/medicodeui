@@ -41,45 +41,45 @@ export function PatientVerifyCard({
   return (
     <div className="w-full">
       {/* Primary Hospital */}
-      <div className="bg-white rounded-2xl p-4 mb-3 border border-slate-100 shadow-sm">
-        <div className="text-[13px] sm:text-[14px] font-extrabold text-slate-800 uppercase tracking-wide mb-3">
+      <div className="bg-white rounded-xl p-2.5 sm:p-3 mb-2.5 border border-slate-100 shadow-sm">
+        <div className="text-xs font-bold text-slate-800 uppercase tracking-wide mb-2">
           Primary Hospital
         </div>
         
-        <div className="bg-emerald-50 rounded-2xl p-4 sm:p-5 mb-3 border border-emerald-100">
+        <div className="bg-emerald-50 rounded-xl p-2.5 sm:p-3 mb-2.5 border border-emerald-100">
           <div className="inline-block bg-emerald-500 text-white px-3 py-1 rounded-full text-[10px] font-bold tracking-widest uppercase">
             Primary
           </div>
-          <div className="text-[16px] sm:text-[18px] font-extrabold text-slate-800 mt-2 leading-tight">
+          <div className="text-sm sm:text-base font-bold text-slate-800 mt-1.5 leading-tight">
             {primaryHospital?.hcp_name || primaryHospital?.hospital_name || requestingHospitalName || "Unknown Hospital"}
           </div>
-          <div className="text-[12px] text-slate-500 mt-1">
+          <div className="text-[11px] text-slate-500 mt-0.5">
             {primaryHospital?.state || "Unknown State"}
           </div>
         </div>
 
-        <div className="grid grid-cols-3 gap-2">
-          <div className="bg-slate-50 rounded-xl p-3 border border-slate-100">
-            <div className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wide">
+        <div className="grid grid-cols-3 gap-1.5">
+          <div className="min-w-0 bg-slate-50 rounded-lg p-1.5 sm:p-2 border border-slate-100">
+            <div className="text-[10px] sm:text-[11px] font-medium text-slate-600">
               Hospital ID
             </div>
-            <div className="text-[13px] sm:text-[14px] font-bold text-slate-800 mt-1">
+            <div className="text-[10px] sm:text-[11px] font-bold text-slate-800 mt-0.5 break-words">
               {primaryHospital?.hcp_code || primaryHospital?.code || requestingHospitalCode || "N/A"}
             </div>
           </div>
-          <div className="bg-slate-50 rounded-xl p-3 border border-slate-100">
-            <div className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wide">
+          <div className="min-w-0 bg-slate-50 rounded-lg p-1.5 sm:p-2 border border-slate-100">
+            <div className="text-[10px] sm:text-[11px] font-medium text-slate-600">
               Registration No
             </div>
-            <div className="text-[13px] sm:text-[14px] font-bold text-slate-800 mt-1">
+            <div className="text-[10px] sm:text-[11px] font-bold text-slate-800 mt-0.5 break-words">
               {primaryHospital?.registration_no || "N/A"}
             </div>
           </div>
-          <div className="bg-slate-50 rounded-xl p-3 border border-slate-100">
-            <div className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wide">
+          <div className="min-w-0 bg-slate-50 rounded-lg p-1.5 sm:p-2 border border-slate-100">
+            <div className="text-[10px] sm:text-[11px] font-medium text-slate-600">
               Tier Level
             </div>
-            <div className="text-[13px] sm:text-[14px] font-bold text-slate-800 mt-1">
+            <div className="text-[10px] sm:text-[11px] font-bold text-slate-800 mt-0.5 break-words">
               {primaryHospital?.tier_level || "N/A"}
             </div>
           </div>
@@ -97,7 +97,7 @@ export function PatientVerifyCard({
       </div>
 
             {/* NHIS Confirmation */}
-      <div className="bg-white rounded-2xl p-4 mb-3 border border-slate-100 shadow-sm transition-all">
+      <div className="bg-white rounded-xl p-2.5 sm:p-3 mb-2.5 border border-slate-100 shadow-sm transition-all">
         <div className="flex justify-between items-center mb-3">
           <div className="flex items-center gap-2">
             <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center text-[12px] font-bold ${
@@ -184,7 +184,7 @@ export function PatientVerifyCard({
                   <div key={idx} className={`flex items-center justify-between p-3 rounded-xl mb-2 border transition-all ${isMatch ? 'bg-green-50 border-green-500 border-2 shadow-sm' : 'bg-slate-50 border-slate-100 hover:border-slate-200'}`}>
                     <div className="flex items-center gap-2">
                       <div>
-                        <div className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase inline-block mb-1 ${isMatch ? 'bg-green-200 text-green-800' : 'bg-slate-200 text-slate-500'}`}>
+                        <div className={`px-2 py-0.5 rounded text-[10px] font-semibold normal-case inline-block mb-1 ${isMatch ? 'bg-green-200 text-green-800' : 'bg-slate-200 text-slate-500'}`}>
                           {member.relationship || "Member"}
                         </div>
                         <div className="text-[13px] sm:text-[14px] font-bold text-slate-800">

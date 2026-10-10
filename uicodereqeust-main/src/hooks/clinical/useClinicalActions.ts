@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { writeClipboardText } from "@/lib/clipboard";
 import { useAuth } from "@/contexts/AuthContext";
+import { getErrorMessage } from "@/lib/errors";
 import {
   TariffOption,
   itemQuantity,
@@ -115,7 +116,6 @@ export function useClinicalActions({
     reason: string;
   } | null>(null);
 
-  const [otpValue, setOtpValue] = useState<string | null>(initialOtpValue || null);
   const [otpLoading, setOtpLoading] = useState(false);
 
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
@@ -144,6 +144,11 @@ export function useClinicalActions({
       return;
     }
 
+    // Queue rows intentionally omit approved_items. Wait for the full request
+    // before initializing the cart or receipt so we never replace saved lines
+    // with the treatment-summary fallback.
+    if (!Object.prototype.hasOwnProperty.call(request, "approved_items")) return;
+
     // Only run initial setup when opening a new request or re-opening modal
     if (lastRequestIdRef.current !== request.id) {
       lastRequestIdRef.current = request.id;
@@ -161,8 +166,6 @@ export function useClinicalActions({
         ""
       );
       setRejectReason("");
-      if (initialOtpValue) setOtpValue(initialOtpValue);
-
       let parsedItems = Array.isArray(request.approved_items)
         ? request.approved_items.map((item: any) => ({
             code: item.code,
@@ -254,7 +257,7 @@ export function useClinicalActions({
         setDeclineResult(null);
       }
     }
-  }, [open, request?.id]);
+  }, [open, request?.id, request?.approved_items]);
 
   // Fetch PIN if request is pending/under-review and has a patient email.
   // Rule: Only show "Generating PIN..." when a new PIN is actually being created.
@@ -266,45 +269,81 @@ export function useClinicalActions({
 
   // Re-run fetching whenever request changes.
   useEffect(() => {
-    const isPendingOrReview = request && (
-      request.status === "pending" ||
-      request.status === "pending_referral" ||
-      request.status === "pending_authorization" ||
-      request.status === "referral_accepted" ||
-      request.status === "referral_approved" ||
-      request.status === "approved"
-    );
-    if (!open || !request || !isPendingOrReview) return;
+    const canViewOtp = role === "nurse" || role === "admin" ||
+      role === "utilization_manager" || role === "utilization_manager_lead";
+    if (!open || !request || !canViewOtp) {
+      setArrivalOtp(null);
+      setTreatmentOtp(null);
+      setArrivalOtpVerified(false);
+      setTreatmentOtpVerified(false);
+      setOtpLoading(false);
+      return;
+    }
+
+    const suppliedOtp = initialOtpValue?.trim();
+    if (suppliedOtp) {
+      setArrivalOtp(suppliedOtp);
+      setTreatmentOtp(suppliedOtp);
+      setOtpLoading(false);
+      return;
+    }
 
     let cancelled = false;
+    setArrivalOtp(null);
+    setTreatmentOtp(null);
+    setArrivalOtpVerified(false);
+    setTreatmentOtpVerified(false);
+    setOtpLoading(true);
 
     (async () => {
       try {
-        const { data: otpData, error: otpError } = await supabase.rpc("get_otp_value" as any, {
+        const fetchArrivalPin = () => supabase.rpc("get_otp_value" as any, {
           p_request_id: request.id,
-          p_otp_type: "ARRIVAL"
+          p_otp_type: "ARRIVAL",
         });
+        let { data: otpData, error: otpError } = await fetchArrivalPin();
 
         if (cancelled) return;
+        if (otpError) throw otpError;
 
-        let foundOtp = null;
-        let foundOtpVerified = false;
+        let otpRow = Array.isArray(otpData) ? otpData[0] : otpData;
+        if (!otpRow?.otp_value) {
+          const { data: generated, error: generationError } = await supabase.functions.invoke("send-otp", {
+            body: {
+              authorization_id: request.id,
+              patient_email: request.patient_email || "no-email@medicode.com",
+              policy_number: request.policy_number,
+              otp_type: "ARRIVAL",
+              hospital_id: request.claiming_hospital_id || request.referred_hospital_id || request.hospital_id,
+            },
+          });
+          if (generationError) throw generationError;
+          if (generated?.error) throw new Error(generated.message || "Could not generate the arrival PIN.");
+          if (cancelled) return;
 
-        if (!otpError && otpData) {
-          const row = Array.isArray(otpData) ? otpData[0] : otpData;
-          if (row?.otp_value) {
-            foundOtp = row.otp_value;
-            foundOtpVerified = Boolean(row.verified);
-          }
+          const refreshed = await fetchArrivalPin();
+          otpData = refreshed.data;
+          otpError = refreshed.error;
+          if (otpError) throw otpError;
+          if (cancelled) return;
+          otpRow = Array.isArray(otpData) ? otpData[0] : otpData;
+          if (!otpRow?.otp_value) throw new Error("The arrival PIN was generated but could not be retrieved.");
         }
 
-        setArrivalOtp(foundOtp);
-        setTreatmentOtp(foundOtp);
-        setArrivalOtpVerified(foundOtpVerified);
-        setTreatmentOtpVerified(foundOtpVerified);
-        setOtpLoading(false);
+        setArrivalOtp(otpRow.otp_value);
+        setTreatmentOtp(otpRow.otp_value);
+        setArrivalOtpVerified(Boolean(otpRow.verified));
+        setTreatmentOtpVerified(Boolean(otpRow.verified));
       } catch (err) {
         console.error("OTP value fetch error:", err);
+        if (!cancelled) {
+          toast({
+            variant: "destructive",
+            title: "Arrival PIN unavailable",
+            description: getErrorMessage(err, "Could not load or generate the arrival PIN."),
+          });
+        }
+      } finally {
         if (!cancelled) setOtpLoading(false);
       }
     })();
@@ -312,7 +351,7 @@ export function useClinicalActions({
     return () => {
       cancelled = true;
     };
-  }, [open, request?.id]);
+  }, [open, request?.id, role, toast, initialOtpValue]);
 
   // Auto-save draft changes every 1.5 seconds — only while the request is genuinely pending.
   // We guard against ALL decided statuses (not just "pending") because the local
