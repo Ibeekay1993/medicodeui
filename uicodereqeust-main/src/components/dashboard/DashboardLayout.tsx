@@ -204,7 +204,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       return { title: "System Audit Trail", description: "Track system activity, user actions, and data changes" };
     }
     if (path.startsWith("/backoffice/admin/whatsapp-access")) {
-      return { title: "WhatsApp Access", description: "Manage authorized hospital WhatsApp phone numbers & access control" };
+      return { title: "WhatsApp Access", description: "" };
     }
     if (path.startsWith("/backoffice/admin/whatsapp")) {
       return { title: "WhatsApp Parser", description: "Clinical Intake Engine" };
@@ -346,7 +346,9 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
              
              <div className="flex flex-col min-w-0">
                <span className="text-sm sm:text-base font-bold text-slate-900 truncate max-w-[140px] sm:max-w-[300px] md:max-w-[450px] tracking-tight">{pageConfig.title}</span>
-               <span className="hidden sm:block text-[10px] sm:text-xs text-slate-500 font-medium truncate max-w-[250px] sm:max-w-[500px] md:max-w-[700px] mt-0.5">{pageConfig.description}</span>
+               {pageConfig.description && (
+                 <span className="hidden sm:block text-[10px] sm:text-xs text-slate-500 font-medium truncate max-w-[250px] sm:max-w-[500px] md:max-w-[700px] mt-0.5">{pageConfig.description}</span>
+               )}
              </div>
           </div>
 

@@ -5,7 +5,6 @@ import {
   CheckCircle2,
   History,
   Loader2,
-  MessageSquare,
   Pencil,
   Plus,
   Search,
@@ -347,67 +346,56 @@ export default function WhatsAppAccessPage() {
   };
 
   return (
-    <div className="space-y-5 pb-10 animate-in fade-in duration-500">
-      {/* Header card */}
-      <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div>
-            <div className="flex items-center gap-2">
-              <MessageSquare className="h-5 w-5 text-emerald-600" />
-              <h2 className="text-lg font-semibold text-slate-900">WhatsApp Access Control</h2>
-            </div>
-            <p className="mt-1 max-w-2xl text-sm text-slate-500">
-              Register and authorize official hospital WhatsApp numbers. Only active numbers in this registry are granted medical authorization privileges.
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
+    <div className="space-y-4 pb-8 animate-in fade-in duration-500">
+      <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
+        <div className="grid grid-cols-3 gap-2 sm:flex sm:flex-wrap sm:items-center sm:justify-end">
             <Button
               variant={activeTab === "contacts" ? "default" : "outline"}
               onClick={() => setActiveTab("contacts")}
-              className="gap-2"
+              aria-label="Access list"
+              className="h-10 gap-1.5 px-2 text-sm sm:px-3"
             >
-              <MessageSquare className="h-4 w-4" /> Access List
+              <Building2 className="h-4 w-4 shrink-0" /> <span>Access</span>
             </Button>
             <Button
               variant={activeTab === "audit" ? "default" : "outline"}
               onClick={() => setActiveTab("audit")}
-              className="gap-2"
+              aria-label="Audit history"
+              className="h-10 gap-1.5 px-2 text-sm sm:px-3"
             >
-              <History className="h-4 w-4" /> Audit History
+              <History className="h-4 w-4 shrink-0" /> <span>Audit</span>
             </Button>
-            <Button onClick={openCreate} className="med-button-primary gap-2">
-              <Plus className="h-4 w-4" /> Add WhatsApp Number
+            <Button onClick={openCreate} aria-label="Add WhatsApp number" className="med-button-primary h-10 gap-1.5 px-2 text-sm sm:px-3">
+              <Plus className="h-4 w-4 shrink-0" /> <span>Add</span>
             </Button>
-          </div>
         </div>
-        <div className="mt-4 rounded-lg border border-emerald-100 bg-emerald-50/60 p-3 text-sm text-emerald-800">
-          <strong>Identity Boundary:</strong> Sender phone numbers are resolved against this registry before processing. Text claims, patient names, or self-reported hospital names in WhatsApp messages will never grant hospital privileges.
+        <div className="mt-3 rounded-lg border border-emerald-100 bg-emerald-50/60 px-3 py-2 text-sm leading-5 text-emerald-800">
+          Only active registered numbers are authorized. Message text grants no access.
         </div>
       </div>
 
       {activeTab === "contacts" ? (
         <>
-          {/* Status Counter Cards */}
-          <div className="grid gap-3 sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
             {(["active", "pending", "disabled", "revoked"] as const).map((st) => (
-              <div key={st} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-                <div className="text-xs font-medium uppercase tracking-wide text-slate-400">{st}</div>
-                <div className="mt-1 text-2xl font-semibold text-slate-900">
+              <div key={st} className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm sm:block sm:p-3">
+                <div className="text-xs font-medium uppercase tracking-wide text-slate-500">{st}</div>
+                <div className="text-xl font-semibold text-slate-900 sm:mt-0.5 sm:text-2xl">
                   {contacts.filter((c) => c.status === st).length}
                 </div>
               </div>
             ))}
           </div>
 
-          {/* Search & Table Card */}
-          <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-            <div className="mb-4 flex flex-col gap-3 sm:flex-row">
+          <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
+            <div className="mb-3 grid grid-cols-[minmax(0,1fr)_8rem] gap-2 sm:flex">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                 <Input
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search hospital name, phone number, or contact..."
+                  aria-label="Search WhatsApp access"
+                  placeholder="Search hospital, number, contact"
                   className="pl-9"
                 />
               </div>
@@ -426,11 +414,11 @@ export default function WhatsAppAccessPage() {
             </div>
 
             {loading ? (
-              <div className="flex items-center justify-center py-12 text-slate-500">
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading WhatsApp access...
+              <div className="flex items-center justify-center py-10 text-sm text-slate-500">
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading access...
               </div>
             ) : filtered.length === 0 ? (
-              <div className="py-12 text-center text-sm text-slate-500">No WhatsApp contacts found.</div>
+              <div className="py-10 text-center text-sm text-slate-500">No matching numbers.</div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[760px] text-sm">
