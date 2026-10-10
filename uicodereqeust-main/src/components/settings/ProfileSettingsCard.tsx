@@ -125,24 +125,24 @@ export default function ProfileSettingsCard({
 
   return (
     <Card className="rounded-2xl border border-slate-200/80 bg-white shadow-sm overflow-hidden transition-all">
-      <CardHeader className="p-4 sm:p-5 border-b border-slate-100 bg-slate-50/50">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-50 text-brand-700 shrink-0">
+      <CardHeader className="border-b border-slate-100 bg-slate-50/70 p-4 sm:p-5">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex min-w-0 items-start gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-700">
               <User className="h-5 w-5" />
             </div>
-            <div>
-              <CardTitle className="text-sm sm:text-base font-bold text-slate-900 leading-tight">
+            <div className="min-w-0">
+              <CardTitle className="text-base font-semibold leading-5 text-slate-900">
                 Account &amp; Security Profile
               </CardTitle>
-              <CardDescription className="text-xs text-slate-500 mt-0.5">
+              <CardDescription className="mt-1 text-sm leading-5 text-slate-600">
                 Your authenticated user identity and system privileges
               </CardDescription>
             </div>
           </div>
-          <div>
+          <div className="flex w-full justify-end sm:w-auto sm:shrink-0">
             {pendingRequest ? (
-              <span className="text-[10px] font-bold uppercase text-amber-700 bg-amber-50 border border-amber-200 px-2 py-1 rounded-lg animate-pulse">
+              <span className="rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-xs font-semibold text-amber-800">
                 Pending Approval
               </span>
             ) : !editingName ? (
@@ -150,26 +150,27 @@ export default function ProfileSettingsCard({
                 variant="outline"
                 size="sm"
                 onClick={() => setEditingName(true)}
-                className="h-8 text-xs font-semibold text-brand-700 border-brand-200 hover:bg-brand-50 gap-1"
+                className="h-10 gap-2 border-brand-200 px-3 text-sm font-medium text-brand-700 hover:bg-brand-50"
               >
-                <Edit3 className="h-3.5 w-3.5" />
+                <Edit3 className="h-4 w-4" />
                 <span>Edit Name</span>
               </Button>
             ) : (
-              <div className="flex gap-1.5">
+              <div className="flex gap-2">
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => setEditingName(false)}
-                  className="h-8 px-2 text-xs text-slate-500 hover:text-slate-800"
+                  aria-label="Cancel name edit"
+                  className="h-10 px-3 text-sm text-slate-600 hover:text-slate-900"
                 >
-                  <X className="h-3.5 w-3.5" />
+                  <X className="h-4 w-4" />
                 </Button>
                 <Button
                   size="sm"
                   onClick={handleUpdateProfile}
                   disabled={isSaving}
-                  className="h-8 px-3 text-xs bg-brand-700 hover:bg-brand-800 text-white font-semibold gap-1"
+                  className="h-10 gap-2 bg-brand-700 px-4 text-sm font-medium text-white hover:bg-brand-800"
                 >
                   {isSaving ? "Saving…" : <><Check className="h-3.5 w-3.5" /> Save</>}
                 </Button>
@@ -179,25 +180,25 @@ export default function ProfileSettingsCard({
         </div>
       </CardHeader>
 
-      <CardContent className="p-4 sm:p-5 space-y-4">
+      <CardContent className="space-y-4 p-4 sm:p-5">
         {pendingRequest && (
-          <div className="p-3 bg-amber-50 border border-amber-200/80 rounded-xl flex items-center gap-2.5">
-            <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 animate-pulse" />
-            <p className="text-xs font-medium text-amber-800 leading-relaxed">
+          <div className="flex items-start gap-2.5 rounded-xl border border-amber-200/80 bg-amber-50 p-3">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+            <p className="text-sm font-medium leading-5 text-amber-800">
               Name change to <strong className="font-bold text-amber-900">"{pendingRequest.requested_name}"</strong> is currently pending administrative approval.
             </p>
           </div>
         )}
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-          <div className="space-y-1.5">
-            <Label className="text-xs font-semibold text-slate-500">Full Name</Label>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div className="space-y-2">
+            <Label className="text-sm font-medium text-slate-600">Full Name</Label>
             <Input
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               readOnly={!editingName || !!pendingRequest}
               className={cn(
-                "h-10 rounded-xl text-xs sm:text-sm font-semibold transition-all",
+                "h-11 rounded-xl text-base font-medium transition-all",
                 editingName && !pendingRequest
                   ? "bg-white border-brand-500 ring-2 ring-brand-500/20 shadow-sm"
                   : "bg-slate-50 border-slate-200/80 text-slate-900"
@@ -205,25 +206,25 @@ export default function ProfileSettingsCard({
             />
           </div>
 
-          <div className="space-y-1.5">
-            <Label className="text-xs font-semibold text-slate-500 flex items-center gap-1">
-              <Shield className="h-3.5 w-3.5 text-slate-400" /> Assigned Role
+          <div className="space-y-2">
+            <Label className="flex items-center gap-1.5 text-sm font-medium text-slate-600">
+              <Shield className="h-4 w-4 text-slate-400" /> Assigned Role
             </Label>
             <Input
               value={role || ""}
               readOnly
-              className="h-10 rounded-xl bg-slate-50 border-slate-200/80 text-xs sm:text-sm font-semibold uppercase text-slate-700"
+              className="h-11 rounded-xl border-slate-200/80 bg-slate-50 text-base font-medium uppercase text-slate-700"
             />
           </div>
 
-          <div className="space-y-1.5">
-            <Label className="text-xs font-semibold text-slate-500 flex items-center gap-1">
-              <Mail className="h-3.5 w-3.5 text-slate-400" /> System Email
+          <div className="space-y-2">
+            <Label className="flex items-center gap-1.5 text-sm font-medium text-slate-600">
+              <Mail className="h-4 w-4 text-slate-400" /> System Email
             </Label>
             <Input
               value={user?.email || ""}
               readOnly
-              className="h-10 rounded-xl bg-slate-50 border-slate-200/80 text-xs sm:text-sm font-medium text-slate-700 truncate"
+              className="h-11 truncate rounded-xl border-slate-200/80 bg-slate-50 text-base font-medium text-slate-700"
             />
           </div>
         </div>
