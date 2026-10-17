@@ -15,5 +15,5 @@ whatsapp-service/.env
 
 # Backups and temporary state
 ship-support-load-20261005/
-supabase/
+/supabase/
 *.tsbuildinfo
