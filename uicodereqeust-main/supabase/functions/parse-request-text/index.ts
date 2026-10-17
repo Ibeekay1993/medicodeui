@@ -187,6 +187,15 @@ const DRUG_PREFIXES = new Set([
   "inhaler",
   "susp",
   "suspension",
+  // Insulin / biologic delivery unit words — filtered so "pen" doesn't pollute drug name search
+  "pen",
+  "pens",
+  "cartridge",
+  "cartridges",
+  "vial",
+  "vials",
+  "ampoule",
+  "ampoules",
 ]);
 
 const FORM_ALIASES: Array<[RegExp, string]> = [
@@ -197,6 +206,8 @@ const FORM_ALIASES: Array<[RegExp, string]> = [
   [/\b(inhaler|aerosol|spray)\b/i, "aerosol"],
   [/\b(drop|drops)\b/i, "drop"],
   [/\b(cream|ointment|gel)\b/i, "topical"],
+  // Insulin / biologic delivery devices — "1 pen", "2 pens", "1 cartridge"
+  [/\b(pens?|cartridges?|prefilled\s*syringes?|auto[- ]?injectors?)\b/i, "pen"],
 ];
 
 /**
@@ -248,8 +259,8 @@ function normalizeClinicalText(value: string) {
     .replace(/\t+/g, " ")
     // Strip colons when they appear after field labels (e.g., "Patient:" -> "Patient")
     .replace(/(\w+):\s*/g, "$1 ")
-    // Keep word chars, slash, dot, dash, space, plus, ampersand, comma, pipe, x/×/*, newlines
-    .replace(/[^\w/.\-\s+&;,|xX×*\r\n]+/g, " ")
+    // Keep word chars, slash, backslash, dot, dash, space, plus, ampersand, comma, pipe, x/×/*, newlines
+    .replace(/[^\w/.\-\s+&;,|xX×*\r\n\\]+/g, " ")
     // Collapse multiple spaces/tabs into single space
     .replace(/[ \t]+/g, " ")
     .trim();
@@ -258,7 +269,13 @@ function normalizeClinicalText(value: string) {
 function splitTerms(text: string) {
   // First strip known field labels from the text so they don't interfere
   const strippedText = stripFieldLabels(text);
-  const normalized = normalizeClinicalText(strippedText);
+  let normalized = normalizeClinicalText(strippedText);
+
+  // Pre-split: Separate joined 'Tab/Cap/Inj' when preceded by alphanumeric/closing paren
+  normalized = normalized.replace(/([0-9a-zA-Z\)])\s+(?=(?:Tab|Cap|Inj)\b)/gi, "$1, ");
+
+  // Pre-split: Separate joined 'Insulin/Lantus' when preceded by duration/form/frequency (e.g. 'x1/12 Insulin lantus 1 pen')
+  normalized = normalized.replace(/(?<=\d[/\\]\d{1,2}|days?|weeks?|months?|dly|daily|bid|bd|tid|tds|qid|od|stat|nocte)\s+(?=(?:Insulin|Lantus|Latus)\b)/gi, ", ");
 
   // Step 1: Split by newlines and explicit list separators. Keep conjunctions
   // inside catalog names such as "frame and lens" and "Scaling & Polishing".
@@ -271,9 +288,9 @@ function splitTerms(text: string) {
   // Look for a duration/frequency followed by a capitalized word that might be another drug
   const refinedParts: string[] = [];
   for (const part of parts) {
-    // This splits "Amlodipine 10mg dly 1/12 Losartan 25mg" into two
-    const subParts = part.split(/(?<=\d\/\d{1,2}|days?|weeks?|months?|dly|daily|bid|tid|qid|od|stat|nocte)\s+(?=[A-Z][a-z]{2,})/gi);
-    refinedParts.push(...subParts.map(p => p.trim()).filter(Boolean));
+    // This splits "Amlodipine 10mg dly 1/12 Losartan 25mg" or "clopidogrel 75mg dly x1\12 Metformin" into separate parts
+    const subParts = part.split(/(?<=\d[/\\]\d{1,2}|days?|weeks?|months?|dly|daily|bid|bd|tid|tds|qid|od|stat|nocte)\s+(?=[A-Z][a-zA-Z]{1,})/gi);
+    refinedParts.push(...subParts.map((p) => p.trim()).filter(Boolean));
   }
 
   return refinedParts.length ? refinedParts : [normalized].filter(Boolean);
@@ -301,6 +318,8 @@ function itemHasForm(item: Record<string, unknown>, form: string) {
   const haystack = `${item.name || ""} ${item.dosage_form || ""} ${item.presentation || ""}`.toLowerCase();
   if (form === "aerosol") return /aerosol|spray|inhal/.test(haystack);
   if (form === "topical") return /cream|ointment|gel|topical/.test(haystack);
+  // "pen" form: prefer pen/cartridge items, penalise vial/ampoule items
+  if (form === "pen") return /\bpen\b|cartridge|prefilled/.test(haystack);
   return haystack.includes(form);
 }
 
