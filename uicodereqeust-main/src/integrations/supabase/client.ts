@@ -10,7 +10,7 @@ const SUPABASE_PUBLISHABLE_KEY = (typeof import.meta !== "undefined" && import.m
 
 export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth: {
-    storage: localStorage,
+    storage: typeof localStorage !== "undefined" ? localStorage : undefined,
     persistSession: true,
     autoRefreshToken: true,
     detectSessionInUrl: false,
