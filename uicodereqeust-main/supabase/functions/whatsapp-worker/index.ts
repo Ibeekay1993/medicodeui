@@ -17,11 +17,16 @@ import {
   splitPatientBlocks,
 } from "./brain.ts";
 import {
+  analyzeInboundBlock,
+  shouldHoldAuthorizationForClarification,
+} from "./analysis-mode.ts";
+import {
   analyzeMessage,
   type GeminiAnalysisResult,
 } from "./providers.ts";
 import {
   classifyRetryFailure,
+  isInboundMessageProcessable,
   getWorkerBatchSize,
   getQueuePlan,
   getStaleQueueCandidates,
@@ -30,6 +35,20 @@ import {
   shouldSendOutbound,
 } from "./queue-hardening.ts";
 import {
+  AI_CAPABLE_WORKER_MODE,
+  DETERMINISTIC_ONLY_WORKER_MODE,
+  MANUAL_TARIFF_REVIEW_NOTE,
+  PENDING_WORKER_MODE_FIELD,
+  WORKER_PROCESSING_MODE_FIELD,
+  WORKER_PROCESSING_MODE_HEADER,
+  canReusePendingData,
+  getClinicalReviewNote,
+  resolveWorkerProcessingMode,
+  withWorkerModeOnPendingData,
+  type WorkerProcessingMode,
+} from "../_shared/whatsapp-worker-mode.ts";
+import { getDecisionNotificationIdempotency } from "../_shared/whatsapp-notification-idempotency.ts";
+import {
   getMessageAgeMs,
   isClinicallyDecidedAuthorization,
   isPastAutoProcessAgeLimit,
@@ -37,6 +56,7 @@ import {
 } from "../_shared/authorization-state.ts";
 import { ensureArrivalPin } from "../_shared/arrival-pin.ts";
 import { schedulePendingAuthorizationPush } from "../_shared/pending-auth-push.ts";
+import { parseWhatsAppHospitalContactResolution } from "../_shared/whatsapp-hospital-contact.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -123,8 +143,7 @@ function flushQueuedProcessingLogs() {
         detail: entry.detail ?? null,
       })),
     )
-    .then(() => {})
-    .catch(() => {});
+    .then(() => {}, () => {});
 }
 
 function log(
@@ -343,8 +362,8 @@ function normalizeDraftName(value: unknown) {
 
 function draftIdentityConflicts(
   current: Record<string, string>,
-  incomingName: string | null,
-  incomingPolicy: string | null,
+  incomingName: string | null | undefined,
+  incomingPolicy: string | null | undefined,
 ) {
   const currentName = normalizeDraftName(current.patientName);
   const newName = normalizeDraftName(incomingName);
@@ -566,28 +585,10 @@ async function resolveHospitalSender(
   const normalized = normalizePhoneNumber(phoneNumber);
   if (!normalized) return { authorized: false, reason: "phone_required" };
 
-  const { data, error } = await supabase
-    .from("hospital_whatsapp_contacts")
-    .select("id, hospital_id, contact_name, contact_role, phone_number, status")
-    .eq("status", "active")
-    .limit(500);
-
-  if (error) {
-    return { authorized: false, reason: "identity_lookup_failed" };
-  }
-
-  const matches = (data || []).filter(
-    (row: any) => normalizePhoneNumber(String(row.phone_number || "")) === normalized,
-  );
-  const hospitals = [...new Set(matches.map((row: any) => String(row.hospital_id)).filter(Boolean))];
-  if (hospitals.length !== 1) {
-    return {
-      authorized: false,
-      reason: hospitals.length > 1 ? "ambiguous_sender" : "unregistered_sender",
-    };
-  }
-
-  return { authorized: true, hospitalId: hospitals[0] };
+  const { data, error } = await supabase.rpc("resolve_whatsapp_hospital_contact", {
+    _phone: normalized,
+  });
+  return parseWhatsAppHospitalContactResolution(data, error);
 }
 
 async function postAuthorization(
@@ -767,6 +768,11 @@ async function postAuthorization(
         captured_at: new Date().toISOString(),
         related_request_id: relatedRequestId,
         duplicate_status: duplicateStatus,
+        worker_processing_mode: payload[WORKER_PROCESSING_MODE_FIELD] || null,
+        missing_info: Array.isArray(payload.missing_info) ? payload.missing_info : [],
+        notes: getClinicalReviewNote(
+          resolveWorkerProcessingMode(payload[WORKER_PROCESSING_MODE_FIELD]),
+        ),
       }),
       whatsapp_message_id: whatsappMessageId || null,
       whatsapp_raw_message: whatsappMessageId,
@@ -963,29 +969,41 @@ async function processMessageBody(
     authorization_request_id?: string | null;
     internal_request_id?: string | null;
   },
+  processingMode: WorkerProcessingMode = AI_CAPABLE_WORKER_MODE,
 ) {
   const messageId = row.message_id,
     rawText = row.message_body || "",
     blocks = splitPatientBlocks(rawText),
     conversation = await getConversation(supabase, row.phone_number),
-    pendingData: Record<string, string> =
+    storedPendingData: Record<string, string> =
       conversation?.pending_data &&
       typeof conversation.pending_data === "object"
         ? conversation.pending_data
         : {};
+  const pendingData = canReusePendingData(
+    processingMode,
+    storedPendingData[PENDING_WORKER_MODE_FIELD],
+  )
+    ? storedPendingData
+    : {};
   const { data: history } = await supabase
     .from("whatsapp_messages")
     .select("message_body, received_at, message_type")
     .eq("phone_number", row.phone_number)
     .order("received_at", { ascending: false })
     .limit(8);
-  const context = buildContext(conversation, (history || []).reverse());
+  const contextPendingData = { ...pendingData };
+  delete contextPendingData[PENDING_WORKER_MODE_FIELD];
+  const contextConversation = conversation
+    ? { ...conversation, pending_data: contextPendingData }
+    : conversation;
+  const context = buildContext(contextConversation, (history || []).reverse());
   let finalReply: string | null = null,
     priority = 0;
   const patientReplies: string[] = [];
   // Duplicate-call guard: Evolution re-delivery can repeat an identical block
   // inside one payload. Memoize analyses per normalized block so each distinct
-  // block costs exactly one Gemini call (cross-invocation duplicates are
+  // block is analyzed once (cross-invocation duplicates are
   // already prevented by the status CAS claim in processOne).
   const blockAnalysisCache = new Map<string, GeminiAnalysisResult>();
   for (const blockText of blocks) {
@@ -1038,16 +1056,17 @@ async function processMessageBody(
         if (cached) {
           analysis = { ...cached, raw: undefined };
         } else {
-          // AI provider failover: Gemini → Groq → Modal (if configured) →
-          // deterministic fallback. The router never throws and always returns
-          // a valid AnalysisResult, so 429 on one provider immediately moves
-          // to the next instead of retrying the same exhausted provider.
-          analysis = await analyzeMessage(
+          analysis = await analyzeInboundBlock(
+            processingMode,
             trimmed,
-            context,
-            messageId,
             conversation,
-            { env: providerEnv, log },
+            () => analyzeMessage(
+              trimmed,
+              context,
+              messageId,
+              conversation,
+              { env: providerEnv, log },
+            ),
           );
           blockAnalysisCache.set(cacheKey, analysis);
         }
@@ -1069,6 +1088,15 @@ async function processMessageBody(
     analysis = brainGuard(trimmed, analysis, conversation);
     let intent = String(analysis.intent || "UNKNOWN").toUpperCase();
     if (analysis.isCancellationIntent) intent = "CANCELLATION";
+    if (shouldHoldAuthorizationForClarification(processingMode, analysis)) {
+      await updateConversation(supabase, row.phone_number, {
+        active_intent: "INCOMPLETE_AUTHORIZATION",
+      });
+      finalReply =
+        "I have not created an authorization request because the diagnosis or requested care is uncertain or lists alternatives. Please resend the request with one confirmed diagnosis and the exact treatment, procedures, investigations, and quantities. If these details are not confirmed, please have the clinical team clarify them first.\n\n— Ronsberger HMO";
+      priority = Math.max(priority, 3);
+      continue;
+    }
     await updateConversation(supabase, row.phone_number, {
       active_intent: intent,
     });
@@ -1314,7 +1342,7 @@ async function processMessageBody(
       if (!patientPhone) missing.push("Patient Phone");
       if (missing.length) {
         await updateConversation(supabase, row.phone_number, {
-          pending_data: {
+          pending_data: withWorkerModeOnPendingData({
             patientName,
             policyNumber,
             patientPhone,
@@ -1325,7 +1353,7 @@ async function processMessageBody(
             requestedService,
             originatingHospital: hospital,
             referralHospital: referral,
-          },
+          }, processingMode),
           active_intent: "INCOMPLETE_AUTHORIZATION",
         });
         finalReply = `I have started your authorization request${patientName ? ` for ${patientName}` : ""}, but I still need:\n\n${missing.map((x) => `• ${x}`).join("\n")}\n\nPlease resend the full authorization request, including the missing details above, so we can complete it.\n\n— Ronsberger HMO`;
@@ -1390,7 +1418,12 @@ async function processMessageBody(
         hospital_name: hospital,
         referral_hospital_name: referral,
         urgency_level: analysis.urgencyLevel ?? 3,
-        missing_info: [],
+        missing_info: processingMode === DETERMINISTIC_ONLY_WORKER_MODE
+          ? [MANUAL_TARIFF_REVIEW_NOTE]
+          : [],
+        ...(processingMode === DETERMINISTIC_ONLY_WORKER_MODE
+          ? { [WORKER_PROCESSING_MODE_FIELD]: processingMode }
+          : {}),
         raw_message: blockText,
         related_request_id: relatedRequestId,
         duplicate_status: relatedRequestId ? "possible_revision" : "none",
@@ -1413,7 +1446,7 @@ async function processMessageBody(
       }
       if (result?.error === "beneficiary_mismatch") {
         await updateConversation(supabase, row.phone_number, {
-          pending_data: {
+          pending_data: withWorkerModeOnPendingData({
             patientName,
             policyNumber,
             patientPhone,
@@ -1424,7 +1457,7 @@ async function processMessageBody(
             requestedService,
             originatingHospital: hospital,
             referralHospital: referral,
-          },
+          }, processingMode),
           active_intent: "INCOMPLETE_AUTHORIZATION",
         });
         finalReply =
@@ -1438,7 +1471,7 @@ async function processMessageBody(
       }
       if (result?.error === "beneficiary_ambiguous") {
         await updateConversation(supabase, row.phone_number, {
-          pending_data: {
+          pending_data: withWorkerModeOnPendingData({
             patientName,
             policyNumber,
             patientPhone,
@@ -1449,7 +1482,7 @@ async function processMessageBody(
             requestedService,
             originatingHospital: hospital,
             referralHospital: referral,
-          },
+          }, processingMode),
           active_intent: "INCOMPLETE_AUTHORIZATION",
         });
         finalReply =
@@ -1536,6 +1569,7 @@ type WorkerRetryResult = { retryAfterMs?: number };
 async function processOne(
   supabase: ReturnType<typeof getServiceClient>,
   messageId: string,
+  processingMode: WorkerProcessingMode = AI_CAPABLE_WORKER_MODE,
 ): Promise<WorkerRetryResult> {
   const { data: row, error } = await supabase
     .from("whatsapp_messages")
@@ -1550,8 +1584,7 @@ async function processOne(
     return {};
   }
   const currentStatus = normalizeStatus(row.status);
-  if (["completed", "failed", "stale"].includes(currentStatus)) return {};
-  if (!["queued", "retry", "received"].includes(currentStatus)) return {};
+  if (!isInboundMessageProcessable(currentStatus)) return {};
   if (currentStatus === "retry" && row.next_attempt_at) {
     const nextAttemptMs = Date.parse(String(row.next_attempt_at));
     if (Number.isFinite(nextAttemptMs) && nextAttemptMs > Date.now()) {
@@ -1761,7 +1794,7 @@ async function processOne(
       ...row,
       authorization_request_id: row.authorization_request_id || null,
       internal_request_id: row.internal_request_id || null,
-    });
+    }, processingMode);
     const outboundLedger = await getOutboundLedger(supabase, messageId);
     if (outboundLedger?.outbound_state === "ambiguous") {
       await setMessageStatus(supabase, messageId, "response_pending", {
@@ -1805,11 +1838,14 @@ async function processNotifications(
   authorizationRequestId?: string,
 ): Promise<WorkerRetryResult> {
   let retryAfterMs = 0;
+  const recoveryCheckAt = new Date().toISOString();
   let notificationQuery = supabase
     .from("whatsapp_notifications")
     .select("*")
-    .in("status", ["queued_v2", "retry_v2"])
-    .or(`attempts.lt.${MAX_ATTEMPTS},attempts.is.null`)
+    .or(
+      `and(status.in.(queued_v2,retry_v2),or(attempts.lt.${MAX_ATTEMPTS},attempts.is.null)),` +
+        `and(status.eq.processing_v2,or(processing_lease_expires_at.is.null,processing_lease_expires_at.lt.${recoveryCheckAt}))`,
+    )
     .order("created_at", { ascending: true })
     .limit(WORKER_BATCH);
   if (authorizationRequestId) {
@@ -1821,6 +1857,28 @@ async function processNotifications(
   }
 
   for (const candidate of notes || []) {
+    if (
+      candidate.status === "processing_v2" &&
+      Number(candidate.attempts || 0) >= MAX_ATTEMPTS
+    ) {
+      const { error: terminalizeError } = await supabase
+        .from("whatsapp_notifications")
+        .update({
+          status: "failed_v2",
+          last_error: "Worker attempt limit reached after an expired processing lease.",
+          processing_lease_owner: null,
+          processing_lease_expires_at: null,
+        })
+        .eq("id", candidate.id)
+        .eq("status", "processing_v2")
+        .gte("attempts", MAX_ATTEMPTS)
+        .or(
+          `processing_lease_expires_at.is.null,processing_lease_expires_at.lt.${recoveryCheckAt}`,
+        );
+      if (terminalizeError) throw terminalizeError;
+      continue;
+    }
+
     const leaseOwner = `decision-${crypto.randomUUID()}`;
     const { data: claimedRows, error: claimError } = await supabase.rpc(
       "claim_whatsapp_decision_notification",
@@ -1952,14 +2010,18 @@ async function processNotifications(
       const body = note.recipient_type === "patient"
         ? formatPatientDecisionMessage(auth, decision)
         : formatDetailedDecisionMessage(auth, decision);
-      const operationKey = `authorization_decision_${note.recipient_type}`;
+      const notificationIdempotency = getDecisionNotificationIdempotency(
+        auth.id,
+        note.decision_at,
+        note.recipient_type,
+      );
       const delivery = await sendOutboundReply(
         supabase,
         recipient,
         body,
-        `decision-notification:${auth.id}:${note.decision_at}:${note.recipient_type}`,
+        notificationIdempotency.messageId,
         auth.id,
-        operationKey,
+        notificationIdempotency.operationKey,
       );
       const nextState = delivery.ambiguous ? "ambiguous_v2" : "sent_v2";
       const { error: updateError } = await supabase
@@ -2009,6 +2071,7 @@ async function processNotifications(
 
 async function pollAndProcess(
   supabase: ReturnType<typeof getServiceClient>,
+  processingMode: WorkerProcessingMode = AI_CAPABLE_WORKER_MODE,
 ): Promise<{ ok: true; inbound_poll: "processed" | "deferred"; detail?: string }> {
   // Decision notices have their own durable outbox. Drain it before polling
   // inbound submissions so an inbound query failure cannot block a decision.
@@ -2068,8 +2131,8 @@ async function pollAndProcess(
       Math.max(0, WORKER_BATCH - queuePlan.length),
     ).filter((row) => !selected.has(row.message_id));
 
-    for (const row of queuePlan) await processOne(supabase, row.message_id);
-    for (const row of stalePlan) await processOne(supabase, row.message_id);
+    for (const row of queuePlan) await processOne(supabase, row.message_id, processingMode);
+    for (const row of stalePlan) await processOne(supabase, row.message_id, processingMode);
     return { ok: true, inbound_poll: "processed" };
   } catch (error) {
     const record = error && typeof error === "object"
@@ -2103,6 +2166,9 @@ serve(async (req) => {
   } catch {
     body = {};
   }
+  const processingMode = resolveWorkerProcessingMode(
+    req.headers.get(WORKER_PROCESSING_MODE_HEADER),
+  );
 
   if (LAMBDA_WORKER_URL) {
     if (!WORKER_SECRET) {
@@ -2182,10 +2248,10 @@ serve(async (req) => {
     } else if (body?.message_id) {
       responseBody = {
         ok: true,
-        ...await processOne(supabase, String(body.message_id)),
+        ...await processOne(supabase, String(body.message_id), processingMode),
       };
     } else {
-      responseBody = await pollAndProcess(supabase);
+      responseBody = await pollAndProcess(supabase, processingMode);
     }
   } catch (error) {
     // Return only the top-level operational error to the private worker caller.

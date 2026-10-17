@@ -1,14 +1,14 @@
 import { supabase } from "@/integrations/supabase/client";
-import { ClaimRecord, ClaimDraft } from "../types";
+import { ClaimDraft, ClaimsAnalysisSummary } from "../types";
 
 export class ClaimsService {
   /**
    * Fetches summarized claims analysis data directly from the database using an RPC.
    */
-  static async getClaimsAnalysisSummary(): Promise<any> {
+  static async getClaimsAnalysisSummary(): Promise<ClaimsAnalysisSummary> {
     const { data, error } = await supabase.rpc("rpc_get_claims_analysis_summary" as any);
     if (error) throw error;
-    return data;
+    return data || { by_status: [], by_hospital: [], by_date: [] };
   }
 
   /**

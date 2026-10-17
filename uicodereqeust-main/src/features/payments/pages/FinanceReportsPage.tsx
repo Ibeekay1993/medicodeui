@@ -1,11 +1,14 @@
 import { useMemo } from "react";
+import { Link } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, FileSpreadsheet, FileText, CheckCircle2, Clock, FileBox, Coins } from "lucide-react";
+import { RefreshCw, FileSpreadsheet, FileText, CheckCircle2, Clock, FileBox, Coins } from "lucide-react";
 import { useFinanceReports } from "../hooks/usePayments";
-import * as ExcelJS from "exceljs";
+import type * as ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
 import { toast } from "@/components/ui/use-toast";
+import { cn } from "@/lib/utils";
+import { PageLoader } from "@/components/PageLoader";
 
 export default function FinanceReportsPage() {
   const { data, isLoading, refetch } = useFinanceReports();
@@ -48,12 +51,12 @@ export default function FinanceReportsPage() {
 
   const cards = useMemo(
     () => [
-      { label: "Awaiting Payments", value: stats.awaitingValue, count: stats.awaitingCount, icon: <Clock className="h-6 w-6 text-orange-500" />, bg: "from-orange-50 to-orange-100", border: "border-orange-200" },
-      { label: "Paid Claims", value: stats.paidValue, count: stats.paidCount, icon: <CheckCircle2 className="h-6 w-6 text-slate-500" />, bg: "from-slate-50 to-slate-100", border: "border-slate-200" },
-      { label: "Draft Batches", value: stats.draftBatches, count: stats.draftBatches, icon: <FileBox className="h-6 w-6 text-slate-500" />, bg: "from-slate-50 to-slate-100", border: "border-slate-200" },
-      { label: "Ready for Payout", value: stats.readyBatches, count: stats.readyBatches, icon: <FileBox className="h-6 w-6 text-slate-500" />, bg: "from-slate-50 to-slate-100", border: "border-slate-200" },
-      { label: "Settled Batches", value: stats.paidBatches, count: stats.paidBatches, icon: <CheckCircle2 className="h-6 w-6 text-emerald-500" />, bg: "from-emerald-50 to-emerald-100", border: "border-emerald-200" },
-      { label: "Total Batches Value", value: stats.totalBatchesValue, count: stats.totalBatchesValue, icon: <Coins className="h-6 w-6 text-slate-600" />, bg: "from-slate-50 to-slate-100", border: "border-slate-200" },
+      { label: "Awaiting Payments", value: stats.awaitingValue, count: stats.awaitingCount, icon: <Clock className="h-6 w-6 text-orange-500" />, border: "border-orange-200" },
+      { label: "Paid Claims", value: stats.paidValue, count: stats.paidCount, icon: <CheckCircle2 className="h-6 w-6 text-slate-500" />, border: "border-slate-200" },
+      { label: "Draft Batches", value: stats.draftBatches, count: stats.draftBatches, icon: <FileBox className="h-6 w-6 text-slate-500" />, border: "border-slate-200" },
+      { label: "Ready for Payout", value: stats.readyBatches, count: stats.readyBatches, icon: <FileBox className="h-6 w-6 text-slate-500" />, border: "border-slate-200" },
+      { label: "Settled Batches", value: stats.paidBatches, count: stats.paidBatches, icon: <CheckCircle2 className="h-6 w-6 text-emerald-500" />, border: "border-emerald-200" },
+      { label: "Total Batches Value", value: stats.totalBatchesValue, count: stats.totalBatchesValue, icon: <Coins className="h-6 w-6 text-slate-600" />, border: "border-slate-200" },
     ],
     [stats]
   );
@@ -62,8 +65,9 @@ export default function FinanceReportsPage() {
     if (!data) return;
 
     try {
-      toast({ title: "Preparing Export", description: "Generating premium finance dashboard..." });
+      toast({ title: "Preparing export", description: "Generating finance report…" });
 
+      const ExcelJS = await import("exceljs");
       const workbook = new ExcelJS.Workbook();
       workbook.creator = "Medicode System";
       workbook.created = new Date();
@@ -267,31 +271,24 @@ export default function FinanceReportsPage() {
   };
 
   if (isLoading) {
-    return (
-      <div className="flex h-[80vh] flex-col gap-4 items-center justify-center">
-        <div className="p-4 bg-primary/5 rounded-full">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
-        <div className="text-sm font-bold uppercase tracking-widest text-slate-400">Loading Finance Data...</div>
-      </div>
-    );
+    return <PageLoader label="Loading finance data..." />;
   }
 
   return (
-    <div className="space-y-4 pb-10 max-w-7xl mx-auto">
-      <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 rounded-xl p-4 shadow-sm text-white flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+    <div className="max-w-full space-y-5 overflow-x-hidden pb-10">
+      <div className="flex flex-col items-start justify-between gap-4 rounded-xl border border-slate-200 bg-white p-4 sm:flex-row sm:items-center">
         <div>
-          <h1 className="text-xl font-black tracking-tight mb-1">Finance Overview</h1>
-          <p className="text-slate-300 text-xs max-w-xl">
-            Real-time payment and settlement activity. Monitor awaiting payments, batch statuses, and easily export your financial records.
+          <h2 className="text-base font-semibold tracking-tight text-slate-900">Finance overview</h2>
+          <p className="max-w-xl text-sm text-slate-600">
+            Review payment and settlement activity, batch status, and financial reports.
           </p>
         </div>
 
-        <div className="flex items-center gap-2 w-full md:w-auto">
+        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:flex-nowrap">
           <Button
             variant="outline"
             size="sm"
-            className="bg-white/10 border-white/20 text-white hover:bg-white/20 hover:text-white h-8 text-xs px-3"
+            className="h-10 min-w-0 flex-1 border-slate-300 bg-white px-3 text-sm text-slate-700 hover:bg-slate-50 sm:flex-none"
             onClick={exportCSV}
           >
             <FileText className="mr-1.5 h-3.5 w-3.5" />
@@ -299,7 +296,7 @@ export default function FinanceReportsPage() {
           </Button>
           <Button
             size="sm"
-            className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm shadow-primary/20 border-0 h-8 text-xs px-3"
+            className="h-10 min-w-0 flex-1 border-0 bg-primary px-3 text-sm text-primary-foreground hover:bg-primary/90 sm:flex-none"
             onClick={exportExcel}
           >
             <FileSpreadsheet className="mr-1.5 h-3.5 w-3.5" />
@@ -308,41 +305,71 @@ export default function FinanceReportsPage() {
           <Button
             variant="ghost"
             size="sm"
-            className="text-slate-300 hover:text-white hover:bg-white/10 h-8 w-8 p-0"
-            onClick={() => refetch()}
-            title="Refresh Data"
+            aria-label="Refresh finance report"
+            className="h-10 w-10 shrink-0 text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+            onClick={() => void refetch()}
+            title="Refresh report"
+            disabled={isLoading}
           >
-            <Loader2 className="h-4 w-4" />
+            <RefreshCw className={cn("h-4 w-4", isLoading && "animate-spin text-primary")} />
           </Button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <Link
+          to="../payments/awaiting"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 shadow-sm transition-colors hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900"
+        >
+          <Clock className="h-3.5 w-3.5 text-amber-500" />
+          <span>Awaiting claims ({stats.awaitingCount.toLocaleString()})</span>
+        </Link>
+        <Link
+          to="../payments/batches"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 shadow-sm transition-colors hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900"
+        >
+          <FileBox className="h-3.5 w-3.5 text-blue-500" />
+          <span>Payment batches ({(stats.draftBatches + stats.readyBatches + stats.paidBatches).toLocaleString()})</span>
+        </Link>
+        <Link
+          to="../payments/paid"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 shadow-sm transition-colors hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900"
+        >
+          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+          <span>Settled claims ({stats.paidCount.toLocaleString()})</span>
+        </Link>
+      </div>
+
+      <section aria-labelledby="finance-summary-heading" className="space-y-3">
+        <div>
+          <h3 id="finance-summary-heading" className="text-base font-semibold text-slate-900">Payment &amp; settlement summary</h3>
+          <p className="text-xs text-slate-500">Current claim payment and batch totals.</p>
+        </div>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {cards.map((c) => {
           const isBatchCount = c.label.includes("Batches") && !c.label.includes("Value");
           return (
-            <Card key={c.label} className={`rounded-xl border ${c.border} bg-gradient-to-br ${c.bg} shadow-sm overflow-hidden relative transition-all duration-200 hover:shadow-sm hover:-translate-y-0.5`}>
-              <div className="p-3 relative z-10">
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">{c.label}</p>
-                  <div className="p-1 bg-white rounded-md shadow-sm">
+            <Card key={c.label} className={cn("relative overflow-hidden rounded-xl border bg-white shadow-sm transition-all hover:border-slate-300", c.border)}>
+              <div className="relative z-10 p-4">
+                <div className="mb-2 flex items-center justify-between gap-3">
+                  <p className="text-sm font-medium text-slate-600">{c.label}</p>
+                  <div className="rounded-lg bg-slate-50 p-2">
                     {c.icon}
                   </div>
                 </div>
-                <p className="text-xl font-black text-slate-900 tracking-tight">
+                <p className="truncate text-xl font-semibold tracking-tight text-slate-900">
                   {isBatchCount ? c.count.toLocaleString() : formatMoney(c.value)}
                 </p>
-                <div className="mt-2 flex items-center text-[10px] font-medium text-slate-600 bg-white/50 w-fit px-2 py-0.5 rounded-full">
-                  {isBatchCount ? "Total Count: " : "Claims Count: "}
+                <div className="mt-2 flex w-fit items-center rounded-md bg-slate-50 px-2 py-1 text-xs font-medium text-slate-600">
+                  {isBatchCount ? "Batch count: " : "Claim count: "}
                   <span className="ml-1 font-bold text-slate-900">{c.count.toLocaleString()}</span>
                 </div>
               </div>
-              <div className="absolute -right-4 -bottom-4 w-20 h-20 bg-white/40 rounded-full blur-xl z-0 pointer-events-none" />
             </Card>
           );
         })}
       </div>
+      </section>
     </div>
   );
 }
-

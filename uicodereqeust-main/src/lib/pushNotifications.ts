@@ -68,28 +68,20 @@ export async function getPushServiceWorkerRegistration(): Promise<ServiceWorkerR
   if (!isPushNotificationSupported()) throw new Error("Push notifications are not supported by this browser.");
 
   try {
-    const registration = await withTimeout((async () => {
-      const existing = await navigator.serviceWorker.getRegistration("/");
-      const current = existing ?? await navigator.serviceWorker.register("/sw.js", {
-        scope: "/",
-        updateViaCache: "none",
-      });
-      if (current.active) return current;
+    const existing = await navigator.serviceWorker.getRegistration("/");
+    if (existing?.active) return existing;
 
-      const worker = current.installing || current.waiting;
-      if (!worker) return await navigator.serviceWorker.ready;
+    const current = existing ?? await navigator.serviceWorker.register("/sw.js", {
+      scope: "/",
+      updateViaCache: "none",
+    });
+    if (current.active) return current;
 
-      await new Promise<void>((resolve, reject) => {
-        const checkState = () => {
-          if (worker.state === "activated") resolve();
-          else if (worker.state === "redundant") reject(new Error("The notification service worker could not activate. Reload and try again."));
-        };
-        worker.addEventListener("statechange", checkState);
-        checkState();
-      });
-      return current;
-    })(), SERVICE_WORKER_START_TIMEOUT_MS, "The notification service worker did not activate. Reload the page and try again.");
-    return registration;
+    return await withTimeout(
+      navigator.serviceWorker.ready,
+      SERVICE_WORKER_START_TIMEOUT_MS,
+      "The notification service worker did not activate. Reload the page and try again.",
+    );
   } catch (error: unknown) {
     if (error instanceof Error && error.message.includes("did not activate")) throw error;
     throw new Error(error instanceof Error
@@ -125,17 +117,19 @@ export async function subscribeToPushNotifications(userId: string): Promise<{
     return { success: false, error: "VAPID public key not configured." };
   }
 
-  // 1. Request browser permission
-  let permission: NotificationPermission;
-  try {
-    permission = await withTimeout(
-      Notification.requestPermission(),
-      60_000,
-      "The browser permission prompt did not finish. Please allow notifications and try again.",
-    );
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : "Could not request notification permission";
-    return { success: false, error: msg };
+  // 1. Request browser permission (skip prompt if already granted)
+  let permission: NotificationPermission = Notification.permission;
+  if (permission !== "granted") {
+    try {
+      permission = await withTimeout(
+        Notification.requestPermission(),
+        20_000,
+        "The browser permission prompt did not finish. Please allow notifications and try again.",
+      );
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Could not request notification permission";
+      return { success: false, error: msg };
+    }
   }
   if (permission !== "granted") {
     return { success: false, error: "Notification permission denied by user." };

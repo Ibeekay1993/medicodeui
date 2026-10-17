@@ -622,8 +622,7 @@ const updateClaimStatus = async (status: "approved" | "rejected" | "paid" | "und
         setReviewRequestOpen={setReviewRequestOpen}
       />
 
-      {/* Mobile bottom tab navigation (Glass Island) */}
-      <div className="lg:hidden fixed bottom-4 left-4 right-4 bg-white/85 backdrop-blur-xl border border-white/50 shadow-[0_8px_30px_rgb(0,0,0,0.12)] rounded-2xl px-2 py-2 flex items-center justify-around z-40 ring-1 ring-slate-900/5">
+      <div className="fixed bottom-4 left-4 right-4 z-40 flex items-center justify-around rounded-xl border border-slate-200 bg-white px-2 py-2 shadow-lg lg:hidden">
         <button
           type="button"
           onClick={() => setMobileSubView("LIST")}
@@ -661,14 +660,14 @@ const updateClaimStatus = async (status: "approved" | "rejected" | "paid" | "und
         </button>
       </div>
 
-      {/* Premium Floating Action Button */}
       <button
         type="button"
         onClick={() => {
           setNewTicketOpen(true);
         }}
-        className="fixed bottom-24 right-5 z-50 lg:bottom-8 lg:right-8 h-14 w-14 rounded-full bg-gradient-to-br from-indigo-500 to-indigo-600 text-white shadow-[0_8px_20px_rgb(79,70,229,0.4)] hover:shadow-[0_12px_25px_rgb(79,70,229,0.5)] hover:scale-105 active:scale-90 transition-all duration-300 flex items-center justify-center ring-1 ring-white/20 inset"
-        title="New Conversation"
+        className="fixed bottom-24 right-5 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-white shadow-md transition-colors hover:bg-primary/90 lg:bottom-8 lg:right-8"
+        title="New conversation"
+        aria-label="Start a new conversation"
       >
         <Plus className="h-6 w-6" />
       </button>

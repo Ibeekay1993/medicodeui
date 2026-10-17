@@ -26,6 +26,10 @@ export function normalizeStatus(value?: string | null): string {
   return String(value || "").trim().toLowerCase() || "received";
 }
 
+export function isInboundMessageProcessable(status?: string | null): boolean {
+  return ["queued", "retry", "received"].includes(normalizeStatus(status));
+}
+
 export function getEffectiveStatusTimestamp(
   row?: {
     status_updated_at?: string | null;

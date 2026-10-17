@@ -100,12 +100,12 @@ export function NavItem({ item, isActive, onClick, variant, expanded = true }: N
       <div className="relative">
         <Icon className="h-5 w-5" strokeWidth={isActive ? 2.5 : 2} />
         {(item.badge ?? 0) > 0 && (
-          <span className="absolute -top-1 -right-1 flex h-3 w-3 items-center justify-center rounded-full bg-sky-500 text-[8px] font-bold text-white ring-1 ring-white">
+          <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-sky-700 px-1 text-[10px] font-semibold text-white ring-1 ring-white">
             {(item.badge ?? 0) > 9 ? "9+" : item.badge}
           </span>
         )}
       </div>
-      <span className="text-[10px] font-medium leading-none">{label}</span>
+      <span className="text-xs font-medium leading-none">{label}</span>
     </button>
   );
 }

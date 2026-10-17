@@ -20,7 +20,7 @@ vi.mock("@/components/reports/ReportFilters", () => ({
   default: ({ filters, onChange, onExport }: any) => (
     <div>
       <button onClick={() => onExport("payment_advice")}>Export payment advice</button>
-      <button onClick={() => onExport("full")}>Export premium dashboard</button>
+      <button onClick={() => onExport("full")}>Export full report</button>
       <label>
         Status
         <select aria-label="Status" value={filters.statusFilter} onChange={(event) => onChange({ statusFilter: event.target.value })}>
@@ -314,14 +314,14 @@ describe("ReportsPage report integrity", () => {
     expect(schedule.getCell("K2").value).toMatchObject({ formula: "SUBTOTAL(103,A4:A5)", result: 2 });
   });
 
-  it("includes the payment advice schedule and amount in the premium export", async () => {
+  it("includes the payment advice schedule and amount in the full report export", async () => {
     setupPageHandler(async () => ({
-      data: [row("premium-advice", "approved", "Hospital A")],
+      data: [row("payment-advice", "approved", "Hospital A")],
       error: null,
     }));
     renderPage();
 
-    fireEvent.click(await screen.findByRole("button", { name: "Export premium dashboard" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Export full report" }));
     await waitFor(() => expect(mocks.saveAs).toHaveBeenCalledTimes(1));
 
     const workbook = await readDownloadedWorkbook();

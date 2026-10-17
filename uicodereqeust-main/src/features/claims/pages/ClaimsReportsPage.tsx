@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
-import * as ExcelJS from "exceljs";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import type * as ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
-import { Download, Loader2, Search } from "lucide-react";
+import { BadgeCheck, CalendarDays, ClipboardList, Download, Filter, RefreshCw, RotateCcw, Search, TrendingDown } from "lucide-react";
 import { ClaimsService } from "../services/claimsService";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -9,23 +9,28 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { HospitalSearchSelect } from "@/components/ui/HospitalSearchSelect";
 import { useToast } from "@/hooks/use-toast";
+import { useSearchParams } from "react-router-dom";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { cn } from "@/lib/utils";
+import { ClaimsAnalysisView } from "../components/ClaimsAnalysisView";
 
 const money = (value: unknown) => `NGN ${Number(value || 0).toLocaleString()}`;
-
 const csvCell = (value: unknown) => `"${String(value ?? "").replace(/"/g, '""')}"`;
 
 export default function ClaimsReportsPage() {
   const { toast } = useToast();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = searchParams.get("tab") === "analysis" ? "analysis" : "reports";
   const [rows, setRows] = useState<any[]>([]);
   const [hospitals, setHospitals] = useState<any[]>([]);
   const [loadingHospitals, setLoadingHospitals] = useState(false);
-  const [_loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState("all");
   const [hospitalId, setHospitalId] = useState("all");
   const [startDate, setStartDate] = useState("");
@@ -49,7 +54,23 @@ export default function ClaimsReportsPage() {
     declined: filtered.reduce((sum, row) => sum + Number(row.declined_amount || 0), 0),
   }), [filtered]);
 
-  const loadHospitals = async () => {
+  const hasActiveFilters = status !== "all" || hospitalId !== "all" || Boolean(startDate) || Boolean(endDate) || Boolean(search);
+
+  const resetFilters = () => {
+    setStatus("all");
+    setHospitalId("all");
+    setStartDate("");
+    setEndDate("");
+    setSearch("");
+  };
+
+  const handleTabChange = (value: string) => {
+    const nextSearchParams = new URLSearchParams(searchParams);
+    nextSearchParams.set("tab", value);
+    setSearchParams(nextSearchParams, { replace: true });
+  };
+
+  const loadHospitals = useCallback(async () => {
     setLoadingHospitals(true);
     try {
       const allHospitals = await ClaimsService.getHospitalsList();
@@ -59,9 +80,9 @@ export default function ClaimsReportsPage() {
     } finally {
       setLoadingHospitals(false);
     }
-  };
+  }, []);
 
-  const loadReport = async () => {
+  const loadReport = useCallback(async () => {
     setLoading(true);
     try {
       const end = endDate ? new Date(endDate) : null;
@@ -79,7 +100,7 @@ export default function ClaimsReportsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [endDate, hospitalId, startDate, status, toast]);
 
   const setPresetRange = (preset: "month" | "quarter" | "year") => {
     const now = new Date();
@@ -108,8 +129,12 @@ export default function ClaimsReportsPage() {
     }
   };
 
-  useEffect(() => { loadHospitals(); }, []);
-  useEffect(() => { loadReport(); }, [status, hospitalId, startDate, endDate]);
+  useEffect(() => {
+    if (activeTab === "reports") void loadHospitals();
+  }, [activeTab, loadHospitals]);
+  useEffect(() => {
+    if (activeTab === "reports") void loadReport();
+  }, [activeTab, loadReport]);
 
   const exportCSV = () => {
     if (filtered.length === 0) {
@@ -167,8 +192,9 @@ export default function ClaimsReportsPage() {
     }
 
     try {
-      toast({ title: "Preparing Export", description: "Generating premium Excel dashboard..." });
+      toast({ title: "Preparing export", description: "Generating claims report…" });
 
+      const ExcelJS = await import("exceljs");
       const workbook = new ExcelJS.Workbook();
       workbook.creator = "Medicode System";
       workbook.created = new Date();
@@ -188,7 +214,7 @@ export default function ClaimsReportsPage() {
         fgColor: { argb: theme.primary },
       };
 
-      const headerFont: ExcelJS.Font = {
+      const headerFont: Partial<ExcelJS.Font> = {
         color: { argb: "FFFFFFFF" },
         bold: true,
         size: 12,
@@ -282,15 +308,15 @@ export default function ClaimsReportsPage() {
 
       ws2.addConditionalFormatting({
         ref: `B2:B${Math.max(2, hospArr.length + 1)}`,
-        rules: [{ type: 'dataBar', cfvo: [{ type: 'min' }, { type: 'max' }], color: { argb: theme.primary }, gradient: true }]
+        rules: [{ type: 'dataBar', priority: 1, cfvo: [{ type: 'min' }, { type: 'max' }], style: { fill: { type: "pattern", pattern: "solid", fgColor: { argb: theme.primary } } }, gradient: true }]
       });
       ws2.addConditionalFormatting({
         ref: `C2:C${Math.max(2, hospArr.length + 1)}`,
-        rules: [{ type: 'dataBar', cfvo: [{ type: 'min' }, { type: 'max' }], color: { argb: theme.success }, gradient: true }]
+        rules: [{ type: 'dataBar', priority: 2, cfvo: [{ type: 'min' }, { type: 'max' }], style: { fill: { type: "pattern", pattern: "solid", fgColor: { argb: theme.success } } }, gradient: true }]
       });
       ws2.addConditionalFormatting({
         ref: `D2:D${Math.max(2, hospArr.length + 1)}`,
-        rules: [{ type: 'dataBar', cfvo: [{ type: 'min' }, { type: 'max' }], color: { argb: theme.danger }, gradient: true }]
+        rules: [{ type: 'dataBar', priority: 3, cfvo: [{ type: 'min' }, { type: 'max' }], style: { fill: { type: "pattern", pattern: "solid", fgColor: { argb: theme.danger } } }, gradient: true }]
       });
 
       // ── SHEET 3: Detailed Data ───────────────────────────────────────────
@@ -370,12 +396,13 @@ export default function ClaimsReportsPage() {
     
     try {
       toast({ title: "Preparing Export", description: "Generating reconciliation report..." });
+      const ExcelJS = await import("exceljs");
       const workbook = new ExcelJS.Workbook();
       workbook.creator = "Medicode System";
       
       const theme = { primary: "FF1E3A8A", success: "FF10B981", danger: "FFEF4444", bg: "FFF8FAFC" };
       const headerFill: ExcelJS.FillPattern = { type: "pattern", pattern: "solid", fgColor: { argb: theme.primary } };
-      const headerFont: ExcelJS.Font = { color: { argb: "FFFFFFFF" }, bold: true, size: 12 };
+      const headerFont: Partial<ExcelJS.Font> = { color: { argb: "FFFFFFFF" }, bold: true, size: 12 };
       const currencyFormat = '"₦"#,##0';
 
       const ws = workbook.addWorksheet("Reconciliation", {
@@ -436,77 +463,153 @@ export default function ClaimsReportsPage() {
 
 
   return (
-    <div className="space-y-4 pb-10">
-      <div className="pb-3 border-b border-slate-200 flex justify-end gap-2 flex-wrap">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button className="h-8 rounded-lg bg-slate-900 text-xs font-semibold text-white hover:bg-slate-800 flex items-center gap-1.5 shadow-sm">
-              <Download className="h-3.5 w-3.5" /> Export / Download
+    <Tabs value={activeTab} onValueChange={handleTabChange} className="max-w-full space-y-5 overflow-x-hidden pb-10">
+      <TabsList className="h-10 rounded-xl border border-slate-200 bg-slate-50 p-1">
+        <TabsTrigger value="analysis" className="rounded-lg px-5 text-sm font-medium data-[state=active]:bg-white data-[state=active]:shadow-sm">
+          Claims Analysis
+        </TabsTrigger>
+        <TabsTrigger value="reports" className="rounded-lg px-5 text-sm font-medium data-[state=active]:bg-white data-[state=active]:shadow-sm">
+          Claims Reports
+        </TabsTrigger>
+      </TabsList>
+
+      {/* ── Tab 1: Analysis ─────────────────────────────────────── */}
+      <TabsContent value="analysis" className="mt-0 space-y-5">
+        <ClaimsAnalysisView />
+      </TabsContent>
+
+      {/* ── Tab 2: Reports ──────────────────────────────────────── */}
+      <TabsContent value="reports" className="mt-0 space-y-5">
+        <div className="flex flex-col items-start justify-between gap-4 rounded-xl border border-slate-200 bg-white p-4 sm:flex-row sm:items-center">
+          <div>
+            <h2 className="text-base font-semibold text-slate-900">Claims overview</h2>
+            <p className="mt-1 text-sm text-slate-600">Review claim activity and export detailed or reconciliation reports.</p>
+          </div>
+          <div className="flex w-full items-center gap-2 sm:w-auto">
+            <Button
+              variant="outline"
+              size="sm"
+              aria-label="Refresh claims report"
+              className="h-10 w-10 shrink-0 border-slate-300 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+              onClick={() => void loadReport()}
+              title="Refresh report"
+              disabled={loading}
+            >
+              <RefreshCw className={cn("h-4 w-4", loading && "animate-spin text-primary")} />
             </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-52 rounded-xl shadow-lg border border-slate-100 bg-white p-1 z-50">
-            <DropdownMenuItem onClick={exportCSV} className="rounded-lg text-xs font-semibold cursor-pointer py-2 hover:bg-slate-50 transition-colors">
-              Download CSV (Claims)
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={exportXLSX} className="rounded-lg text-xs font-semibold cursor-pointer py-2 hover:bg-slate-50 transition-colors">
-              Download Excel (Claims)
-            </DropdownMenuItem>
-            <div className="h-px bg-slate-100 my-1" />
-            <DropdownMenuItem onClick={exportReconciliationXLSX} className="rounded-lg text-xs font-semibold cursor-pointer py-2 hover:bg-slate-50 hover:text-emerald-700 transition-colors">
-              Reconciliation Report (Excel)
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button className="h-10 flex-1 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-sm hover:bg-primary/90 sm:flex-none">
+                  <Download className="mr-2 h-4 w-4" /> Export reports
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="z-50 w-60 rounded-xl border border-slate-200 bg-white p-1 shadow-lg">
+                <DropdownMenuItem onClick={exportCSV} className="cursor-pointer rounded-lg py-2.5 text-sm font-medium">
+                  Download CSV (Claims)
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={exportXLSX} className="cursor-pointer rounded-lg py-2.5 text-sm font-medium">
+                  Download Excel (Claims)
+                </DropdownMenuItem>
+                <div className="my-1 h-px bg-slate-100" />
+                <DropdownMenuItem onClick={exportReconciliationXLSX} className="cursor-pointer rounded-lg py-2.5 text-sm font-medium">
+                  Reconciliation Report (Excel)
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </div>
 
-      <Card className="rounded-2xl border-slate-100 bg-white shadow-sm relative z-10">
-        <CardContent className="grid gap-3 p-4 md:grid-cols-5">
-          <div className="relative md:col-span-2">
-            <Search className="absolute left-3 top-3 h-4 w-4 text-slate-300" />
-            <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search claim, patient, policy, auth code..." className="h-10 rounded-xl border-none bg-slate-50 pl-10 text-xs font-semibold" />
-          </div>
-          <Select value={status} onValueChange={setStatus}>
-            <SelectTrigger className="h-10 rounded-xl border-none bg-slate-50 text-xs font-semibold"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              {["all", "submitted", "under_review", "approved", "partially_approved", "paid", "rejected", "contested"].map((item) => (
-                <SelectItem key={item} value={item}>{item.replace(/_/g, " ")}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <HospitalSearchSelect
-            uniqueHospitals={hospitals}
-            selectedHospitalId={hospitalId}
-            onHospitalChange={setHospitalId}
-            placeholder="Hospital"
-            className="w-full h-10 rounded-xl bg-slate-50 text-xs font-semibold"
-          />
-          <div className="grid grid-cols-2 gap-2">
-            <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="h-10 rounded-xl border-none bg-slate-50 text-xs font-semibold" />
-            <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="h-10 rounded-xl border-none bg-slate-50 text-xs font-semibold" />
-          </div>
-          <div className="flex gap-2 md:col-span-5">
-            <Button type="button" variant="outline" onClick={() => setPresetRange("month")} className="h-8 rounded-lg text-xs font-semibold">This Month</Button>
-            <Button type="button" variant="outline" onClick={() => setPresetRange("quarter")} className="h-8 rounded-lg text-xs font-semibold">Quarter</Button>
-            <Button type="button" variant="outline" onClick={() => setPresetRange("year")} className="h-8 rounded-lg text-xs font-semibold">Year</Button>
-          </div>
-        </CardContent>
-      </Card>
+        <Card className="relative z-10 rounded-xl border-slate-200 bg-white shadow-sm">
+          <CardContent className="space-y-4 p-4">
+            <div className="flex items-center gap-2">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-50">
+                <Filter className="h-4 w-4 text-slate-600" />
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-slate-800">Report filters</h3>
+                <p className="text-xs text-slate-500">Narrow the claims included in the summary and exported reports.</p>
+              </div>
+            </div>
+            <div className="grid min-w-0 grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-12">
+              <div className="relative min-w-0 md:col-span-2 xl:col-span-4">
+                <Search className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+                <Input aria-label="Search claims for reports" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search claim, patient, policy, auth code..." className="h-10 rounded-lg border-slate-200 bg-white pl-10 text-sm" />
+              </div>
+              <div className="min-w-0 xl:col-span-2">
+                <Select value={status} onValueChange={setStatus}>
+                  <SelectTrigger aria-label="Filter claims by status" className="h-10 w-full rounded-lg border-slate-200 bg-white text-sm"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {["all", "submitted", "under_review", "approved", "partially_approved", "paid", "rejected", "contested"].map((item) => (
+                      <SelectItem key={item} value={item}>{item.replace(/_/g, " ")}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="min-w-0 xl:col-span-3">
+                <HospitalSearchSelect
+                  uniqueHospitals={hospitals}
+                  selectedHospitalId={hospitalId}
+                  onHospitalChange={setHospitalId}
+                  placeholder={loadingHospitals ? "Loading hospitals..." : "Hospital"}
+                  className="h-10 w-full min-w-0 rounded-lg border-slate-200 bg-white text-sm"
+                />
+              </div>
+              <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 md:col-span-2 xl:col-span-3">
+                <Input aria-label="Start date" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="h-10 w-full min-w-0 rounded-lg border-slate-200 bg-white text-xs" />
+                <Input aria-label="End date" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="h-10 w-full min-w-0 rounded-lg border-slate-200 bg-white text-xs" />
+              </div>
+              <div className="flex min-w-0 flex-wrap items-center gap-2 md:col-span-2 xl:col-span-12">
+                <span className="mr-1 text-xs font-medium text-slate-500">Date presets</span>
+                <Button type="button" variant="outline" onClick={() => setPresetRange("month")} className="h-9 rounded-lg border-slate-200 text-xs font-medium">This Month</Button>
+                <Button type="button" variant="outline" onClick={() => setPresetRange("quarter")} className="h-9 rounded-lg border-slate-200 text-xs font-medium">Quarter</Button>
+                <Button type="button" variant="outline" onClick={() => setPresetRange("year")} className="h-9 rounded-lg border-slate-200 text-xs font-medium">Year</Button>
+                {hasActiveFilters && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={resetFilters}
+                    className="h-9 gap-1.5 rounded-lg px-2.5 text-xs font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                  >
+                    <RotateCcw className="h-3.5 w-3.5 text-slate-400" />
+                    Reset filters
+                  </Button>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-1.5 sm:gap-4">
-        {[
-          ["Claims", totals.count],
-          ["Original Value", money(totals.original)],
-          ["Approved Value", money(totals.approved)],
-          ["Declined/Savings", money(totals.declined)],
-        ].map(([label, value]) => (
-          <Card key={label} className="rounded-xl border-slate-100 bg-white shadow-sm">
-            <CardContent className="p-2 sm:p-3">
-              <p className="text-xs font-bold uppercase tracking-wider text-slate-400 truncate">{label}</p>
-              <p className="mt-1 text-base sm:text-lg font-extrabold text-slate-900 truncate leading-none">{value}</p>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-    </div>
+        {!loading && (
+          <section aria-labelledby="claims-summary-heading" className="space-y-3">
+          <div>
+            <h3 id="claims-summary-heading" className="text-base font-semibold text-slate-900">Claims summary</h3>
+            <p className="text-xs text-slate-500">Totals reflect the selected filters and search.</p>
+          </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            {[
+              { label: "Claims", value: totals.count.toLocaleString(), detail: "Matching claims", Icon: ClipboardList, tone: "text-slate-600" },
+              { label: "Original value", value: money(totals.original), detail: "Submitted amount", Icon: CalendarDays, tone: "text-blue-600" },
+              { label: "Approved value", value: money(totals.approved), detail: "Approved amount", Icon: BadgeCheck, tone: "text-emerald-600" },
+              { label: "Declined / savings", value: money(totals.declined), detail: "Declined amount", Icon: TrendingDown, tone: "text-amber-600" },
+            ].map(({ label, value, detail, Icon, tone }) => (
+              <Card key={label} className="rounded-xl border-slate-200 bg-white shadow-sm transition-all hover:border-slate-300">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-sm font-medium text-slate-600">{label}</p>
+                    <div className="rounded-lg bg-slate-50 p-2">
+                      <Icon className={`h-4 w-4 ${tone}`} aria-hidden="true" />
+                    </div>
+                  </div>
+                  <p className="mt-2 truncate text-xl font-semibold tracking-tight text-slate-900">{value}</p>
+                  <p className="mt-1 text-xs text-slate-500">{detail}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+          </section>
+        )}
+
+      </TabsContent>
+    </Tabs>
   );
 }

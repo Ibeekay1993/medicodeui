@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import * as ExcelJS from "exceljs";
+import type * as ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { money } from "@/lib/claims-helpers";
+import { PageLoader } from "@/components/PageLoader";
 import {
   Dialog,
   DialogContent,
@@ -137,8 +138,9 @@ export default function BatchesPage() {
         return;
       }
 
-      toast({ title: "Preparing Export", description: "Generating premium Excel batch report..." });
+      toast({ title: "Preparing export", description: "Generating batch report…" });
 
+      const ExcelJS = await import("exceljs");
       const workbook = new ExcelJS.Workbook();
       workbook.creator = "Medicode System";
       
@@ -182,7 +184,7 @@ export default function BatchesPage() {
       const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
       saveAs(blob, `Batch_Report_${batch.batch_reference}_${Date.now()}.xlsx`);
 
-      toast({ title: "Export Complete", description: "Premium Excel report generated." });
+      toast({ title: "Export complete", description: "Batch report generated." });
     } catch (err: any) {
       console.error(err);
       toast({ variant: "destructive", title: "Export Failed", description: "Failed to generate Excel report." });
@@ -264,12 +266,7 @@ export default function BatchesPage() {
 
 
   if (isLoading) {
-    return (
-      <div className="flex h-64 flex-col gap-3 items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-slate-800" />
-        <p className="text-xs font-black uppercase tracking-widest text-slate-400">Loading Batches Workspace...</p>
-      </div>
-    );
+    return <PageLoader className="min-h-64" label="Loading batches..." />;
   }
 
   if (error) {

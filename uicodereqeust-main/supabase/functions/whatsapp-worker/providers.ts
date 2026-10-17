@@ -314,12 +314,15 @@ export async function extractWithGemini(
   const model = env.geminiModel || DEFAULT_GEMINI_MODEL;
   const apiKey = env.geminiApiKey || "";
   if (!apiKey) throw new ProviderError("GEMINI_API_KEY missing");
-  const url = `${GEMINI_BASE_URL}/${model}:generateContent?key=${apiKey}`;
+  const url = `${GEMINI_BASE_URL}/${model}:generateContent`;
   const res = await fetchWithTimeout(
     url,
     {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "x-goog-api-key": apiKey,
+      },
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
         contents: [

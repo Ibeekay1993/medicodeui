@@ -194,47 +194,39 @@ export function useClinicalVerification(
     try {
       let matchedRows: any[] = [];
       if (policy) {
-        try {
-          const conditions = new Set([`policy_number.eq.${policy}`]);
-          if (policyRoot && policyRoot !== policy) conditions.add(`policy_number.eq.${policyRoot}`);
-          if (policyRoot) conditions.add(`policy_number.like.${policyRoot}-%`);
-          const { data, error } = await withTimeout(
-            supabase
-              .from("nhis_beneficiaries")
-              .select("id,full_name,surname,first_name,hcp_name,hcp_code,member_type,policy_number,beneficiary_number")
-              .or([...conditions].join(","))
-              .limit(50),
-            4000
-          );
-          if (error) throw error;
-          matchedRows = data || [];
-        } catch (err) {
-          throw err;
-        }
+        const conditions = new Set([`policy_number.eq.${policy}`]);
+        if (policyRoot && policyRoot !== policy) conditions.add(`policy_number.eq.${policyRoot}`);
+        if (policyRoot) conditions.add(`policy_number.like.${policyRoot}-%`);
+        const { data, error } = await withTimeout(
+          supabase
+            .from("nhis_beneficiaries")
+            .select("id,full_name,surname,first_name,hcp_name,hcp_code,member_type,policy_number,beneficiary_number")
+            .or([...conditions].join(","))
+            .limit(50),
+          4000
+        );
+        if (error) throw error;
+        matchedRows = data || [];
       }
       const hasPolicyMatch = matchedRows.length > 0;
 
       // Name fallback — only runs if policy didn't match
       if (!hasPolicyMatch && patientName) {
-        try {
-          const namePrefixes = [...new Set(cleanPatientName(patientName)
-            .split(/\s+/)
-            .map((word) => word.replace(/[^a-z0-9]/gi, ""))
-            .filter((word) => word.length >= 3))];
-          if (namePrefixes.length) {
-            const { data, error } = await withTimeout(
-              supabase
-                .from("nhis_beneficiaries")
-                .select("id,full_name,surname,first_name,hcp_name,hcp_code,member_type,policy_number,beneficiary_number")
-                .or(namePrefixes.map((word) => `full_name.ilike.${word}%`).join(","))
-                .limit(30),
-              4000
-            );
-            if (error) throw error;
-            matchedRows = data || [];
-          }
-        } catch (err) {
-          throw err;
+        const namePrefixes = [...new Set(cleanPatientName(patientName)
+          .split(/\s+/)
+          .map((word) => word.replace(/[^a-z0-9]/gi, ""))
+          .filter((word) => word.length >= 3))];
+        if (namePrefixes.length) {
+          const { data, error } = await withTimeout(
+            supabase
+              .from("nhis_beneficiaries")
+              .select("id,full_name,surname,first_name,hcp_name,hcp_code,member_type,policy_number,beneficiary_number")
+              .or(namePrefixes.map((word) => `full_name.ilike.${word}%`).join(","))
+              .limit(30),
+            4000
+          );
+          if (error) throw error;
+          matchedRows = data || [];
         }
       }
 
@@ -287,25 +279,21 @@ export function useClinicalVerification(
         setPatientVerified(true);
         setFamilyMembers(matchedRows);
       } else if (request?.policy_number) {
-        try {
-          const { data: patients, error } = await withTimeout(
-            supabase.from("patients").select("*").eq("policy_number", request.policy_number),
-            4000,
-          );
-          if (error) throw error;
-          if (patients && patients.length > 0) {
-            setPatientVerified(true);
-            setFamilyMembers(patients);
-            const principal = patients.find((p: any) => p.role === "PRINCIPAL") || patients[0];
-            if (principal.expiry_date && new Date(principal.expiry_date) < new Date()) {
-              setPatientVerified(false);
-            }
-          } else {
+        const { data: patients, error } = await withTimeout(
+          supabase.from("patients").select("*").eq("policy_number", request.policy_number),
+          4000,
+        );
+        if (error) throw error;
+        if (patients && patients.length > 0) {
+          setPatientVerified(true);
+          setFamilyMembers(patients);
+          const principal = patients.find((p: any) => p.role === "PRINCIPAL") || patients[0];
+          if (principal.expiry_date && new Date(principal.expiry_date) < new Date()) {
             setPatientVerified(false);
-            setFamilyMembers([]);
           }
-        } catch (patientsErr) {
-          throw patientsErr;
+        } else {
+          setPatientVerified(false);
+          setFamilyMembers([]);
         }
       } else {
         setPatientVerified(false);

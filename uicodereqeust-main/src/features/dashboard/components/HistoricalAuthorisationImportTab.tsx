@@ -14,6 +14,8 @@ import {
   FileCheck2,
   Plus,
   Trash2,
+  Save,
+  BookmarkCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -64,17 +66,212 @@ export function HistoricalAuthorisationImportTab() {
   const [activeSearchIndex, setActiveSearchIndex] = useState<number | null>(null);
   const [tariffSearchQuery, setTariffSearchQuery] = useState("");
 
+  // Draft persistence for pause-and-resume editing
+  const DRAFT_KEY = "medcode_historical_import_draft_v1";
+  const [savedDraftNotice, setSavedDraftNotice] = useState<{ count: number; savedAt: string; fileName?: string } | null>(null);
+  const [lastAutoSaved, setLastAutoSaved] = useState<string | null>(null);
+
+  // Check for saved local draft on mount
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(DRAFT_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed.records && Array.isArray(parsed.records) && parsed.records.length > 0) {
+          setSavedDraftNotice({
+            count: parsed.records.length,
+            savedAt: parsed.savedAt,
+            fileName: parsed.fileName,
+          });
+        }
+      }
+    } catch (e) {
+      console.warn("Failed to read draft from localStorage:", e);
+    }
+  }, []);
+
+  // Auto-save to localStorage whenever reconciledRecords is modified
+  useEffect(() => {
+    if (reconciledRecords.length === 0) return;
+    const timer = setTimeout(() => {
+      try {
+        const draft = {
+          records: reconciledRecords,
+          fileName: file?.name || savedDraftNotice?.fileName || "Historical Import",
+          savedAt: new Date().toISOString(),
+        };
+        localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+        const timeStr = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+        setLastAutoSaved(timeStr);
+      } catch (err) {
+        console.warn("Auto-save to localStorage failed:", err);
+      }
+    }, 800);
+
+    return () => clearTimeout(timer);
+  }, [reconciledRecords, file, savedDraftNotice]);
+
+  const handleSaveDraft = useCallback(() => {
+    if (reconciledRecords.length === 0) return;
+    try {
+      const draft = {
+        records: reconciledRecords,
+        fileName: file?.name || savedDraftNotice?.fileName || "Historical Import",
+        savedAt: new Date().toISOString(),
+      };
+      localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+      const timeStr = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+      setLastAutoSaved(timeStr);
+      toast({
+        title: "Working Draft Saved",
+        description: `Saved ${reconciledRecords.length} records. You can safely close or refresh your browser and continue anytime.`,
+      });
+    } catch (err: any) {
+      toast({
+        variant: "destructive",
+        title: "Save Failed",
+        description: err.message || "Could not save draft.",
+      });
+    }
+  }, [reconciledRecords, file, savedDraftNotice, toast]);
+
+  const handleResumeDraft = useCallback(() => {
+    try {
+      const stored = localStorage.getItem(DRAFT_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed.records && Array.isArray(parsed.records) && parsed.records.length > 0) {
+
+          // ── DRAFT MIGRATION: patch stale records with new rules ─────────────
+          // When the engine logic is updated (e.g. dental UCH referral fix),
+          // previously-cached drafts still have old data. This patch corrects
+          // known stale patterns in-place, preserving all manual edits.
+          const DENTAL_UCH_TRIGGER = /rpd|removable\s*partial\s*denture|denture|prosthodontic|kennedy\s*class|implant|crown\s*&\s*bridge|crown\s*and\s*bridge/i;
+          const UCH_NAME = "UNIVERSITY COLLEGE HOSPITAL";
+          const UCH_ID = "OY/0001/P";
+          const JAJA_NAME = "UNIVERSITY OF IBADAN HEALTH SERVICES (JAJA HEALTH CLINIC)";
+          const JAJA_ID_STUB = "OY/0252/P";
+
+          let patchCount = 0;
+          const patched: HistoricalReconciledRecord[] = parsed.records.map((rec: HistoricalReconciledRecord) => {
+            const treatment = (rec.treatment || rec.raw_treatment || "");
+            const hospIsJaja =
+              rec.hospital_name?.toLowerCase().includes("jaja") ||
+              rec.hospital_name?.toLowerCase().includes("university of ibadan health service");
+
+            // Patch 1: Dental UCH referral hospital correction
+            if (DENTAL_UCH_TRIGGER.test(treatment) && hospIsJaja) {
+              patchCount++;
+              // Preserve existing hospital IDs if they look like real UUIDs, else use stub codes
+              const jajaId = rec.hospital_id || JAJA_ID_STUB;
+              const uchadId = UCH_ID;
+
+              // Patch approved_items: fix wrong RPD code NHIA-070-022 → NHIA-870-022
+              const patchedItems = (rec.approved_items || []).map((item) =>
+                item.code === "NHIA-070-022"
+                  ? { ...item, code: "NHIA-870-022", name: "Removable Partial Denture (RPD)" }
+                  : item
+              );
+
+              return {
+                ...rec,
+                hospital_id: uchadId,
+                hospital_name: UCH_NAME,
+                requesting_hospital_id: jajaId,
+                requesting_hospital_name: JAJA_NAME,
+                referred_hospital_id: uchadId,
+                referred_hospital_name: UCH_NAME,
+                claiming_hospital_id: uchadId,
+                claiming_hospital_name: UCH_NAME,
+                approved_items: patchedItems,
+              };
+            }
+
+            // Patch 2: Fix stale RPD tariff code for any dental records already on UCH
+            const hasStaleRpdCode = (rec.approved_items || []).some((it) => it.code === "NHIA-070-022");
+            if (hasStaleRpdCode) {
+              patchCount++;
+              return {
+                ...rec,
+                approved_items: (rec.approved_items || []).map((item) =>
+                  item.code === "NHIA-070-022"
+                    ? { ...item, code: "NHIA-870-022", name: "Removable Partial Denture (RPD)" }
+                    : item
+                ),
+              };
+            }
+
+            return rec;
+          });
+          // ── END MIGRATION ───────────────────────────────────────────────────
+
+          setReconciledRecords(patched);
+          setSavedDraftNotice(null);
+          toast({
+            title: "Draft Restored" + (patchCount > 0 ? ` · ${patchCount} record(s) auto-updated` : ""),
+            description: `Resumed ${patched.length} records (saved ${new Date(parsed.savedAt).toLocaleTimeString()}).` +
+              (patchCount > 0
+                ? ` ${patchCount} dental record(s) were automatically corrected to show UNIVERSITY COLLEGE HOSPITAL as claiming hospital.`
+                : ""),
+          });
+        }
+      }
+    } catch (e: any) {
+      console.error(e);
+    }
+  }, [toast]);
+
+
+  const handleDiscardDraft = useCallback(() => {
+    try {
+      localStorage.removeItem(DRAFT_KEY);
+      setSavedDraftNotice(null);
+      setLastAutoSaved(null);
+      toast({
+        title: "Draft Discarded",
+        description: "Cleared saved session draft.",
+      });
+    } catch (e: any) {
+      console.error(e);
+    }
+  }, [toast]);
+
   // Load tariffs and hospitals on mount
   useEffect(() => {
     async function loadTariffsAndHospitals() {
       try {
-        const [{ data: nhiaData }, { data: hospData }] = await Promise.all([
-          supabase.from("nhia_items").select("code, name, category, amount").eq("is_active", true).limit(3000),
+        // Fetch procedures and drugs in TWO separate queries, each ordered by code.
+        // This guarantees ALL procedures (incl. consultation NHIA-010-001) load
+        // regardless of Supabase PostgREST server-side row limits.
+        const [
+          { data: procedureData },
+          { data: drugData },
+          { data: hospData },
+        ] = await Promise.all([
+          supabase
+            .from("nhia_items")
+            .select("code, name, category, amount")
+            .eq("is_active", true)
+            .eq("category", "procedure")
+            .order("code")
+            .limit(2000),
+          supabase
+            .from("nhia_items")
+            .select("code, name, category, amount")
+            .eq("is_active", true)
+            .eq("category", "drug")
+            .order("code")
+            .limit(2000),
           supabase.from("hospitals").select("id, name, code").order("name"),
         ]);
 
-        if (nhiaData && nhiaData.length > 0) {
-          setTariffs(nhiaData as NhiaTariffItem[]);
+        // Procedures first so they always appear in search results
+        const combined: NhiaTariffItem[] = [
+          ...((procedureData as NhiaTariffItem[]) || []),
+          ...((drugData as NhiaTariffItem[]) || []),
+        ];
+        if (combined.length > 0) {
+          setTariffs(combined);
         }
         if (hospData && hospData.length > 0) {
           setHospitals(hospData as HospitalReference[]);
@@ -85,6 +282,7 @@ export function HistoricalAuthorisationImportTab() {
     }
     loadTariffsAndHospitals();
   }, []);
+
 
   const handleFileDrop = useCallback(
     async (uploadedFile: File) => {
@@ -192,6 +390,200 @@ export function HistoricalAuthorisationImportTab() {
     return { total, approved, declined, pending, needsReview, totalAmount };
   }, [reconciledRecords]);
 
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleDownloadPaymentAdvice = async () => {
+    if (reconciledRecords.length === 0) return;
+    setIsExporting(true);
+    try {
+      const ExcelJS = (await import("exceljs")).default;
+      const { saveAs } = (await import("file-saver")).default;
+
+      const workbook = new ExcelJS.Workbook();
+      workbook.creator = "MedCode HMO Portal";
+      workbook.lastModifiedBy = "MedCode HMO Portal";
+      workbook.created = new Date();
+      workbook.modified = new Date();
+      const currencyFormat = '"₦"#,##0.00';
+
+      const approvedRecords = reconciledRecords
+        .filter((r) => r.status === "approved")
+        .sort((a, b) => (a.hospital_name || "").localeCompare(b.hospital_name || ""));
+
+      const schedule = workbook.addWorksheet("Payment Advice Schedule", {
+        views: [{ state: "frozen", xSplit: 0, ySplit: 3, showGridLines: false, zoomScale: 85 }],
+        properties: { tabColor: { argb: "FF059669" } },
+      });
+
+      schedule.columns = [
+        { header: "S/N", key: "sn", width: 8 },
+        { header: "Approval Date", key: "date", width: 16 },
+        { header: "Hospital / Provider", key: "hospital", width: 34 },
+        { header: "Auth Code", key: "authCode", width: 22 },
+        { header: "Request ID", key: "reqId", width: 22 },
+        { header: "Enrollee / Patient", key: "patient", width: 26 },
+        { header: "Policy Number", key: "policy", width: 18 },
+        { header: "Diagnosis", key: "diagnosis", width: 28 },
+        { header: "Approved Items (code, quantity, amount)", key: "treatment", width: 52 },
+        { header: "Approved Amount (₦)", key: "appAmt", width: 22 },
+        { header: "Authorized By", key: "clinician", width: 22 },
+      ];
+
+      schedule.mergeCells("A1:K1");
+      const titleCell = schedule.getCell("A1");
+      titleCell.value = "PAYMENT ADVICE SCHEDULE";
+      titleCell.font = { bold: true, size: 16, color: { argb: "FFFFFFFF" } };
+      titleCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF0F3D35" } };
+      titleCell.alignment = { vertical: "middle" };
+      schedule.getRow(1).height = 32;
+
+      schedule.getRow(2).values = [
+        "Source File",
+        file?.name || "Historical Import",
+        "Records",
+        `${approvedRecords.length} Approved`,
+        "", "", "", "", "",
+        "Total Payable",
+        metrics.totalAmount,
+      ];
+      schedule.getRow(2).height = 24;
+      schedule.getRow(2).eachCell((cell, colNum) => {
+        cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF1F5F9" } };
+        cell.font = colNum % 2 === 1
+          ? { bold: true, color: { argb: "FF475569" }, size: 10 }
+          : { color: { argb: "FF0F172A" }, size: 10 };
+      });
+      schedule.getCell("K2").numFmt = currencyFormat;
+
+      const headerRow = schedule.getRow(3);
+      headerRow.font = { bold: true, color: { argb: "FFFFFFFF" }, size: 11 };
+      headerRow.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1E3A5F" } };
+      headerRow.height = 28;
+      headerRow.alignment = { vertical: "middle", wrapText: true };
+
+      approvedRecords.forEach((record, index) => {
+        const approvedItems = (record.approved_items || []).filter((item) => item && !item.declined);
+        const itemSummary = approvedItems.length
+          ? approvedItems.map((item) => {
+              const qty = Number(item.quantity || 1);
+              const amt = Number(item.amount ?? (Number(item.unit_price || 0) * qty));
+              const name = [item.code, item.name].filter(Boolean).join(" ");
+              return `${name} × ${qty} · ₦${amt.toLocaleString("en-NG", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+            }).join("; ")
+          : record.treatment || "Approved item details unavailable";
+
+        const dateVal = record.decided_at ? new Date(record.decided_at) : new Date();
+
+        const row = schedule.addRow({
+          sn: index + 1,
+          date: dateVal,
+          hospital: record.hospital_name,
+          authCode: record.authorization_code || "N/A",
+          reqId: record.request_id,
+          patient: record.patient_name,
+          policy: record.policy_number,
+          diagnosis: record.diagnosis,
+          treatment: itemSummary,
+          appAmt: Number(record.total_amount) || 0,
+          clinician: record.authorized_by_name || "Authorizing Officer (AO)",
+        });
+
+        row.height = Math.min(90, Math.max(22, Math.ceil(itemSummary.length / 65) * 15));
+        row.eachCell({ includeEmpty: true }, (cell, colNum) => {
+          cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: index % 2 === 0 ? "FFFFFFFF" : "FFF8FAFC" } };
+          cell.border = { bottom: { style: "hair", color: { argb: "FFE2E8F0" } } };
+          cell.alignment = {
+            vertical: "top",
+            wrapText: colNum === 8 || colNum === 9,
+            horizontal: colNum === 10 ? "right" : colNum === 1 ? "center" : undefined,
+          };
+        });
+      });
+
+      schedule.getColumn("date").numFmt = "dd/mm/yyyy";
+      schedule.getColumn("appAmt").numFmt = currencyFormat;
+
+      const firstDataRow = 4;
+      const lastDataRow = firstDataRow + approvedRecords.length - 1;
+      const totalRow = schedule.addRow({
+        hospital: "TOTAL (Approved Claims)",
+        treatment: `Total of ${approvedRecords.length} approved authorisations`,
+        appAmt: approvedRecords.length
+          ? { formula: `SUBTOTAL(109,J${firstDataRow}:J${lastDataRow})`, result: metrics.totalAmount }
+          : metrics.totalAmount,
+      });
+      totalRow.font = { bold: true, color: { argb: "FF065F46" } };
+      totalRow.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFD1FAE5" } };
+      totalRow.getCell("appAmt").numFmt = currencyFormat;
+      totalRow.height = 24;
+
+      if (approvedRecords.length) {
+        schedule.autoFilter = {
+          from: { row: 3, column: 1 },
+          to: { row: lastDataRow, column: 11 },
+        };
+      }
+
+      // Add second sheet with all records including declined
+      const allSheet = workbook.addWorksheet("All Imported Records", {
+        views: [{ state: "frozen", xSplit: 0, ySplit: 1, showGridLines: true }],
+      });
+      allSheet.columns = [
+        { header: "Row #", key: "row", width: 8 },
+        { header: "Auth Code", key: "authCode", width: 22 },
+        { header: "Patient Name", key: "patient", width: 26 },
+        { header: "Policy #", key: "policy", width: 18 },
+        { header: "Hospital", key: "hospital", width: 34 },
+        { header: "Diagnosis", key: "diagnosis", width: 28 },
+        { header: "Original Request", key: "original", width: 45 },
+        { header: "Status", key: "status", width: 14 },
+        { header: "Approved Amount (₦)", key: "amount", width: 20 },
+        { header: "Reconciliation", key: "reconciliation", width: 16 },
+      ];
+      allSheet.getRow(1).font = { bold: true, color: { argb: "FFFFFFFF" } };
+      allSheet.getRow(1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF334155" } };
+      allSheet.getRow(1).height = 24;
+
+      reconciledRecords.forEach((r) => {
+        allSheet.addRow({
+          row: r.row_number,
+          authCode: r.authorization_code || "N/A",
+          patient: r.patient_name,
+          policy: r.policy_number,
+          hospital: r.hospital_name,
+          diagnosis: r.diagnosis,
+          original: r.raw_treatment || r.treatment,
+          status: r.status.toUpperCase(),
+          amount: r.total_amount,
+          reconciliation: r.reconciliation_status.toUpperCase(),
+        });
+      });
+      allSheet.getColumn("amount").numFmt = currencyFormat;
+
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
+      const fileStem = (file?.name || "Historical_Reconciliation").replace(/\.[^/.]+$/, "");
+      const fileName = `Payment_Advice_Schedule_${fileStem}_${new Date().toISOString().split("T")[0]}.xlsx`;
+      saveAs(blob, fileName);
+
+      toast({
+        title: "Payment Advice Downloaded!",
+        description: `Exported ${approvedRecords.length} approved records formatted for payment advice.`,
+      });
+    } catch (err: any) {
+      console.error("Export error:", err);
+      toast({
+        variant: "destructive",
+        title: "Export Failed",
+        description: err.message || "Failed to generate Payment Advice spreadsheet.",
+      });
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   const handleCommit = async () => {
     if (reconciledRecords.length === 0) return;
     setIsCommitting(true);
@@ -203,6 +595,9 @@ export function HistoricalAuthorisationImportTab() {
       });
 
       setCommitResult(res);
+      localStorage.removeItem(DRAFT_KEY);
+      setSavedDraftNotice(null);
+      setLastAutoSaved(null);
       toast({
         title: "Historical Authorisations Imported!",
         description: `Successfully stored ${res.inserted} new records and updated ${res.updated} existing records.`,
@@ -255,12 +650,15 @@ export function HistoricalAuthorisationImportTab() {
   const handleSelectTariffForItem = (index: number, item: NhiaTariffItem) => {
     setEditingItems((prev) => {
       const next = [...prev];
-      const qty = Number(next[index]?.quantity || 1);
+      const isProcedure = (item.category || "").toLowerCase() === "procedure" || item.code.startsWith("NHIA-0") || item.code.startsWith("NHIA-13") || item.code.startsWith("NHIA-18");
+      const currentQty = Number(next[index]?.quantity || 1);
+      const qty = isProcedure ? 1 : (currentQty > 0 ? currentQty : 30);
       next[index] = {
         ...next[index],
         code: item.code,
         name: item.name,
         unit_price: item.amount,
+        quantity: qty,
         amount: item.amount * qty,
         confidence: "high",
       };
@@ -274,7 +672,7 @@ export function HistoricalAuthorisationImportTab() {
     const newItem: HistoricalMatchedItem = {
       code: "",
       name: "",
-      quantity: 30,
+      quantity: 1,
       unit_price: 0,
       amount: 0,
       confidence: "high",
@@ -336,15 +734,61 @@ export function HistoricalAuthorisationImportTab() {
     if (activeSearchIndex === null) return [];
     const q = tariffSearchQuery.trim().toLowerCase();
     if (!q || q.length < 2) {
-      return tariffs.slice(0, 20);
+      return tariffs.slice(0, 30);
     }
+    const tokens = q.split(/\s+/).filter(Boolean);
     return tariffs
-      .filter((t) => t.name.toLowerCase().includes(q) || t.code.toLowerCase().includes(q))
-      .slice(0, 40);
+      .filter((t) => {
+        const name = t.name.toLowerCase();
+        const code = t.code.toLowerCase();
+        const cat = (t.category || "").toLowerCase();
+        return tokens.every((tok) => name.includes(tok) || code.includes(tok) || cat.includes(tok));
+      })
+      .slice(0, 100);
   }, [activeSearchIndex, tariffSearchQuery, tariffs]);
 
   return (
     <div className="space-y-6">
+      {/* Resume Draft Banner */}
+      {savedDraftNotice && reconciledRecords.length === 0 && (
+        <Card className="border-blue-200 bg-blue-50/70 shadow-sm rounded-2xl overflow-hidden p-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-100 text-blue-700 shrink-0">
+                <BookmarkCheck className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-blue-950">
+                  Saved Working Session Found ({savedDraftNotice.count} records)
+                </h3>
+                <p className="text-xs text-blue-700 mt-0.5">
+                  Last saved: {new Date(savedDraftNotice.savedAt).toLocaleDateString()} at{" "}
+                  {new Date(savedDraftNotice.savedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                  {savedDraftNotice.fileName ? ` · Source: ${savedDraftNotice.fileName}` : ""}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 self-end sm:self-center">
+              <Button
+                size="sm"
+                className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold"
+                onClick={handleResumeDraft}
+              >
+                Resume Working Session
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="text-xs text-slate-600 hover:text-rose-600 border-slate-300"
+                onClick={handleDiscardDraft}
+              >
+                Discard Draft
+              </Button>
+            </div>
+          </div>
+        </Card>
+      )}
+
       {/* Upload Zone */}
       {!file && (
         <Card className="border-slate-200 shadow-sm rounded-2xl overflow-hidden">
@@ -475,7 +919,45 @@ export function HistoricalAuthorisationImportTab() {
               </div>
             </div>
 
-            <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+            <div className="flex items-center gap-2 w-full sm:w-auto justify-end flex-wrap">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-9 text-xs border-emerald-600/40 text-emerald-800 hover:bg-emerald-50 font-semibold"
+                disabled={isExporting || reconciledRecords.length === 0}
+                onClick={handleDownloadPaymentAdvice}
+              >
+                {isExporting ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                    Generating Advice…
+                  </>
+                ) : (
+                  <>
+                    <Download className="h-3.5 w-3.5 mr-1.5 text-emerald-700" />
+                    Download Payment Advice (.xlsx)
+                  </>
+                )}
+              </Button>
+
+              {lastAutoSaved && (
+                <span className="text-[11px] text-slate-500 flex items-center gap-1 mr-1">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                  Auto-saved {lastAutoSaved}
+                </span>
+              )}
+
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-9 text-xs border-blue-400 text-blue-700 hover:bg-blue-50 font-medium"
+                onClick={handleSaveDraft}
+                title="Save current progress and edits locally so you can resume anytime"
+              >
+                <Save className="h-3.5 w-3.5 mr-1.5 text-blue-600" />
+                Save Draft
+              </Button>
+
               <Button
                 variant="outline"
                 size="sm"
@@ -484,6 +966,9 @@ export function HistoricalAuthorisationImportTab() {
                   setFile(null);
                   setReconciledRecords([]);
                   setCommitResult(null);
+                  localStorage.removeItem(DRAFT_KEY);
+                  setSavedDraftNotice(null);
+                  setLastAutoSaved(null);
                 }}
               >
                 <RefreshCw className="h-3.5 w-3.5 mr-1.5" />

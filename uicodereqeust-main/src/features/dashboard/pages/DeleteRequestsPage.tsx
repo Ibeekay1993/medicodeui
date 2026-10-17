@@ -119,8 +119,8 @@ export default function DeleteRequestsPage() {
               ["High Urgency", stats.urgentCount],
               ["Claims Ledger Risk", money(stats.valueAtRisk)],
             ] as [string, any][]).map(([label, value]) => (
-              <div key={label} className="premium-card p-2 sm:p-4 flex flex-col justify-center min-w-0 text-center sm:text-left rounded-xl" title={label}>
-                <p className="text-[8px] sm:text-[10px] font-bold uppercase tracking-wider text-slate-500 leading-tight mb-0.5 sm:mb-1.5 line-clamp-2">{label as string}</p>
+              <div key={label} className="flex min-w-0 flex-col justify-center rounded-lg border border-slate-200 bg-white p-2 text-left sm:p-4" title={label}>
+                <p className="mb-1 text-[11px] font-medium leading-tight text-slate-600 sm:text-xs">{label as string}</p>
                 <p className="text-sm sm:text-lg font-extrabold tabular-nums leading-none truncate text-slate-900 mt-0.5">
                   {value as any}
                 </p>

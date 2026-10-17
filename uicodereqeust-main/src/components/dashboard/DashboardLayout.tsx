@@ -83,7 +83,6 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       { name: "Payments", href: `/backoffice/admin/payments/awaiting`, icon: Banknote, hidden: r !== "admin" },
       { name: "Messages", href: `${basePath}/messages`, icon: MessageSquare, badge: actionableMessages },
       
-      { name: "Claims Analysis", href: `${basePath}/claims-analysis`, icon: LayoutDashboard, hidden: r !== "admin" },
       { name: "Claims Reports", href: `${basePath}/claims-reports`, icon: FileSpreadsheet, hidden: r !== "admin" },
       { name: "Payment Reports", href: `${basePath}/payment-reports`, icon: FileSpreadsheet, hidden: r !== "admin" },
       { name: "Pre-Auth Report", href: `${basePath}/reports`, icon: LayoutDashboard, hidden: r === "hospital" || r === "claims" || r === "finance" },
@@ -176,14 +175,11 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     if (path.startsWith("/backoffice/admin/requests")) {
       return { title: "Authorizations", description: "Search, review, and audit authorization requests" };
     }
-    if (path.startsWith("/backoffice/admin/claims-analysis")) {
-      return { title: "Claims Analysis", description: "Clinical intake and billing intelligence" };
+    if (path.startsWith("/backoffice/admin/claims-reports")) {
+      return { title: "Claims Reports", description: "Analyze claims and review detailed reports" };
     }
     if (path.startsWith("/backoffice/admin/claims")) {
       return { title: "Claims Queue", description: "Review, process, and track submitted claims" };
-    }
-    if (path.startsWith("/backoffice/admin/claims-reports")) {
-      return { title: "Claims Reports", description: "Download claims queue, payment, and audit reports" };
     }
     if (path.startsWith("/backoffice/admin/payments/awaiting")) {
       return { title: "Awaiting Payment", description: "Approved claims ready for payment processing" };

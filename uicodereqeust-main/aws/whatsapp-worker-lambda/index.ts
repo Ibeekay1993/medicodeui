@@ -1,6 +1,7 @@
 import { timingSafeEqual } from "node:crypto";
 import { ChangeMessageVisibilityCommand, SendMessageCommand, SQSClient } from "@aws-sdk/client-sqs";
 import { resolveWorkerHandler } from "./runtime-shims/worker-handler.ts";
+import { createDeterministicWorkerRequest } from "./runtime-shims/worker-request.ts";
 
 const STAGING_ACK = "STAGING_ONLY_NOT_PRODUCTION";
 const PRODUCTION_CUTOVER_ACK = "PRODUCTION_WHATSAPP_WORKER_CUTOVER_20261008";
@@ -187,14 +188,9 @@ async function setRetryVisibility(record: SqsEventRecord, seconds: number) {
 
 async function invokeWorker(payload: JsonRecord, remainingMs: number) {
   const workerHandler = await resolveWorkerHandler();
-  const response = await workerHandler(new Request("https://lambda.local/functions/v1/whatsapp-worker", {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      "x-worker-secret": process.env.WHATSAPP_WORKER_SECRET!,
-    },
-    body: JSON.stringify(payload),
-  }));
+  const response = await workerHandler(
+    createDeterministicWorkerRequest(payload, process.env.WHATSAPP_WORKER_SECRET!),
+  );
   const body = await response.text();
   await flushWaitUntilTasks(Math.min(8_000, remainingMs - 2_000));
   return { statusCode: response.status, body };

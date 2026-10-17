@@ -112,9 +112,9 @@ export const PHYSIOTHERAPY_RATE = 7500.0;
 
 export const LAB_MAP: Record<string, { code: string; name: string; amount: number }> = {
   ecg: { code: "NHIA-040-008", name: "Electrocardiography (ECG)", amount: 10000.0 },
-  flp: { code: "NHIA-181-042", name: "Fasting Lipid Profile", amount: 8000.0 },
-  lipid: { code: "NHIA-181-042", name: "Fasting Lipid Profile", amount: 8000.0 },
-  psa: { code: "NHIA-181-082", name: "Prostate Specific Antigen (PSA)", amount: 15000.0 },
+  flp: { code: "NHIA-181-018", name: "Total Cholesterol 2,500.00 Total Lipid Profile (a-d)", amount: 6000.0 },
+  lipid: { code: "NHIA-181-018", name: "Total Cholesterol 2,500.00 Total Lipid Profile (a-d)", amount: 6000.0 },
+  psa: { code: "NHIA-181-082", name: "Prostate Specific Antigen (PSA): (a - b)", amount: 15000.0 },
   hba1c: { code: "NHIA-181-046", name: "Glycated Hemoglobin (HbA1c)", amount: 10000.0 },
   hbalc: { code: "NHIA-181-046", name: "Glycated Hemoglobin (HbA1c)", amount: 10000.0 },
   hbaic: { code: "NHIA-181-046", name: "Glycated Hemoglobin (HbA1c)", amount: 10000.0 },
@@ -122,19 +122,23 @@ export const LAB_MAP: Record<string, { code: string; name: string; amount: numbe
   "e/u": { code: "NHIA-181-030", name: "Electrolytes, Urea and Creatinine", amount: 9000.0 },
   eucr: { code: "NHIA-181-030", name: "Electrolytes, Urea and Creatinine", amount: 9000.0 },
   "serum e/u": { code: "NHIA-181-030", name: "Electrolytes, Urea and Creatinine", amount: 9000.0 },
-  "urine mcs": { code: "NHIA-181-110", name: "Urine Microscopy, Culture & Sensitivity", amount: 5000.0 },
-  "stool microscopy": { code: "NHIA-181-098", name: "Stool Microscopy, Culture & Sensitivity", amount: 5000.0 },
-  scan: { code: "NHIA-030-001", name: "Abdominopelvic Ultrasound Scan", amount: 6000.0 },
-  uss: { code: "NHIA-030-001", name: "Abdominopelvic Ultrasound Scan", amount: 6000.0 },
-  "x-ray": { code: "NHIA-020-001", name: "Plain Radiography (X-Ray)", amount: 5000.0 },
-  xray: { code: "NHIA-020-001", name: "Plain Radiography (X-Ray)", amount: 5000.0 },
-  hbsag: { code: "NHIA-181-050", name: "Hepatitis B Surface Antigen (HBsAg)", amount: 3500.0 },
-  "anti-hcv": { code: "NHIA-181-051", name: "Hepatitis C Virus Antibody (Anti-HCV)", amount: 4000.0 },
-  rvs: { code: "NHIA-181-055", name: "Retroviral Screening (RVS / HIV)", amount: 3000.0 },
-  "pap smear": { code: "NHIA-181-075", name: "Cervical Cytology (Pap Smear)", amount: 8000.0 },
-  mammogram: { code: "NHIA-020-015", name: "Mammography (Bilateral)", amount: 15000.0 },
-  "semen analysis": { code: "NHIA-181-090", name: "Seminal Fluid Analysis", amount: 6000.0 },
-  tonometry: { code: "NHIA-081-008", name: "Applanation Tonometry", amount: 3000.0 },
+  "urine mcs": { code: "NHIA-183-005", name: "b) Microscopy, Culture & Sensitivity", amount: 4000.0 },
+  "stool microscopy": { code: "NHIA-183-004", name: "a) Microscopy R/E only", amount: 2314.29 },
+  scan: { code: "NHIA-179-006", name: "Abdominal Pelvic Scan", amount: 8500.0 },
+  uss: { code: "NHIA-179-006", name: "Abdominal Pelvic Scan", amount: 8500.0 },
+  "x-ray": { code: "NHIA-173-001", name: "Chest (PA/AP) (1 view)", amount: 6000.0 },
+  xray: { code: "NHIA-173-001", name: "Chest (PA/AP) (1 view)", amount: 6000.0 },
+  hbsag: { code: "NHIA-184-004", name: "Hepatitis B Surface Antigen (HbsAg)", amount: 4628.57 },
+  "anti-hcv": { code: "NHIA-184-013", name: "Hepatitis C Antibody (HCVAb)", amount: 11112.5 },
+  rvs: { code: "NHIA-184-009", name: "HIV Screening", amount: 9992.86 },
+  "pap smear": { code: "NHIA-185-005", name: "Pap Smear", amount: 11320.0 },
+  mammogram: { code: "NHIA-178-025", name: "Mammogram", amount: 26770.0 },
+  "semen analysis": { code: "NHIA-183-013", name: "a) Semen Analysis", amount: 4527.78 },
+  tonometry: { code: "NHIA-081-003", name: "Tonometry (Pulsair/Goldmann Applanation)", amount: 4562.5 },
+  "direct ophthalmoscopy": { code: "NHIA-081-007", name: "Direct Ophthalmoscopy", amount: 4000.0 },
+  ophthalmoscopy: { code: "NHIA-081-007", name: "Direct Ophthalmoscopy", amount: 4000.0 },
+  "d.o": { code: "NHIA-081-007", name: "Direct Ophthalmoscopy", amount: 4000.0 },
+  "d/o": { code: "NHIA-081-007", name: "Direct Ophthalmoscopy", amount: 4000.0 },
   "specialist consultation": { code: "NHIA-010-001", name: "Specialist Initial Consultation", amount: 4000.0 },
   consultation: { code: "NHIA-010-001", name: "Specialist Initial Consultation", amount: 4000.0 },
   "initial consultation": { code: "NHIA-010-001", name: "Specialist Initial Consultation", amount: 4000.0 },
@@ -148,25 +152,25 @@ export const LAB_MAP: Record<string, { code: string; name: string; amount: numbe
 };
 
 export const BRAND_MAP: Record<string, { code: string; name: string; amount: number }> = {
-  vasoprin: { code: "NHIA-02-03-01", name: "Acetylsalicylic Acid Tablet 75mg/100mg", amount: 30.0 },
+  vasoprin: { code: "NHIA-11-03-01", name: "Acetylsalicylic acid Tablet 75 mg Tab", amount: 11.0 },
   moduretic: { code: "NHIA-12-03-01", name: "Amiloride + Hydrochlorothiazide Tablet 5mg+ 50mg Tab", amount: 36.0 },
   aldomet: { code: "NHIA-12-04-51", name: "Methyldopa Tablet 500mg Tablet", amount: 69.0 },
-  daonil: { code: "NHIA-17-06-14", name: "Glibenclamide Tablet 5mg Tab.", amount: 30.0 },
-  tegretol: { code: "NHIA-05-01-01", name: "Carbamazepine Tablet 200mg Tab", amount: 50.0 },
+  daonil: { code: "NHIA-17-06-14", name: "Glibenclamide Tablets 5mg Tab", amount: 28.0 },
+  tegretol: { code: "NHIA-05-01-01", name: "Carbamazepine Tablet 200mg Tab.", amount: 149.0 },
   avsar: { code: "NHIA-12-04-04", name: "Amlodipine + Valsartan Tablet 5 mg + 160mg Tab", amount: 280.0 },
-  neurovite: { code: "NHIA-27-01-01", name: "Vitamin B Complex Tablet Tab.", amount: 20.0 },
-  lantus: { code: "NHIA-17-06-03", name: "Insulin Soluble/Glargine Injection 100 units/ml Vial", amount: 12474.0 },
-  insulin: { code: "NHIA-17-06-03", name: "Insulin Soluble/Glargine Injection 100 units/ml Vial", amount: 12474.0 },
-  insulisn: { code: "NHIA-17-06-03", name: "Insulin Soluble/Glargine Injection 100 units/ml Vial", amount: 12474.0 },
+  neurovite: { code: "NHIA-25-01-20", name: "Vitamin B Complex Tablets/Capsules Tab.", amount: 6.0 },
+  lantus: { code: "NHIA-17-06-03", name: "Insulin Soluble Injection 100 units/ml Vial", amount: 12474.0 },
+  insulin: { code: "NHIA-17-06-03", name: "Insulin Soluble Injection 100 units/ml Vial", amount: 12474.0 },
+  insulisn: { code: "NHIA-17-06-03", name: "Insulin Soluble Injection 100 units/ml Vial", amount: 12474.0 },
   hct: { code: "NHIA-12-03-05", name: "Hydrochlorothiazide Tablet 25mg Tab.", amount: 40.0 },
   htc: { code: "NHIA-12-03-05", name: "Hydrochlorothiazide Tablet 25mg Tab.", amount: 40.0 },
-  amiloride: { code: "NHIA-12-03-01", name: "Amiloride + Hydrochlorothiazide Tablet", amount: 36.0 },
-  indapamide: { code: "NHIA-12-03-08", name: "Indapamide Tablet 1.5mg Tab.", amount: 80.0 },
-  indapimide: { code: "NHIA-12-03-08", name: "Indapamide Tablet 1.5mg Tab.", amount: 80.0 },
-  tamsulosin: { code: "NHIA-18-01-01", name: "Tamsulosin Capsule 0.4mg Cap.", amount: 150.0 },
-  benxehexol: { code: "NHIA-05-02-01", name: "Trihexyphenidyl (Benzhexol) 5mg Tab.", amount: 45.0 },
-  chlorpromazine: { code: "NHIA-24-01-01", name: "Chlorpromazine Tablet 100mg/300mg", amount: 55.0 },
-  clopidogrel: { code: "NHIA-12-04-20", name: "Clopidogrel Tablet 75mg Tab.", amount: 110.0 },
+  amiloride: { code: "NHIA-12-03-01", name: "Amiloride + Hydrochlorothiazide Tablet 5mg+ 50mg Tab", amount: 36.0 },
+  indapamide: { code: "NHIA-12-04-31", name: "Indapamide 1.5mg tab Tab 1.5mg Tab", amount: 310.0 },
+  indapimide: { code: "NHIA-12-04-31", name: "Indapamide 1.5mg tab Tab 1.5mg Tab", amount: 310.0 },
+  tamsulosin: { code: "NHIA-17-08-03", name: "Tamsulosin Tablet 400mcg Tab", amount: 439.0 },
+  benxehexol: { code: "NHIA-09-01-02", name: "Benzhexol Tablets 5 mg (as HCl) Tab.", amount: 16.0 },
+  chlorpromazine: { code: "NHIA-23-03-06", name: "Chlorpromazine Tablet 100mg (HCL) Tab.", amount: 82.0 },
+  clopidogrel: { code: "NHIA-11-03-04", name: "Clopidogrel Tablet 75mg Tab.", amount: 190.0 },
 };
 
 // ── CLINICAL TEXT CLEANING & PARSING ─────────────────────────────────────────
@@ -201,6 +205,13 @@ export function cleanClinicalText(value: unknown): string {
   t = t.replace(/\bnorvasc\b/gi, "amlodipine");
   t = t.replace(/\bcozaar\b/gi, "losartan");
   t = t.replace(/\bglucophage\b/gi, "metformin");
+  t = t.replace(/\bamilode\b/gi, "amiloride");
+  t = t.replace(/\blatus\b/gi, "lantus");
+
+  // Automatically insert boundary comma between unseparated drug lines
+  // (e.g. "...x 1/12 Tab Indapamide..." or "...10mg bd x 1/12 Tab Amlodipine...")
+  t = t.replace(/(\b(?:1\/12|2\/12|3\/12|1\/52|2\/52|3\/52|4\/52|5\/52|5\/7|3\/7|7\/7|10\/7|14\/7|dly|daily|bd|tds|tid|qid|nocte|mane|od|\d+mg|\d+g|\d+\s*tabs?)\b|\))\s+(?=(?:Tab|Cap|Inj)\s+[A-Za-z])/gi, "$1, ");
+
   return t;
 }
 
@@ -214,10 +225,12 @@ export function extractMedicationQuantity(text: string): number {
     if (!isNaN(qty) && qty > 0) return Math.min(qty, 600);
   }
 
-  // 2. Check for explicit total supply count, e.g. "(30 tabs)", "(60 tabs)", "(14 tabs each)"
-  const explicit = Array.from(text.matchAll(/\(?\b(\d+)\s*(?:tabs?|tablets?|caps?|capsules?|each)\b\)?/gi));
+  // 2. Check for explicit total supply count enclosed in parentheses or with 'each'
+  // e.g. "(30 tabs)", "(60 tabs)", "(14 tabs each)", "30 tabs each"
+  const explicit = Array.from(text.matchAll(/(?:\(\s*(\d+)\s*(?:tabs?|tablets?|caps?|capsules?|each)\b[^\)]*\)|\b(\d+)\s*(?:tabs?|tablets?|caps?|capsules?)\s+each\b)/gi));
   if (explicit.length > 0) {
-    const qty = parseInt(explicit[explicit.length - 1][1], 10);
+    const match = explicit[explicit.length - 1];
+    const qty = parseInt(match[1] || match[2], 10);
     if (!isNaN(qty) && qty > 0) return Math.min(qty, 600);
   }
 
@@ -283,35 +296,37 @@ export function resolveHospitalEntities(
     code: "OY/0231/P",
   };
 
-  // Check referral from Jaja to UCH
-  if (lower.includes("referral to university college hospital") || lower.includes("refferal from university health service")) {
+  // 1. UCH (Direct or Referral from Jaja)
+  if (lower.includes("university college hospital") || lower.includes("oy/0001") || lower.includes("college hospital") || lower.includes("uch")) {
+    const isReferralFromJaja = lower.includes("referral") || lower.includes("refferal") || lower.includes("health service") || lower.includes("jaja");
     return {
-      hospital_id: jaja.id,
-      hospital_name: jaja.name,
-      requesting_hospital_id: jaja.id,
-      requesting_hospital_name: jaja.name,
-      referred_hospital_id: uch.id,
-      referred_hospital_name: uch.name,
+      hospital_id: uch.id,
+      hospital_name: uch.name,
+      requesting_hospital_id: isReferralFromJaja ? jaja.id : uch.id,
+      requesting_hospital_name: isReferralFromJaja ? jaja.name : uch.name,
+      referred_hospital_id: isReferralFromJaja ? uch.id : null,
+      referred_hospital_name: isReferralFromJaja ? uch.name : null,
       claiming_hospital_id: uch.id,
       claiming_hospital_name: uch.name,
     };
   }
 
-  // Check referral to Police Clinic
-  if (lower.includes("police clinic")) {
+  // 2. Police Clinic (Direct or Referral from Jaja)
+  if (lower.includes("police")) {
+    const isReferralFromJaja = lower.includes("referral") || lower.includes("refferal") || lower.includes("health service") || lower.includes("jaja");
     return {
-      hospital_id: jaja.id,
-      hospital_name: jaja.name,
-      requesting_hospital_id: jaja.id,
-      requesting_hospital_name: jaja.name,
-      referred_hospital_id: police.id,
-      referred_hospital_name: police.name,
+      hospital_id: police.id,
+      hospital_name: police.name,
+      requesting_hospital_id: isReferralFromJaja ? jaja.id : police.id,
+      requesting_hospital_name: isReferralFromJaja ? jaja.name : police.name,
+      referred_hospital_id: isReferralFromJaja ? police.id : null,
+      referred_hospital_name: isReferralFromJaja ? police.name : null,
       claiming_hospital_id: police.id,
       claiming_hospital_name: police.name,
     };
   }
 
-  // Foremost Base Hospital
+  // 3. Foremost Base Hospital
   if (lower.includes("foremost")) {
     const foremost = hospitals.find((h) => h.name.toLowerCase().includes("foremost") || h.code === "OY/0348/P");
     const fId = foremost ? foremost.id : "OY/0348/P";
@@ -328,7 +343,7 @@ export function resolveHospitalEntities(
     };
   }
 
-  // LA/1283/P (A. B. 10 Hospital)
+  // 4. LA/1283/P (A. B. 10 Hospital)
   if (lower.includes("la/1283") || lower.includes("1283")) {
     const ab = hospitals.find((h) => h.code === "LA/1283/P" || h.name.toLowerCase().includes("a. b. 10"));
     const abId = ab ? ab.id : "LA/1283/P";
@@ -345,7 +360,7 @@ export function resolveHospitalEntities(
     };
   }
 
-  // Default Jaja Clinic primary request
+  // 5. Default Jaja Clinic primary request
   return {
     hospital_id: jaja.id,
     hospital_name: jaja.name,
@@ -416,10 +431,38 @@ export function reconcileHistoricalRow(
     ? "pending"
     : "approved";
 
-  const hospEntities = resolveHospitalEntities(row.hospital, hospitals);
+  let hospEntities = resolveHospitalEntities(row.hospital, hospitals);
 
   const matchedItems: HistoricalMatchedItem[] = [];
   const reviewIssues: string[] = [];
+
+  // ── DENTAL UCH REFERRAL OVERRIDE ────────────────────────────────────────────
+  // Dental procedures such as RPD, dentures, prosthodontics, crown & bridge,
+  // root canal treatment, and advanced restorations are performed at the UCH
+  // Department of Restorative Dentistry. When the Excel hospital field is Jaja
+  // (meaning Jaja initiated the referral but UCH actually performed the work),
+  // we promote the claim to UCH as the claiming/treating hospital.
+  const isDentalUchProcedure = /rpd|removable\s*partial\s*denture|denture|prosthodontic|kennedy\s*class|implant|crown\s*&\s*bridge|crown\s*and\s*bridge/i.test(cleanTreatment);
+  const isJajaHospital = hospEntities.hospital_name.toLowerCase().includes("jaja") ||
+    hospEntities.hospital_name.toLowerCase().includes("university of ibadan health service");
+  if (isDentalUchProcedure && isJajaHospital) {
+    const uch = hospitals.find(
+      (h) => h.code === "OY/0001/P" || (h.name.toLowerCase().includes("university college hospital") && !h.name.toLowerCase().includes("jaja"))
+    ) || { id: "OY/0001/P", name: "UNIVERSITY COLLEGE HOSPITAL", code: "OY/0001/P" };
+    const jaja = hospitals.find(
+      (h) => h.code === "OY/0252/P" || (h.name.toLowerCase().includes("jaja") && h.name.toLowerCase().includes("ibadan"))
+    ) || { id: "OY/0252/P", name: "UNIVERSITY OF IBADAN HEALTH SERVICES (JAJA HEALTH CLINIC)", code: "OY/0252/P" };
+    hospEntities = {
+      hospital_id: uch.id,
+      hospital_name: uch.name,
+      requesting_hospital_id: jaja.id,
+      requesting_hospital_name: jaja.name,
+      referred_hospital_id: uch.id,
+      referred_hospital_name: uch.name,
+      claiming_hospital_id: uch.id,
+      claiming_hospital_name: uch.name,
+    };
+  }
 
   const category = String(row.category || "").toLowerCase();
   const cleanLower = cleanTreatment.toLowerCase();
@@ -438,11 +481,88 @@ export function reconcileHistoricalRow(
     });
   } else if (
     (cleanLower.includes("refraction") && cleanLower.includes("glasses")) ||
-    ((cleanLower.includes("refraction") || cleanLower.includes("glasses") || cleanLower.includes("ophthalmoscopy") || cleanLower.includes("d.o")) &&
-      (category.includes("optical") || cleanLower.includes("presbyop") || cleanLower.includes("astigmatism") || cleanLower.includes("eye") || cleanLower.includes("vision")))
+    ((cleanLower.includes("refraction") || cleanLower.includes("glasses") || cleanLower.includes("ophthalmoscopy") || cleanLower.includes("d.o") || cleanLower.includes("d/o")) &&
+      (category.includes("optical") || cleanLower.includes("presbyop") || cleanLower.includes("astigmatism") || cleanLower.includes("eye") || cleanLower.includes("vision") || cleanLower.includes("refractive")))
   ) {
-    // 1. Optical Bundle Preset
-    OPTICAL_BUNDLE.forEach((item) => matchedItems.push({ ...item }));
+    // 1. Optical Bundle & Procedures
+    // Consultation
+    if (cleanLower.includes("consult") || cleanLower.includes("specialist") || (!cleanLower.includes("tonometry") && !cleanLower.includes("refraction") && !cleanLower.includes("glasses"))) {
+      matchedItems.push({
+        code: "NHIA-010-001",
+        name: "Specialist Initial Consultation",
+        quantity: 1,
+        unit_price: 4000.0,
+        amount: 4000.0,
+        confidence: "high",
+        source_term: "Consultation",
+      });
+    } else {
+      matchedItems.push({
+        code: "NHIA-010-001",
+        name: "Specialist Initial Consultation",
+        quantity: 1,
+        unit_price: 4000.0,
+        amount: 4000.0,
+        confidence: "high",
+        source_term: "Consultation",
+      });
+    }
+
+    // Manual Refraction
+    if (cleanLower.includes("refraction") || cleanLower.includes("refractiion")) {
+      matchedItems.push({
+        code: "NHIA-081-001",
+        name: "Manual Refraction",
+        quantity: 1,
+        unit_price: 3000.0,
+        amount: 3000.0,
+        confidence: "high",
+        source_term: "Manual Refraction",
+      });
+    }
+
+    // Direct Ophthalmoscopy (NHIA-081-007: ₦4,000.00)
+    if (
+      cleanLower.includes("ophthalmoscopy") ||
+      cleanLower.includes("ophthamoscopy") ||
+      /\b(d\.o|d\/o)\b/i.test(cleanLower)
+    ) {
+      matchedItems.push({
+        code: "NHIA-081-007",
+        name: "Direct Ophthalmoscopy",
+        quantity: 1,
+        unit_price: 4000.0,
+        amount: 4000.0,
+        confidence: "high",
+        source_term: "Direct Ophthalmoscopy",
+      });
+    }
+
+    // Tonometry (NHIA-081-003: ₦4,562.50)
+    if (cleanLower.includes("tonometry")) {
+      matchedItems.push({
+        code: "NHIA-081-003",
+        name: "Tonometry (Pulsair/Goldmann Applanation)",
+        quantity: 1,
+        unit_price: 4562.5,
+        amount: 4562.5,
+        confidence: "high",
+        source_term: "Tonometry",
+      });
+    }
+
+    // Spectacles / Glasses (NHIA-081-015: ₦20,000.00)
+    if (cleanLower.includes("glasses") || cleanLower.includes("spectacle") || cleanLower.includes("lens")) {
+      matchedItems.push({
+        code: "NHIA-081-015",
+        name: "Low-priced spectacles/contact lens - frame and lens",
+        quantity: 1,
+        unit_price: 20000.0,
+        amount: 20000.0,
+        confidence: "high",
+        source_term: "Glasses",
+      });
+    }
   } else if (cleanLower.includes("physiotherapy") || category.includes("physio")) {
     // 2. Physiotherapy Sessions
     const m = cleanTreatment.match(/(\d+)\s*(?:sessions?|physiotherapy)/i);
@@ -494,21 +614,261 @@ export function reconcileHistoricalRow(
     });
   } else if (
     category.includes("dental") ||
-    /s&p|scaling|extraction|rct|denture|composite|rpd/i.test(cleanTreatment)
+    /s&p|scaling|extraction|rct|root canal|denture|composite|rpd|kennedy\s*class|removable\s*partial|prosthodontic|curettage|amalgam|fissure\s*seal|fistulect|sequest|pulpal|periodon|periapic|bitewing|panoram|tongue\s*tie|adenoid|cleft|submandib|parotid|thyroglos|tracheost|mandibul|sialoa|salivary|jaw\s*fract|maxillar\s*fract|sequestr/i.test(cleanTreatment)
   ) {
-    // 4. Dental procedures
-    if (/s&p|scaling/i.test(cleanTreatment)) {
+    // ── DENTAL & ORAL SURGERY PROCEDURES ─────────────────────────────────────
+    // All codes from the official NHIA 2025 dental tariff schedule
+
+    // ── Dental Radiology ──────────────────────────────────────────────────────
+    if (/periapical\s*(?:x[- ]?ray)?/i.test(cleanTreatment)) {
       matchedItems.push({
-        code: "NHIA-070-001",
-        name: "Scaling and Polishing (Routine)",
+        code: "NHIA-121-001",
+        name: "Periapical X-Ray",
         quantity: 1,
         unit_price: 5000.0,
         amount: 5000.0,
         confidence: "high",
+        source_term: "Periapical X-Ray",
+      });
+    }
+    if (/bitewing/i.test(cleanTreatment)) {
+      matchedItems.push({
+        code: "NHIA-121-002",
+        name: "Bitewings (X-Ray)",
+        quantity: 1,
+        unit_price: 6000.0,
+        amount: 6000.0,
+        confidence: "high",
+        source_term: "Bitewings X-Ray",
+      });
+    }
+    if (/panoram/i.test(cleanTreatment)) {
+      matchedItems.push({
+        code: "NHIA-121-003",
+        name: "Panoramic View (X-Ray)",
+        quantity: 1,
+        unit_price: 9000.0,
+        amount: 9000.0,
+        confidence: "high",
+        source_term: "Panoramic X-Ray",
+      });
+    }
+
+    // ── Scaling & Polishing ───────────────────────────────────────────────────
+    if (/s\s*&\s*p|scaling\s*(?:and|&)?\s*polish/i.test(cleanTreatment)) {
+      // Heavy (therapeutic) if specified, otherwise default to light
+      const isHeavy = /heavy|therapeu/i.test(cleanTreatment);
+      matchedItems.push({
+        code: isHeavy ? "NHIA-121-004" : "NHIA-121-005",
+        name: isHeavy ? "Scaling & Polishing - heavy (therapeutic)" : "Scaling & Polishing - light (therapeutic)",
+        quantity: 1,
+        unit_price: isHeavy ? 10000.0 : 9000.0,
+        amount: isHeavy ? 10000.0 : 9000.0,
+        confidence: "high",
         source_term: "Scaling and Polishing",
       });
     }
-    if (/extraction/i.test(cleanTreatment)) {
+
+    // ── Curettage ─────────────────────────────────────────────────────────────
+    if (/curettage/i.test(cleanTreatment)) {
+      matchedItems.push({
+        code: "NHIA-121-006",
+        name: "Curettage",
+        quantity: 1,
+        unit_price: 15000.0,
+        amount: 15000.0,
+        confidence: "high",
+        source_term: "Curettage",
+      });
+    }
+
+    // ── Amalgam Restoration ───────────────────────────────────────────────────
+    if (/amalgam/i.test(cleanTreatment)) {
+      const isClassII = /class\s*ii/i.test(cleanTreatment);
+      matchedItems.push({
+        code: isClassII ? "NHIA-121-008" : "NHIA-121-007",
+        name: isClassII ? "Amalgam Restoration (Class II)" : "Amalgam Restoration",
+        quantity: 1,
+        unit_price: isClassII ? 15000.0 : 25000.0,
+        amount: isClassII ? 15000.0 : 25000.0,
+        confidence: "high",
+        source_term: "Amalgam Restoration",
+      });
+    }
+
+    // ── Composite Restoration ─────────────────────────────────────────────────
+    if (/composite/i.test(cleanTreatment)) {
+      matchedItems.push({
+        code: "NHIA-121-009",
+        name: "Composite Restoration",
+        quantity: 1,
+        unit_price: 15000.0,
+        amount: 15000.0,
+        confidence: "high",
+        source_term: "Composite Restoration",
+      });
+    }
+
+    // ── Pulpal Treatment ──────────────────────────────────────────────────────
+    if (/pulpal|pulpot|pulpect/i.test(cleanTreatment)) {
+      matchedItems.push({
+        code: "NHIA-121-010",
+        name: "Pulpal Treatment for Children",
+        quantity: 1,
+        unit_price: 10000.0,
+        amount: 10000.0,
+        confidence: "high",
+        source_term: "Pulpal Treatment",
+      });
+    }
+
+    // ── Periodontal Gum Treatment ─────────────────────────────────────────────
+    if (/periodon|gum\s*treat/i.test(cleanTreatment)) {
+      matchedItems.push({
+        code: "NHIA-121-011",
+        name: "Periodontal Gum Treatment",
+        quantity: 1,
+        unit_price: 10000.0,
+        amount: 10000.0,
+        confidence: "high",
+        source_term: "Periodontal Gum Treatment",
+      });
+    }
+
+    // ── Fissure Sealant ───────────────────────────────────────────────────────
+    if (/fissure\s*seal/i.test(cleanTreatment)) {
+      matchedItems.push({
+        code: "NHIA-121-012",
+        name: "Fissure Sealant",
+        quantity: 1,
+        unit_price: 8000.0,
+        amount: 8000.0,
+        confidence: "high",
+        source_term: "Fissure Sealant",
+      });
+    }
+
+    // ── Dental Fistulectomy ───────────────────────────────────────────────────
+    if (/fistulect/i.test(cleanTreatment)) {
+      matchedItems.push({
+        code: "NHIA-121-013",
+        name: "Fistulectomy (Dental)",
+        quantity: 1,
+        unit_price: 48000.0,
+        amount: 48000.0,
+        confidence: "high",
+        source_term: "Fistulectomy",
+      });
+    }
+
+    // ── Sequestrectomy (dental) ───────────────────────────────────────────────
+    if (/sequest/i.test(cleanTreatment)) {
+      const isMajorGA = /major|under\s*ga/i.test(cleanTreatment);
+      const isMinorLA = /minor|under\s*la/i.test(cleanTreatment);
+      if (isMajorGA) {
+        matchedItems.push({
+          code: "NHIA-024-007",
+          name: "Major Sequestrectomy (Under GA)",
+          quantity: 1,
+          unit_price: 120160.0,
+          amount: 120160.0,
+          confidence: "high",
+          source_term: "Major Sequestrectomy",
+        });
+      } else if (isMinorLA) {
+        matchedItems.push({
+          code: "NHIA-024-008",
+          name: "Minor Sequestrectomy (Under LA)",
+          quantity: 1,
+          unit_price: 80000.0,
+          amount: 80000.0,
+          confidence: "high",
+          source_term: "Minor Sequestrectomy",
+        });
+      } else {
+        matchedItems.push({
+          code: "NHIA-121-014",
+          name: "Sequestrectomy",
+          quantity: 1,
+          unit_price: 32800.0,
+          amount: 32800.0,
+          confidence: "high",
+          source_term: "Sequestrectomy",
+        });
+      }
+    }
+
+    // ── Root Canal Therapy ────────────────────────────────────────────────────
+    if (/root\s*canal|rct/i.test(cleanTreatment)) {
+      const isPosterior = /posterior|molar|premolar/i.test(cleanTreatment);
+      matchedItems.push({
+        code: isPosterior ? "NHIA-121-016" : "NHIA-121-015",
+        name: isPosterior ? "Root Canal Therapy Posterior" : "Root Canal Therapy Anterior",
+        quantity: 1,
+        unit_price: isPosterior ? 28250.0 : 30000.0,
+        amount: isPosterior ? 28250.0 : 30000.0,
+        confidence: "high",
+        source_term: isPosterior ? "Root Canal Therapy Posterior" : "Root Canal Therapy Anterior",
+      });
+    }
+
+    // ── Dentures / RPD ────────────────────────────────────────────────────────
+    if (/relin|repair.*denture|impression.*denture|denture.*relin|denture.*repair|denture.*impression/i.test(cleanTreatment)) {
+      matchedItems.push({
+        code: "NHIA-121-018",
+        name: "Denture (relining/repair/impression)",
+        quantity: 1,
+        unit_price: 6600.0,
+        amount: 6600.0,
+        confidence: "high",
+        source_term: "Denture relining/repair",
+      });
+    } else if (/rpd|removable\s*partial|kennedy\s*class|prosthodontic/i.test(cleanTreatment)) {
+      matchedItems.push({
+        code: "NHIA-870-022",
+        name: "Removable Partial Denture (RPD)",
+        quantity: 1,
+        unit_price: 25000.0,
+        amount: 25000.0,
+        confidence: "high",
+        source_term: "Removable Partial Denture",
+      });
+    } else if (/denture/i.test(cleanTreatment)) {
+      matchedItems.push({
+        code: "NHIA-121-017",
+        name: "Dentures",
+        quantity: 1,
+        unit_price: 11777.78,
+        amount: 11777.78,
+        confidence: "high",
+        source_term: "Dentures",
+      });
+    }
+
+    // ── Minor Oral Surgeries ──────────────────────────────────────────────────
+    if (/tongue\s*tie|ankyloglossia/i.test(cleanTreatment)) {
+      matchedItems.push({
+        code: "NHIA-022-001-B",
+        name: "Release of Tongue Tie",
+        quantity: 1,
+        unit_price: 26833.33,
+        amount: 26833.33,
+        confidence: "high",
+        source_term: "Release of Tongue Tie",
+      });
+    }
+    if (/surgical\s*extract/i.test(cleanTreatment)) {
+      matchedItems.push({
+        code: "NHIA-022-003-B",
+        name: "Surgical Extraction",
+        quantity: 1,
+        unit_price: 16666.67,
+        amount: 16666.67,
+        confidence: "high",
+        source_term: "Surgical Extraction",
+      });
+    } else if (/extraction/i.test(cleanTreatment)) {
+      // Simple extraction (default if not surgical)
       matchedItems.push({
         code: "NHIA-070-004",
         name: "Simple Tooth Extraction",
@@ -516,42 +876,191 @@ export function reconcileHistoricalRow(
         unit_price: 4000.0,
         amount: 4000.0,
         confidence: "high",
-        source_term: "Extraction",
+        source_term: "Simple Extraction",
       });
     }
-    if (/rct/i.test(cleanTreatment)) {
+
+    // ── Intermediate Oral Surgeries ───────────────────────────────────────────
+    if (/adenoidect/i.test(cleanTreatment)) {
       matchedItems.push({
-        code: "NHIA-070-008",
-        name: "Root Canal Treatment",
+        code: "NHIA-023-001-B",
+        name: "Adenoidectomy",
         quantity: 1,
-        unit_price: 15000.0,
-        amount: 15000.0,
+        unit_price: 120000.0,
+        amount: 120000.0,
         confidence: "high",
-        source_term: "RCT",
+        source_term: "Adenoidectomy",
       });
     }
-    if (/composite/i.test(cleanTreatment)) {
+    if (/cleft\s*lip/i.test(cleanTreatment)) {
       matchedItems.push({
-        code: "NHIA-070-006",
-        name: "Composite Restoration (Light Cure)",
+        code: "NHIA-023-002-B",
+        name: "Cleft Lip Repairs",
         quantity: 1,
-        unit_price: 6000.0,
-        amount: 6000.0,
+        unit_price: 150000.0,
+        amount: 150000.0,
         confidence: "high",
-        source_term: "Composite",
+        source_term: "Cleft Lip Repairs",
       });
     }
-    if (/rpd|denture/i.test(cleanTreatment)) {
+    if (/submandibular\s*gland\s*excis/i.test(cleanTreatment)) {
       matchedItems.push({
-        code: "NHIA-070-022",
-        name: "Removable Partial Denture",
+        code: "NHIA-022-003-C",
+        name: "Submandibular Gland Excision",
         quantity: 1,
-        unit_price: 25000.0,
-        amount: 25000.0,
+        unit_price: 150000.0,
+        amount: 150000.0,
         confidence: "high",
-        source_term: "Partial Denture",
+        source_term: "Submandibular Gland Excision",
       });
     }
+    if (/superficial\s*parotid/i.test(cleanTreatment)) {
+      matchedItems.push({
+        code: "NHIA-022-004-B",
+        name: "Superficial Parotidectomy",
+        quantity: 1,
+        unit_price: 118000.0,
+        amount: 118000.0,
+        confidence: "high",
+        source_term: "Superficial Parotidectomy",
+      });
+    }
+    if (/thyroglos/i.test(cleanTreatment)) {
+      matchedItems.push({
+        code: "NHIA-022-005-B",
+        name: "Thyroglossal Cyst/Fistula Excision",
+        quantity: 1,
+        unit_price: 93000.0,
+        amount: 93000.0,
+        confidence: "high",
+        source_term: "Thyroglossal Cyst Excision",
+      });
+    }
+    if (/tracheostom/i.test(cleanTreatment)) {
+      matchedItems.push({
+        code: "NHIA-022-006-B",
+        name: "Tracheostomy",
+        quantity: 1,
+        unit_price: 58000.0,
+        amount: 58000.0,
+        confidence: "high",
+        source_term: "Tracheostomy",
+      });
+    }
+
+    // ── Major Oral / Maxillofacial Surgeries ──────────────────────────────────
+    if (/cleft\s*palate/i.test(cleanTreatment)) {
+      matchedItems.push({
+        code: "NHIA-024-002",
+        name: "Cleft Palate Repairs",
+        quantity: 1,
+        unit_price: 200000.0,
+        amount: 200000.0,
+        confidence: "high",
+        source_term: "Cleft Palate Repairs",
+      });
+    }
+    if (/fract.*nose|nasal\s*fract/i.test(cleanTreatment)) {
+      matchedItems.push({
+        code: "NHIA-024-004",
+        name: "Fracture Reduction of the Nose",
+        quantity: 1,
+        unit_price: 200000.0,
+        amount: 200000.0,
+        confidence: "high",
+        source_term: "Fracture Reduction Nose",
+      });
+    }
+    if (/jaw\s*fract|fract.*jaw/i.test(cleanTreatment)) {
+      matchedItems.push({
+        code: "NHIA-024-005",
+        name: "Reduction and Fixation of Jaw Fractures",
+        quantity: 1,
+        unit_price: 200000.0,
+        amount: 200000.0,
+        confidence: "high",
+        source_term: "Jaw Fracture Fixation",
+      });
+    }
+    if (/fixation.*jaw|jaw.*fixation/i.test(cleanTreatment)) {
+      matchedItems.push({
+        code: "NHIA-024-010",
+        name: "Fixation of Fracture of the Jaw",
+        quantity: 1,
+        unit_price: 180000.0,
+        amount: 180000.0,
+        confidence: "high",
+        source_term: "Fixation of Jaw Fracture",
+      });
+    }
+    if (/maxillar.*fract|fract.*maxillar/i.test(cleanTreatment)) {
+      matchedItems.push({
+        code: "NHIA-024-006",
+        name: "Reduction and Fixation of Maxillary Fractures",
+        quantity: 1,
+        unit_price: 150200.0,
+        amount: 150200.0,
+        confidence: "high",
+        source_term: "Maxillary Fracture Fixation",
+      });
+    }
+    if (/total\s*parotid/i.test(cleanTreatment)) {
+      matchedItems.push({
+        code: "NHIA-024-009",
+        name: "Total Parotidectomy",
+        quantity: 1,
+        unit_price: 131966.67,
+        amount: 131966.67,
+        confidence: "high",
+        source_term: "Total Parotidectomy",
+      });
+    }
+    if (/salivary\s*gland.*excis|excis.*salivary/i.test(cleanTreatment)) {
+      matchedItems.push({
+        code: "NHIA-024-011",
+        name: "Salivary Gland - Excision",
+        quantity: 1,
+        unit_price: 200000.0,
+        amount: 200000.0,
+        confidence: "high",
+        source_term: "Salivary Gland Excision",
+      });
+    }
+    if (/hemi\s*mandibul/i.test(cleanTreatment)) {
+      matchedItems.push({
+        code: "NHIA-024-012",
+        name: "Hemi Mandibulectomy",
+        quantity: 1,
+        unit_price: 180000.0,
+        amount: 180000.0,
+        confidence: "high",
+        source_term: "Hemi Mandibulectomy",
+      });
+    }
+    if (/submandibular.*mass.*excis|submandibular.*reconst/i.test(cleanTreatment)) {
+      matchedItems.push({
+        code: "NHIA-024-013",
+        name: "Submandibular Mass Excision + Reconstruction",
+        quantity: 1,
+        unit_price: 180000.0,
+        amount: 180000.0,
+        confidence: "high",
+        source_term: "Submandibular Mass Excision",
+      });
+    }
+    if (/sialoa/i.test(cleanTreatment)) {
+      matchedItems.push({
+        code: "NHIA-024-014",
+        name: "Submandibular Sialoadenectomy",
+        quantity: 1,
+        unit_price: 150000.0,
+        amount: 150000.0,
+        confidence: "high",
+        source_term: "Submandibular Sialoadenectomy",
+      });
+    }
+
+    // ── Dental Consultation ───────────────────────────────────────────────────
     if (/consult/i.test(cleanTreatment)) {
       matchedItems.push({
         code: "NHIA-010-001",
@@ -563,6 +1072,21 @@ export function reconcileHistoricalRow(
         source_term: "Consultation",
       });
     }
+
+    // Fallback: if nothing matched, flag for manual review
+    if (matchedItems.length === 0) {
+      reviewIssues.push(`Dental procedure not auto-matched: "${cleanTreatment}". Please select correct NHIA tariff manually.`);
+      matchedItems.push({
+        code: "MANUAL_REVIEW",
+        name: cleanTreatment,
+        quantity: 1,
+        unit_price: 0,
+        amount: 0,
+        confidence: "manual",
+        source_term: cleanTreatment,
+      });
+    }
+
   } else {
     // 5. Prescriptions & Lab Investigations
     const rawParts = cleanTreatment.split(/,|;|\n/);
@@ -622,18 +1146,36 @@ export function reconcileHistoricalRow(
 
       // Check Brand Map
       if (!foundMatch) {
-        for (const [key, brand] of Object.entries(BRAND_MAP)) {
-          if (pLower.includes(key)) {
-            foundMatch = {
-              code: brand.code,
-              name: brand.name,
-              quantity: qty,
-              unit_price: brand.amount,
-              amount: qty * brand.amount,
-              confidence: "high",
-              source_term: part,
-            };
-            break;
+        if (pLower.includes("indapamide") || pLower.includes("indapimide")) {
+          const isSr = /\b(sr|slow\s*release|retard)\b/i.test(pLower);
+          const itemCode = isSr ? "NHIA-12-03-15" : "NHIA-12-04-31";
+          const itemName = isSr
+            ? "Indapamide Tablet 1.5mg, 2.5mg, SR Tablet"
+            : "Indapamide 1.5mg tab Tab 1.5mg Tab";
+          const unitPrice = isSr ? 363.0 : 310.0;
+          foundMatch = {
+            code: itemCode,
+            name: itemName,
+            quantity: qty,
+            unit_price: unitPrice,
+            amount: qty * unitPrice,
+            confidence: "high",
+            source_term: part,
+          };
+        } else {
+          for (const [key, brand] of Object.entries(BRAND_MAP)) {
+            if (pLower.includes(key)) {
+              foundMatch = {
+                code: brand.code,
+                name: brand.name,
+                quantity: qty,
+                unit_price: brand.amount,
+                amount: qty * brand.amount,
+                confidence: "high",
+                source_term: part,
+              };
+              break;
+            }
           }
         }
       }

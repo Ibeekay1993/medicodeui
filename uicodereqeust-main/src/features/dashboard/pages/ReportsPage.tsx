@@ -5,7 +5,7 @@ import { useTabVisibilityRefresh } from "@/hooks/use-tab-visibility-refresh";
 import { BarChart3, ShieldAlert, Eye, EyeOff, Loader2, RotateCw } from "lucide-react";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/lib/errors";
-import * as ExcelJS from "exceljs";
+import type * as ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
 import {
   RequestStatus,
@@ -258,7 +258,11 @@ function addPaymentAdviceWorksheets(
     row.eachCell({ includeEmpty: true }, (cell, columnNumber) => {
       cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: index % 2 === 0 ? "FFFFFFFF" : "FFF8FAFC" } };
       cell.border = { bottom: { style: "hair", color: { argb: "FFE2E8F0" } } };
-      cell.alignment = { vertical: "top", wrapText: columnNumber === 8 || columnNumber === 9 };
+      cell.alignment = {
+        vertical: "top",
+        wrapText: columnNumber === 8 || columnNumber === 9,
+        horizontal: columnNumber === 10 ? "right" : columnNumber === 1 ? "center" : undefined,
+      };
     });
   });
   schedule.getColumn("date").numFmt = "dd/mm/yyyy";
@@ -536,11 +540,12 @@ export default function ReportsPage() {
     const toastLabel = mode === "payment_advice"
       ? "Payment Advice Schedule"
       : mode === "full"
-      ? "Premium Excel Dashboard"
+      ? "Full Excel report"
       : "Detailed Data Export";
     toast.info(`Preparing ${toastLabel}…`);
 
     try {
+      const ExcelJS = await import("exceljs");
       const workbook = new ExcelJS.Workbook();
       workbook.creator = "Medicode System";
       workbook.created = new Date();
@@ -860,7 +865,7 @@ export default function ReportsPage() {
       toast.success(
         mode === "payment_advice"
           ? `Exported Payment Advice Schedule (${paymentAdviceRowCount} approved claims, filtered by approval date)`
-          : `Exported ${records.length} records (${mode === "full" ? "Premium Executive Dashboard" : "Detailed Data"})`
+          : `Exported ${records.length} records (${mode === "full" ? "Full report" : "Detailed data"})`
       );
     } catch (error) {
       console.error("Export error:", error);

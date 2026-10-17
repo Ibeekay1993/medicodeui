@@ -105,6 +105,28 @@ describe("provider router — success paths", () => {
     expect(calls[0]).toContain("generativelanguage.googleapis.com");
   });
 
+  it("sends the Gemini API key in the auth header, not the request URL", async () => {
+    const calls: Array<{ url: string; init?: RequestInit }> = [];
+    const fetchMock = urlRouter((url, init) => {
+      calls.push({ url, init });
+      return jsonResponse(geminiBody(validAnalysis()));
+    });
+
+    await analyzeMessage(
+      TEXT,
+      CONTEXT,
+      MESSAGE_ID,
+      {},
+      baseOptions({ fetch: fetchMock }),
+    );
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0].url).not.toContain("key=");
+    expect(
+      new Headers(calls[0].init?.headers).get("x-goog-api-key"),
+    ).toBe("gemini-secret-key");
+  });
+
   it("4. Gemini failure + Groq success → Groq result returned", async () => {
     const calls: string[] = [];
     const fetchMock = urlRouter((url) => {

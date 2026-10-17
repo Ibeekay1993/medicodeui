@@ -421,7 +421,7 @@ INSERT INTO public.nhia_items (code, name, category, amount) VALUES
 ('NHIA-11-03-01', 'Acetylsalicylic acid Tablet 75 mg Tab', 'drug', 11.0),
 ('NHIA-11-03-02', 'Dipyridamole Tablet 25mg Tab.', 'drug', 161.0),
 ('NHIA-11-03-03', 'Dipyridamole Tablet 100mg Tab.', 'drug', 522.0),
-('NHIA-11-03-04', 'Clopidogrel Tablet 75mg Tab. 190', 'drug', 502.0),
+('NHIA-11-03-04', 'Clopidogrel Tablet 75mg Tab.', 'drug', 190.0),
 ('NHIA-11-04-01', 'Aminocaproic acid Tablet 500 mg Tab.', 'drug', 56.0),
 ('NHIA-11-04-02', 'Aminocaproic acid (With/without – lipid thromboplastin Injection AA 100 mg/ml + TPT 2mg/ml in 5 ml, 10 ml Amp.', 'drug', 5880.0),
 ('NHIA-11-04-03', 'Tranexamic acid 500mg Injection Injection 500mg Injection', 'drug', 1403.0),

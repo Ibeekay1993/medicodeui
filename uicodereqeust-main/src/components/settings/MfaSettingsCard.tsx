@@ -83,7 +83,7 @@ export default function MfaSettingsCard({ user, fullName, role }: MfaSettingsCar
       });
       if (verifyError) throw verifyError;
 
-      toast({ title: "MFA Enabled ✨", description: "Your account is now secured with two-factor authentication." });
+      toast({ title: "MFA enabled", description: "Two-factor authentication is active for your account." });
       setMfaEnabled(true);
       setEnrollData(null);
       setVerifyCode("");

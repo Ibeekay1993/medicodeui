@@ -22,6 +22,25 @@ export type HospitalClaimSummary = {
   latest: string;
 };
 
+export type ClaimsAnalysisSummary = {
+  by_status: Array<{
+    status: string | null;
+    count: number | string | null;
+    total_amount: number | string | null;
+  }>;
+  by_hospital: Array<{
+    hospital_id: string | null;
+    hospital_name: string | null;
+    count: number | string | null;
+    total_amount: number | string | null;
+  }>;
+  by_date: Array<{
+    claim_date: string;
+    count: number | string | null;
+    total_amount: number | string | null;
+  }>;
+};
+
 export type ClaimDraft = {
   id: string;
   claim_number?: string | null;

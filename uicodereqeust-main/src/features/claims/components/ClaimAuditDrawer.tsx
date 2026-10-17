@@ -1,20 +1,28 @@
+import React, { useState } from "react";
 import { 
   Loader2, 
-  FolderOpen, 
   Copy, 
-  Building, 
+  Building2, 
   XCircle, 
   AlertCircle, 
   CheckCircle2,
-  X
+  X,
+  ShieldCheck,
+  Check,
+  AlertTriangle,
+  FileText,
+  Clock,
+  ArrowRight
 } from "lucide-react";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { FormattedAuditNote } from "@/components/ui/FormattedAuditNote";
 import { cn } from "@/lib/utils";
 import { ClaimDraft, AuditDecision, money, splitClaimNotes } from "@/lib/claims-helpers";
-
-// RenderAuditNote is now provided by the shared FormattedAuditNote component
+import { formatNigeriaDate, formatNigeriaDateTime } from "@/lib/authorizationTime";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 interface ClaimAuditDrawerProps {
   selectedClaim: ClaimDraft;
@@ -52,6 +60,18 @@ interface ClaimAuditDrawerProps {
   calculatedApprovedAmount: number;
 }
 
+const STATUS_PILL_STYLES: Record<string, string> = {
+  approved: "bg-emerald-600 text-white border-transparent font-bold",
+  partially_approved: "bg-sky-600 text-white border-transparent font-bold",
+  paid: "bg-purple-600 text-white border-transparent font-bold",
+  rejected: "bg-rose-600 text-white border-transparent font-bold",
+  contested: "bg-orange-600 text-white border-transparent font-bold",
+  under_contest: "bg-orange-600 text-white border-transparent font-bold",
+  submitted: "bg-amber-500 text-white border-transparent font-bold",
+  pending: "bg-amber-500 text-white border-transparent font-bold",
+  under_review: "bg-blue-600 text-white border-transparent font-bold",
+};
+
 export default function ClaimAuditDrawer({
   selectedClaim,
   isMobileDetailOpen,
@@ -68,230 +88,299 @@ export default function ClaimAuditDrawer({
   copyToClipboard,
   calculatedApprovedAmount
 }: ClaimAuditDrawerProps) {
-  if (!isMobileDetailOpen) return null;
+  const { toast } = useToast();
+  const [isReleasing, setIsReleasing] = useState(false);
+
+  if (!selectedClaim) return null;
 
   const itemKey = (item: any, index?: number) => String(item.code || item.name || index || "item");
   const itemUnit = (item: any) => Number(item.unit_price ?? item.price ?? 0);
   const itemQty = (item: any) => Math.max(1, Number(item.quantity ?? 1));
 
+  const isAuditable = 
+    (role === "claims" || role === "admin") &&
+    (selectedClaim.status === "submitted" || 
+     selectedClaim.status === "pending" || 
+     selectedClaim.status === "contested" || 
+     selectedClaim.status === "under_contest");
+
+  const statusKey = String(selectedClaim.status || "pending").toLowerCase();
+  const statusBadgeStyle = STATUS_PILL_STYLES[statusKey] || "border-slate-200 text-slate-700 bg-slate-50";
+
+  let statusLabel = (selectedClaim.status || "Pending").replace(/_/g, " ");
+  if (statusKey === "submitted") statusLabel = "Pending";
+  else if (statusKey === "partially_approved") statusLabel = "Partially Approved";
+  else if (statusKey === "under_contest") statusLabel = "Contested";
+
+  const contestDaysRemaining = selectedClaim.contest_deadline
+    ? Math.max(0, Math.ceil((new Date(selectedClaim.contest_deadline).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
+    : 0;
+
+  const handleReleaseToPayment = async () => {
+    setIsReleasing(true);
+    try {
+      const { error } = await supabase.rpc("release_claim_to_payment" as any, {
+        p_claim_id: selectedClaim.id
+      });
+      if (error) throw error;
+      toast({
+        title: "Released to Payment",
+        description: "Claim has been moved directly to the awaiting payment queue.",
+      });
+      selectedClaim.payment_status = "awaiting_payment";
+      setIsMobileDetailOpen(false);
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Action Failed", description: err.message });
+    } finally {
+      setIsReleasing(false);
+    }
+  };
+
   return (
-    <div className="fixed inset-0 bg-slate-950/50 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-300">
-      <div className="bg-white w-full sm:max-w-3xl md:max-w-5xl lg:max-w-6xl xl:max-w-7xl sm:rounded-2xl rounded-t-3xl max-h-[90vh] sm:max-h-[85vh] overflow-y-auto flex flex-col shadow-2xl relative slide-in-from-bottom duration-300">
-        {/* Drawer Drag handle (mobile only) */}
-        <div className="w-12 h-1 bg-slate-200 rounded-full mx-auto my-3 sm:hidden" />
-        
+    <Dialog open={isMobileDetailOpen} onOpenChange={setIsMobileDetailOpen}>
+      <DialogContent 
+        className="w-[calc(100vw_-_1rem)] max-w-[calc(100vw_-_1rem)] max-h-[calc(100dvh_-_1rem)] rounded-xl border border-slate-200 bg-white p-0 shadow-2xl overflow-hidden min-w-0 sm:w-[94vw] sm:max-w-4xl md:max-w-5xl lg:max-w-6xl xl:max-w-7xl sm:max-h-[92dvh] sm:rounded-2xl flex flex-col [&>button.absolute.right-4]:hidden z-50"
+      >
         {/* Sticky Header */}
-        <div className="sticky top-0 z-30 px-5 py-4 bg-gradient-to-b from-white/95 to-white/90 backdrop-blur-xl border-b border-slate-100 sm:rounded-t-2xl rounded-t-3xl shadow-sm shrink-0">
-          <div className="flex justify-between items-start gap-3">
+        <div className="shrink-0 border-b border-slate-200 bg-white px-5 py-4 sm:px-6">
+          <div className="flex items-start justify-between gap-3">
             <div className="min-w-0 flex-1">
-              <div className="text-xs font-bold text-indigo-500 uppercase tracking-widest">Claims Audit Portal</div>
-              <h3 className="text-lg sm:text-2xl font-extrabold text-slate-900 mt-0.5 tracking-tight flex items-center gap-2 truncate">
-                Audit Claim Details
-                <Badge className={cn("border-none text-xs font-black px-2.5 py-0.5 rounded-md uppercase tracking-wide",
-                selectedClaim.status === "approved" ? "bg-emerald-500/10 text-emerald-600" :
-                selectedClaim.status === "partially_approved" ? "bg-emerald-500/10 text-emerald-700" :
-                selectedClaim.status === "paid" ? "bg-slate-100 text-slate-600" :
-                selectedClaim.status === "rejected" ? "bg-rose-500/10 text-rose-600" :
-                "bg-amber-500/10 text-amber-600"
-              )}>
-                {selectedClaim.status === "submitted" ? "pending" : (selectedClaim.status || "").replace("_", " ")}
-              </Badge>
-            </h3>
-            <p className="text-xs font-mono font-semibold text-slate-500 mt-1">Claim Ref: {selectedClaim.claim_number}</p>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-bold text-indigo-600 uppercase tracking-widest">
+                  Claims Audit Review
+                </span>
+                <span className="text-slate-300">·</span>
+                <span className="text-[10px] font-medium text-slate-500">
+                  {formatNigeriaDateTime(selectedClaim.created_at)}
+                </span>
+              </div>
+              
+              <h2 className="text-lg sm:text-xl font-bold uppercase tracking-tight text-slate-900 mt-1 truncate">
+                {selectedClaim.patient_name || "Unknown Patient"}
+              </h2>
+
+              <div className="flex items-center gap-2 mt-1.5 flex-wrap text-xs text-slate-600">
+                <span className="flex items-center gap-1 font-mono font-medium">
+                  Ref: <span className="font-semibold text-slate-800">{selectedClaim.claim_number}</span>
+                  <button
+                    onClick={() => copyToClipboard(selectedClaim.claim_number, "Claim Ref")}
+                    className="text-slate-400 hover:text-slate-700 transition-colors p-0.5"
+                    title="Copy Claim Reference"
+                  >
+                    <Copy className="h-3 w-3" />
+                  </button>
+                </span>
+
+                <span className="text-slate-300">·</span>
+
+                <span className="flex items-center gap-1 font-mono font-medium">
+                  Policy: <span className="font-semibold text-slate-800">{selectedClaim.policy_number}</span>
+                  <button
+                    onClick={() => copyToClipboard(selectedClaim.policy_number, "Policy Number")}
+                    className="text-slate-400 hover:text-slate-700 transition-colors p-0.5"
+                    title="Copy Policy Number"
+                  >
+                    <Copy className="h-3 w-3" />
+                  </button>
+                </span>
+
+                <span className="text-slate-300">·</span>
+
+                <span className="flex items-center gap-1 font-mono font-medium text-indigo-700">
+                  Auth: <span className="font-bold">{selectedClaim.auth_code}</span>
+                  <button
+                    onClick={() => copyToClipboard(selectedClaim.auth_code, "Auth Code")}
+                    className="text-indigo-400 hover:text-indigo-700 transition-colors p-0.5"
+                    title="Copy Auth Code"
+                  >
+                    <Copy className="h-3 w-3" />
+                  </button>
+                </span>
+
+                <span className="text-slate-300">·</span>
+
+                <span className="flex items-center gap-1 truncate max-w-[200px]" title={selectedClaim.hospital_name}>
+                  <Building2 className="h-3 w-3 text-slate-400 shrink-0" />
+                  <span className="truncate">{selectedClaim.hospital_name}</span>
+                </span>
+              </div>
             </div>
-            <button 
-              onClick={() => setIsMobileDetailOpen(false)}
-              className="p-2 -mr-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors shrink-0"
-            >
-              <X className="h-5 w-5" />
-            </button>
+
+            <div className="flex items-center gap-2.5 shrink-0">
+              <Badge
+                variant="outline"
+                className={cn(
+                  "inline-flex items-center justify-center w-[124px] h-[26px] whitespace-nowrap rounded-full px-2 text-[11px] font-semibold tracking-tight shadow-none border capitalize",
+                  statusBadgeStyle
+                )}
+              >
+                {statusLabel}
+              </Badge>
+
+              <button
+                onClick={() => setIsMobileDetailOpen(false)}
+                className="rounded-full p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors shrink-0"
+                aria-label="Close"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
           </div>
         </div>
 
-        {/* Content Body */}
-        <div className="px-4 sm:px-6 py-5 flex-1 overflow-y-auto">
-          <div className="grid gap-6 md:grid-cols-12 items-start">
+        {/* Scrollable Content Body */}
+        <div className="flex-1 overflow-y-auto px-5 py-5 sm:px-6 sm:py-6">
+          <div className="grid gap-6 lg:grid-cols-12 items-start">
             
-            {/* Left Column: Premium Audit Compliance Workstation */}
-            <div className="space-y-4 md:col-span-6">
+            {/* Left column: Verification, clinical context & notes */}
+            <div className="space-y-4 lg:col-span-6">
               
-              {/* Visual Compliance Guardrails Widget */}
-              <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm space-y-3.5">
-                <div className="flex items-center justify-between border-b border-slate-50 pb-2">
-                  <h4 className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
-                    <FolderOpen className="w-3.5 h-3.5 text-slate-500" />
-                    Audit Compliance Guardrails
-                  </h4>
-                  <Badge className="border-none text-xs font-medium bg-slate-100 text-slate-600 px-2 py-0.5">
-                    International Standards (HMO-v2.0)
+              {/* Compliance & Verification Guardrails */}
+              <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm space-y-3">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-800">
+                    <ShieldCheck className="w-4 h-4 text-indigo-600" />
+                    <span>Audit Compliance Guardrails</span>
+                  </div>
+                  <Badge variant="outline" className="border-slate-200 text-slate-500 text-[10px] font-medium px-2 py-0.5">
+                    HMO Clinical Protocol
                   </Badge>
                 </div>
 
                 <div className="grid gap-2 text-xs">
-                  {/* Check 1: Patient Name Match */}
-                  <div className="flex items-center justify-between p-2 rounded-xl bg-slate-50 border border-slate-100">
+                  {/* Check 1: Patient Identity */}
+                  <div className="flex items-center justify-between p-2 rounded-lg bg-slate-50 border border-slate-100">
                     <div className="flex items-center gap-2">
                       <div className={cn(
-                        "w-2 h-2 rounded-full",
+                        "w-2 h-2 rounded-full shrink-0",
                         verificationData.mismatchReasons.some(r => r.includes("Patient Name")) ? "bg-rose-500" : "bg-emerald-500"
                       )} />
-                      <span className="font-semibold text-slate-600">Patient Identity Check</span>
+                      <span className="font-medium text-slate-700">Patient Identity Match</span>
                     </div>
                     <span className={cn(
                       "font-semibold text-xs",
-                      verificationData.mismatchReasons.some(r => r.includes("Patient Name")) ? "text-rose-600" : "text-emerald-600"
+                      verificationData.mismatchReasons.some(r => r.includes("Patient Name")) ? "text-rose-600" : "text-emerald-700"
                     )}>
                       {verificationData.mismatchReasons.some(r => r.includes("Patient Name")) ? "MISMATCH" : "VERIFIED"}
                     </span>
                   </div>
 
-                  {/* Check 2: Policy ID Verification */}
-                  <div className="flex items-center justify-between p-2 rounded-xl bg-slate-50 border border-slate-100">
+                  {/* Check 2: Enrollment ID */}
+                  <div className="flex items-center justify-between p-2 rounded-lg bg-slate-50 border border-slate-100">
                     <div className="flex items-center gap-2">
                       <div className={cn(
-                        "w-2 h-2 rounded-full",
+                        "w-2 h-2 rounded-full shrink-0",
                         verificationData.mismatchReasons.some(r => r.includes("Enrollment ID")) ? "bg-rose-500" : "bg-emerald-500"
                       )} />
-                      <span className="font-semibold text-slate-600">Enrollment ID Check</span>
+                      <span className="font-medium text-slate-700">Policy Enrollment Check</span>
                     </div>
                     <span className={cn(
                       "font-semibold text-xs",
-                      verificationData.mismatchReasons.some(r => r.includes("Enrollment ID")) ? "text-rose-600" : "text-emerald-600"
+                      verificationData.mismatchReasons.some(r => r.includes("Enrollment ID")) ? "text-rose-600" : "text-emerald-700"
                     )}>
                       {verificationData.mismatchReasons.some(r => r.includes("Enrollment ID")) ? "MISMATCH" : "VERIFIED"}
                     </span>
                   </div>
 
-                  {/* Check 3: Claim Ownership & Referrals */}
-                  <div className="flex items-center justify-between p-2 rounded-xl bg-slate-50 border border-slate-100">
+                  {/* Check 3: Facility Authorization */}
+                  <div className="flex items-center justify-between p-2 rounded-lg bg-slate-50 border border-slate-100">
                     <div className="flex items-center gap-2">
                       <div className={cn(
-                        "w-2 h-2 rounded-full",
+                        "w-2 h-2 rounded-full shrink-0",
                         verificationData.mismatchReasons.some(r => r.includes("ownership")) ? "bg-amber-500" : "bg-emerald-500"
                       )} />
-                      <span className="font-semibold text-slate-600">Claim Ownership Check</span>
+                      <span className="font-medium text-slate-700">Facility Authorization Match</span>
                     </div>
                     <span className={cn(
                       "font-semibold text-xs",
-                      verificationData.mismatchReasons.some(r => r.includes("ownership")) ? "text-amber-600" : "text-emerald-600"
+                      verificationData.mismatchReasons.some(r => r.includes("ownership")) ? "text-amber-600" : "text-emerald-700"
                     )}>
-                      {verificationData.mismatchReasons.some(r => r.includes("ownership")) ? "WARNING" : "AUTHORIZED"}
+                      {verificationData.mismatchReasons.some(r => r.includes("ownership")) ? "ATTENTION" : "AUTHORIZED"}
                     </span>
                   </div>
 
                   {/* Check 4: Pre-authorization Validity */}
-                  <div className="flex items-center justify-between p-2 rounded-xl bg-slate-50 border border-slate-100">
+                  <div className="flex items-center justify-between p-2 rounded-lg bg-slate-50 border border-slate-100">
                     <div className="flex items-center gap-2">
                       <div className={cn(
-                        "w-2 h-2 rounded-full",
+                        "w-2 h-2 rounded-full shrink-0",
                         !verificationData.exists ? "bg-rose-500" : "bg-emerald-500"
                       )} />
-                      <span className="font-semibold text-slate-600">Clinical Pre-Auth Check</span>
+                      <span className="font-medium text-slate-700">Clinical Pre-Authorization</span>
                     </div>
                     <span className={cn(
                       "font-semibold text-xs",
-                      !verificationData.exists ? "text-rose-600" : "text-emerald-600"
+                      !verificationData.exists ? "text-rose-600" : "text-emerald-700"
                     )}>
-                      {!verificationData.exists ? "MISSING/FORGED" : "ACTIVE"}
+                      {!verificationData.exists ? "NOT FOUND" : "RECORD MATCHED"}
                     </span>
                   </div>
                 </div>
-              </div>
 
-              {/* Patient Enrollment Card */}
-              <div className="grid grid-cols-2 gap-3">
-                <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                  <p className="text-xs font-semibold text-slate-500">Patient Name</p>
-                  <p className="text-sm font-semibold text-slate-900 leading-snug mt-0.5">{selectedClaim.patient_name}</p>
-                  <p className="text-xs font-mono font-medium text-slate-500 mt-1 flex items-center gap-1.5 leading-none">
-                    ID: {selectedClaim.policy_number}
-                    <button onClick={() => copyToClipboard(selectedClaim.policy_number, "Enrollment ID")} className="text-slate-400 hover:text-slate-600"><Copy className="w-2.5 h-2.5" /></button>
-                  </p>
-                </div>
-
-                <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                  <p className="text-xs font-semibold text-slate-500">Requesting Facility</p>
-                  <p className="text-sm font-semibold text-slate-700 leading-snug mt-0.5 truncate">{selectedClaim.hospital_name}</p>
-                  <p className="text-xs font-semibold text-emerald-600 mt-1 flex items-center gap-1">
-                    <Building className="w-2.5 h-2.5" /> Checked & Verified
-                  </p>
-                </div>
-              </div>
-
-              {/* Match warning and details box */}
-              <div className="space-y-1.5">
-                <span className="text-xs font-semibold text-slate-500">Database Validation Status</span>
+                {/* Validation Status Feedback */}
                 {verificationData.loading ? (
-                  <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 flex items-center gap-2 justify-center">
+                  <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 flex items-center gap-2 justify-center">
                     <Loader2 className="w-4 h-4 animate-spin text-slate-400" />
-                    <span className="text-xs font-semibold text-slate-500">Verifying Clinical Records...</span>
+                    <span className="text-xs font-medium text-slate-500">Cross-verifying pre-authorization records...</span>
                   </div>
                 ) : !verificationData.exists ? (
-                  <div className="bg-slate-50/50 border border-slate-200 p-3 rounded-xl space-y-1.5">
+                  <div className="bg-rose-50/70 border border-rose-200 p-3 rounded-lg space-y-1">
                     <div className="flex items-center gap-2 text-rose-700">
-                      <XCircle className="w-4 h-4 text-rose-600 shrink-0" />
-                      <span className="text-xs font-semibold text-rose-600">Forgery Detection Alert</span>
+                      <XCircle className="w-4 h-4 shrink-0 text-rose-600" />
+                      <span className="text-xs font-semibold">Pre-Authorization Record Missing</span>
                     </div>
-                    <p className="text-xs font-semibold text-rose-600 leading-relaxed">
-                      No clinical authorization matching code <span className="font-mono text-rose-800 font-semibold">'{selectedClaim.auth_code}'</span> exists in the database. Direct approval is locked.
+                    <p className="text-xs text-rose-600 leading-relaxed">
+                      No clinical authorization record matching code <span className="font-mono font-bold text-rose-800">'{selectedClaim.auth_code}'</span> was found in the database.
                     </p>
                   </div>
                 ) : verificationData.mismatchReasons.length > 0 ? (
-                  <div className="bg-slate-50/50 border border-slate-200 p-3 rounded-xl space-y-2">
-                    <div className="flex items-center gap-2 text-rose-700">
-                      <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
-                      <span className="text-xs font-semibold text-rose-600">Fraud / Mismatch Alert</span>
+                  <div className="bg-amber-50/70 border border-amber-200 p-3 rounded-lg space-y-1.5">
+                    <div className="flex items-center gap-2 text-amber-800">
+                      <AlertTriangle className="w-4 h-4 shrink-0 text-amber-600" />
+                      <span className="text-xs font-semibold">Discrepancy Detected</span>
                     </div>
-                    <ul className="list-disc list-inside text-xs font-semibold text-rose-600 space-y-1 leading-relaxed">
+                    <ul className="list-disc list-inside text-xs text-amber-800 space-y-0.5 leading-relaxed">
                       {verificationData.mismatchReasons.map((r, i) => (
                         <li key={i}>{r}</li>
                       ))}
                     </ul>
-                    <p className="text-xs font-semibold text-rose-500 mt-1">Manual audit required. Direct approval has been locked.</p>
+                    <p className="text-[11px] text-amber-700 mt-1">Manual audit review required prior to payout approval.</p>
                   </div>
                 ) : (
-                  <div className="bg-slate-50/50 border border-slate-200 p-3 rounded-xl space-y-1.5">
-                    <div className="flex items-center gap-2 text-emerald-700">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                      <span className="text-xs font-semibold text-emerald-600">100% Clinically Verified</span>
-                    </div>
-                    <p className="text-xs font-medium text-emerald-600 leading-relaxed">
-                      Claim details perfectly match approved Clinical Pre-Authorization record <span className="font-mono font-bold text-emerald-700">#{verificationData.authRequest?.request_id}</span>.
-                    </p>
+                  <div className="bg-emerald-50/60 border border-emerald-200 p-3 rounded-lg flex items-center gap-2 text-emerald-800">
+                    <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
+                    <span className="text-xs font-medium">
+                      Claim perfectly matches authorized Pre-Auth Record <span className="font-mono font-bold">#{verificationData.authRequest?.request_id || selectedClaim.auth_code}</span>.
+                    </span>
                   </div>
                 )}
               </div>
 
-              {/* Preauthorization Info & Diagnosis */}
+              {/* Clinical Context & Facility */}
               <div className="grid grid-cols-2 gap-3">
                 <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                  <p className="text-xs font-semibold text-slate-500">Preauthorization Reference</p>
-                  <div className="flex justify-between items-center mt-1">
-                    <span className="text-xs font-mono font-semibold text-slate-900 leading-none">{selectedClaim.auth_code}</span>
-                    <button onClick={() => copyToClipboard(selectedClaim.auth_code, "Auth Code")} className="text-slate-400 hover:text-slate-600"><Copy className="w-3 h-3" /></button>
-                  </div>
+                  <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide block">
+                    Clinical Diagnosis
+                  </span>
+                  <p className="text-xs font-semibold text-slate-900 mt-1 leading-snug">
+                    {verificationData.authRequest?.diagnosis || selectedClaim.diagnosis || "Not Specified"}
+                  </p>
                 </div>
 
                 <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                  <p className="text-xs font-semibold text-slate-500">Clinical Diagnosis</p>
-                  <p className="text-xs font-semibold text-slate-900 leading-snug mt-1 truncate">{verificationData.authRequest?.diagnosis || "Not Specified"}</p>
+                  <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide block">
+                    Requesting Facility
+                  </span>
+                  <p className="text-xs font-semibold text-slate-900 mt-1 leading-snug truncate" title={selectedClaim.hospital_name}>
+                    {selectedClaim.hospital_name}
+                  </p>
+                  <p className="text-[11px] font-medium text-emerald-700 mt-0.5 flex items-center gap-1">
+                    <Check className="w-3 h-3 text-emerald-600" /> Em験elled Provider
+                  </p>
                 </div>
               </div>
 
-              {/* World Standard clinical guidelines check assistant */}
-              {verificationData.exists && (
-                <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-2 shadow-sm">
-                  <p className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-slate-500" />
-                    Clinical Guideline Match
-                  </p>
-                  <p className="text-xs font-semibold text-slate-600 leading-relaxed">
-                    Auditing for Diagnosis: <span className="font-semibold text-slate-800">{verificationData.authRequest?.diagnosis || "Not Specified"}</span>.
-                    Ensure procedures match standardized pathways for this diagnostic class. Check that billed quantities align with treatment durations and price lists match authorized reference tariffs.
-                  </p>
-                </div>
-              )}
-
+              {/* Clinical Notes & Audit logs */}
               {selectedClaim.notes && (() => {
                 const noteSections = splitClaimNotes(selectedClaim.notes);
                 const hasClinical = noteSections.clinical && noteSections.clinical.trim().length > 0;
@@ -299,15 +388,17 @@ export default function ClaimAuditDrawer({
                 if (!hasClinical && !hasAudit) return null;
                 return (
                   <div className="space-y-2">
-                    <span className="text-xs font-semibold text-slate-500 font-sans">Clinical Notes & Audit logs</span>
+                    <span className="text-xs font-semibold text-slate-500 block">
+                      Clinical Notes & Audit Logs
+                    </span>
                     <div className="grid gap-2">
                       {hasClinical && (
-                        <div className="rounded-xl border border-slate-100 bg-white p-3">
+                        <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
                           <FormattedAuditNote text={noteSections.clinical} />
                         </div>
                       )}
                       {hasAudit && (
-                        <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 shadow-sm">
+                        <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3 shadow-sm">
                           <FormattedAuditNote text={noteSections.audit} />
                         </div>
                       )}
@@ -316,26 +407,29 @@ export default function ClaimAuditDrawer({
                 );
               })()}
 
+              {/* Contest Section */}
               {(selectedClaim.status === "contested" || selectedClaim.status === "under_contest") && (
-                <div className="space-y-2.5 rounded-xl border border-slate-200 bg-slate-50/50 p-4">
-                  <span className="text-xs font-semibold text-amber-700 block">Contest Awaiting Re-Audit</span>
-                  <p className="text-xs font-semibold text-slate-700 leading-relaxed">
-                    <span className="font-semibold">Hospital rebuttal:</span> {selectedClaim.contest_note || selectedClaim.audit_summary?.contest?.hospital_note || "No rebuttal note provided."}
+                <div className="space-y-2.5 rounded-xl border border-amber-200 bg-amber-50/50 p-4">
+                  <span className="text-xs font-bold text-amber-800 block">Contest Awaiting Re-Audit</span>
+                  <p className="text-xs text-slate-800 leading-relaxed">
+                    <span className="font-semibold text-amber-900">Hospital Rebuttal:</span> {selectedClaim.contest_note || selectedClaim.audit_summary?.contest?.hospital_note || "No rebuttal note provided."}
                   </p>
-                  <p className="text-sm font-semibold text-amber-800 font-mono">
-                    Amount under contest: {money(Number(selectedClaim.under_contest_amount || selectedClaim.audit_summary?.contest?.amount_under_contest || 0))}
+                  <p className="text-xs font-bold text-amber-900 font-mono">
+                    Amount Under Contest: {money(Number(selectedClaim.under_contest_amount || selectedClaim.audit_summary?.contest?.amount_under_contest || 0))}
                   </p>
                   {Array.isArray(selectedClaim.contest_documents) && selectedClaim.contest_documents.length > 0 && (
-                    <div className="space-y-1.5 border-t border-slate-200 pt-2.5">
-                      <p className="text-xs font-semibold text-amber-700">Hospital Uploaded Documents</p>
+                    <div className="space-y-1.5 border-t border-amber-200 pt-2.5">
+                      <p className="text-[11px] font-semibold text-amber-800">Hospital Supporting Documents</p>
                       {selectedClaim.contest_documents.map((doc: any, index: number) => (
                         <a
                           key={`${doc.name || "document"}-${index}`}
                           href={doc.data_url || undefined}
                           download={doc.name || `contest-document-${index + 1}`}
-                          className="block rounded-lg bg-white/70 px-3 py-2 text-xs font-bold text-amber-900 underline-offset-2 hover:underline"
+                          className="flex items-center gap-1.5 rounded-lg bg-white/90 px-3 py-1.5 text-xs font-medium text-amber-900 border border-amber-200 hover:bg-white transition-colors"
                         >
-                          {doc.name || `Document ${index + 1}`} {doc.size ? `(${Math.round(Number(doc.size) / 1024)} KB)` : ""}
+                          <FileText className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                          <span className="truncate flex-1">{doc.name || `Document ${index + 1}`}</span>
+                          {doc.size && <span className="text-[10px] text-slate-500 shrink-0">({Math.round(Number(doc.size) / 1024)} KB)</span>}
                         </a>
                       ))}
                     </div>
@@ -343,15 +437,15 @@ export default function ClaimAuditDrawer({
                 </div>
               )}
 
-              {/* Standard HMO Claims Visual Timeline */}
-              <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
-                <p className="text-xs font-semibold text-slate-600 mb-3">Audit Lifecycle Journey</p>
-                <div className="space-y-3 relative before:absolute before:bottom-2 before:top-2 before:left-[5px] before:w-[1.5px] before:bg-slate-200">
+              {/* Audit Lifecycle Stepper */}
+              <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-100">
+                <p className="text-xs font-semibold text-slate-600 mb-2.5">Audit Lifecycle Journey</p>
+                <div className="space-y-2.5 relative before:absolute before:bottom-2 before:top-2 before:left-[5px] before:w-[1.5px] before:bg-slate-200">
                   <div className="flex items-start gap-3 text-xs">
                     <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 mt-1 shrink-0 z-10" />
                     <div>
                       <p className="font-semibold text-slate-800">Claim Generated & Submitted</p>
-                      <p className="text-xs text-slate-400 mt-0.5">Logged successfully by the hospital portal.</p>
+                      <p className="text-[11px] text-slate-500">Logged successfully through hospital claims portal.</p>
                     </div>
                   </div>
                   <div className="flex items-start gap-3 text-xs">
@@ -360,8 +454,8 @@ export default function ClaimAuditDrawer({
                       selectedClaim.status === "submitted" ? "bg-amber-500 animate-pulse" : "bg-emerald-500"
                     )} />
                     <div>
-                      <p className="font-semibold text-slate-800">Compliance Verification</p>
-                      <p className="text-xs text-slate-400 mt-0.5">Database matches enrollment check & clinical limits.</p>
+                      <p className="font-semibold text-slate-800">Compliance & Pre-Auth Check</p>
+                      <p className="text-[11px] text-slate-500">Matched against clinical authorization and policy limits.</p>
                     </div>
                   </div>
                   <div className="flex items-start gap-3 text-xs">
@@ -370,8 +464,8 @@ export default function ClaimAuditDrawer({
                       ["approved", "partially_approved", "rejected", "paid"].includes(selectedClaim.status) ? "bg-emerald-500" : "bg-slate-300"
                     )} />
                     <div>
-                      <p className="font-semibold text-slate-800">Clinical & Price Audit</p>
-                      <p className="text-xs text-slate-400 mt-0.5">Reviewer cross-checks line items & approves payout.</p>
+                      <p className="font-semibold text-slate-800">Tariff & Pricing Audit</p>
+                      <p className="text-[11px] text-slate-500">Line-item tariff adjustments and payout finalization.</p>
                     </div>
                   </div>
                 </div>
@@ -379,17 +473,20 @@ export default function ClaimAuditDrawer({
 
             </div>
 
-            {/* Right Column: Interactive Audit Ledger & Decisions */}
-            <div className="space-y-4 md:col-span-6">
+            {/* Right Column: Itemized Ledger, Pricing & Actions */}
+            <div className="space-y-4 lg:col-span-6">
+              
+              {/* Itemized Claims Ledger */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-slate-500">Itemized Claims Ledger</span>
-                  <span className="text-xs font-semibold text-slate-400">{verificationData.approvedItems.length} items</span>
+                  <span className="text-xs font-semibold text-slate-700">Itemized Claims Ledger</span>
+                  <Badge variant="outline" className="border-slate-200 text-slate-500 text-[10px] font-semibold px-2 py-0.5">
+                    {verificationData.approvedItems.length} item{verificationData.approvedItems.length === 1 ? "" : "s"}
+                  </Badge>
                 </div>
 
-                {/* Interactive Item Cards */}
                 {verificationData.approvedItems.length > 0 ? (
-                  <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
+                  <div className="space-y-2 max-h-[320px] overflow-y-auto pr-1">
                     {verificationData.approvedItems.map((item: any, idx: number) => {
                       const codeOrName = itemKey(item, idx);
                       const isPreDeclined = !!item.declined;
@@ -404,78 +501,102 @@ export default function ClaimAuditDrawer({
                       const originalQty = itemQty(item);
                       const originalSubtotal = itemUnit(item) * originalQty;
                       const subtotal = isDeclined ? 0 : unitPrice * qty;
-                      const isAuditing = !isPreDeclined && (selectedClaim.status === "submitted" || selectedClaim.status === "pending" || selectedClaim.status === "contested" || selectedClaim.status === "under_contest");
-                      
-                      // Check for unit price discrepancy against reference list
                       const isBilledOverCap = !isPreDeclined && (itemUnit(item) > unitPrice);
 
                       return (
                         <div 
                           key={idx} 
                           className={cn(
-                            "p-3 rounded-xl border transition-all duration-200 text-xs",
+                            "p-3 rounded-xl border transition-all duration-150 text-xs",
                             isDeclined 
-                              ? "bg-slate-50/60 border-slate-200 opacity-60 text-slate-400 shadow-none" 
-                              : "bg-white border-slate-100 shadow-sm text-slate-800"
+                              ? "bg-slate-50/70 border-slate-200 text-slate-400" 
+                              : "bg-white border-slate-200 shadow-sm text-slate-800"
                           )}
                         >
                           <div className="flex justify-between items-start gap-3">
                             <div className="min-w-0 flex-1">
                               <div className="flex items-center gap-1.5 flex-wrap">
-                                <p className={cn("text-xs font-semibold text-slate-900 leading-tight", isDeclined && "line-through text-slate-400")}>{item.name}</p>
+                                <p className={cn("text-xs font-semibold text-slate-900 leading-tight", isDeclined && "line-through text-slate-400")}>
+                                  {item.name}
+                                </p>
                                 {isBilledOverCap && !isDeclined && (
-                                  <Badge className="border-none text-xs font-semibold bg-rose-500/10 text-rose-600 px-1 py-0.5 rounded leading-none">
-                                    Over-Cap Billed
+                                  <Badge className="border-none text-[10px] font-semibold bg-rose-50 text-rose-600 px-1.5 py-0.5 rounded leading-none">
+                                    Over-Cap
                                   </Badge>
                                 )}
                                 {isPreDeclined && (
-                                  <Badge className="border-none text-xs font-semibold bg-rose-500/10 text-rose-600 px-1 py-0.5 rounded leading-none">
+                                  <Badge className="border-none text-[10px] font-semibold bg-rose-50 text-rose-600 px-1.5 py-0.5 rounded leading-none">
                                     Pre-Auth Declined
                                   </Badge>
                                 )}
                               </div>
-                              {item.code && <p className="text-xs font-mono font-bold text-slate-500 mt-1">Code: {item.code}</p>}
-                              <p className="text-xs font-semibold text-slate-500 mt-1">
-                                {isPreDeclined ? "Declined by Utilization Manager during Pre-Auth" : `Approved: ${qty} of ${originalQty} unit${originalQty > 1 ? 's' : ''}`}
+
+                              {item.code && (
+                                <p className="text-[11px] font-mono font-medium text-slate-500 mt-0.5">Code: {item.code}</p>
+                              )}
+
+                              <p className="text-xs font-medium text-slate-500 mt-1">
+                                {isPreDeclined 
+                                  ? "Declined during Pre-Auth" 
+                                  : `Payable: ${qty} of ${originalQty} unit${originalQty > 1 ? 's' : ''} × ${money(unitPrice)}`
+                                }
                               </p>
-                              {decision.reasonCategory && !isPreDeclined && <p className="mt-1.5 text-xs font-semibold leading-snug text-rose-600">Category: {decision.reasonCategory}</p>}
-                              {decision.reason && !isPreDeclined && <p className={cn("mt-1 text-xs font-semibold leading-snug", isDeclined ? "text-rose-600" : "text-amber-600")}>Reason: {decision.reason}</p>}
-                              {isPreDeclined && (
-                                <p className="mt-1 text-xs font-semibold leading-snug text-rose-600 bg-slate-50/50 p-1.5 rounded border border-slate-200">
-                                  <span className="font-bold">Reason:</span> {item.decline_reason || "Declined during pre-authorization review"}
+
+                              {decision.reasonCategory && !isPreDeclined && (
+                                <p className="mt-1 text-[11px] font-semibold text-rose-600">Category: {decision.reasonCategory}</p>
+                              )}
+                              {decision.reason && !isPreDeclined && (
+                                <p className={cn("mt-0.5 text-[11px] font-medium", isDeclined ? "text-rose-600" : "text-amber-600")}>
+                                  Reason: {decision.reason}
                                 </p>
                               )}
-                              {decision.note && !isPreDeclined && <p className="mt-1 text-xs font-semibold leading-snug text-emerald-600">Note: {decision.note}</p>}
-                              {decision.aiExplanation && !isPreDeclined && <p className="mt-1 text-xs font-semibold leading-snug text-slate-500">Hospital note: {decision.aiExplanation}</p>}
-                              {!isPreDeclined && <p className="text-xs font-semibold text-slate-500 mt-1.5">{qty} unit{qty > 1 ? 's' : ''} × {money(unitPrice)}</p>}
+                              {isPreDeclined && (
+                                <p className="mt-1 text-[11px] font-medium text-rose-600 bg-rose-50/60 p-1.5 rounded border border-rose-100">
+                                  <span className="font-semibold">Reason:</span> {item.decline_reason || "Declined during pre-authorization review"}
+                                </p>
+                              )}
+                              {decision.note && !isPreDeclined && (
+                                <p className="mt-0.5 text-[11px] font-medium text-emerald-700">Note: {decision.note}</p>
+                              )}
                             </div>
+
                             <div className="flex flex-col items-end gap-2 shrink-0">
                               <div className="text-right">
-                                {subtotal !== originalSubtotal && <span className="block font-mono text-xs font-medium text-slate-300 line-through">{money(originalSubtotal)}</span>}
-                                <span className={cn("font-semibold font-mono text-sm", isDeclined ? "line-through text-slate-400" : "text-emerald-700")}>
+                                {subtotal !== originalSubtotal && (
+                                  <span className="block font-mono text-[11px] text-slate-400 line-through">
+                                    {money(originalSubtotal)}
+                                  </span>
+                                )}
+                                <span className={cn("font-bold font-mono text-xs", isDeclined ? "line-through text-slate-400" : "text-emerald-700")}>
                                   {money(subtotal)}
                                 </span>
                               </div>
-                              {isAuditing && (
-                                <div className="flex flex-col items-end gap-1.5">
-                                  <button
+
+                              {isAuditable && (
+                                <div className="flex items-center gap-1">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
                                     onClick={() => isDeclined ? openApprovalDialog(codeOrName, item) : openDeclineDialog(codeOrName, item)}
                                     className={cn(
-                                      "text-xs font-semibold px-2.5 py-1.5 rounded-lg border transition-all duration-150 active:scale-95",
-                                      isDeclined
-                                        ? "bg-slate-50 text-emerald-600 border-slate-200 hover:bg-slate-100"
-                                        : "bg-slate-50 text-rose-600 border-slate-200 hover:bg-slate-100"
+                                      "h-7 px-2 text-[11px] font-semibold rounded-lg",
+                                      isDeclined 
+                                        ? "text-emerald-700 border-emerald-200 hover:bg-emerald-50" 
+                                        : "text-rose-700 border-rose-200 hover:bg-rose-50"
                                     )}
                                   >
-                                    {isDeclined ? "Approve Item" : "Decline Item"}
-                                  </button>
+                                    {isDeclined ? "Restore" : "Decline"}
+                                  </Button>
+                                  
                                   {!isDeclined && (
-                                    <button
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
                                       onClick={() => adjustItemQuantity(codeOrName, item)}
-                                      className="text-xs font-semibold px-2.5 py-1.5 rounded-lg border bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100 transition-all duration-150 active:scale-95"
+                                      className="h-7 px-2 text-[11px] font-semibold text-slate-700 border-slate-200 hover:bg-slate-50 rounded-lg"
                                     >
-                                      Adjust Qty
-                                    </button>
+                                      Adjust
+                                    </Button>
                                   )}
                                 </div>
                               )}
@@ -486,54 +607,57 @@ export default function ClaimAuditDrawer({
                     })}
                   </div>
                 ) : (
-                  <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 text-center">
-                    <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">No clinical items match the verification record</p>
+                  <div className="bg-slate-50 p-6 rounded-xl border border-slate-100 text-center">
+                    <p className="text-xs font-medium text-slate-400">No itemized lines recorded for this claim.</p>
                   </div>
                 )}
               </div>
 
-              {/* Pricing Audit Reconciliation summary */}
-              <div className="border-t border-slate-100 pt-4 space-y-3">
-                <div className="flex justify-between items-center bg-slate-50 p-4 rounded-xl border border-slate-100">
+              {/* Pricing Audit Reconciliation */}
+              <div className="border-t border-slate-100 pt-3 space-y-3">
+                <div className="grid grid-cols-2 gap-3 bg-slate-50 p-3.5 rounded-xl border border-slate-100">
                   <div>
-                    <span className="text-xs font-semibold text-slate-500 block">Total Claim Value</span>
-                    <span className="text-sm font-semibold text-slate-600 font-mono mt-1 block">{money(selectedClaim.total_amount)}</span>
+                    <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide block">Total Claimed</span>
+                    <span className="text-sm font-bold text-slate-800 font-mono mt-0.5 block">{money(selectedClaim.total_amount)}</span>
                   </div>
                   <div className="text-right">
-                    <span className="text-xs font-semibold text-slate-500 block">Audited Approved Value</span>
-                    <span className={cn("font-semibold text-lg font-mono mt-1 block", calculatedApprovedAmount < Number(selectedClaim.total_amount) ? "text-amber-600 animate-pulse" : "text-emerald-700")}>
+                    <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide block">Audited Payable</span>
+                    <span className={cn(
+                      "font-bold text-base font-mono mt-0.5 block", 
+                      calculatedApprovedAmount < Number(selectedClaim.total_amount) ? "text-amber-700" : "text-emerald-700"
+                    )}>
                       {money(calculatedApprovedAmount)}
                     </span>
                   </div>
                 </div>
 
-                {/* Warning info if amount was modified */}
                 {(auditSummary.declined > 0 || auditSummary.declinedCount > 0) && (
-                  <div className="bg-slate-50/50 border border-slate-200 p-3 rounded-xl flex items-start gap-2">
-                    <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-                    <p className="text-xs font-semibold text-slate-700 leading-relaxed">
-                      Audit savings: {auditSummary.declinedCount} item(s) declined/adjusted. Approved value reduced by <span className="font-mono font-semibold">{money(auditSummary.declined)}</span>.
+                  <div className="bg-amber-50/70 border border-amber-200 p-2.5 rounded-xl flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                    <p className="text-xs text-amber-800 font-medium">
+                      Audit adjustment: {auditSummary.declinedCount} item(s) modified. Reduced by <span className="font-mono font-bold">{money(auditSummary.declined)}</span>.
                     </p>
                   </div>
                 )}
+
                 <div className="grid grid-cols-3 gap-2 text-center">
-                  <div className="rounded-xl bg-slate-50 p-3 border border-slate-100">
-                    <p className="text-xs font-semibold text-emerald-700">Approved Items</p>
-                    <p className="font-mono text-xl font-bold text-slate-800 mt-1">{auditSummary.approvedCount}</p>
+                  <div className="rounded-xl bg-slate-50 p-2.5 border border-slate-100">
+                    <p className="text-[11px] font-semibold text-emerald-700">Approved Items</p>
+                    <p className="font-mono text-lg font-bold text-slate-800 mt-0.5">{auditSummary.approvedCount}</p>
                   </div>
-                  <div className="rounded-xl bg-slate-50 p-3 border border-slate-100">
-                    <p className="text-xs font-semibold text-rose-700">Declined Items</p>
-                    <p className="font-mono text-xl font-bold text-slate-800 mt-1">{auditSummary.declinedCount}</p>
+                  <div className="rounded-xl bg-slate-50 p-2.5 border border-slate-100">
+                    <p className="text-[11px] font-semibold text-rose-700">Declined Items</p>
+                    <p className="font-mono text-lg font-bold text-slate-800 mt-0.5">{auditSummary.declinedCount}</p>
                   </div>
-                  <div className="rounded-xl bg-slate-50 p-3 border border-slate-100">
-                    <p className="text-xs font-semibold text-slate-500">Final Status</p>
-                    <p className="font-mono text-xs font-semibold text-slate-900 mt-1">{auditSummary.finalStatus.replace("_", " ")}</p>
+                  <div className="rounded-xl bg-slate-50 p-2.5 border border-slate-100">
+                    <p className="text-[11px] font-semibold text-slate-500">Decision Status</p>
+                    <p className="font-mono text-xs font-bold text-slate-900 mt-1 capitalize">{auditSummary.finalStatus.replace(/_/g, " ")}</p>
                   </div>
                 </div>
 
-                {/* Finalize Auditing Action Controls */}
-                {(role === "claims" || role === "admin") && (selectedClaim.status === "submitted" || selectedClaim.status === "pending" || selectedClaim.status === "contested" || selectedClaim.status === "under_contest") ? (
-                  <div className="grid grid-cols-2 gap-3 pt-2">
+                {/* Audit Action Controls */}
+                {isAuditable ? (
+                  <div className="grid grid-cols-2 gap-3 pt-1">
                     <Button 
                       onClick={() => {
                         const approvedItemDetails = verificationData.approvedItems
@@ -544,35 +668,36 @@ export default function ClaimAuditDrawer({
                           .filter((item: any) => declinedItemCodes.includes(itemKey(item)))
                           .map((item: any) => `${item.name} (${item.quantity} unit${item.quantity > 1 ? 's' : ''} × ${money(item.unit_price ?? item.price ?? item.amount ?? 0)})`);
 
-                        const aiAuditNote = `[AUTOMATED CLINICAL AUDIT COMPLETED]
+                        const aiAuditNote = `[CLINICAL AUDIT COMPLETED]
 Claim Reference: ${selectedClaim.claim_number}
 Status: Approved with Adjustments
 
 APPROVED ITEMS:
 ${approvedItemDetails.length > 0 ? approvedItemDetails.map(n => `• ${n}`).join("\n") : "None"}
 
-DECLINED ITEMS (EXCLUDED FROM PAYOUT):
+DECLINED ITEMS:
 ${declinedItemDetails.length > 0 ? declinedItemDetails.map(n => `• ${n} - Clinical Audit Exception`).join("\n") : "None"}
 
-SUMMARY OF ADJUSTMENTS:
-- Requested Amount: ${money(selectedClaim.total_amount)}
-- Approved Payout: ${money(calculatedApprovedAmount)}
-- Deducted Penalty: ${money(Number(selectedClaim.total_amount) - calculatedApprovedAmount)}
+SUMMARY:
+- Requested: ${money(selectedClaim.total_amount)}
+- Approved: ${money(calculatedApprovedAmount)}
+- Deductions: ${money(Number(selectedClaim.total_amount) - calculatedApprovedAmount)}
 
-Audit completed automatically. Under active clinical policy review. Hospital may submit a contest to appeal items declined during this audit.`;
+Audit completed. Hospital may submit a contest to appeal items declined during this audit.`;
 
                         handleStatusUpdate(selectedClaim.id, "approved", calculatedApprovedAmount, aiAuditNote);
                         setIsMobileDetailOpen(false);
                       }}
                       disabled={!verificationData.exists || verificationData.mismatchReasons.length > 0}
-                      className="bg-emerald-600 hover:bg-emerald-700 text-xs font-semibold h-12 rounded-xl disabled:opacity-40 disabled:cursor-not-allowed text-white shadow-sm"
+                      className="bg-emerald-600 hover:bg-emerald-700 text-xs font-semibold h-11 rounded-xl text-white shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
                     >
-                      Approve Claim
+                      Approve Payout ({money(calculatedApprovedAmount)})
                     </Button>
+
                     <Button 
                       variant="outline" 
                       onClick={() => {
-                        const rejectedAuditNote = `[AUTOMATED CLINICAL AUDIT COMPLETED]
+                        const rejectedAuditNote = `[CLINICAL AUDIT COMPLETED]
 Claim Reference: ${selectedClaim.claim_number}
 Status: Rejected
 
@@ -581,15 +706,53 @@ Reason: The claims auditing panel has rejected this claim in its entirety. Direc
                         handleStatusUpdate(selectedClaim.id, "rejected", 0, rejectedAuditNote);
                         setIsMobileDetailOpen(false);
                       }}
-                      className="border-rose-200 text-rose-600 hover:bg-rose-50 text-xs font-semibold h-12 rounded-xl"
+                      className="border-rose-200 text-rose-600 hover:bg-rose-50 text-xs font-semibold h-11 rounded-xl"
                     >
                       Reject Claim
                     </Button>
                   </div>
                 ) : (
-                  <p className="text-xs font-semibold text-slate-600 text-center py-4 bg-slate-50 rounded-xl border border-slate-100">
-                    Claim has been finalized as <span className="text-slate-900 font-semibold">{(selectedClaim.status || "").replace("_", " ")}</span>
-                  </p>
+                  <div className="space-y-3 bg-slate-50 rounded-xl border border-slate-200 p-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-semibold text-slate-700">
+                        Final Status: <span className="text-slate-900 font-bold capitalize">{statusLabel}</span>
+                      </span>
+                      {selectedClaim.payment_status === "awaiting_payment" ? (
+                        <Badge className="bg-emerald-100 text-emerald-800 border-none text-[10px] font-bold">
+                          ✓ In Payment Queue
+                        </Badge>
+                      ) : selectedClaim.status === "partially_approved" ? (
+                        <Badge className="bg-amber-100 text-amber-800 border-none text-[10px] font-bold">
+                          {contestDaysRemaining > 0 ? `${contestDaysRemaining}d Dispute Window` : "Dispute Expired"}
+                        </Badge>
+                      ) : null}
+                    </div>
+
+                    {selectedClaim.status === "partially_approved" && (
+                      selectedClaim.payment_status === "awaiting_payment" ? (
+                        <p className="text-xs text-emerald-700 font-medium leading-relaxed">
+                          This claim has been released to the payment queue and is ready for settlement batching.
+                        </p>
+                      ) : (
+                        <div className="space-y-2.5 pt-1.5 border-t border-slate-200">
+                          <p className="text-xs text-slate-600 leading-relaxed">
+                            {contestDaysRemaining > 0
+                              ? `Waiting for the hospital's 7-day dispute window (${contestDaysRemaining} days remaining until ${formatNigeriaDate(selectedClaim.contest_deadline)}).`
+                              : "The 7-day contest dispute window has passed. Claim qualifies for payment settlement."}
+                          </p>
+                          {(role === "claims" || role === "admin" || role === "finance") && (
+                            <Button
+                              onClick={handleReleaseToPayment}
+                              disabled={isReleasing}
+                              className="w-full bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold h-10 rounded-xl transition-all shadow-sm"
+                            >
+                              {isReleasing ? "Releasing to Payment..." : "Release to Payment Queue Now"}
+                            </Button>
+                          )}
+                        </div>
+                      )
+                    )}
+                  </div>
                 )}
               </div>
 
@@ -597,8 +760,7 @@ Reason: The claims auditing panel has rejected this claim in its entirety. Direc
 
           </div>
         </div>
-
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

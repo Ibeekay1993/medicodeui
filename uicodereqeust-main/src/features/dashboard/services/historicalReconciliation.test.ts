@@ -78,7 +78,7 @@ describe("Historical Reconciliation Engine", () => {
     expect(reconciled.reconciliation_status).toBe("matched");
   });
 
-  it("expands optical combo into standard 3-item package (total ₦27,000)", () => {
+  it("reconciles optical package with direct ophthalmoscopy included (4 items, total ₦31,000)", () => {
     const rawRow: HistoricalRawRow = {
       date: "2026-07-02",
       hospital: "UNIVERSITY OF IBADAN HEALTH SERVICES (JAJA HEALTH CLINIC)",
@@ -93,13 +93,86 @@ describe("Historical Reconciliation Engine", () => {
 
     const reconciled = reconcileHistoricalRow(rawRow, 8, mockTariffs, mockHospitals);
 
-    expect(reconciled.approved_items.length).toBe(3);
-    expect(reconciled.total_amount).toBe(27000.0);
+    expect(reconciled.approved_items.length).toBe(4);
+    expect(reconciled.total_amount).toBe(31000.0);
     expect(reconciled.approved_items.map((i) => i.code)).toEqual([
       "NHIA-010-001",
       "NHIA-081-001",
+      "NHIA-081-007",
       "NHIA-081-015",
     ]);
+  });
+
+  it("reconciles Indapamide 1.5mg at ₦310 (NHIA-12-04-31) and Indapamide SR at ₦363 (NHIA-12-03-15)", () => {
+    const normalRow: HistoricalRawRow = {
+      date: "2026-07-02",
+      hospital: "JAJA HEALTH CLINIC",
+      patient_name: "Adetoye Daniel",
+      policy_number: "12345",
+      authorization_code: "AUTH1",
+      diagnosis: "HTN",
+      treatment: "Tab Indapamide 1.5mg x 1/12",
+      status: "APPROVED",
+      category: "drug",
+    };
+    const reconciledNormal = reconcileHistoricalRow(normalRow, 1, mockTariffs, mockHospitals);
+    expect(reconciledNormal.approved_items[0].code).toBe("NHIA-12-04-31");
+    expect(reconciledNormal.approved_items[0].quantity).toBe(30);
+    expect(reconciledNormal.approved_items[0].unit_price).toBe(310.0);
+    expect(reconciledNormal.approved_items[0].amount).toBe(9300.0);
+
+    const srRow: HistoricalRawRow = {
+      date: "2026-07-02",
+      hospital: "JAJA HEALTH CLINIC",
+      patient_name: "Adetoye Daniel",
+      policy_number: "12345",
+      authorization_code: "AUTH2",
+      diagnosis: "HTN",
+      treatment: "Tab Indapamide 1.5mg SR x 1/12",
+      status: "APPROVED",
+      category: "drug",
+    };
+    const reconciledSr = reconcileHistoricalRow(srRow, 2, mockTariffs, mockHospitals);
+    expect(reconciledSr.approved_items[0].code).toBe("NHIA-12-03-15");
+    expect(reconciledSr.approved_items[0].quantity).toBe(30);
+    expect(reconciledSr.approved_items[0].unit_price).toBe(363.0);
+    expect(reconciledSr.approved_items[0].amount).toBe(10890.0);
+  });
+
+  it("reconciles Clopidogrel 75mg at ₦190 (NHIA-11-03-04) and Tamsulosin at ₦439 (NHIA-17-08-03)", () => {
+    const clopidogrelRow: HistoricalRawRow = {
+      date: "2026-07-02",
+      hospital: "JAJA HEALTH CLINIC",
+      patient_name: "Test Patient",
+      policy_number: "12345",
+      authorization_code: "AUTH3",
+      diagnosis: "HTN",
+      treatment: "Clopidogrel 75mg dly x1/12",
+      status: "APPROVED",
+      category: "drug",
+    };
+    const reconciledClop = reconcileHistoricalRow(clopidogrelRow, 3, mockTariffs, mockHospitals);
+    expect(reconciledClop.approved_items[0].code).toBe("NHIA-11-03-04");
+    expect(reconciledClop.approved_items[0].quantity).toBe(30);
+    expect(reconciledClop.approved_items[0].unit_price).toBe(190.0);
+    expect(reconciledClop.approved_items[0].amount).toBe(5700.0);
+
+    const tamsulosinRow: HistoricalRawRow = {
+      date: "2026-07-02",
+      hospital: "JAJA HEALTH CLINIC",
+      patient_name: "Test Patient 2",
+      policy_number: "12346",
+      authorization_code: "AUTH4",
+      diagnosis: "BPH",
+      treatment: "Tab tamsulosin 0.04mg Dly x1/12",
+      status: "APPROVED",
+      category: "drug",
+    };
+    const reconciledTam = reconcileHistoricalRow(tamsulosinRow, 4, mockTariffs, mockHospitals);
+    expect(reconciledTam.approved_items[0].code).toBe("NHIA-17-08-03");
+    expect(reconciledTam.approved_items[0].quantity).toBe(30);
+    expect(reconciledTam.approved_items[0].unit_price).toBe(439.0);
+    expect(reconciledTam.approved_items[0].amount).toBe(13170.0);
   });
 
   it("handles declined requests with zero approved amount and declined item flag", () => {
@@ -144,6 +217,26 @@ describe("Historical Reconciliation Engine", () => {
     expect(reconciled.total_amount).toBe(2600.0); // Specialist Review (Per visit)
     expect(reconciled.approved_items[0].code).toBe("NHIA-010-002");
     expect(reconciled.approved_items[0].name).toBe("Specialist Review (Per visit)");
+  });
+
+  it("resolves direct UCH hospital row without referral to UCH as primary hospital", () => {
+    const rawRow: HistoricalRawRow = {
+      date: "2026-07-10",
+      hospital: "UNIVERSITY COLLEGE HOSPITAL",
+      patient_name: "Oloyede Babatunde",
+      policy_number: "8240836",
+      authorization_code: "R/AO/190626193BD",
+      diagnosis: "BPH",
+      treatment: "Specialist Review",
+      status: "APPROVED",
+      category: "LAB",
+    };
+
+    const reconciled = reconcileHistoricalRow(rawRow, 126, mockTariffs, mockHospitals);
+
+    expect(reconciled.hospital_name).toContain("UNIVERSITY COLLEGE HOSPITAL");
+    expect(reconciled.claiming_hospital_id).toBe("hosp-uch");
+    expect(reconciled.requesting_hospital_id).toBe("hosp-uch");
   });
 
   it("differentiates consultation / initial consultation (NHIA-010-001 @ ₦4000) from follow-up / review (NHIA-010-002 @ ₦2600)", () => {
@@ -314,5 +407,42 @@ describe("Historical Reconciliation Engine", () => {
     expect(eucr).toBeDefined();
     expect(eucr?.unit_price).toBe(9000.0);
     expect(eucr?.amount).toBe(9000.0);
+  });
+
+  it("resolves RPD/denture dental procedures (Jaja source) to UCH as claiming hospital (Row 154 fix)", () => {
+    // Row 154: Elizabeth Ajibade – Removably partial denture (RPD)
+    // Hospital in Excel = Jaja, but procedure is a UCH dental dept procedure
+    const rawRow: HistoricalRawRow = {
+      date: "16/07/2026",
+      hospital: "UNIVERSITY OF IBADAN HEALTH SERVICES (JAJA HEALTH CLINIC)",
+      patient_name: "Elizabeth Ajibade",
+      policy_number: "1458576",
+      authorization_code: "R/AO/190626221BD",
+      diagnosis: "Kennedy class III Modifications I space on upper arch 54+2",
+      treatment: "Removably partial denture (RPD)",
+      status: "APPROVED",
+    };
+
+    const rec = reconcileHistoricalRow(rawRow, 154, mockTariffs, mockHospitals);
+
+    // Claiming and primary hospital must be UCH, not Jaja
+    expect(rec.hospital_name).toBe("UNIVERSITY COLLEGE HOSPITAL");
+    expect(rec.claiming_hospital_name).toBe("UNIVERSITY COLLEGE HOSPITAL");
+    expect(rec.claiming_hospital_id).toBe("hosp-uch");
+
+    // Requesting hospital is Jaja (the referrer)
+    expect(rec.requesting_hospital_name).toContain("JAJA");
+    expect(rec.requesting_hospital_id).toBe("hosp-jaja");
+
+    // Referred-to hospital is UCH
+    expect(rec.referred_hospital_name).toBe("UNIVERSITY COLLEGE HOSPITAL");
+    expect(rec.referred_hospital_id).toBe("hosp-uch");
+
+    // RPD tariff must be NHIA-870-022 at ₦25,000
+    const rpd = rec.approved_items.find((i) => /denture|rpd/i.test(i.name));
+    expect(rpd).toBeDefined();
+    expect(rpd?.code).toBe("NHIA-870-022");
+    expect(rpd?.unit_price).toBe(25000.0);
+    expect(rpd?.amount).toBe(25000.0);
   });
 });

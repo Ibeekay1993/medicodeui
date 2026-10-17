@@ -25,7 +25,7 @@ export default function ClaimsFilterHeader({
   uniqueHospitals
 }: ClaimsFilterHeaderProps) {
   return (
-    <div className="premium-card bg-white/80 backdrop-blur-md p-4 rounded-xl border border-slate-100 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4 mb-2 transition-all duration-300 hover:shadow-md relative z-[100]">
+    <div className="relative z-10 mb-2 flex flex-col items-stretch justify-between gap-4 rounded-xl border border-slate-200 bg-white p-4 md:flex-row md:items-center">
       <div className="flex w-full flex-col items-stretch gap-3 sm:w-auto sm:flex-row sm:items-center sm:gap-4">
         <h2 className="text-lg font-black text-slate-900 tracking-tight">Claims Ledger</h2>
         <Tabs value={statusTab === 'pending' ? 'pending' : 'all'} onValueChange={(val: any) => setStatusTab(val)} className="w-full sm:w-auto">
@@ -40,7 +40,7 @@ export default function ClaimsFilterHeader({
         {statusTab !== 'pending' && (
         <div className="w-full sm:w-44">
           <Select value={statusTab} onValueChange={(v: any) => setStatusTab(v)}>
-            <SelectTrigger className="w-full h-8 text-xs font-semibold bg-slate-50 border-none rounded-lg">
+            <SelectTrigger className="h-10 w-full rounded-lg border-slate-200 bg-white text-sm font-medium">
               <ListFilter className="h-3 w-3 text-slate-400 mr-1.5 shrink-0" />
               <SelectValue placeholder="Filter Status" />
             </SelectTrigger>
@@ -68,12 +68,12 @@ export default function ClaimsFilterHeader({
 
         {/* Search Input */}
         <div className="relative w-full sm:w-56">
-          <Search className="absolute left-2.5 top-2 h-3.5 w-3.5 text-slate-300" />
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" aria-hidden="true" />
           <Input 
             placeholder="Search patient, policy, code..." 
             value={searchTerm} 
             onChange={e => setSearchTerm(e.target.value)} 
-            className="pl-9 h-8 rounded-lg bg-slate-50 border-none text-xs font-semibold w-full focus-visible:ring-1 focus-visible:ring-slate-300" 
+            className="h-10 w-full rounded-lg border-slate-200 bg-white pl-9 text-sm font-medium focus-visible:ring-1 focus-visible:ring-slate-300"
             aria-label="Search patient, policy or code"
           />
         </div>

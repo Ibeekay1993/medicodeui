@@ -1,9 +1,9 @@
 // submit-authorization
 //
-// Internal API used by the whatsapp-worker (and any other internal automation).
-// Authenticated by `X-Api-Key` matching `MEDAUTH_INTERNAL_API_KEY`. Uses the
-// service role to bypass the `Hospitals can create pending requests` RLS policy
-// while still writing the same columns a hospital user would write.
+// Trusted intake for the whatsapp-worker and authenticated nurse/admin parser.
+// Internal automation uses `X-Api-Key`; browser callers must present a valid
+// Supabase bearer token and an authorized clinical staff role. The server uses
+// service role for the insert and derives browser parser provenance itself.
 //
 // WhatsApp security is enforced twice:
 //   1. This function resolves the sender from the persisted WhatsApp message and
@@ -16,6 +16,23 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { ensureArrivalPin } from "../_shared/arrival-pin.ts";
 import { isClinicallyDecidedAuthorization } from "../_shared/authorization-state.ts";
 import { schedulePendingAuthorizationPush } from "../_shared/pending-auth-push.ts";
+import {
+  deriveAuthorizationProvenance,
+  isSameParserSubmissionReplay,
+} from "../_shared/authorization-provenance.ts";
+import {
+  DETERMINISTIC_ONLY_WORKER_MODE,
+  MANUAL_TARIFF_REVIEW_NOTE,
+  WORKER_PROCESSING_MODE_FIELD,
+  getClinicalReviewNote,
+  resolveWorkerProcessingMode,
+  shouldAutoMatchTariffItems,
+} from "../_shared/whatsapp-worker-mode.ts";
+import {
+  assertMfaForSensitiveAction,
+  getAssuranceLevel,
+  getSensitiveActionErrorStatus,
+} from "../_shared/auth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -64,6 +81,10 @@ function sanitize(value: unknown, max = 500): string {
   return String(value ?? "").trim().slice(0, max).replace(/[<>]/g, "");
 }
 
+function preserveMessage(value: unknown, max = 4000): string {
+  return String(value ?? "").trim().slice(0, max);
+}
+
 function normalizePhone(value: string): string {
   let digits = value.replace(/[^0-9]/g, "");
   if (digits.startsWith("00")) digits = digits.slice(2);
@@ -79,16 +100,6 @@ serve(async (req) => {
   if (req.method !== "POST") return bad(405, "method_not_allowed");
 
   const provided = req.headers.get("x-api-key") || "";
-  if (!MEDAUTH_API_KEY || provided !== MEDAUTH_API_KEY) {
-    return bad(401, "invalid_api_key");
-  }
-  if (WORKER_SHARED_SECRET) {
-    const ws = req.headers.get("x-worker-secret") || "";
-    if (ws !== WORKER_SHARED_SECRET && provided !== MEDAUTH_API_KEY) {
-      return bad(401, "invalid_api_key");
-    }
-  }
-
   let body: any;
   try {
     body = await req.json();
@@ -96,10 +107,77 @@ serve(async (req) => {
     return bad(400, "invalid_json");
   }
 
-  const source = sanitize(body.source, 40).toLowerCase() || "whatsapp";
-  const whatsappMessageId =
-    sanitize(body.whatsapp_message_id || body.source_message_id, 120) || null;
+  const isInternalCall = Boolean(MEDAUTH_API_KEY && provided === MEDAUTH_API_KEY);
+  if (provided && !isInternalCall) return bad(401, "invalid_api_key");
+
   const supabase = getServiceClient();
+  let authenticatedUserId: string | null = null;
+  let submitActor:
+    | { kind: "internal" }
+    | { kind: "user"; userId: string; roles: string[] };
+
+  if (isInternalCall) {
+    if (WORKER_SHARED_SECRET) {
+      const workerSecret = req.headers.get("x-worker-secret") || "";
+      if (workerSecret !== WORKER_SHARED_SECRET && provided !== MEDAUTH_API_KEY) {
+        return bad(401, "invalid_api_key");
+      }
+    }
+    submitActor = { kind: "internal" };
+  } else {
+    const authorization = req.headers.get("authorization") || "";
+    const accessToken = authorization.match(/^Bearer\s+(.+)$/i)?.[1] || "";
+    if (!accessToken) return bad(401, "authentication_required");
+
+    const { data: authData, error: authError } = await supabase.auth.getUser(accessToken);
+    if (authError || !authData.user) return bad(401, "authentication_required");
+    authenticatedUserId = authData.user.id;
+
+    try {
+      await assertMfaForSensitiveAction(
+        authenticatedUserId,
+        getAssuranceLevel(authorization, authenticatedUserId),
+      );
+    } catch (error) {
+      console.error("submit-authorization: MFA verification failed", error);
+      const status = getSensitiveActionErrorStatus(error);
+      return bad(status, status === 403 ? "mfa_verification_required" : "mfa_policy_check_failed");
+    }
+
+    const { data: roleRows, error: roleError } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", authenticatedUserId)
+      .in("role", ["nurse", "admin", "utilization_manager", "utilization_manager_lead"]);
+    if (roleError) return bad(500, "staff_role_lookup_failed");
+
+    submitActor = {
+      kind: "user",
+      userId: authenticatedUserId,
+      roles: (roleRows || []).map((row: { role: string }) => row.role),
+    };
+  }
+
+  let provenance;
+  try {
+    provenance = deriveAuthorizationProvenance(submitActor, body.source);
+  } catch {
+    return bad(403, "staff_authorization_required");
+  }
+
+  // A user JWT can only create a dashboard-parsed WhatsApp request. Its source
+  // is derived above from the authenticated staff role, never from body.source.
+  const source = provenance.source;
+  const requestId = isInternalCall ? null : sanitize(body.request_id, 100);
+  if (!isInternalCall && !requestId) return bad(400, "idempotency_key_required");
+  const processingMode = resolveWorkerProcessingMode(
+    body[WORKER_PROCESSING_MODE_FIELD],
+  );
+  const deterministicWhatsApp = source === "whatsapp" &&
+    processingMode === DETERMINISTIC_ONLY_WORKER_MODE;
+  const whatsappMessageId = isInternalCall
+    ? sanitize(body.whatsapp_message_id || body.source_message_id, 120) || null
+    : null;
 
   let phoneNumber = sanitize(body.phone_number, 32);
   let patientName = sanitize(body.patient_name, 200);
@@ -188,13 +266,27 @@ serve(async (req) => {
     if (!phoneNumber) return bad(422, "patient_phone_required");
     phoneNumber = normalizePhone(phoneNumber);
   } else {
-    if (!phoneNumber) return bad(400, "phone_number_required");
+    if (!phoneNumber && source !== "whatsapp_parser") {
+      return bad(400, "phone_number_required");
+    }
+
+    const requestedHospitalId = sanitize(body.hospital_id, 80);
+    if (requestedHospitalId) {
+      const { data: matchedHospital } = await supabase
+        .from("hospitals")
+        .select("id, name")
+        .eq("id", requestedHospitalId)
+        .maybeSingle();
+      if (!matchedHospital?.id) return bad(422, "hospital_not_found");
+      hospitalId = matchedHospital.id;
+      hospitalName = matchedHospital.name;
+    }
 
     const rawHospitalName = sanitize(
       body.hospital_name || body.provider_name,
       200,
     );
-    if (rawHospitalName) {
+    if (!hospitalId && rawHospitalName) {
       let searchName = rawHospitalName;
       const lower = rawHospitalName.toLowerCase();
       if (lower.includes("university health service") || lower.includes("jaja")) {
@@ -226,29 +318,41 @@ serve(async (req) => {
       : "Pending clinical review");
   const treatment = sanitize(body.treatment, 1000) || procedureType;
   const urgency = mapUrgency(body.urgency_level);
-  const rawMessage = sanitize(body.raw_message, 4000) || null;
+  const rawMessage = preserveMessage(body.raw_message, 4000) || null;
   const missingInfo = Array.isArray(body.missing_info)
     ? body.missing_info.slice(0, 10)
     : [];
+  if (
+    deterministicWhatsApp &&
+    missingInfo.length < 10 &&
+    !missingInfo.includes(MANUAL_TARIFF_REVIEW_NOTE)
+  ) {
+    missingInfo.push(MANUAL_TARIFF_REVIEW_NOTE);
+  }
   const patientId = sanitize(body.patient_id, 80) || null;
 
-  const phoneCheck = await supabase.rpc("register_policy_phone", {
-    p_phone: phoneNumber,
-    p_family_policy: policyNumber,
-  });
-  if (phoneCheck.error) {
-    console.error("submit-authorization: patient phone registry failed", phoneCheck.error.message);
-    return bad(500, "patient_phone_registry_failed");
-  }
-  if (!phoneCheck.data?.allowed) {
-    return new Response(JSON.stringify({
-      error: true,
-      code: "phone_family_conflict",
-      message: String(phoneCheck.data?.reason || "Request not submitted: this patient phone number is already registered for a different family policy. No authorization request has been created."),
-    }), {
-      status: 409,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+  // The parser page historically allows incomplete phone/policy details for
+  // human review. When it has both values, retain the cross-family guard.
+  // Webhook and other internal submissions keep the existing required check.
+  if (source !== "whatsapp_parser" || (phoneNumber && policyNumber)) {
+    const phoneCheck = await supabase.rpc("register_policy_phone", {
+      p_phone: phoneNumber,
+      p_family_policy: policyNumber,
     });
+    if (phoneCheck.error) {
+      console.error("submit-authorization: patient phone registry failed", phoneCheck.error.message);
+      return bad(500, "patient_phone_registry_failed");
+    }
+    if (!phoneCheck.data?.allowed) {
+      return new Response(JSON.stringify({
+        error: true,
+        code: "phone_family_conflict",
+        message: String(phoneCheck.data?.reason || "Request not submitted: this patient phone number is already registered for a different family policy. No authorization request has been created."),
+      }), {
+        status: 409,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
   }
 
   const rawReferralHospitalName = sanitize(body.referral_hospital_name, 200);
@@ -256,43 +360,58 @@ serve(async (req) => {
   let referralHospitalName: string | null = rawReferralHospitalName || null;
 
   if (rawReferralHospitalName) {
-    let searchReferral = rawReferralHospitalName;
-    const lowerRef = rawReferralHospitalName.toLowerCase();
-    if (
-      lowerRef.includes("uch") ||
-      lowerRef.includes("university college hospital")
-    ) {
-      searchReferral = "UNIVERSITY COLLEGE HOSPITAL";
-    }
-    const { data: matchedRefHospitals } = await supabase
-      .from("hospitals")
-      .select("id, name")
-      .ilike(
-        "name",
-        `%${searchReferral.split(" ").slice(0, 3).join(" ")}%`,
-      )
-      .limit(1);
-    if (matchedRefHospitals?.length) {
-      referralHospitalId = matchedRefHospitals[0].id;
-      referralHospitalName = matchedRefHospitals[0].name;
+    const requestedReferralId = sanitize(body.referral_hospital_id, 80);
+    if (requestedReferralId) {
+      const { data: matchedReferral } = await supabase
+        .from("hospitals")
+        .select("id, name")
+        .eq("id", requestedReferralId)
+        .maybeSingle();
+      if (!matchedReferral?.id) return bad(422, "referral_hospital_not_found");
+      referralHospitalId = matchedReferral.id;
+      referralHospitalName = matchedReferral.name;
     } else {
-      referralHospitalName = searchReferral;
+      let searchReferral = rawReferralHospitalName;
+      const lowerRef = rawReferralHospitalName.toLowerCase();
+      if (
+        lowerRef.includes("uch") ||
+        lowerRef.includes("university college hospital")
+      ) {
+        searchReferral = "UNIVERSITY COLLEGE HOSPITAL";
+      }
+      const { data: matchedRefHospitals } = await supabase
+        .from("hospitals")
+        .select("id, name")
+        .ilike(
+          "name",
+          `%${searchReferral.split(" ").slice(0, 3).join(" ")}%`,
+        )
+        .limit(1);
+      if (matchedRefHospitals?.length) {
+        referralHospitalId = matchedRefHospitals[0].id;
+        referralHospitalName = matchedRefHospitals[0].name;
+      } else {
+        referralHospitalName = searchReferral;
+      }
     }
   }
 
-  let detectedItems: any[] = [];
-  if (treatment && treatment !== "Not provided") {
+  let detectedItems: any[] = source === "whatsapp_parser" && Array.isArray(body.approved_items)
+    ? body.approved_items.slice(0, 50)
+    : [];
+  if (
+    source !== "whatsapp_parser" &&
+    shouldAutoMatchTariffItems(source, processingMode) &&
+    treatment &&
+    treatment !== "Not provided"
+  ) {
     try {
-      const ac = new AbortController();
-      const timer = setTimeout(() => ac.abort(), 12000);
       const { data: parseResult } = await supabase.functions
         .invoke(
           "parse-request-text",
-          { body: { text: treatment } },
-          { signal: ac.signal } as any,
+          { body: { text: treatment }, timeout: 12_000 },
         )
         .catch(() => ({ data: null as any }));
-      clearTimeout(timer);
       if (parseResult?.items && Array.isArray(parseResult.items)) {
         detectedItems = parseResult.items.map((item: any) => ({
           code: item.code,
@@ -313,16 +432,24 @@ serve(async (req) => {
     }
   }
 
-  const clinicalNotes = JSON.stringify({
-    source,
-    patient_id_free_text: patientId,
-    provider_name_free_text: providerName,
-    referral_to: referralHospitalName,
-    missing_info: missingInfo,
-    whatsapp_message_id: whatsappMessageId,
-    whatsapp_sender_phone: source === "whatsapp" ? whatsappSenderPhone : null,
-    captured_at: new Date().toISOString(),
-  });
+  const clinicalNotes = source === "whatsapp_parser"
+    ? sanitize(body.clinical_notes, 2000) || null
+    : JSON.stringify({
+      source,
+      patient_id_free_text: patientId,
+      provider_name_free_text: providerName,
+      referral_to: referralHospitalName,
+      missing_info: missingInfo,
+      worker_processing_mode: deterministicWhatsApp
+        ? DETERMINISTIC_ONLY_WORKER_MODE
+        : null,
+      notes: deterministicWhatsApp
+        ? getClinicalReviewNote(processingMode)
+        : null,
+      whatsapp_message_id: whatsappMessageId,
+      whatsapp_sender_phone: source === "whatsapp" ? whatsappSenderPhone : null,
+      captured_at: new Date().toISOString(),
+    });
 
   const insertPayload: Record<string, unknown> = {
     patient_name: patientName,
@@ -347,9 +474,14 @@ serve(async (req) => {
     source,
     clinical_notes: clinicalNotes,
     whatsapp_message_id: whatsappMessageId,
-    whatsapp_raw_message: whatsappMessageId,
+    whatsapp_raw_message: source === "whatsapp"
+      ? whatsappMessageId
+      : source === "whatsapp_parser"
+      ? rawMessage
+      : null,
     status: "pending",
-    submitted_by: null,
+    submitted_by: provenance.submittedBy,
+    ...(source === "whatsapp_parser" ? { request_id: requestId } : {}),
   };
 
   const { data: row, error: insErr } = await supabase
@@ -358,15 +490,31 @@ serve(async (req) => {
     .select("id, request_id, status")
     .single();
 
-  if (insErr) {
-    const { data: existing } = whatsappMessageId
+  if (insErr?.code === "23505") {
+    const { data: existing } = source === "whatsapp_parser" && requestId
       ? await supabase
         .from("authorization_requests")
-        .select("id, request_id, status, authorization_code, approved_by, decided_at, decided_by, decision_reason")
+        .select("id, request_id, status, authorization_code, approved_by, decided_at, decided_by, decision_reason, source, submitted_by, hospital_id, patient_name, policy_number, beneficiary_number, diagnosis, treatment, patient_phone, referred_hospital_id, whatsapp_raw_message, urgency, clinical_notes, approved_items")
+        .eq("request_id", requestId)
+        .maybeSingle()
+      : whatsappMessageId
+      ? await supabase
+        .from("authorization_requests")
+          .select("id, request_id, status, authorization_code, approved_by, decided_at, decided_by, decision_reason, source, submitted_by")
         .eq("whatsapp_message_id", whatsappMessageId)
         .maybeSingle()
       : { data: null };
     if (existing) {
+      if (
+        source === "whatsapp_parser" &&
+        !isSameParserSubmissionReplay(
+          existing,
+          { ...insertPayload, request_id: requestId },
+          authenticatedUserId || "",
+        )
+      ) {
+        return bad(409, "idempotency_key_conflict");
+      }
       if (
         source === "whatsapp" &&
         !isClinicallyDecidedAuthorization(existing)

@@ -304,7 +304,7 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
   }, [open, request?.id]);
 
   // 3. Initialize manual/auto tariff search hook
-  const tariffSearch = useTariffSearch(open, editTreatment, request, isParsedRequest && role !== "hospital");
+  const tariffSearch = useTariffSearch(open, editTreatment, request, !isHospitalDirected && role !== "hospital");
 
   // 3. Initialize decision & saving actions hook
   const actions = useClinicalActions({

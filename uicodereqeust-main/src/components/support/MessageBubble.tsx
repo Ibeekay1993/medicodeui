@@ -1,6 +1,6 @@
 import React from "react";
 import { cn } from "@/lib/utils";
-import { Sparkles, Lock, CheckCheck, Paperclip } from "lucide-react";
+import { Bot, Settings2, Lock, CheckCheck, Paperclip } from "lucide-react";
 
 interface MessageBubbleProps {
   msg: any;
@@ -31,7 +31,7 @@ export function MessageBubble({
     return (
       <div className="flex justify-center py-2 animate-in fade-in zoom-in duration-200">
         <div className="bg-slate-100 border border-slate-200 text-slate-600 text-xs font-medium rounded-2xl px-4 py-2 max-w-xl text-center shadow-sm leading-relaxed">
-          <span className="text-slate-400 mr-2">⚙️</span>
+          <Settings2 className="mr-2 inline h-3.5 w-3.5 text-slate-500" aria-hidden="true" />
           {msg.body}
           <div className="text-[10px] font-semibold text-slate-400 mt-1">
             {timeString} · {dateString}
@@ -44,11 +44,11 @@ export function MessageBubble({
   if (msg.sender_role === "ai") {
     return (
       <div className="flex justify-center py-2 animate-in fade-in zoom-in duration-200">
-        <div className="bg-gradient-to-br from-indigo-50 to-white border border-indigo-100 text-slate-700 text-xs font-medium rounded-2xl px-5 py-4 max-w-2xl shadow-sm leading-relaxed">
-          <div className="flex items-center gap-2 mb-2 text-indigo-700">
-            <Sparkles className="h-4 w-4" />
-            <span className="text-xs font-black uppercase tracking-widest">
-              Automated Support System
+        <div className="max-w-2xl rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium leading-relaxed text-slate-700">
+          <div className="mb-2 flex items-center gap-2 text-slate-700">
+            <Bot className="h-4 w-4" aria-hidden="true" />
+            <span className="text-sm font-semibold">
+              Automated support
             </span>
           </div>
           <p className="whitespace-pre-wrap text-sm leading-relaxed">{msg.body}</p>
@@ -56,14 +56,14 @@ export function MessageBubble({
             <button
               type="button"
               onClick={() => handleAiFeedback(true, false)}
-              className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-black uppercase tracking-widest text-emerald-700 hover:bg-emerald-100 transition-colors"
+              className="min-h-11 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800 transition-colors hover:bg-emerald-100"
             >
               Resolved
             </button>
             <button
               type="button"
               onClick={() => handleAiFeedback(false, true)}
-              className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-black uppercase tracking-widest text-rose-700 hover:bg-rose-100 transition-colors"
+              className="min-h-11 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-medium text-rose-800 transition-colors hover:bg-rose-100"
             >
               Speak to Human
             </button>

@@ -36,8 +36,7 @@ export function PushNotificationFirstTimePrompt() {
     const pending = setupRequestRef.current;
     if (pending?.userId === userId) return pending.promise;
 
-    let request: Promise<SetupResult>;
-    request = subscribeToPushNotifications(userId).finally(() => {
+    const request = subscribeToPushNotifications(userId).finally(() => {
       if (setupRequestRef.current?.promise === request) setupRequestRef.current = null;
     });
     setupRequestRef.current = { userId, promise: request };

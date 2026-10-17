@@ -215,15 +215,15 @@ export default function ResetPassword() {
     return (
       <div className="min-h-screen bg-slate-50 font-sans py-12 px-4 flex items-center justify-center">
         <div className="max-w-md w-full animate-in fade-in slide-in-from-bottom-4 duration-300">
-          <Card className="rounded-2xl shadow-2xl border-slate-200 bg-white overflow-hidden">
+          <Card className="overflow-hidden rounded-xl border-slate-200 bg-white shadow-md">
             <div className="text-center p-6 pb-2">
-              <div className="mx-auto mb-4 flex h-[60px] w-[60px] items-center justify-center rounded-2xl bg-amber-50 shadow-xl shadow-amber-500/10 border border-amber-200">
+              <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-lg border border-amber-200 bg-amber-50">
                 <ShieldAlert className="h-7 w-7 text-amber-600" />
               </div>
-              <h2 className="text-2xl font-black text-slate-900 uppercase italic">
+              <h2 className="text-2xl font-semibold text-slate-900">
                 Reset <span className="text-amber-600">Error</span>
               </h2>
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-2">
+              <p className="mt-2 text-sm font-medium text-slate-600">
                 Verification Failed
               </p>
             </div>
@@ -231,7 +231,7 @@ export default function ResetPassword() {
               <p className="text-sm font-semibold text-slate-600 leading-relaxed">{inviteError}</p>
               <Button
                 onClick={() => navigate("/login")}
-                className="w-full h-12 rounded-xl bg-slate-900 text-white font-black uppercase tracking-widest shadow-xl shadow-slate-900/20 active:scale-[0.98] transition-all"
+                className="h-12 w-full rounded-lg bg-primary text-sm font-semibold text-white shadow-sm transition-colors hover:bg-primary/90"
               >
                 Go to Login
               </Button>
@@ -248,15 +248,15 @@ export default function ResetPassword() {
   return (
     <main className="min-h-screen bg-slate-50 font-sans py-12 px-4 flex items-center justify-center">
       <div className="max-w-md w-full animate-in fade-in slide-in-from-bottom-4 duration-300">
-        <Card className="rounded-2xl shadow-2xl border-slate-200 bg-white overflow-hidden">
+          <Card className="overflow-hidden rounded-xl border-slate-200 bg-white shadow-md">
           <div className="text-center p-6 pb-2">
-            <div className="mx-auto mb-4 flex h-[60px] w-[60px] items-center justify-center rounded-2xl bg-slate-900 shadow-xl shadow-slate-900/20">
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-slate-800">
               <ShieldCheck className="h-7 w-7 text-lime-800" />
             </div>
-            <h1 className="text-2xl font-black text-slate-900 uppercase italic">
+            <h1 className="text-2xl font-semibold text-slate-900">
               Reset <span className="text-brand-700">Password</span>
             </h1>
-            <p className="text-xs font-bold text-slate-600 uppercase tracking-widest mt-2">
+            <p className="mt-2 text-sm font-medium text-slate-600">
               Secure Account Update
             </p>
           </div>
@@ -274,7 +274,7 @@ export default function ResetPassword() {
               autoComplete="off"
             >
               <div className="space-y-2">
-                <label htmlFor="password" className="text-xs font-black uppercase tracking-widest text-slate-700 ml-1">
+                <label htmlFor="password" className="ml-1 text-sm font-medium text-slate-700">
                   New Password
                 </label>
                 <div className="relative">
@@ -294,7 +294,7 @@ export default function ResetPassword() {
               </div>
 
               <div className="space-y-2">
-                <label htmlFor="confirm" className="text-xs font-black uppercase tracking-widest text-slate-700 ml-1">
+                <label htmlFor="confirm" className="ml-1 text-sm font-medium text-slate-700">
                   Confirm Password
                 </label>
                 <div className="relative">
@@ -316,7 +316,7 @@ export default function ResetPassword() {
               <Button
                 type="submit"
                 disabled={submitting}
-                className="w-full h-12 rounded-xl bg-slate-900 text-white font-black uppercase tracking-widest shadow-xl shadow-slate-900/20 active:scale-[0.98] transition-all mt-4"
+                className="mt-4 h-12 w-full rounded-lg bg-primary text-sm font-semibold text-white shadow-sm transition-colors hover:bg-primary/90"
               >
                 {submitting ? (
                   <Loader2 className="h-4 w-4 animate-spin mr-2" />
@@ -331,4 +331,3 @@ export default function ResetPassword() {
     </main>
   );
 }
-

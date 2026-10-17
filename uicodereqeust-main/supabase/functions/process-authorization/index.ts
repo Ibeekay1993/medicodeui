@@ -1,5 +1,12 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { corsHeaders, getServiceClient, sanitizeString, validateUser } from "../_shared/auth.ts";
+import {
+  assertMfaForSensitiveAction,
+  corsHeaders,
+  getServiceClient,
+  getSensitiveActionErrorStatus,
+  sanitizeString,
+  validateUser,
+} from "../_shared/auth.ts";
 
 type ApprovedItem = {
   code?: string | null;
@@ -80,7 +87,8 @@ async function invokeFunction(
   authorizationHeader: string,
 ): Promise<void> {
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
-  if (!supabaseUrl || !authorizationHeader) return;
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!supabaseUrl || !serviceKey || !authorizationHeader) return;
 
   try {
     await fetch(`${supabaseUrl}/functions/v1/${functionName}`, {
@@ -101,7 +109,8 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
-    const { user } = await validateUser(req, ["utilization_manager", "utilization_manager_lead", "admin"]);
+    const { user, assuranceLevel } = await validateUser(req, ["utilization_manager", "utilization_manager_lead", "admin"]);
+    await assertMfaForSensitiveAction(user.id, assuranceLevel);
     const authorizationHeader = req.headers.get("Authorization") || "";
     const body = await req.json();
     const requestId = sanitizeString(body.request_id || body.auth_id || body.id, 120);
@@ -308,7 +317,10 @@ serve(async (req) => {
   } catch (err) {
     return new Response(
       JSON.stringify({ error: true, message: err instanceof Error ? err.message : "Request failed" }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: getSensitiveActionErrorStatus(err),
+      }
     );
   }
 });

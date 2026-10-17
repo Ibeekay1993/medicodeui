@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { MessageSquare, Save, Wand2, Loader2, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/contexts/AuthContext";
 import { notifyPendingAuthorizationRequest } from "@/lib/pushNotifications";
 
 const whatsappSamples = [
@@ -53,7 +52,6 @@ export default function WhatsAppPage() {
     return saved ? JSON.parse(saved) : null;
   });
   const { toast } = useToast();
-  const { user } = useAuth();
 
   const normalizeLine = (value: string) =>
     value
@@ -268,35 +266,32 @@ export default function WhatsAppPage() {
         }
       }
 
-      const { data: insertedRequest, error } = await supabase
-        .from("authorization_requests")
-        .insert([{
-          patient_name: parsedData.patient_name,
-          policy_number: parsedData.policy_number,
-          diagnosis: parsedData.diagnosis,
-          treatment: parsedData.treatment,
-          hospital_name: hospitalName,
-          hospital_id: hospitalId,
-          requesting_hospital_id: hospitalId,
-          requesting_hospital_name: hospitalName,
-          referring_hospital_id: hospitalId,
-          referring_hospital_name: hospitalName,
-          referred_hospital_id: parsedData.referral_hospital_id || null,
-          referred_hospital_name: parsedData.referral_hospital_name || null,
-          claiming_hospital_id: parsedData.referral_hospital_id || hospitalId,
-          claiming_hospital_name: parsedData.referral_hospital_name || hospitalName,
-          patient_phone: parsedData.patient_phone || null,
-          clinical_notes: parsedData.clinical_notes || null,
-          approved_items: parsedData.approved_items || [],
-          whatsapp_raw_message: rawText,
-          status: "pending",
-          source: "whatsapp_parser",
-          submitted_by: user?.id,
-          request_id: `REQ-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
-          urgency: "routine"
-        }])
-        .select("id")
-        .single();
+      const requestId = parsedData.request_id || `REQ-${crypto.randomUUID()}`;
+      if (!parsedData.request_id) {
+        setParsedData({ ...parsedData, request_id: requestId });
+      }
+
+      const { data: insertedRequest, error } = await supabase.functions.invoke(
+        "submit-authorization",
+        {
+          body: {
+            request_id: requestId,
+            patient_name: parsedData.patient_name,
+            policy_number: parsedData.policy_number,
+            diagnosis: parsedData.diagnosis,
+            treatment: parsedData.treatment,
+            hospital_name: hospitalName,
+            hospital_id: hospitalId,
+            referral_hospital_name: parsedData.referral_hospital_name || null,
+            referral_hospital_id: parsedData.referral_hospital_id || null,
+            phone_number: parsedData.patient_phone || null,
+            clinical_notes: parsedData.clinical_notes || null,
+            approved_items: parsedData.approved_items || [],
+            raw_message: rawText,
+            urgency_level: 1,
+          },
+        },
+      );
       if (error) throw error;
       if (!insertedRequest?.id) throw new Error("Request created but no ID returned");
 
@@ -357,12 +352,12 @@ export default function WhatsAppPage() {
             onClick={() => {
               setRawText(sample.body);
               setParsedData(null);
-              toast({ title: "Sample loaded", description: "Click Extract Details to parse this WhatsApp message." });
+              toast({ title: "Sample loaded", description: "Select Extract request details to parse this message." });
             }}
             className="rounded-xl border border-emerald-100 bg-white p-3 text-left shadow-sm transition hover:border-emerald-300 hover:bg-emerald-50"
           >
-            <p className="text-xs font-black uppercase tracking-widest text-emerald-700">{sample.title}</p>
-            <p className="mt-1 line-clamp-2 text-xs font-semibold leading-5 text-slate-500">{sample.body}</p>
+            <p className="text-sm font-semibold normal-case text-emerald-800">{sample.title}</p>
+            <p className="mt-1 line-clamp-2 text-sm leading-5 text-slate-600">{sample.body}</p>
           </button>
         ))}
       </div>
@@ -370,60 +365,60 @@ export default function WhatsAppPage() {
       <div className="grid lg:grid-cols-2 gap-4">
         <Card className="rounded-xl border-slate-100 bg-white shadow-sm overflow-hidden flex flex-col">
           <CardHeader className="p-4 border-b border-slate-50 bg-slate-50/50">
-            <CardTitle className="text-xs font-black uppercase tracking-widest text-slate-900 flex items-center gap-2">
+            <CardTitle className="flex items-center gap-2 text-sm font-semibold text-slate-900">
               <MessageSquare className="h-4 w-4 text-emerald-600" />
-              Raw Message Input
+              WhatsApp message
             </CardTitle>
           </CardHeader>
           <CardContent className="p-4 flex-1 flex flex-col gap-4">
             <Textarea 
               placeholder="Paste WhatsApp message here...&#10;e.g.&#10;Name: John Doe&#10;Policy: 12345678&#10;Diagnosis: Malaria&#10;Treatment: Artemether Lumefantrine" 
-              className="min-h-[250px] resize-none border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20 text-sm"
+              className="min-h-[250px] resize-y border-slate-300 text-sm focus:border-emerald-600 focus:ring-emerald-600/20"
               value={rawText}
               onChange={(e) => setRawText(e.target.value)}
             />
             <Button 
               onClick={handleParse} 
               disabled={isParsing || !rawText.trim()}
-              className="w-full bg-slate-900 hover:bg-slate-800 text-white font-black uppercase tracking-widest text-xs h-12 rounded-xl flex items-center gap-2"
+              className="h-11 w-full gap-2 rounded-lg bg-slate-800 text-sm font-semibold text-white hover:bg-slate-900"
             >
               {isParsing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
-              Extract Details
+              Extract request details
             </Button>
           </CardContent>
         </Card>
 
         <Card className="rounded-xl border-slate-100 bg-slate-50/50 shadow-sm overflow-hidden flex flex-col relative">
           <CardHeader className="p-4 border-b border-slate-100 bg-white">
-            <CardTitle className="text-xs font-black uppercase tracking-widest text-slate-900 flex items-center gap-2">
+            <CardTitle className="flex items-center gap-2 text-sm font-semibold text-slate-900">
               <CheckCircle2 className="h-4 w-4 text-blue-600" />
-              Extracted Payload
+              Parsed request
             </CardTitle>
           </CardHeader>
           <CardContent className="p-4 flex-1 flex flex-col gap-4 relative">
             {!parsedData ? (
               <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6 space-y-3">
                 <AlertTriangle className="h-8 w-8 text-slate-300" />
-                <p className="text-xs font-black text-slate-500 uppercase tracking-widest">Waiting for Parse</p>
-                <p className="text-xs font-bold text-slate-400">Paste text and extract to see the generated request payload.</p>
+                <p className="text-sm font-semibold text-slate-700">No request extracted yet</p>
+                <p className="text-sm text-slate-600">Paste a message and select “Extract request details” to review the parsed fields.</p>
               </div>
             ) : (
               <div className="space-y-4 flex-1">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1">
-                    <p className="text-xs font-black uppercase tracking-widest text-slate-400">Patient Name</p>
+                    <p className="text-xs font-medium text-slate-600">Patient name</p>
                     <p className="font-bold text-slate-900 border-b border-slate-200 pb-1">{parsedData.patient_name || "---"}</p>
                   </div>
                   <div className="space-y-1">
-                    <p className="text-xs font-black uppercase tracking-widest text-slate-400">Policy Number</p>
+                    <p className="text-xs font-medium text-slate-600">Policy number</p>
                     <p className="font-mono font-bold text-slate-900 border-b border-slate-200 pb-1">{parsedData.policy_number || "---"}</p>
                   </div>
                   <div className="space-y-1">
-                    <p className="text-xs font-black uppercase tracking-widest text-slate-400">Phone No.</p>
+                    <p className="text-xs font-medium text-slate-600">Phone number</p>
                     <p className="font-mono text-slate-900 border-b border-slate-200 pb-1">{parsedData.patient_phone || "---"}</p>
                   </div>
                   <div className="space-y-1">
-                    <p className="text-xs font-black uppercase tracking-widest text-slate-400">Requesting Hospital</p>
+                    <p className="text-xs font-medium text-slate-600">Requesting hospital</p>
                     <input
                       type="text"
                       value={parsedData.hospital_name || ""}
@@ -432,31 +427,31 @@ export default function WhatsAppPage() {
                       className="w-full text-sm font-semibold text-slate-900 border-b-2 border-slate-200 pb-1 leading-tight break-words bg-transparent outline-none focus:border-emerald-500 transition-colors placeholder:text-slate-300"
                     />
                     {!parsedData.hospital_name?.trim() && (
-                      <p className="text-[10px] font-bold text-amber-600 flex items-center gap-1 mt-1">
+                      <p className="mt-1 flex items-center gap-1 text-xs font-medium text-amber-800">
                         <AlertTriangle className="h-3 w-3" /> Hospital name is required before saving
                       </p>
                     )}
                   </div>
                   <div className="space-y-1 col-span-2 rounded-xl border border-slate-200 bg-slate-50/50 p-3">
-                    <p className="text-xs font-black uppercase tracking-widest text-blue-600">Referral / Treating Hospital</p>
+                    <p className="text-xs font-medium text-blue-800">Referral or treating hospital</p>
                     <p className="text-sm font-black text-blue-900 leading-tight break-words">{parsedData.referral_hospital_name || "No referral detected"}</p>
                     {parsedData.referral_hospital_name ? (
                       <p className="mt-1 text-xs font-semibold text-blue-800">Claims and payment will belong to this hospital.</p>
                     ) : null}
                   </div>
                   <div className="space-y-1 col-span-2">
-                    <p className="text-xs font-black uppercase tracking-widest text-slate-400">Diagnosis</p>
+                    <p className="text-xs font-medium text-slate-600">Diagnosis</p>
                     <p className="font-semibold text-slate-900 border-b border-slate-200 pb-1 break-words">{parsedData.diagnosis || "---"}</p>
                   </div>
                   <div className="space-y-1 col-span-2">
-                    <p className="text-xs font-black uppercase tracking-widest text-slate-400">Treatment / Services</p>
+                    <p className="text-xs font-medium text-slate-600">Treatment or services</p>
                     <p className="font-semibold text-slate-900 border-b border-slate-200 pb-1 break-words">{parsedData.treatment || "---"}</p>
                   </div>
                   
                   {parsedData.approved_items && parsedData.approved_items.length > 0 && (
                     <div className="space-y-2 col-span-2 rounded-xl border border-emerald-100 bg-emerald-50/30 p-3 mt-1">
-                      <p className="text-xs font-black uppercase tracking-widest text-emerald-700 flex items-center gap-1.5">
-                        <Wand2 className="h-3.5 w-3.5" /> Auto-Detected Items
+                      <p className="flex items-center gap-1.5 text-xs font-semibold text-emerald-800">
+                        <Wand2 className="h-3.5 w-3.5" aria-hidden="true" />Detected items
                       </p>
                       <div className="space-y-1.5 max-h-[150px] overflow-auto pr-1">
                         {parsedData.approved_items.map((item: any, idx: number) => (
@@ -470,7 +465,7 @@ export default function WhatsAppPage() {
                   )}
                   {parsedData.clinical_notes && (
                     <div className="space-y-1 col-span-2">
-                      <p className="text-xs font-black uppercase tracking-widest text-blue-500">Referral Notes</p>
+                      <p className="text-xs font-medium text-blue-700">Referral notes</p>
                       <p className="font-semibold text-slate-700 border-b border-slate-200 pb-1 break-words bg-slate-50/50 rounded px-2">{parsedData.clinical_notes}</p>
                     </div>
                   )}
@@ -480,7 +475,7 @@ export default function WhatsAppPage() {
                   <Button 
                     onClick={handleSave} 
                     disabled={isSaving || !parsedData.hospital_name?.trim()}
-                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase tracking-widest text-xs h-12 rounded-xl flex items-center gap-2 shadow-lg shadow-emerald-500/20 disabled:opacity-50"
+                    className="h-11 w-full gap-2 rounded-lg bg-emerald-700 text-sm font-semibold text-white hover:bg-emerald-800 disabled:opacity-50"
                   >
                     {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                     Save to Queue

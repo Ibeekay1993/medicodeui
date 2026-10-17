@@ -3,8 +3,8 @@ import { useTabVisibilityRefresh } from "@/hooks/use-tab-visibility-refresh";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2 } from "lucide-react";
 import { getErrorMessage } from "@/lib/errors";
+import { PageLoader } from "@/components/PageLoader";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { writeClipboardText } from "@/lib/clipboard";
@@ -432,12 +432,7 @@ ${itemDecisionLines.join("\n")}`;
   };
 
   if (loading) {
-    return (
-      <div className="flex h-64 flex-col gap-3 items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-slate-800" />
-        <p className="text-xs font-black uppercase tracking-widest text-slate-400">Loading Claims Ledger...</p>
-      </div>
-    );
+    return <PageLoader className="min-h-64" label="Loading claims ledger..." />;
   }
 
   if (isError) {

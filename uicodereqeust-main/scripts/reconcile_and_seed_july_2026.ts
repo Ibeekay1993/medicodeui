@@ -144,6 +144,9 @@ async function main() {
     "",
     "BEGIN;",
     "",
+    "-- Temporarily disable intake-path trigger to allow direct historical seeding",
+    "ALTER TABLE public.authorization_requests DISABLE TRIGGER USER;",
+    "",
     "-- 1. Identify primary hospital IDs",
     "DO $$",
     "DECLARE",
@@ -200,13 +203,25 @@ async function main() {
     let refHospIdExp = "NULL";
     let claimHospIdExp = "v_jaja_id";
 
-    if (rec.referred_hospital_id === "hosp-uch" || rec.hospital_name.includes("University College Hospital")) {
-      refHospIdExp = "v_uch_id";
+    if (rec.hospital_name.toUpperCase().includes("COLLEGE HOSPITAL") || rec.claiming_hospital_name?.toUpperCase().includes("COLLEGE HOSPITAL")) {
+      hospIdExp = "v_uch_id";
       claimHospIdExp = "v_uch_id";
-    } else if (rec.referred_hospital_id === "hosp-police" || rec.hospital_name.includes("POLICE")) {
-      refHospIdExp = "v_police_id";
+      if (rec.requesting_hospital_name?.toUpperCase().includes("JAJA")) {
+        reqHospIdExp = "v_jaja_id";
+        refHospIdExp = "v_uch_id";
+      } else {
+        reqHospIdExp = "v_uch_id";
+      }
+    } else if (rec.hospital_name.toUpperCase().includes("POLICE") || rec.claiming_hospital_name?.toUpperCase().includes("POLICE")) {
+      hospIdExp = "v_police_id";
       claimHospIdExp = "v_police_id";
-    } else if (rec.hospital_name.includes("A.B. 10")) {
+      if (rec.requesting_hospital_name?.toUpperCase().includes("JAJA")) {
+        reqHospIdExp = "v_jaja_id";
+        refHospIdExp = "v_police_id";
+      } else {
+        reqHospIdExp = "v_police_id";
+      }
+    } else if (rec.hospital_name.toUpperCase().includes("A.B. 10") || rec.hospital_name.toUpperCase().includes("A. B. 10") || rec.hospital_name.includes("1283")) {
       hospIdExp = "COALESCE(v_ab10_id, v_jaja_id)";
       reqHospIdExp = "COALESCE(v_ab10_id, v_jaja_id)";
       claimHospIdExp = "COALESCE(v_ab10_id, v_jaja_id)";
@@ -232,7 +247,7 @@ async function main() {
       lines.push(`    ${status}, 'historical_import', TRUE, ${itemsJson}::jsonb, ${total}, ${decidedAt}::timestamptz,`);
       lines.push(`    ${authName}, v_admin_id, v_admin_id, ${decidedAt}::timestamptz, now()`);
       lines.push(`  )`);
-      lines.push(`  ON CONFLICT (authorization_code) WHERE authorization_code IS NOT NULL DO UPDATE SET`);
+      lines.push(`  ON CONFLICT (request_id) DO UPDATE SET`);
       lines.push(`    patient_name = EXCLUDED.patient_name,`);
       lines.push(`    policy_number = EXCLUDED.policy_number,`);
       lines.push(`    diagnosis = EXCLUDED.diagnosis,`);
@@ -278,16 +293,17 @@ async function main() {
 
   lines.push("  -- Audit log entry");
   lines.push("  INSERT INTO public.audit_logs (");
-  lines.push("    action, entity_type, entity_id, actor_id, metadata, created_at");
+  lines.push("    action, user_id, details, created_at");
   lines.push("  ) VALUES (");
   lines.push("    'import_historical_authorisations',");
-  lines.push("    'authorization_requests',");
-  lines.push("    'july-2026-ao-import',");
   lines.push("    v_admin_id,");
   lines.push(`    jsonb_build_object('source_file', 'july ao.xlsx', 'total_records', ${summary.totalRecords}, 'approved_count', ${summary.approvedCount}, 'total_amount', ${summary.totalCalculatedAmount}),`);
   lines.push("    now()");
   lines.push("  );");
   lines.push("END $$;");
+  lines.push("");
+  lines.push("-- Re-enable triggers after historical seeding");
+  lines.push("ALTER TABLE public.authorization_requests ENABLE TRIGGER USER;");
   lines.push("");
   lines.push("COMMIT;");
 

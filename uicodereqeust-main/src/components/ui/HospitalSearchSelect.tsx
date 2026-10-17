@@ -69,7 +69,7 @@ export function HospitalSearchSelect({
           maxHeight={500}
           minWidth={280}
           onEscapeKeyDown={() => setIsOpen(false)}
-          className="space-y-2 bg-white/95 p-2 backdrop-blur-md"
+          className="space-y-2 border-slate-200 bg-white p-2 shadow-md"
         >
           <div className="relative">
             <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />

@@ -90,57 +90,49 @@ export default function AnnouncementsPage() {
   }
 
   return (
-    <div className="space-y-8 max-w-6xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-700 pb-12">
+    <div className="mx-auto max-w-6xl space-y-6 pb-10">
       
-      {/* Premium Header */}
-      <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-4 shadow-lg shadow-slate-900/10">
-        <div className="absolute top-0 right-0 -mt-8 -mr-8 h-24 w-24 rounded-full bg-emerald-500/20 blur-xl"></div>
-        <div className="absolute bottom-0 left-0 -mb-8 -ml-8 h-24 w-24 rounded-full bg-primary/10 blur-xl"></div>
-        
-        <div className="relative z-10 flex items-center gap-4">
-          <div className="flex items-center justify-center h-10 w-10 rounded-lg bg-white/10 border border-white/20 backdrop-blur-md shrink-0">
-            <Megaphone className="h-5 w-5 text-emerald-400" />
+      <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-100">
+            <Megaphone className="h-5 w-5 text-slate-700" aria-hidden="true" />
           </div>
           <div>
-            <h1 className="text-xl font-black text-white tracking-tight">
-              Announcements
-            </h1>
-            <p className="text-xs font-medium text-slate-400">
-              Manage and dispatch real-time hospital alerts
+            <h1 className="text-xl font-semibold tracking-tight text-slate-900">Announcements</h1>
+            <p className="text-sm text-slate-600">
+              Create and manage alerts for hospitals.
             </p>
           </div>
-        </div>
       </div>
 
       {/* Create / Edit Form */}
-      <Card id="announcement-form" className="border-0 shadow-xl shadow-slate-200/40 rounded-3xl overflow-hidden bg-white/60 backdrop-blur-xl transition-all duration-500 ring-1 ring-slate-100 scroll-m-8">
-        <CardHeader className="bg-gradient-to-r from-slate-50 to-white border-b border-slate-100 p-6 sm:px-8">
-          <CardTitle className="text-sm uppercase tracking-widest text-slate-600 font-black flex items-center gap-2">
+      <Card id="announcement-form" className="scroll-m-8 overflow-hidden rounded-xl border border-slate-200 bg-white">
+        <CardHeader className="border-b border-slate-200 bg-slate-50 p-4 sm:px-6">
+          <CardTitle className="flex items-center gap-2 text-sm font-semibold text-slate-800">
             {isEditing ? (
-              <span className="flex items-center gap-2 text-blue-600"><Edit2 className="h-4 w-4" /> Editing Announcement</span>
+              <span className="flex items-center gap-2 text-slate-800"><Edit2 className="h-4 w-4" />Editing announcement</span>
             ) : (
-              <span className="flex items-center gap-2 text-emerald-600"><Plus className="h-4 w-4" /> Dispatch New Announcement</span>
+              <span className="flex items-center gap-2 text-slate-800"><Plus className="h-4 w-4" />New announcement</span>
             )}
           </CardTitle>
         </CardHeader>
-        <CardContent className="p-6 sm:p-8 space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <CardContent className="space-y-5 p-4 sm:p-6">
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
             <div className="space-y-2 md:col-span-2">
-              <label className="text-xs font-bold uppercase tracking-wider text-slate-500 ml-1">Headline</label>
+              <label className="ml-1 text-sm font-medium text-slate-700">Headline</label>
               <Input 
                 value={title} 
                 onChange={(e) => setTitle(e.target.value)} 
                 placeholder="e.g. Scheduled System Maintenance" 
-                className="h-12 rounded-xl bg-slate-50 border-slate-200 focus:bg-white focus:ring-emerald-500/20 font-medium transition-all"
+                className="h-11 rounded-lg border-slate-300 bg-white text-sm focus:ring-emerald-600/20"
               />
             </div>
             <div className="space-y-2">
-              <label className="text-xs font-bold uppercase tracking-wider text-slate-500 ml-1">Priority Level</label>
+              <label className="ml-1 text-sm font-medium text-slate-700">Priority</label>
               <Select value={priority} onValueChange={setPriority}>
-                <SelectTrigger className="h-12 rounded-xl bg-slate-50 border-slate-200 focus:bg-white focus:ring-emerald-500/20 font-bold transition-all">
+                <SelectTrigger className="h-11 rounded-lg border-slate-300 bg-white text-sm font-medium focus:ring-emerald-600/20">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="rounded-xl shadow-xl">
+                <SelectContent className="rounded-lg shadow-md">
                   <SelectItem value="low" className="font-bold text-slate-600">Low (Info)</SelectItem>
                   <SelectItem value="medium" className="font-bold text-amber-600">Medium (Warning)</SelectItem>
                   <SelectItem value="high" className="font-bold text-rose-600">High (Alert)</SelectItem>
@@ -150,37 +142,37 @@ export default function AnnouncementsPage() {
             </div>
           </div>
           <div className="space-y-2">
-            <label className="text-xs font-bold uppercase tracking-wider text-slate-500 ml-1">Message Body</label>
+            <label className="ml-1 text-sm font-medium text-slate-700">Message</label>
             <Textarea 
               value={content} 
               onChange={(e) => setContent(e.target.value)} 
               placeholder="Type the full announcement message here..." 
               rows={5} 
-              className="resize-none rounded-2xl bg-slate-50 border-slate-200 focus:bg-white focus:ring-emerald-500/20 font-medium transition-all p-4 leading-relaxed"
+              className="resize-y rounded-lg border-slate-300 bg-white p-3 text-sm leading-relaxed focus:ring-emerald-600/20"
             />
           </div>
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-4 border-t border-slate-100">
             <label className="flex items-center gap-3 cursor-pointer group">
-              <div className={cn("flex items-center justify-center h-6 w-6 rounded-md border transition-all duration-300", isActive ? "bg-emerald-500 border-emerald-500" : "bg-slate-100 border-slate-300 group-hover:border-emerald-400")}>
+              <div className={cn("flex h-6 w-6 items-center justify-center rounded-md border peer-focus-visible:ring-2 peer-focus-visible:ring-primary", isActive ? "border-emerald-700 bg-emerald-700" : "border-slate-300 bg-white group-hover:border-emerald-600")}>
                 {isActive && <CheckCircle className="h-4 w-4 text-white" />}
               </div>
-              <input type="checkbox" checked={isActive} onChange={(e) => setIsActive(e.target.checked)} className="hidden" />
+              <input type="checkbox" checked={isActive} onChange={(e) => setIsActive(e.target.checked)} className="peer sr-only" />
               <div className="flex flex-col">
                 <span className="text-sm font-bold text-slate-800">Publish Immediately</span>
-                <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Visible to all hospitals</span>
+                <span className="text-xs text-slate-600">Visible to all hospitals</span>
               </div>
             </label>
             
             <div className="flex items-center gap-3 w-full sm:w-auto">
               {isEditing && (
-                <Button variant="ghost" onClick={resetForm} disabled={isSubmitting} className="h-12 px-6 rounded-xl font-bold hover:bg-slate-100 w-full sm:w-auto">
+                <Button variant="outline" onClick={resetForm} disabled={isSubmitting} className="h-11 rounded-lg px-5 font-medium w-full sm:w-auto">
                   Cancel Edit
                 </Button>
               )}
               <Button 
                 onClick={handleSave} 
                 disabled={isSubmitting} 
-                className="h-12 px-8 rounded-xl bg-slate-900 hover:bg-emerald-600 text-white font-black tracking-wide shadow-lg shadow-slate-900/10 hover:shadow-emerald-600/20 transition-all duration-300 w-full sm:w-auto"
+                className="h-11 rounded-lg bg-primary px-5 font-semibold text-white hover:bg-primary/90 w-full sm:w-auto"
               >
                 {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {isEditing ? "Save Changes" : "Dispatch Broadcast"}
@@ -192,29 +184,28 @@ export default function AnnouncementsPage() {
 
       <div className="space-y-4 pt-4">
         <div className="flex items-center justify-between px-2 mb-2">
-          <h2 className="text-lg font-black text-slate-800 tracking-tight">Active & Past Broadcasts</h2>
+          <h2 className="text-lg font-semibold tracking-tight text-slate-900">Active and past announcements</h2>
           <Badge variant="outline" className="bg-slate-100 text-slate-600 border-0 font-bold">{announcements.length} Total</Badge>
         </div>
         
         {loading ? (
-          <div className="flex items-center justify-center p-20 bg-white/50 rounded-3xl"><Loader2 className="h-10 w-10 animate-spin text-emerald-500" /></div>
+          <div className="flex items-center justify-center gap-3 rounded-xl border border-slate-200 bg-white p-8 text-sm text-slate-600"><Loader2 className="h-5 w-5 animate-spin text-slate-500" />Loading announcements…</div>
         ) : announcements.length === 0 ? (
-          <div className="text-center p-20 bg-white/40 rounded-3xl border-2 border-dashed border-slate-200/60 backdrop-blur-sm">
-            <div className="mx-auto h-20 w-20 bg-slate-100 rounded-full flex items-center justify-center mb-6 shadow-inner">
-              <Megaphone className="h-8 w-8 text-slate-300" />
+          <div className="rounded-xl border border-slate-200 bg-white p-8 text-center">
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-slate-100">
+              <Megaphone className="h-6 w-6 text-slate-500" />
             </div>
-            <p className="text-lg font-black text-slate-800 mb-2">No Broadcasts Yet</p>
-            <p className="text-sm font-medium text-slate-500">Create your first announcement above to notify the hospital network.</p>
+            <p className="mb-1 text-base font-semibold text-slate-900">No announcements yet</p>
+            <p className="text-sm text-slate-600">Create an announcement above to notify hospitals.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-4">
             {announcements.map((ann) => (
               <Card key={ann.id} className={cn(
-                "group relative overflow-hidden transition-all duration-300 rounded-2xl border-0 shadow-md hover:shadow-xl hover:-translate-y-1",
-                !ann.is_active ? "bg-slate-50/50 opacity-80 hover:opacity-100" : "bg-white"
+                "relative overflow-hidden rounded-xl border border-slate-200 bg-white",
+                !ann.is_active && "bg-slate-50"
               )}>
-                {ann.is_active && <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-emerald-500" />}
-                {!ann.is_active && <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-slate-300" />}
+                <div className={cn("absolute bottom-0 left-0 top-0 w-1", ann.is_active ? "bg-emerald-700" : "bg-slate-400")} aria-hidden="true" />
                 
                 <div className="p-5 sm:p-6 flex flex-col sm:flex-row gap-6">
                   <div className="flex-1 space-y-4 pl-2 sm:pl-4">

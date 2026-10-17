@@ -159,7 +159,7 @@ export function useTariffSearch(
   useEffect(() => {
     if (!open) return;
     const query = tariffSearch.trim();
-    if (query.length < 3) {
+    if (query.length < 2) {
       setTariffOptions([]);
       return;
     }

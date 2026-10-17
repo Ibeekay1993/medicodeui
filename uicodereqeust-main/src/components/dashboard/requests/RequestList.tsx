@@ -50,25 +50,25 @@ export function RequestList({
   const statusBadge = (s: string) => {
     const key = String(s || "").toLowerCase();
     const map: Record<string, string> = {
-      approved: "border-emerald-200 text-emerald-700 bg-emerald-50",
-      partially_approved: "border-sky-200 text-sky-700 bg-sky-50",
-      referral_approved: "border-slate-200 text-slate-700 bg-slate-100",
-      referral_accepted: "border-slate-200 text-slate-700 bg-slate-100",
-      referral_declined: "border-rose-200 text-rose-700 bg-rose-50",
-      rejected: "border-rose-200 text-rose-700 bg-rose-50",
-      pending: "border-amber-200 text-amber-800 bg-amber-50",
-      pending_referral: "border-amber-200 text-amber-800 bg-amber-50",
-      deferred: "border-slate-200 text-slate-700 bg-slate-50",
-      "awaiting deletion approval": "border-amber-200 text-amber-800 bg-amber-50",
-      "awaiting delete": "border-amber-200 text-amber-800 bg-amber-50"
+      approved: "bg-emerald-600 text-white border-transparent",
+      partially_approved: "bg-sky-600 text-white border-transparent",
+      referral_approved: "bg-indigo-600 text-white border-transparent",
+      referral_accepted: "bg-indigo-600 text-white border-transparent",
+      referral_declined: "bg-rose-600 text-white border-transparent",
+      rejected: "bg-rose-600 text-white border-transparent",
+      pending: "bg-amber-500 text-white border-transparent",
+      pending_referral: "bg-amber-500 text-white border-transparent",
+      deferred: "bg-slate-600 text-white border-transparent",
+      "awaiting deletion approval": "bg-amber-600 text-white border-transparent",
+      "awaiting delete": "bg-amber-600 text-white border-transparent"
     };
     const formattedText = String(s || "").replace(/_/g, " ");
     return (
       <Badge
         variant="outline"
         className={cn(
-          "inline-flex items-center justify-center w-[124px] h-[26px] whitespace-nowrap rounded-full px-2 text-[11px] font-semibold tracking-tight capitalize leading-none shadow-none border",
-          map[key] || "border-slate-200 bg-slate-50 text-slate-600"
+          "inline-flex items-center justify-center w-[124px] h-[26px] whitespace-nowrap rounded-full px-2 text-[11px] font-bold tracking-tight capitalize leading-none shadow-none border",
+          map[key] || "bg-slate-600 text-white border-transparent"
         )}
       >
         {formattedText}
@@ -149,10 +149,10 @@ export function RequestList({
       <div className="hidden w-full md:block">
         <table className="w-full table-fixed border-collapse text-left">
           <colgroup>
-            <col className="w-[12%]" />
+            <col className="w-[13%]" />
             <col className="w-[20%]" />
             <col className="w-[9%]" />
-            <col className="w-[17%]" />
+            <col className="w-[16%]" />
             <col className="w-[13%]" />
             <col className="w-[8%]" />
             <col className={isClaimsRole ? "w-[21%]" : "w-[12%]"} />
@@ -188,15 +188,23 @@ export function RequestList({
               requests.map((r) => (
                 <tr key={r.id} className="cursor-pointer text-sm transition-colors hover:bg-slate-50/70" onClick={() => onSelectRequest(r)}>
                   <td className="min-w-0 p-2 font-mono text-xs font-bold text-slate-600">
-                    <div className="flex min-w-0 flex-col">
+                    <div className="flex min-w-0 flex-col overflow-hidden">
                       {(() => {
                         const { label, timestamp } = getAuthorizationListTimestamp(r);
                         return (
                           <>
-                            <span className="whitespace-nowrap tabular-nums">{formatNigeriaDate(timestamp)}</span>
-                            <span className="mt-0.5 whitespace-nowrap font-sans text-[10px] font-medium leading-3 text-slate-600 tabular-nums">
-                              {label} at {formatNigeriaTime(timestamp)}
+                            <span className="whitespace-nowrap tabular-nums text-xs font-bold text-slate-700">{formatNigeriaDate(timestamp)}</span>
+                            <span className="mt-0.5 whitespace-nowrap font-sans text-[10px] font-medium text-slate-500 tabular-nums">
+                              {formatNigeriaTime(timestamp)}
                             </span>
+                            {label && (
+                              <span
+                                className="mt-0.5 truncate font-sans text-[9.5px] font-medium leading-tight text-slate-400"
+                                title={`${label} at ${formatNigeriaTime(timestamp)}`}
+                              >
+                                {label}
+                              </span>
+                            )}
                           </>
                         );
                       })()}
@@ -378,10 +386,20 @@ export function RequestList({
                         const { label, timestamp } = getAuthorizationListTimestamp(r);
                         return (
                           <>
-                            <span className="whitespace-nowrap tabular-nums">{formatNigeriaDate(timestamp)}</span>
-                            <span className="mt-0.5 whitespace-nowrap font-sans text-[10px] font-medium leading-3 text-slate-600 tabular-nums">
-                              {label} at {formatNigeriaTime(timestamp)}
+                            <span className="whitespace-nowrap font-mono text-xs font-bold text-slate-700 tabular-nums">
+                              {formatNigeriaDate(timestamp)}
                             </span>
+                            <span className="mt-0.5 whitespace-nowrap font-sans text-[10px] font-medium text-slate-500 tabular-nums">
+                              {formatNigeriaTime(timestamp)}
+                            </span>
+                            {label && (
+                              <span
+                                className="mt-0.5 truncate font-sans text-[9.5px] font-medium leading-tight text-slate-400"
+                                title={`${label} at ${formatNigeriaTime(timestamp)}`}
+                              >
+                                {label}
+                              </span>
+                            )}
                           </>
                         );
                       })()}

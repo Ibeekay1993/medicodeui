@@ -170,7 +170,7 @@ export const hasContestableDeductions = (claim: ClaimDraft | null) => {
   if (claim.under_contest_amount && Number(claim.under_contest_amount) > 0) return false;
   if (claim.contest_note && claim.contest_note.trim()) return false;
   
-  // Check 30-day contest deadline lock
+  // Check 7-day contest deadline lock
   if (claim.contest_deadline && new Date(claim.contest_deadline) < new Date()) return false;
   
   const items = claimAuditItems(claim);

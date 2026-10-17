@@ -1,8 +1,10 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import type { Database } from "@/integrations/supabase/types";
 import { supabase } from "@/integrations/supabase/client";
+import { isMfaRequiredForUser } from "@/lib/mfa-policy";
+import { Button } from "@/components/ui/button";
 
 type AppRole = Database["public"]["Enums"]["app_role"];
 
@@ -17,42 +19,46 @@ export function ProtectedRoute({ children, allowedRoles, fallbackPath, loginPath
   const { session, role, loading } = useAuth();
   const location = useLocation();
   const [mfaChecking, setMfaChecking] = useState(true);
-  const [mfaStatus, setMfaStatus] = useState<"pass" | "enroll" | "verify" | null>(null);
+  const [mfaStatus, setMfaStatus] = useState<"pass" | "enroll" | "verify" | "error" | null>(null);
+  const [mfaRetryKey, setMfaRetryKey] = useState(0);
 
   useEffect(() => {
+    let active = true;
     async function checkMfa() {
+      setMfaChecking(true);
       if (!session || !role) {
-        setMfaChecking(false);
+        if (active) setMfaChecking(false);
         return;
       }
       
       try {
-        const { data } = await supabase.from("global_policies").select("value").eq("key", "enforce_mfa").maybeSingle();
-        const enforced = !!(data as any)?.value?.enforced;
-        
-        if (enforced && role !== "hospital") {
-          const { data: mfaData, error } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-          if (!error && mfaData) {
-            if (mfaData.nextLevel === "aal2" && mfaData.currentLevel === "aal1") {
-              setMfaStatus("verify"); // enrolled but not verified
-            } else if (mfaData.nextLevel === "aal1") {
-              setMfaStatus("enroll"); // not enrolled
-            } else {
-              setMfaStatus("pass"); // verified or bypassed
-            }
-          } else {
-            setMfaStatus("enroll");
-          }
+        if (role === "hospital" || !(await isMfaRequiredForUser(session.user.id))) {
+          if (active) setMfaStatus("pass");
+          return;
+        }
+        const { data: mfaData, error } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+        if (error) throw error;
+        if (!mfaData) throw new Error("MFA assurance level is unavailable.");
+        if (!active) return;
+        if (mfaData.nextLevel === "aal2" && mfaData.currentLevel === "aal1") {
+          setMfaStatus("verify");
+        } else if (mfaData.nextLevel === "aal1") {
+          setMfaStatus("enroll");
         } else {
           setMfaStatus("pass");
         }
-      } catch (e) {
-        setMfaStatus("enroll");
+      } catch (error) {
+        console.error("Unable to check the MFA requirement for this route:", error);
+        if (active) setMfaStatus("error");
+      } finally {
+        if (active) setMfaChecking(false);
       }
-      setMfaChecking(false);
     }
-    checkMfa();
-  }, [session, role]);
+    void checkMfa();
+    return () => {
+      active = false;
+    };
+  }, [session, role, mfaRetryKey]);
 
   if (loading || mfaChecking) {
     return (
@@ -76,6 +82,17 @@ export function ProtectedRoute({ children, allowedRoles, fallbackPath, loginPath
     return <Navigate to={loginPath} replace />;
   }
 
+  if (mfaStatus === "error") {
+    return (
+      <div role="alert" className="flex min-h-screen flex-col items-center justify-center gap-3 px-4 text-center">
+        <p className="text-sm text-slate-600">We couldn&apos;t verify your account&apos;s MFA policy.</p>
+        <Button type="button" variant="outline" onClick={() => setMfaRetryKey((key) => key + 1)}>
+          Retry
+        </Button>
+      </div>
+    );
+  }
+
   if (mfaStatus === "enroll") {
     return <Navigate to="/mfa-setup" replace />;
   }
@@ -95,4 +112,3 @@ export function ProtectedRoute({ children, allowedRoles, fallbackPath, loginPath
 
   return <>{children}</>;
 }
-

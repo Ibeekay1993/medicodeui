@@ -1,7 +1,7 @@
-import { useCallback, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useTabVisibilityRefresh } from "@/hooks/use-tab-visibility-refresh";
 import { useClaimsAnalysisQuery } from "../hooks/useClaimsAnalysis";
-import { HospitalClaimSummary } from "../types";
+import { ClaimsAnalysisResult } from "../types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -11,13 +11,13 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { useDataPagination } from "@/hooks/use-data-pagination";
 import { DataPagination } from "@/components/dashboard/DataPagination";
+import { PageLoader } from "@/components/PageLoader";
 import {
   AlertCircle,
   Building2,
   Check,
   CheckCircle2,
   ChevronsUpDown,
-  Loader2,
   RefreshCw,
   Wallet,
   XCircle
@@ -49,7 +49,7 @@ export default function ClaimsAnalysisPage() {
   const [openHospitalSelect, setOpenHospitalSelect] = useState(false);
   const [selectedHospitalKey, setSelectedHospitalKey] = useState("all");
 
-  const { data: claims = [], isLoading: loading, refetch: refresh, isError } = useClaimsAnalysisQuery();
+  const { data: claims, isLoading: loading, refetch: refresh, isError } = useClaimsAnalysisQuery();
 
   if (isError) {
     toast({
@@ -61,7 +61,7 @@ export default function ClaimsAnalysisPage() {
 
   useTabVisibilityRefresh(refresh as () => void);
 
-  const analysis = useMemo(() => {
+  const analysis = useMemo<ClaimsAnalysisResult>(() => {
     const summary = claims || { by_status: [], by_hospital: [], by_date: [] };
     const base = {
       total: 0,
@@ -110,7 +110,7 @@ export default function ClaimsAnalysisPage() {
     const volume = (summary.by_date || []).map((d: any) => [
       new Date(d.claim_date).toLocaleDateString("en-GB", { day: "2-digit", month: "short" }),
       Number(d.count || 0)
-    ]).reverse();
+    ] as [string, number]).reverse();
 
     return { ...base, hospitals, volume };
   }, [claims]);
@@ -188,12 +188,7 @@ export default function ClaimsAnalysisPage() {
   }, [summary, isAll]);
 
   if (loading) {
-    return (
-      <div className="flex h-64 flex-col items-center justify-center gap-3">
-        <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
-        <p className="text-xs font-semibold text-slate-500">Loading Claims Analysis...</p>
-      </div>
-    );
+    return <PageLoader className="min-h-64" label="Loading claims analysis..." />;
   }
 
 
@@ -241,7 +236,7 @@ export default function ClaimsAnalysisPage() {
               variant="outline"
               role="combobox"
               aria-expanded={openHospitalSelect}
-              className="h-9 w-[280px] justify-between rounded-xl border-slate-200/80 bg-white/70 backdrop-blur-md text-xs font-semibold px-3 shadow-sm hover:border-emerald-500/50 hover:bg-white transition-all"
+              className="h-10 w-full justify-between rounded-lg border-slate-300 bg-white px-3 text-sm font-medium transition-colors hover:border-emerald-600 sm:w-[280px]"
             >
               <div className="truncate text-left flex-1">
                 {selectedHospitalKey === "all" 
@@ -298,7 +293,7 @@ export default function ClaimsAnalysisPage() {
           </PopoverContent>
         </Popover>
         <Button 
-          onClick={refresh} 
+          onClick={() => void refresh()}
           variant="outline" 
           size="icon" 
           className="h-9 w-9 shrink-0 rounded-xl border-slate-200/80 bg-white/70 hover:bg-emerald-50 hover:text-emerald-600 hover:border-emerald-200 shadow-sm transition-all"
@@ -308,22 +303,22 @@ export default function ClaimsAnalysisPage() {
       </div>
 
       {selectedHospital && (
-        <div className="premium-card p-3 sm:p-4 animate-in slide-in-from-top-2 duration-300">
+        <div className="rounded-xl border border-slate-200 bg-white p-3 sm:p-4">
           <div className="grid gap-3 sm:grid-cols-4">
             <div className="sm:col-span-2 flex flex-col justify-center">
-              <span className="text-[8px] sm:text-xs font-bold uppercase tracking-widest text-emerald-600/80">Selected Partner</span>
+              <span className="text-xs font-medium text-slate-600">Selected hospital</span>
               <p className="text-sm sm:text-base font-extrabold text-slate-900 tracking-tight leading-tight mt-0.5">{selectedHospital.name}</p>
               <div className="mt-1 flex items-center gap-1.5 text-slate-500">
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                <p className="text-[10px] sm:text-xs font-medium">Latest claim: {new Date(selectedHospital.latest).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}</p>
+              <p className="text-xs font-medium">Latest claim: {new Date(selectedHospital.latest).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}</p>
               </div>
             </div>
             <div className="rounded-lg border border-slate-100 bg-slate-50/50 p-2 text-center sm:text-left">
-              <span className="text-[8px] sm:text-[10px] font-bold uppercase tracking-wider text-slate-500">Pending Audit</span>
+              <span className="text-[11px] font-medium text-slate-600 sm:text-xs">Pending audit</span>
               <p className="mt-0.5 font-mono text-xs sm:text-sm font-extrabold text-amber-600">{money(pendingAuditValue)}</p>
             </div>
             <div className="rounded-lg border border-slate-100 bg-slate-50/50 p-2 text-center sm:text-left">
-              <span className="text-[8px] sm:text-[10px] font-bold uppercase tracking-wider text-slate-500">Ready for Payment</span>
+              <span className="text-[11px] font-medium text-slate-600 sm:text-xs">Ready for payment</span>
               <p className="mt-0.5 font-mono text-xs sm:text-sm font-extrabold text-emerald-600">{money(paymentReadyValue)}</p>
             </div>
           </div>
@@ -332,12 +327,12 @@ export default function ClaimsAnalysisPage() {
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-4">
         {metrics.map((metric) => (
-          <div key={metric.label} className="premium-card p-3 sm:p-5 flex items-center gap-3 rounded-2xl overflow-hidden transition-all duration-300 hover:-translate-y-1 group" title={metric.label}>
-            <div className={cn("hidden sm:flex h-10 w-10 md:h-12 md:w-12 rounded-xl items-center justify-center shrink-0 transition-all duration-300 group-hover:scale-110", metric.iconBg)}>
+          <div key={metric.label} className="flex min-w-0 items-center gap-3 overflow-hidden rounded-xl border border-slate-200 bg-white p-3 sm:p-4" title={metric.label}>
+            <div className={cn("hidden h-10 w-10 shrink-0 items-center justify-center rounded-lg sm:flex md:h-11 md:w-11", metric.iconBg)}>
               <metric.icon className="h-5 w-5 md:h-6 md:w-6" />
             </div>
             <div className="min-w-0 flex-1 text-center sm:text-left">
-              <p className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-400 truncate leading-tight group-hover:text-slate-500 transition-colors">{metric.label}</p>
+              <p className="truncate text-[11px] font-medium leading-tight text-slate-600 sm:text-xs">{metric.label}</p>
               <p className="text-sm sm:text-lg lg:text-xl font-black tracking-tight truncate leading-none text-slate-900 mt-1 sm:mt-1.5">
                 {metric.count} <span className="text-[10px] sm:text-xs text-slate-400 font-normal ml-1 tracking-normal">{metric.value}</span>
               </p>
@@ -353,31 +348,31 @@ export default function ClaimsAnalysisPage() {
               <CardTitle className="text-sm font-bold text-slate-800 tracking-tight">Volume Performance</CardTitle>
               <p className="text-xs font-semibold text-slate-400 mt-0.5">Recent claim volume by day</p>
             </div>
-            <div className="flex items-center gap-6 text-right">
+            <div className="grid w-full grid-cols-3 gap-2 text-left sm:flex sm:w-auto sm:items-center sm:gap-6 sm:text-right">
               <div>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Total Claims</span>
-                <p className="font-mono text-lg font-extrabold text-slate-800 leading-tight mt-0.5">{analysis.total}</p>
-              </div>
-              <div className="hidden sm:block">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Other Status</span>
-                <p className="font-mono text-lg font-extrabold text-slate-600 leading-tight mt-0.5">{analysis.other}</p>
+                <span className="text-xs font-medium text-slate-600">Total claims</span>
+                <p className="mt-0.5 font-mono text-sm font-semibold leading-tight text-slate-800 sm:text-lg">{analysis.total}</p>
               </div>
               <div>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Total Value</span>
-                <p className="font-mono text-lg font-extrabold text-emerald-600 leading-tight mt-0.5">{money(analysis.totalValue)}</p>
+                <span className="text-xs font-medium text-slate-600">Other status</span>
+                <p className="mt-0.5 font-mono text-sm font-semibold leading-tight text-slate-600 sm:text-lg">{analysis.other}</p>
+              </div>
+              <div>
+                <span className="text-xs font-medium text-slate-600">Total value</span>
+                <p className="mt-0.5 font-mono text-sm font-semibold leading-tight text-emerald-700 sm:text-lg">{money(analysis.totalValue)}</p>
               </div>
             </div>
           </CardHeader>
           <CardContent className="p-4 overflow-x-auto">
             <div className="flex gap-4 min-w-max pb-2 pt-4">
               {analysis.volume.map(([date, count]) => (
-                <div key={date} className="flex flex-col justify-end items-center gap-1.5 w-16 h-32 group cursor-pointer">
-                  <span className="font-mono font-bold text-slate-700 text-xs opacity-0 group-hover:opacity-100 transition-opacity">{count}</span>
+                <div key={date} className="flex h-32 w-16 flex-col items-center justify-end gap-1.5">
+                  <span className="font-mono text-xs font-medium text-slate-700">{count}</span>
                   <div 
-                    className="w-10 rounded-t-md bg-gradient-to-t from-emerald-500 to-teal-400 shadow-sm transition-all duration-300 group-hover:opacity-80" 
+                    className="w-10 rounded-t-md bg-emerald-600"
                     style={{ height: `${Math.max(10, (count / maxVolume) * 100)}%` }} 
                   />
-                  <span className="text-[10px] font-bold text-slate-500 whitespace-nowrap mt-1">{date}</span>
+                  <span className="mt-1 whitespace-nowrap text-xs font-medium text-slate-600">{date}</span>
                 </div>
               ))}
               {analysis.volume.length === 0 && (
@@ -387,7 +382,7 @@ export default function ClaimsAnalysisPage() {
           </CardContent>
         </Card>
 
-        <Card className="rounded-2xl border border-slate-100 bg-white shadow-sm hover:shadow-md transition-shadow duration-300">
+        <Card className="rounded-xl border border-slate-200 bg-white shadow-sm">
           <CardHeader className="flex flex-col gap-3 space-y-0 p-4 sm:flex-row sm:items-center sm:justify-between border-b border-slate-100">
             <div className="min-w-0">
               <CardTitle className="text-sm font-bold text-slate-800 tracking-tight">All Partner Hospitals</CardTitle>

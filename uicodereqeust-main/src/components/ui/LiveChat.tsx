@@ -239,18 +239,19 @@ export function LiveChat() {
   return (
     <>
       <div className="fixed bottom-6 right-6 z-[100] group">
-        <div className="absolute -inset-2 bg-emerald-500/20 rounded-full blur-xl group-hover:bg-emerald-500/30 transition-all animate-pulse" />
         <Button
           variant="default"
-          className="relative h-14 w-14 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white shadow-2xl border border-white/10 flex items-center justify-center transition-all hover:scale-105 active:scale-95"
+          className="relative h-14 w-14 rounded-xl border border-slate-700 bg-slate-900 text-white shadow-md transition-colors hover:bg-slate-800"
           onClick={() => setOpen(true)}
+          aria-label="Open support chat"
+          title="Open support chat"
         >
           <MessageCircle className="h-6 w-6 text-emerald-500" />
         </Button>
         {/* Close (dismiss) button */}
         <button
           onClick={handleDismiss}
-          className="absolute -top-2 -right-2 h-6 w-6 rounded-full bg-slate-800 border border-slate-600 text-slate-400 hover:text-white hover:bg-slate-700 flex items-center justify-center shadow-lg transition-all z-10"
+          className="absolute -right-3 -top-3 z-10 flex h-11 w-11 items-center justify-center rounded-full border border-slate-600 bg-slate-800 text-slate-200 shadow-md transition-colors hover:bg-slate-700 hover:text-white"
           title="Hide floating chat icon"
           aria-label="Hide floating chat icon"
         >
@@ -262,15 +263,15 @@ export function LiveChat() {
         <DialogContent className="w-[100vw] max-w-none sm:w-[94vw] sm:max-w-[400px] h-[100dvh] sm:h-[550px] p-0 overflow-hidden border-none shadow-2xl rounded-none sm:rounded-3xl bg-slate-50 flex flex-col">
 
           <DialogHeader className="p-6 bg-[#3f3f95] text-white shrink-0">
-            <DialogTitle className="text-sm font-black uppercase tracking-tight italic">Live <span className="text-emerald-400">Support</span></DialogTitle>
+            <DialogTitle className="text-base font-semibold">Live <span className="text-emerald-400">Support</span></DialogTitle>
             <div className="flex items-center justify-between gap-2 mt-1.5">
-              <p className="text-xs font-black text-slate-200/80 uppercase tracking-widest">
+              <p className="text-sm font-medium text-slate-200">
                 {conversation?.ticket_number || "Support Ticket Inbox"}
               </p>
               <div className="flex items-center gap-1.5">
                 <button
                    onClick={handleToggleIcon}
-                   className="text-xs font-black uppercase tracking-widest text-slate-300 hover:text-white bg-[#32327a] hover:bg-[#2c2c6d] px-2 py-0.5 rounded-md transition-all border border-[#32327a]/50"
+                   className="text-xs font-semibold text-slate-300 hover:text-white bg-[#32327a] hover:bg-[#2c2c6d] px-2 py-0.5 rounded-md transition-all border border-[#32327a]/50"
                    title={dismissed ? "Show floating chat icon" : "Hide floating chat icon"}
                 >
                   {dismissed ? "Show Icon" : "Hide Icon"}
@@ -299,7 +300,7 @@ export function LiveChat() {
                       {msg.attachment_url && (
                         <button
                           onClick={() => downloadAttachment(msg.attachment_url, msg.attachment_name)}
-                          className={cn("mt-2 flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-black uppercase tracking-widest", mine ? "bg-white/10 text-white" : "bg-slate-50 text-emerald-700")}
+                          className={cn("mt-2 flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold", mine ? "bg-white/10 text-white" : "bg-slate-50 text-emerald-700")}
                         >
                           <FileDown className="h-3 w-3" />
                           {msg.attachment_name || "Download file"}
@@ -311,7 +312,7 @@ export function LiveChat() {
                 );
               })}
               {isClosed && (
-                <div className="rounded-2xl border border-amber-100 bg-amber-50 p-4 text-xs font-black uppercase tracking-widest text-amber-700">
+                <div className="rounded-2xl border border-amber-100 bg-amber-50 p-4 text-xs font-semibold text-amber-700">
                   This conversation is closed. Start a new message if you need more help.
                 </div>
               )}
@@ -320,7 +321,7 @@ export function LiveChat() {
 
           <div className="p-4 pb-6 sm:pb-4 bg-white border-t border-slate-100 shrink-0">
             {isClosed ? (
-              <Button onClick={startNewConversation} className="h-11 w-full rounded-2xl bg-slate-900 text-xs font-black uppercase tracking-widest text-white hover:bg-slate-800">
+              <Button onClick={startNewConversation} className="h-11 w-full rounded-2xl bg-slate-900 text-xs font-semibold text-white hover:bg-slate-800">
                 <Plus className="mr-2 h-4 w-4" /> New Message
               </Button>
             ) : (

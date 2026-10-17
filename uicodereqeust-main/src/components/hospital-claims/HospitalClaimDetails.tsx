@@ -14,13 +14,15 @@ interface HospitalClaimDetailsProps {
   statusClass: (status?: string | null) => string;
   statusLabel: (status?: string | null) => string;
   onContestClick: (claim: ClaimDraft) => void;
+  onAcceptPayment?: (claim: ClaimDraft) => void;
 }
 
 export default function HospitalClaimDetails({
   selectedClaim,
   statusClass,
   statusLabel,
-  onContestClick
+  onContestClick,
+  onAcceptPayment
 }: HospitalClaimDetailsProps) {
   const auditedItems = claimAuditItems(selectedClaim);
   const showContestBanner = hasContestableDeductions(selectedClaim);
@@ -116,21 +118,47 @@ export default function HospitalClaimDetails({
               justification. Payout status is pending review.
             </p>
           </div>
-        ) : showContestBanner ? (
-          <div className="bg-rose-50 border border-rose-100 p-3.5 rounded-xl space-y-2">
-            <span className="text-xs font-black uppercase text-rose-700 tracking-wider block">
-              Deductions Detected
+        ) : selectedClaim.payment_status === "awaiting_payment" ? (
+          <div className="bg-emerald-50 border border-emerald-200 p-3.5 rounded-xl space-y-1">
+            <span className="text-xs font-black uppercase text-emerald-700 tracking-wider block">
+              ✓ Ready for Payment Batch
             </span>
-            <p className="text-[8.5px] font-medium text-rose-600 leading-snug">
-              Some items were excluded during the clinical audit. You can contest this decision by submitting a formal
-              appeal with medical justifications.
+            <p className="text-xs font-medium text-emerald-600 leading-snug">
+              This claim has been released to the HMO payment queue and is awaiting the next settlement batch.
             </p>
-            <Button
-              onClick={() => onContestClick(selectedClaim)}
-              className="w-full bg-white hover:bg-rose-100 border border-rose-200 text-rose-600 font-black uppercase text-[8.5px] tracking-wider h-8 rounded-lg transition-all"
-            >
-              Contest Decisions
-            </Button>
+          </div>
+        ) : showContestBanner ? (
+          <div className="bg-rose-50 border border-rose-100 p-3.5 rounded-xl space-y-2.5">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-black uppercase text-rose-700 tracking-wider block">
+                Deductions Detected
+              </span>
+              {selectedClaim.contest_deadline && (
+                <span className="text-[10px] font-bold text-amber-700 bg-amber-100/70 px-2 py-0.5 rounded-full">
+                  {Math.max(0, Math.ceil((new Date(selectedClaim.contest_deadline).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))} days left to dispute
+                </span>
+              )}
+            </div>
+            <p className="text-[11px] font-medium text-rose-600 leading-snug">
+              Some items were excluded or adjusted during the clinical audit. You can submit a dispute with justifications within the 7-day window, or accept the audited total to expedite settlement.
+            </p>
+            <div className="grid grid-cols-2 gap-2 pt-1">
+              <Button
+                variant="outline"
+                onClick={() => onContestClick(selectedClaim)}
+                className="w-full bg-white hover:bg-rose-100 border border-rose-200 text-rose-600 font-bold text-xs h-9 rounded-lg transition-all"
+              >
+                Contest Decisions
+              </Button>
+              {onAcceptPayment && (
+                <Button
+                  onClick={() => onAcceptPayment(selectedClaim)}
+                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs h-9 rounded-lg transition-all shadow-sm"
+                >
+                  Accept & Expedite Payment
+                </Button>
+              )}
+            </div>
           </div>
         ) : null}
       </div>

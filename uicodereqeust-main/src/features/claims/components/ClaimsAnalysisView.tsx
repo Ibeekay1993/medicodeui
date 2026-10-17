@@ -1,0 +1,507 @@
+import { useMemo, useState } from "react";
+import { useTabVisibilityRefresh } from "@/hooks/use-tab-visibility-refresh";
+import { useClaimsAnalysisQuery } from "../hooks/useClaimsAnalysis";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
+import { useDataPagination } from "@/hooks/use-data-pagination";
+import { DataPagination } from "@/components/dashboard/DataPagination";
+import { PageLoader } from "@/components/PageLoader";
+import {
+  AlertCircle,
+  Building2,
+  Check,
+  CheckCircle2,
+  ChevronsUpDown,
+  RefreshCw,
+  Wallet,
+  XCircle,
+} from "lucide-react";
+import { ClaimsAnalysisResult } from "../types";
+
+function formatMoney(value: number) {
+  return new Intl.NumberFormat("en-NG", {
+    style: "currency",
+    currency: "NGN",
+    maximumFractionDigits: 0,
+  }).format(value || 0);
+}
+
+function normalizeStatus(status?: string | null) {
+  return String(status || "pending").toLowerCase().replace(/\s+/g, "_");
+}
+
+function statusBucket(status?: string | null): "pending" | "approved" | "rejected" | "contested" | "other" {
+  const normalized = normalizeStatus(status);
+  if (["submitted", "pending", "under_investigation", "under_review", "pending_audit", "audit"].includes(normalized)) return "pending";
+  if (normalized === "approved") return "approved";
+  if (["contested", "paid"].includes(normalized)) return "contested";
+  if (["rejected", "declined", "denied"].includes(normalized)) return "rejected";
+  return "other";
+}
+
+export function ClaimsAnalysisView() {
+  const { toast } = useToast();
+  const [openHospitalSelect, setOpenHospitalSelect] = useState(false);
+  const [selectedHospitalKey, setSelectedHospitalKey] = useState("all");
+
+  const { data: claims, isLoading: loading, refetch: refresh, isError } = useClaimsAnalysisQuery();
+
+  if (isError) {
+    toast({
+      variant: "destructive",
+      title: "Unable to load claims analysis",
+      description: "Please refresh and try again.",
+    });
+  }
+
+  useTabVisibilityRefresh(refresh as () => void);
+
+  const analysis = useMemo<ClaimsAnalysisResult>(() => {
+    const summary = claims || { by_status: [], by_hospital: [], by_date: [] };
+    const base = {
+      total: 0,
+      pending: 0,
+      approved: 0,
+      rejected: 0,
+      contested: 0,
+      other: 0,
+      totalValue: 0,
+      approvedValue: 0,
+      rejectedValue: 0,
+      contestedValue: 0,
+    };
+
+    (summary.by_status || []).forEach((row: any) => {
+      const count = Number(row.count || 0);
+      const amount = Number(row.total_amount || 0);
+      const bucket = statusBucket(row.status);
+
+      base.total += count;
+      base.totalValue += amount;
+      (base as any)[bucket] += count;
+      if (bucket === "approved") base.approvedValue += amount;
+      if (bucket === "rejected") base.rejectedValue += amount;
+      if (bucket === "contested") base.contestedValue += amount;
+    });
+
+    const hospitals = (summary.by_hospital || []).map((h: any) => {
+      return {
+        key: h.hospital_id || h.hospital_name || "unknown",
+        name: h.hospital_name || "Unknown Hospital",
+        total: Number(h.count || 0),
+        pending: 0,
+        approved: 0,
+        rejected: 0,
+        contested: 0,
+        other: 0,
+        value: Number(h.total_amount || 0),
+        approvedValue: 0,
+        contestedValue: 0,
+        latest: new Date().toISOString(),
+      };
+    }).sort((a: any, b: any) => b.total - a.total || a.name.localeCompare(b.name));
+
+    const volume = (summary.by_date || []).map((d: any) => [
+      new Date(d.claim_date).toLocaleDateString("en-GB", { day: "2-digit", month: "short" }),
+      Number(d.count || 0),
+    ] as [string, number]).reverse();
+
+    return { ...base, hospitals, volume };
+  }, [claims]);
+
+  const selectedHospital = analysis.hospitals.find((hospital) => hospital.key === selectedHospitalKey) || null;
+  const isAll = selectedHospitalKey === "all";
+  const summary = claims || { by_status: [], by_hospital: [], by_date: [] };
+
+  const paymentReadyValue = isAll
+    ? (summary.by_status || [])
+        .filter((row: any) => ["approved", "partially_approved"].includes(normalizeStatus(row.status)))
+        .reduce((sum: number, row: any) => sum + Number(row.total_amount || 0), 0)
+    : 0;
+
+  const pendingAuditValue = isAll
+    ? (summary.by_status || [])
+        .filter((row: any) => statusBucket(row.status) === "pending")
+        .reduce((sum: number, row: any) => sum + Number(row.total_amount || 0), 0)
+    : 0;
+
+  const filteredHospitals = analysis.hospitals.filter((hospital) => {
+    return selectedHospitalKey === "all" || hospital.key === selectedHospitalKey;
+  });
+
+  const {
+    page,
+    setPage,
+    pageSize,
+    totalPages,
+    pageItems: paginatedHospitals,
+    start,
+    end,
+    total,
+  } = useDataPagination(filteredHospitals);
+
+  const maxVolume = Math.max(1, ...analysis.volume.map(([, count]) => count as number));
+
+  const stats = useMemo(() => {
+    const base = {
+      pending: 0,
+      approved: 0,
+      rejected: 0,
+      contested: 0,
+      pendingValue: 0,
+      approvedValue: 0,
+      rejectedValue: 0,
+      contestedValue: 0,
+    };
+
+    if (!isAll) {
+      base.pendingValue = 0;
+      return base;
+    }
+
+    (summary.by_status || []).forEach((row: any) => {
+      const count = Number(row.count || 0);
+      const amount = Number(row.total_amount || 0);
+      const bucket = statusBucket(row.status);
+
+      if (bucket in base) {
+        (base as any)[bucket] += count;
+      }
+      if (bucket === "pending") base.pendingValue += amount;
+      if (bucket === "approved") base.approvedValue += amount;
+      if (bucket === "rejected") base.rejectedValue += amount;
+      if (bucket === "contested") base.contestedValue += amount;
+    });
+
+    return base;
+  }, [summary, isAll]);
+
+  if (loading) {
+    return <PageLoader className="min-h-64" label="Loading claims analysis..." />;
+  }
+
+  const metrics = [
+    {
+      label: "Pending Audits",
+      count: stats.pending,
+      value: formatMoney(stats.pendingValue),
+      icon: AlertCircle,
+      iconBg: "bg-amber-50 text-amber-600 border border-amber-100",
+    },
+    {
+      label: "Approved",
+      count: stats.approved,
+      value: formatMoney(stats.approvedValue),
+      icon: CheckCircle2,
+      iconBg: "bg-emerald-50 text-emerald-600 border border-emerald-100",
+    },
+    {
+      label: "Rejected",
+      count: stats.rejected,
+      value: formatMoney(stats.rejectedValue),
+      icon: XCircle,
+      iconBg: "bg-rose-50 text-rose-600 border border-rose-100",
+    },
+    {
+      label: "Contested",
+      count: stats.contested,
+      value: formatMoney(stats.contestedValue),
+      icon: Wallet,
+      iconBg: "bg-blue-50 text-blue-600 border border-blue-100",
+    },
+  ];
+
+  return (
+    <div className="space-y-4 animate-in fade-in duration-300">
+      {/* Hospital Filter Bar */}
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-3 sm:p-4">
+        <div>
+          <h3 className="text-sm font-semibold text-slate-900">Hospital Performance Filter</h3>
+          <p className="text-xs text-slate-500">Select a partner provider or view all network facilities.</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Popover open={openHospitalSelect} onOpenChange={setOpenHospitalSelect}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                role="combobox"
+                aria-expanded={openHospitalSelect}
+                className="h-10 w-full justify-between rounded-lg border-slate-300 bg-white px-3 text-sm font-medium transition-colors hover:border-emerald-600 sm:w-[280px]"
+              >
+                <div className="truncate text-left flex-1">
+                  {selectedHospitalKey === "all"
+                    ? "All Network Hospitals"
+                    : analysis.hospitals.find((h) => h.key === selectedHospitalKey)?.name || "Select hospital…"}
+                </div>
+                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[280px] p-0 rounded-xl shadow-md border-slate-200 bg-white z-50">
+              <Command>
+                <CommandInput placeholder="Search hospitals…" className="h-9 text-xs" />
+                <CommandList>
+                  <CommandEmpty>No hospital found.</CommandEmpty>
+                  <CommandGroup>
+                    <CommandItem
+                      value="all"
+                      onSelect={() => {
+                        setSelectedHospitalKey("all");
+                        setOpenHospitalSelect(false);
+                      }}
+                      className="text-xs font-semibold cursor-pointer"
+                    >
+                      <Check
+                        className={cn(
+                          "mr-2 h-4 w-4",
+                          selectedHospitalKey === "all" ? "opacity-100" : "opacity-0"
+                        )}
+                      />
+                      All Network Hospitals
+                    </CommandItem>
+                    {analysis.hospitals.map((hospital) => (
+                      <CommandItem
+                        key={hospital.key}
+                        value={hospital.name}
+                        onSelect={() => {
+                          setSelectedHospitalKey(hospital.key);
+                          setOpenHospitalSelect(false);
+                        }}
+                        className="text-xs font-semibold cursor-pointer"
+                      >
+                        <Check
+                          className={cn(
+                            "mr-2 h-4 w-4",
+                            selectedHospitalKey === hospital.key ? "opacity-100" : "opacity-0"
+                          )}
+                        />
+                        {hospital.name}
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
+          <Button
+            onClick={() => void refresh()}
+            variant="outline"
+            size="icon"
+            aria-label="Refresh analysis"
+            className="h-10 w-10 shrink-0 rounded-lg border-slate-300 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors"
+            title="Refresh analysis"
+          >
+            <RefreshCw className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+
+      {selectedHospital && (
+        <div className="rounded-xl border border-slate-200 bg-white p-3 sm:p-4">
+          <div className="grid gap-3 sm:grid-cols-4">
+            <div className="sm:col-span-2 flex flex-col justify-center">
+              <span className="text-xs font-medium text-slate-600">Selected hospital</span>
+              <p className="text-sm sm:text-base font-extrabold text-slate-900 tracking-tight leading-tight mt-0.5">
+                {selectedHospital.name}
+              </p>
+              <div className="mt-1 flex items-center gap-1.5 text-slate-500">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                <p className="text-xs font-medium">
+                  Latest claim: {new Date(selectedHospital.latest).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
+                </p>
+              </div>
+            </div>
+            <div className="rounded-lg border border-slate-100 bg-slate-50/50 p-2 text-center sm:text-left">
+              <span className="text-[11px] font-medium text-slate-600 sm:text-xs">Pending audit</span>
+              <p className="mt-0.5 font-mono text-xs sm:text-sm font-extrabold text-amber-600">{formatMoney(pendingAuditValue)}</p>
+            </div>
+            <div className="rounded-lg border border-slate-100 bg-slate-50/50 p-2 text-center sm:text-left">
+              <span className="text-[11px] font-medium text-slate-600 sm:text-xs">Ready for payment</span>
+              <p className="mt-0.5 font-mono text-xs sm:text-sm font-extrabold text-emerald-600">{formatMoney(paymentReadyValue)}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* KPI Metrics */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-4">
+        {metrics.map((metric) => (
+          <div key={metric.label} className="flex min-w-0 items-center gap-3 overflow-hidden rounded-xl border border-slate-200 bg-white p-3 sm:p-4 shadow-sm transition-all hover:border-slate-300" title={metric.label}>
+            <div className={cn("hidden h-10 w-10 shrink-0 items-center justify-center rounded-lg sm:flex md:h-11 md:w-11", metric.iconBg)}>
+              <metric.icon className="h-5 w-5 md:h-6 md:w-6" />
+            </div>
+            <div className="min-w-0 flex-1 text-center sm:text-left">
+              <p className="truncate text-[11px] font-medium leading-tight text-slate-600 sm:text-xs">{metric.label}</p>
+              <p className="text-sm sm:text-lg lg:text-xl font-bold tracking-tight truncate leading-none text-slate-900 mt-1 sm:mt-1.5">
+                {metric.count} <span className="text-[10px] sm:text-xs text-slate-400 font-normal ml-1 tracking-normal">{metric.value}</span>
+              </p>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="grid gap-4">
+        {/* Daily Volume Performance Chart */}
+        <Card className="rounded-xl border border-slate-200 bg-white shadow-sm">
+          <CardHeader className="flex flex-col gap-3 space-y-0 p-4 sm:flex-row sm:items-center sm:justify-between border-b border-slate-100">
+            <div className="min-w-0">
+              <CardTitle className="text-sm font-bold text-slate-800 tracking-tight">Volume Performance</CardTitle>
+              <p className="text-xs text-slate-500 mt-0.5">Recent claim intake volume grouped by submission date</p>
+            </div>
+            <div className="grid w-full grid-cols-3 gap-2 text-left sm:flex sm:w-auto sm:items-center sm:gap-6 sm:text-right">
+              <div>
+                <span className="text-xs font-medium text-slate-600">Total claims</span>
+                <p className="mt-0.5 font-mono text-sm font-semibold leading-tight text-slate-800 sm:text-lg">{analysis.total}</p>
+              </div>
+              <div>
+                <span className="text-xs font-medium text-slate-600">Other status</span>
+                <p className="mt-0.5 font-mono text-sm font-semibold leading-tight text-slate-600 sm:text-lg">{analysis.other}</p>
+              </div>
+              <div>
+                <span className="text-xs font-medium text-slate-600">Total value</span>
+                <p className="mt-0.5 font-mono text-sm font-semibold leading-tight text-emerald-700 sm:text-lg">{formatMoney(analysis.totalValue)}</p>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="p-4 overflow-x-auto">
+            <div className="flex gap-4 min-w-max pb-2 pt-4">
+              {analysis.volume.map(([date, count]) => (
+                <div key={date} className="flex h-32 w-16 flex-col items-center justify-end gap-1.5">
+                  <span className="font-mono text-xs font-medium text-slate-700">{count}</span>
+                  <div
+                    className="w-10 rounded-t-md bg-emerald-600 transition-all hover:bg-emerald-500"
+                    style={{ height: `${Math.max(10, (count / maxVolume) * 100)}%` }}
+                  />
+                  <span className="mt-1 whitespace-nowrap text-xs font-medium text-slate-600">{date}</span>
+                </div>
+              ))}
+              {analysis.volume.length === 0 && (
+                <p className="w-full text-center text-xs font-semibold text-slate-400 py-8">No claims submitted yet</p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* All Partner Hospitals Performance */}
+        <Card className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+          <CardHeader className="flex flex-col gap-3 space-y-0 p-4 sm:flex-row sm:items-center sm:justify-between border-b border-slate-100">
+            <div className="min-w-0">
+              <CardTitle className="text-sm font-bold text-slate-800 tracking-tight">Partner Hospitals Distribution</CardTitle>
+              <p className="text-xs text-slate-500 mt-0.5">{analysis.hospitals.length} active hospitals in this cycle</p>
+            </div>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="hidden overflow-x-auto md:block">
+              <table className="w-full text-left">
+                <thead className="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  <tr>
+                    <th scope="col" className="p-4 pl-6">Hospital</th>
+                    <th scope="col" className="p-4">Total Claims</th>
+                    <th scope="col" className="p-4">Pending</th>
+                    <th scope="col" className="p-4">Approved</th>
+                    <th scope="col" className="p-4">Rejected</th>
+                    <th scope="col" className="p-4">Contested</th>
+                    <th scope="col" className="p-4 pr-6 text-right">Claim Value</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 text-sm">
+                  {paginatedHospitals.map((hospital) => (
+                    <tr key={hospital.key} className="hover:bg-slate-50/70 transition-colors duration-150">
+                      <td className="p-4 pl-6">
+                        <div className="flex items-center gap-2.5">
+                          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-slate-600 border border-slate-200 shrink-0">
+                            <Building2 className="h-4.5 w-4.5" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="font-semibold text-slate-900 leading-tight truncate">{hospital.name}</p>
+                            <p className="text-xs text-slate-400 mt-1">Latest: {new Date(hospital.latest).toLocaleDateString("en-GB")}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="p-4 font-mono font-bold text-slate-800">{hospital.total}</td>
+                      <td className="p-4">
+                        <span className="bg-amber-50 text-amber-700 text-xs font-bold px-2.5 py-0.5 rounded-full border border-amber-200 capitalize">
+                          {hospital.pending}
+                        </span>
+                      </td>
+                      <td className="p-4">
+                        <span className="bg-emerald-50 text-emerald-700 text-xs font-bold px-2.5 py-0.5 rounded-full border border-emerald-200 capitalize">
+                          {hospital.approved}
+                        </span>
+                      </td>
+                      <td className="p-4">
+                        <span className="bg-rose-50 text-rose-700 text-xs font-bold px-2.5 py-0.5 rounded-full border border-rose-200 capitalize">
+                          {hospital.rejected}
+                        </span>
+                      </td>
+                      <td className="p-4">
+                        <span className="bg-blue-50 text-blue-700 text-xs font-bold px-2.5 py-0.5 rounded-full border border-blue-200 capitalize">
+                          {hospital.contested}
+                        </span>
+                      </td>
+                      <td className="p-4 pr-6 font-mono font-bold text-slate-900 text-right">{formatMoney(hospital.value)}</td>
+                    </tr>
+                  ))}
+                  {filteredHospitals.length === 0 && (
+                    <tr>
+                      <td className="p-12 text-center text-xs font-semibold text-slate-400" colSpan={7}>
+                        No hospital claim analysis found
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {filteredHospitals.length > 0 && total > pageSize && (
+              <div className="hidden md:flex p-4 border-t border-slate-100 bg-white">
+                <DataPagination page={page} totalPages={totalPages} start={start} end={end} total={total} pageSize={pageSize} onPageChange={setPage} />
+              </div>
+            )}
+
+            {/* Mobile View */}
+            <div className="space-y-2 bg-slate-50/30 p-3 md:hidden">
+              {paginatedHospitals.map((hospital) => (
+                <div key={hospital.key} className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-bold text-slate-900">{hospital.name}</p>
+                      <p className="mt-1 text-xs text-slate-400">Latest: {new Date(hospital.latest).toLocaleDateString("en-GB")}</p>
+                    </div>
+                    <p className="shrink-0 font-mono text-sm font-bold text-slate-900">{formatMoney(hospital.value)}</p>
+                  </div>
+                  <div className="mt-3 grid grid-cols-4 gap-1.5 text-center">
+                    {[
+                      ["Total", hospital.total, "bg-slate-50 text-slate-700 border border-slate-200"],
+                      ["Pending", hospital.pending, "bg-amber-50 text-amber-700 border border-amber-200"],
+                      ["Approved", hospital.approved, "bg-emerald-50 text-emerald-700 border border-emerald-200"],
+                      ["Rejected", hospital.rejected, "bg-rose-50 text-rose-700 border border-rose-200"],
+                    ].map(([label, count, color]) => (
+                      <div key={label} className={cn("rounded-lg p-1.5", color as string)}>
+                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">{label}</p>
+                        <p className="font-mono text-xs font-bold mt-0.5">{count}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+              {filteredHospitals.length === 0 && (
+                <p className="rounded-xl bg-white p-8 text-center text-xs font-semibold text-slate-400">
+                  No hospital claim analysis found
+                </p>
+              )}
+              {filteredHospitals.length > 0 && total > pageSize && (
+                <div className="pt-2">
+                  <DataPagination page={page} totalPages={totalPages} start={start} end={end} total={total} pageSize={pageSize} onPageChange={setPage} />
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}

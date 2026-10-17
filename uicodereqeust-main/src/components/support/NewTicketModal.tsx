@@ -278,7 +278,7 @@ export function NewTicketModal({
       <Dialog open={isOpen} onOpenChange={onOpenChange}>
         <DialogContent className="rounded-3xl sm:max-w-[480px] max-h-[90vh] overflow-y-auto bg-white border border-slate-200/50 p-6 shadow-2xl font-sans">
           <DialogHeader>
-            <DialogTitle className="text-base font-black uppercase tracking-tight italic flex items-center gap-2">
+            <DialogTitle className="text-base font-semibold flex items-center gap-2">
               <Sparkles className="h-5 w-5 text-indigo-500 shrink-0" /> Start Dispute Thread
             </DialogTitle>
             <DialogDescription className="text-xs text-slate-500 font-medium">
@@ -289,7 +289,7 @@ export function NewTicketModal({
 
           <div className="space-y-3 py-2">
             <div className="space-y-1">
-              <label className="text-xs font-black uppercase text-slate-400 block px-1">
+              <label className="text-sm font-medium text-slate-700 block px-1">
                 Subject Heading
               </label>
               <Input
@@ -302,7 +302,7 @@ export function NewTicketModal({
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <label className="text-xs font-black uppercase text-slate-400 block px-1">
+                <label className="text-sm font-medium text-slate-700 block px-1">
                   Active Department
                 </label>
                 <Select
@@ -331,7 +331,7 @@ export function NewTicketModal({
               </div>
 
               <div className="space-y-1">
-                <label className="text-xs font-black uppercase text-slate-400 block px-1">
+                <label className="text-sm font-medium text-slate-700 block px-1">
                   Priority Scale
                 </label>
                 <Select
@@ -355,7 +355,7 @@ export function NewTicketModal({
             {newTicket.department === "Authorization" && (
               <div className="space-y-2.5 border-t border-b border-slate-100 py-3.5">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-black text-slate-400 uppercase tracking-widest px-1">
+                  <span className="text-sm font-medium text-slate-700 px-1">
                     Link Case Connection
                   </span>
                   <Select
@@ -422,7 +422,7 @@ export function NewTicketModal({
             )}
 
             <div className="space-y-1">
-              <label className="text-xs font-black uppercase text-slate-400 block px-1">
+              <label className="text-sm font-medium text-slate-700 block px-1">
                 Detailed Message Description
               </label>
               <Textarea
@@ -435,7 +435,7 @@ export function NewTicketModal({
 
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-black text-slate-400 uppercase tracking-widest px-1">
+                <span className="text-sm font-medium text-slate-700 px-1">
                   Add Consult Attachments
                 </span>
                 <Button
@@ -474,7 +474,7 @@ export function NewTicketModal({
             <Button
               onClick={handleCreateNewConversation}
               disabled={sending || !newTicket.subject.trim() || !newTicket.message.trim()}
-              className="h-10 w-full rounded-xl bg-slate-900 text-xs font-black uppercase tracking-widest text-white hover:bg-slate-800 hover:shadow-lg hover:shadow-slate-900/10 transition-all flex items-center justify-center gap-2 active:scale-98"
+              className="h-11 w-full rounded-lg bg-primary text-sm font-semibold text-white hover:bg-primary/90 hover:shadow-lg hover:shadow-slate-900/10 transition-all flex items-center justify-center gap-2 active:scale-98"
             >
               {sending ? (
                 <>

@@ -1,5 +1,13 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { corsHeaders, getServiceClient, validateUser, parseBrevoSender } from "../_shared/auth.ts";
+import {
+  assertMfaForSensitiveAction,
+  assertRequestHospitalScope,
+  corsHeaders,
+  getServiceClient,
+  getSensitiveActionErrorStatus,
+  validateUser,
+  parseBrevoSender,
+} from "../_shared/auth.ts";
 import {
   buildEmailHtml,
   detailsRow,
@@ -21,7 +29,8 @@ serve(async (req) => {
       });
     }
 
-    const { user } = await validateUser(req, ["utilization_manager", "utilization_manager_lead", "admin", "hospital", "claims"]);
+    const { user, profile, assuranceLevel } = await validateUser(req, ["utilization_manager", "utilization_manager_lead", "admin", "hospital"]);
+    await assertMfaForSensitiveAction(user.id, assuranceLevel);
     const supabase = getServiceClient();
 
     const body = await req.json().catch(() => ({}));
@@ -32,13 +41,17 @@ serve(async (req) => {
     const { data: request, error: fetchError } = await supabase
       .from("authorization_requests")
       .select(
-        "patient_name, patient_email, patient_phone, diagnosis, treatment, hospital_name, policy_number, urgency, referred_hospital_name, authorization_code, approved_items"
+        "status, hospital_id, requesting_hospital_id, referring_hospital_id, referred_hospital_id, claiming_hospital_id, patient_name, patient_email, patient_phone, diagnosis, treatment, hospital_name, policy_number, urgency, referred_hospital_name, authorization_code, approved_items"
       )
       .eq("id", authorization_id)
       .maybeSingle();
 
     if (fetchError) throw fetchError;
     if (!request) throw new Error("Request not found");
+    assertRequestHospitalScope(profile, request);
+    if (!["referral_approved", "referral_accepted"].includes(request.status)) {
+      throw new Error("Request is not an approved referral");
+    }
 
     const patientEmail = request.patient_email;
     const patientName = request.patient_name || "Patient";
@@ -274,8 +287,8 @@ serve(async (req) => {
       JSON.stringify({ error: true, message: err instanceof Error ? err.message : "Failed to send referral notification" }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: getSensitiveActionErrorStatus(err),
       },
     );
   }
 });
-

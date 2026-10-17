@@ -1,6 +1,14 @@
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { corsHeaders, getServiceClient, validateUser, parseBrevoSender } from "../_shared/auth.ts";
+import {
+  assertMfaForSensitiveAction,
+  assertRequestHospitalScope,
+  corsHeaders,
+  getServiceClient,
+  getSensitiveActionErrorStatus,
+  validateUser,
+  parseBrevoSender,
+} from "../_shared/auth.ts";
 import {
   buildEmailHtml,
   extractServiceName,
@@ -52,7 +60,8 @@ serve(async (req) => {
       });
     }
 
-    const { user } = await validateUser(req, ["utilization_manager", "utilization_manager_lead", "admin", "hospital", "claims"]);
+    const { user, profile, assuranceLevel } = await validateUser(req, ["utilization_manager", "utilization_manager_lead", "admin", "hospital"]);
+    await assertMfaForSensitiveAction(user.id, assuranceLevel);
     const supabase = getServiceClient();
 
     const body = await req.json().catch(() => ({}));
@@ -63,13 +72,17 @@ serve(async (req) => {
     const { data: request, error: fetchError } = await supabase
       .from("authorization_requests")
       .select(
-        "patient_name, patient_email, patient_phone, diagnosis, treatment, hospital_name, hospital_id, authorization_code, policy_number, urgency, approved_items, referred_hospital_name, referred_hospital_id"
+        "status, patient_name, patient_email, patient_phone, diagnosis, treatment, hospital_name, hospital_id, requesting_hospital_id, referring_hospital_id, referred_hospital_id, claiming_hospital_id, authorization_code, policy_number, urgency, approved_items, referred_hospital_name"
       )
       .eq("id", authorization_id)
       .maybeSingle();
 
     if (fetchError) throw fetchError;
     if (!request) throw new Error("Request not found");
+    assertRequestHospitalScope(profile, request);
+    if (!["approved", "partially_approved"].includes(request.status)) {
+      throw new Error("Request is not approved");
+    }
 
     const patientEmail = request.patient_email;
     const safeEmail = patientEmail || "no-email@medicode.com";
@@ -326,7 +339,10 @@ serve(async (req) => {
     console.error("send-approval-email error:", err);
     return new Response(
       JSON.stringify({ error: true, message: err instanceof Error ? err.message : "Failed to send approval email" }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: getSensitiveActionErrorStatus(err),
+      },
     );
   }
 });

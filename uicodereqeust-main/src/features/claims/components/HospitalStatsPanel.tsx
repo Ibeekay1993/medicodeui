@@ -54,8 +54,8 @@ export default function HospitalStatsPanel({
 
       <div className="grid gap-1.5 sm:gap-2.5 grid-cols-2 md:grid-cols-4 lg:grid-cols-8">
         {cards.map(({ label, value }) => (
-          <div key={label} className="premium-card p-1.5 sm:p-3 flex flex-col justify-center min-w-0 text-center sm:text-left rounded-xl" title={label}>
-            <p className="text-[8px] sm:text-[10px] font-bold uppercase tracking-wider text-slate-500 leading-tight mb-0.5 sm:mb-1.5 line-clamp-2">{label}</p>
+          <div key={label} className="flex min-w-0 flex-col justify-center rounded-lg border border-slate-200 bg-white p-2 text-left sm:p-3" title={label}>
+            <p className="mb-1 text-[11px] font-medium leading-tight text-slate-600 sm:text-xs">{label}</p>
             {loading ? (
               <div className="mt-0.5"><StatSkeleton /></div>
             ) : (

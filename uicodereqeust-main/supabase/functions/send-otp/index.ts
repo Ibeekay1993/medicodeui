@@ -1,7 +1,14 @@
 // SECURITY: OTP values are never returned in API responses.
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { corsHeaders, getServiceClient, validateUser } from "../_shared/auth.ts";
+import {
+  assertMfaForSensitiveAction,
+  assertRequestHospitalScope,
+  corsHeaders,
+  getServiceClient,
+  getSensitiveActionErrorStatus,
+  validateUser,
+} from "../_shared/auth.ts";
 
 async function generateUniqueOTP(supabase: SupabaseClient): Promise<string> {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // Removed O, 0, 1, I
@@ -41,17 +48,29 @@ serve(async (req) => {
   }
 
   try {
-    const { user } = await validateUser(req, ["nurse", "utilization_manager", "utilization_manager_lead", "admin", "hospital", "claims"]);
+    const { user, profile, assuranceLevel } = await validateUser(req, ["nurse", "utilization_manager", "utilization_manager_lead", "admin", "hospital"]);
+    await assertMfaForSensitiveAction(user.id, assuranceLevel);
     const supabase = getServiceClient();
 
     // patient_email can be empty/missing for whatsapp parser requests
-    const { authorization_id, patient_email, policy_number, otp_type, hospital_id } = await req.json();
+    const { authorization_id, otp_type } = await req.json();
 
     if (!authorization_id) throw new Error("authorization_id is required");
+
+    const { data: request, error: requestError } = await supabase
+      .from("authorization_requests")
+      .select("hospital_id, requesting_hospital_id, referring_hospital_id, referred_hospital_id, claiming_hospital_id, patient_email, policy_number")
+      .eq("id", authorization_id)
+      .maybeSingle();
+    if (requestError) throw requestError;
+    if (!request) throw new Error("Request not found");
+    assertRequestHospitalScope(profile, request);
     
-    // Default email if none provided
-    const safeEmail = patient_email || "no-email@medicode.com";
+    const safeEmail = request.patient_email || "no-email@medicode.com";
     const normalizedOtpType = String(otp_type || "ARRIVAL").toUpperCase();
+    if (!["ARRIVAL", "TREATMENT"].includes(normalizedOtpType)) {
+      throw new Error("Invalid OTP type");
+    }
 
     const { data: existingPin, error: lookupError } = await supabase
       .from("otp_verifications")
@@ -97,7 +116,7 @@ serve(async (req) => {
         expires_at: expiresAt,
         created_by: user.id,
         otp_type: normalizedOtpType,
-        hospital_id: hospital_id || null,
+        hospital_id: request.claiming_hospital_id || request.referred_hospital_id || request.hospital_id,
       });
 
     if (insertError) throw insertError;
@@ -111,7 +130,7 @@ serve(async (req) => {
       details: {
         authorization_id,
         patient_email: safeEmail,
-        policy_number,
+        policy_number: request.policy_number,
         email_status: emailStatus,
         note: "Email intentionally skipped until approval (Option A)",
       },
@@ -131,7 +150,10 @@ serve(async (req) => {
     console.error("send-otp error:", err);
     return new Response(
       JSON.stringify({ error: true, message: err instanceof Error ? err.message : "Failed to generate OTP" }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: getSensitiveActionErrorStatus(err),
+      },
     );
   }
 });

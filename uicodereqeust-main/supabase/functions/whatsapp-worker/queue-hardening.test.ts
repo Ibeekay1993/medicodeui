@@ -5,6 +5,7 @@ import {
   getQueuePlan,
   getStaleQueueCandidates,
   isOutboundAmbiguous,
+  isInboundMessageProcessable,
   isProcessingStale,
   normalizeStatus,
   shouldSendOutbound,
@@ -57,6 +58,12 @@ describe("queue hardening helpers", () => {
     expect(isProcessingStale(active, 10)).toBe(false);
   });
 
+  it("does not process a duplicate delivery while its message is already claimed", () => {
+    expect(isInboundMessageProcessable("processing")).toBe(false);
+    expect(isInboundMessageProcessable("completed")).toBe(false);
+    expect(isInboundMessageProcessable("queued")).toBe(true);
+  });
+
   it("prioritizes fresh queue items before retry backlog", () => {
     const rows = [
       { message_id: "retry-1", status: "retry", received_at: "2024-01-01T00:00:00Z", next_attempt_at: new Date(Date.now() - 1000).toISOString() },
@@ -73,6 +80,25 @@ describe("queue hardening helpers", () => {
       "fresh-3",
     ]);
     expect(plan.length).toBe(4);
+  });
+
+  it("keeps retries out of the queue until their scheduled attempt time", () => {
+    const now = new Date("2026-10-09T10:00:00.000Z");
+    const plan = getQueuePlan([
+      {
+        message_id: "retry-later",
+        status: "retry",
+        received_at: "2026-10-09T09:00:00.000Z",
+        next_attempt_at: "2026-10-09T10:01:00.000Z",
+      },
+      {
+        message_id: "fresh-now",
+        status: "queued",
+        received_at: "2026-10-09T09:59:00.000Z",
+      },
+    ], 2, now);
+
+    expect(plan.map((row) => row.message_id)).toEqual(["fresh-now"]);
   });
 
   it("does not resend confirmed or ambiguous outbound operations", () => {

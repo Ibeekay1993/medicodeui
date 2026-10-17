@@ -195,6 +195,9 @@ export interface AnalysisResult {
   // (all AI providers unavailable — quota/429, 5xx, network, or unparseable
   // response).
   geminiFallback?: boolean;
+  // Set by deterministic-only processing when authorization text contains
+  // uncertainty or alternatives that require a human clarification.
+  requiresClinicalClarification?: boolean;
   raw?: unknown;
 }
 

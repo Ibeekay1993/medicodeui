@@ -119,7 +119,7 @@ export function SupportDetailsSidebar({
 
                   <div className="flex flex-col gap-1.5 text-xs leading-none">
                     <div className="flex flex-col gap-0.5">
-                      <span className="text-[11px] font-medium text-slate-400 uppercase">
+                      <span className="text-xs font-medium text-slate-600">
                         Request Reference
                       </span>
                       <span className="font-medium text-slate-800 text-xs">
@@ -127,7 +127,7 @@ export function SupportDetailsSidebar({
                       </span>
                     </div>
                     <div className="flex flex-col gap-0.5">
-                      <span className="text-[11px] font-medium text-slate-400 uppercase">
+                      <span className="text-xs font-medium text-slate-600">
                         Decision Status
                       </span>
                       <span className="font-medium text-slate-800 text-xs uppercase">
@@ -135,7 +135,7 @@ export function SupportDetailsSidebar({
                       </span>
                     </div>
                     <div className="flex flex-col gap-0.5">
-                      <span className="text-[11px] font-medium text-slate-400 uppercase">
+                      <span className="text-xs font-medium text-slate-600">
                         Authorization Code
                       </span>
                       <span className="font-medium text-slate-800 text-xs">
@@ -145,7 +145,7 @@ export function SupportDetailsSidebar({
                       </span>
                     </div>
                     <div className="flex flex-col gap-0.5">
-                      <span className="text-[11px] font-medium text-slate-400 uppercase">
+                      <span className="text-xs font-medium text-slate-600">
                         Decision Note
                       </span>
                       <span className="font-medium text-slate-800 text-xs">
@@ -153,7 +153,7 @@ export function SupportDetailsSidebar({
                       </span>
                     </div>
                     <div className="flex flex-col gap-0.5">
-                      <span className="text-[11px] font-medium text-slate-400 uppercase">
+                      <span className="text-xs font-medium text-slate-600">
                         Patient Name
                       </span>
                       <span className="font-medium text-slate-800 text-xs">
@@ -161,7 +161,7 @@ export function SupportDetailsSidebar({
                       </span>
                     </div>
                     <div className="flex flex-col gap-0.5">
-                      <span className="text-[11px] font-medium text-slate-400 uppercase">
+                      <span className="text-xs font-medium text-slate-600">
                         Policy Number
                       </span>
                       <span className="font-medium text-slate-800 text-xs">
@@ -169,7 +169,7 @@ export function SupportDetailsSidebar({
                       </span>
                     </div>
                     <div className="flex flex-col gap-0.5">
-                      <span className="text-[11px] font-medium text-slate-400 uppercase">
+                      <span className="text-xs font-medium text-slate-600">
                         Hospital
                       </span>
                       <span className="font-medium text-slate-800 text-xs">
@@ -178,7 +178,7 @@ export function SupportDetailsSidebar({
                     </div>
                     {matchedRequest.requesting_hospital_name && (
                       <div className="flex flex-col gap-0.5">
-                      <span className="text-[11px] font-medium text-slate-400 uppercase">
+                      <span className="text-xs font-medium text-slate-600">
                           Requesting Hospital
                         </span>
                         <span className="font-medium text-slate-800 text-xs">
@@ -189,7 +189,7 @@ export function SupportDetailsSidebar({
                     {matchedRequest.referring_hospital_name &&
                       matchedRequest.referring_hospital_name !== matchedRequest.hospital_name && (
                         <div className="flex flex-col gap-0.5">
-                      <span className="text-[11px] font-medium text-slate-400 uppercase">
+                      <span className="text-xs font-medium text-slate-600">
                             Referring Hospital
                           </span>
                           <span className="font-medium text-slate-800 text-xs">
@@ -199,7 +199,7 @@ export function SupportDetailsSidebar({
                       )}
                     {matchedRequest.referred_hospital_name && (
                       <div className="flex flex-col gap-0.5">
-                      <span className="text-[11px] font-medium text-slate-400 uppercase">
+                      <span className="text-xs font-medium text-slate-600">
                           Referred / Claim Owner
                         </span>
                         <span className="font-medium text-slate-800 text-xs">
@@ -208,7 +208,7 @@ export function SupportDetailsSidebar({
                       </div>
                     )}
                     <div className="flex flex-col gap-0.5">
-                      <span className="text-[11px] font-medium text-slate-400 uppercase">
+                      <span className="text-xs font-medium text-slate-600">
                         Clinical Diagnosis
                       </span>
                       <span className="font-extrabold text-slate-700 leading-tight">
@@ -217,7 +217,7 @@ export function SupportDetailsSidebar({
                     </div>
                     {matchedRequest.treatment && (
                       <div className="flex flex-col gap-0.5">
-                      <span className="text-[11px] font-medium text-slate-400 uppercase">
+                      <span className="text-xs font-medium text-slate-600">
                           Proposed Treatment
                         </span>
                         <span className="font-medium text-slate-800 text-xs">
@@ -227,7 +227,7 @@ export function SupportDetailsSidebar({
                     )}
                     {matchedRequest.clinical_notes && (
                       <div className="flex flex-col gap-0.5">
-                      <span className="text-[11px] font-medium text-slate-400 uppercase">
+                      <span className="text-xs font-medium text-slate-600">
                           Clinical Notes
                         </span>
                         <span className="font-medium text-slate-800 text-xs">
@@ -237,7 +237,7 @@ export function SupportDetailsSidebar({
                     )}
                     {matchedRequest.estimated_cost && (
                       <div className="flex justify-between items-center bg-slate-50 p-1.5 rounded-lg border border-slate-100 mt-1">
-                        <span className="text-xs font-bold text-slate-400 uppercase tracking-wide">
+                        <span className="text-xs font-medium text-slate-600">
                           Tariff Value
                         </span>
                         <span className="font-black text-slate-900 text-xs leading-none">
@@ -249,14 +249,14 @@ export function SupportDetailsSidebar({
                       <div className="flex flex-col gap-1.5 mt-2">
                         <Button
                           onClick={() => setReviewRequestOpen(true)}
-                          className="w-full h-8 rounded-lg bg-gradient-to-b from-slate-800 to-slate-900 hover:from-slate-700 hover:to-slate-800 text-white font-black uppercase tracking-wider text-xs transition-all shadow-md shadow-slate-900/20 ring-1 ring-white/10 inset active:scale-[0.98]"
+                          className="h-10 w-full rounded-lg bg-slate-800 text-sm font-medium text-white transition-colors hover:bg-slate-900"
                         >
                           Open Review Modal
                         </Button>
                         <Button
                           onClick={handleUnlinkCase}
                           variant="outline"
-                          className="w-full h-8 rounded-lg text-rose-600 border-rose-200 bg-rose-50/30 hover:bg-rose-50 hover:border-rose-300 font-black uppercase tracking-wider text-xs transition-all active:scale-[0.98]"
+                          className="h-10 w-full rounded-lg border-rose-200 bg-white text-sm font-medium text-rose-700 transition-colors hover:bg-rose-50"
                         >
                           Unlink Case
                         </Button>
@@ -270,7 +270,7 @@ export function SupportDetailsSidebar({
                 {/* Linked Claim Details */}
                 <div className="rounded-[16px] border border-slate-100 bg-white p-3.5 shadow-[0_2px_12px_rgba(0,0,0,0.03)] space-y-2">
                   <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                    <span className="text-xs font-black text-slate-400 uppercase tracking-wider">
+                    <span className="text-xs font-medium text-slate-600">
                       Linked Claim Details
                     </span>
                     <Badge className="bg-indigo-50 text-indigo-700 border-indigo-100 font-black text-xs px-1.5 uppercase rounded-lg">
@@ -280,7 +280,7 @@ export function SupportDetailsSidebar({
 
                   <div className="flex flex-col gap-1.5 text-xs leading-none">
                     <div className="flex flex-col gap-0.5">
-                      <span className="text-[11px] font-medium text-slate-400 uppercase">
+                      <span className="text-xs font-medium text-slate-600">
                         Patient Name
                       </span>
                       <span className="font-medium text-slate-800 text-xs">
@@ -288,7 +288,7 @@ export function SupportDetailsSidebar({
                       </span>
                     </div>
                     <div className="flex flex-col gap-0.5">
-                      <span className="text-[11px] font-medium text-slate-400 uppercase">
+                      <span className="text-xs font-medium text-slate-600">
                         Authorization Code
                       </span>
                       <span className="font-medium text-slate-800 text-xs">
@@ -297,7 +297,7 @@ export function SupportDetailsSidebar({
                     </div>
                     {matchedClaim.total_amount && (
                       <div className="flex justify-between items-center bg-slate-50 p-1.5 rounded-lg border border-slate-100 mt-1">
-                        <span className="text-xs font-bold text-slate-400 uppercase tracking-wide">
+                        <span className="text-xs font-medium text-slate-600">
                           Claim Amount
                         </span>
                         <span className="font-black text-slate-900 text-xs leading-none">
@@ -311,7 +311,7 @@ export function SupportDetailsSidebar({
                 {/* Verification actions */}
                 <div className="rounded-[16px] border border-slate-100 bg-white p-3.5 shadow-[0_2px_12px_rgba(0,0,0,0.03)] space-y-2">
                   <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                    <span className="text-xs font-black text-slate-400 uppercase tracking-wider">
+                    <span className="text-xs font-medium text-slate-600">
                       Finance & Reimbursement
                     </span>
                     <Badge
@@ -334,13 +334,13 @@ export function SupportDetailsSidebar({
                     <div className="flex flex-col gap-1.5">
                       <Button
                         onClick={() => updateClaimStatus("approved")}
-                        className="w-full h-8 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase tracking-wider text-xs transition-all"
+                        className="h-10 w-full rounded-lg bg-emerald-700 text-sm font-medium text-white transition-colors hover:bg-emerald-800"
                       >
                         Verify Tariffs
                       </Button>
                       <Button
                         onClick={() => updateClaimStatus("paid")}
-                        className="w-full h-8 rounded-lg bg-indigo-900 hover:bg-indigo-800 text-white font-black uppercase tracking-wider text-xs transition-all"
+                        className="h-10 w-full rounded-lg bg-primary text-sm font-medium text-white transition-colors hover:bg-primary/90"
                       >
                         Disburse Payment
                       </Button>
@@ -351,7 +351,7 @@ export function SupportDetailsSidebar({
                     <Button
                       onClick={handleUnlinkCase}
                       variant="outline"
-                      className="w-full h-8 rounded-lg text-rose-600 border-rose-200 hover:bg-rose-50 font-black uppercase tracking-wider text-xs transition-all mt-2"
+                      className="mt-2 h-10 w-full rounded-lg border-rose-200 text-sm font-medium text-rose-700 transition-colors hover:bg-rose-50"
                     >
                       Unlink Case
                     </Button>
@@ -366,10 +366,10 @@ export function SupportDetailsSidebar({
                     <Link2 className="h-4 w-4 text-indigo-500" />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-xs font-black text-slate-800 uppercase tracking-tight">
+                    <p className="text-sm font-semibold text-slate-900">
                       No Active Case Linked
                     </p>
-                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wide mt-0.5 leading-normal">
+                    <p className="text-xs font-medium text-slate-600 mt-0.5 leading-normal">
                       Select a medical reference below to connect.
                     </p>
                   </div>

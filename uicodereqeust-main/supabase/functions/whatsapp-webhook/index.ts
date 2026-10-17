@@ -15,6 +15,8 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { parseWhatsAppHospitalContactResolution } from "../_shared/whatsapp-hospital-contact.ts";
+import { isDuplicateWebhookInsertError } from "../_shared/whatsapp-message-idempotency.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -102,45 +104,39 @@ type AccessClass = "REGISTERED_HOSPITAL" | "GENERAL_CUSTOMER" | "DISABLED_OR_REV
 async function resolveAccessClass(
   supabase: ReturnType<typeof getServiceClient>,
   phoneNumber: string,
-): Promise<{ accessClass: AccessClass; authorized: boolean; hospitalId: string | null }> {
+): Promise<{
+  accessClass: AccessClass;
+  authorized: boolean;
+  hospitalId: string | null;
+  reason: string | null;
+}> {
   const normalized = normalizePhoneNumber(phoneNumber);
-  if (!normalized) return { accessClass: "GENERAL_CUSTOMER", authorized: false, hospitalId: null };
-
-  // Load ALL contacts for this phone (any status) to distinguish unregistered vs revoked
-  const { data, error } = await supabase
-    .from("hospital_whatsapp_contacts")
-    .select("hospital_id, phone_number, status")
-    .limit(500);
+  const { data, error } = await supabase.rpc("resolve_whatsapp_hospital_contact", {
+    _phone: normalized,
+  });
+  const resolution = parseWhatsAppHospitalContactResolution(data, error);
 
   if (error) {
-    console.error("evolution-webhook: access lookup failed", error.message);
-    return { accessClass: "GENERAL_CUSTOMER", authorized: false, hospitalId: null };
+    // Keep patient/sender data and database details out of logs. The caller
+    // returns a retryable 503 instead of acknowledging a failed access lookup.
+    console.error("evolution-webhook: access lookup failed", error.code || "database_error");
   }
 
-  const allMatches = (data || []).filter(
-    (row: any) => normalizePhoneNumber(String(row.phone_number || "")) === normalized,
-  );
-
-  if (allMatches.length === 0) {
-    return { accessClass: "GENERAL_CUSTOMER", authorized: false, hospitalId: null };
+  if (!resolution.authorized) {
+    return {
+      accessClass: "GENERAL_CUSTOMER",
+      authorized: false,
+      hospitalId: null,
+      reason: resolution.reason,
+    };
   }
 
-  const activeMatches = allMatches.filter(
-    (row: any) => String(row.status || "").toLowerCase() === "active",
-  );
-
-  if (activeMatches.length === 0) {
-    return { accessClass: "DISABLED_OR_REVOKED", authorized: false, hospitalId: null };
-  }
-
-  const hospitals = [
-    ...new Set(activeMatches.map((row: any) => String(row.hospital_id)).filter(Boolean)),
-  ];
-  if (hospitals.length !== 1) {
-    return { accessClass: "GENERAL_CUSTOMER", authorized: false, hospitalId: null };
-  }
-
-  return { accessClass: "REGISTERED_HOSPITAL", authorized: true, hospitalId: String(hospitals[0]) };
+  return {
+    accessClass: "REGISTERED_HOSPITAL",
+    authorized: true,
+    hospitalId: resolution.hospitalId,
+    reason: null,
+  };
 }
 
 // ── WhatsApp Outbound Send ───────────────────────────────────────────────────
@@ -595,7 +591,14 @@ serve(async (req) => {
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 
   // ── STEP 2: RESOLVE ACCESS CLASS ─────────────────────────────────────────
-  const { accessClass, authorized, hospitalId } = await resolveAccessClass(supabase, phoneNumber);
+  const { accessClass, authorized, hospitalId, reason } = await resolveAccessClass(supabase, phoneNumber);
+
+  if (reason === "identity_lookup_failed") {
+    return new Response(JSON.stringify({ error: "sender_lookup_unavailable" }), {
+      status: 503,
+      headers: { ...corsHeaders, "Content-Type": "application/json", "Retry-After": "30" },
+    });
+  }
 
   // Only active registered hospital numbers enter the database queue and
   // authorization worker. General customer traffic must not create queue rows.
@@ -628,7 +631,7 @@ serve(async (req) => {
   } else {
     insErr = first.error;
   }
-  if (insErr && !String(insErr.message || "").toLowerCase().includes("duplicate")) {
+  if (insErr && !isDuplicateWebhookInsertError(insErr.message)) {
     console.error("evolution-webhook: insert failed", insErr.message);
     return jsonResponse({ error: "insert_failed", detail: insErr.message }, 500);
   }
@@ -645,7 +648,7 @@ serve(async (req) => {
 
   // ── STEP 4: ROUTE BY ACCESS CLASS ────────────────────────────────────────
   if (authorized && accessClass === "REGISTERED_HOSPITAL") {
-    // Fan out to AI authorization worker — only REGISTERED_HOSPITAL reaches here
+    // Fan out to the authorization worker — only REGISTERED_HOSPITAL reaches here
     if (supabaseUrl && serviceKey) {
       try {
         const whHeaders: Record<string, string> = {

@@ -7,31 +7,55 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, CheckCircle2 } from "lucide-react";
+import { isMfaRequiredForUser } from "@/lib/mfa-policy";
 
 export default function MfaSetup() {
-  const { session, user, fullName, role } = useAuth();
+  const { session, user, fullName, role, loading } = useAuth();
   const { toast } = useToast();
   
   const [mfaVerified, setMfaVerified] = useState<boolean | null>(null);
+  const [mfaRequired, setMfaRequired] = useState<boolean | null>(null);
   const [checking, setChecking] = useState(true);
   
   const [enrollData, setEnrollData] = useState<any>(null);
   const [verifyCode, setVerifyCode] = useState("");
   const [isVerifying, setIsVerifying] = useState(false);
   const [initError, setInitError] = useState("");
+  const [retryKey, setRetryKey] = useState(0);
   
   const initRef = React.useRef(false);
 
   useEffect(() => {
     async function initMfa() {
+      if (loading) return;
       if (!session || !user) {
+        setChecking(false);
+        return;
+      }
+      if (role === "hospital") {
         setChecking(false);
         return;
       }
       
       if (initRef.current) return;
       initRef.current = true;
-      
+
+      let required: boolean;
+      try {
+        required = await isMfaRequiredForUser(session.user.id);
+      } catch (error) {
+        console.error("Could not load MFA policy before setup:", error);
+        setInitError("Could not verify whether MFA is required. Please retry.");
+        setChecking(false);
+        return;
+      }
+
+      setMfaRequired(required);
+      if (!required) {
+        setChecking(false);
+        return;
+      }
+
       const { data, error } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
       if (!error && data) {
         if (data.nextLevel === "aal2" && data.currentLevel === "aal2") {
@@ -99,12 +123,17 @@ export default function MfaSetup() {
     }
     
     initMfa();
-  }, [session, user, fullName]);
+  }, [session, user, fullName, role, loading, retryKey]);
   
   const handleVerify = async () => {
     if (!enrollData) return;
     setIsVerifying(true);
     try {
+      if (!session || !(await isMfaRequiredForUser(session.user.id))) {
+        setMfaRequired(false);
+        return;
+      }
+
       const { data: challengeData, error: challengeError } = await supabase.auth.mfa.challenge({
         factorId: enrollData.id,
       });
@@ -130,19 +159,27 @@ export default function MfaSetup() {
     await supabase.auth.signOut();
   };
 
-  if (!session) return <Navigate to="/login" replace />;
-  if (role === "hospital") return <Navigate to="/dashboard" replace />;
-  
-  if (checking) {
+  if (loading || checking) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
       </div>
     );
   }
+  if (!session) return <Navigate to="/login" replace />;
+  if (role === "hospital") return <Navigate to="/dashboard" replace />;
+
+  if (mfaRequired === false) {
+    if (role === "admin") return <Navigate to="/backoffice/admin" replace />;
+    if (role === "finance") return <Navigate to="/backoffice/finance" replace />;
+    if (role === "claims") return <Navigate to="/backoffice/claims" replace />;
+    if (role === "utilization_manager" || role === "utilization_manager_lead") {
+      return <Navigate to="/backoffice/utilization-manager" replace />;
+    }
+    return <Navigate to="/" replace />;
+  }
   
   if (mfaVerified) {
-    if (role === "hospital") return <Navigate to="/dashboard" replace />;
     if (role === "claims") return <Navigate to="/backoffice/claims" replace />;
     if (role === "admin") return <Navigate to="/backoffice/admin" replace />;
     if (role === "finance") return <Navigate to="/backoffice/finance" replace />;
@@ -161,8 +198,20 @@ export default function MfaSetup() {
         
         <div className="p-6">
           {initError ? (
-            <div className="text-center text-rose-500 font-medium">
-              Error initializing setup: {initError}
+            <div className="space-y-4 text-center">
+              <p role="alert" className="font-medium text-rose-600">{initError}</p>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  initRef.current = false;
+                  setInitError("");
+                  setChecking(true);
+                  setRetryKey((key) => key + 1);
+                }}
+              >
+                Retry
+              </Button>
             </div>
           ) : !enrollData ? (
             <div className="flex justify-center p-8">
@@ -210,4 +259,3 @@ export default function MfaSetup() {
     </div>
   );
 }
-

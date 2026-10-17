@@ -6,11 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { money } from "@/lib/claims-helpers";
-import { Loader2, FolderOpen, AlertCircle, Search, ChevronDown, Check, Calendar } from "lucide-react";
+import { FolderOpen, AlertCircle, Search, ChevronDown, Check, Calendar, Clock } from "lucide-react";
 import { CreateBatchModal } from "../components/CreateBatchModal";
 import { MonthYearPicker } from "@/components/ui/MonthYearPicker";
 import { useAwaitingPaymentClaims } from "../hooks/usePayments";
 import { getSelectedVisibleClaims, reconcileClaimSelection, toggleVisibleClaimSelection } from "../utils/claimSelection";
+import { PageLoader } from "@/components/PageLoader";
 
 export default function AwaitingPaymentPage() {
   const { role } = useAuth();
@@ -52,6 +53,16 @@ export default function AwaitingPaymentPage() {
       id,
       name
     })).sort((a, b) => a.name.localeCompare(b.name));
+  }, [claims]);
+
+  const inContestClaims = useMemo(() => {
+    if (!claims) return [];
+    const now = new Date();
+    return claims.filter(c =>
+      c.status === "partially_approved" &&
+      c.payment_status !== "awaiting_payment" &&
+      c.contest_deadline && new Date(c.contest_deadline) > now
+    );
   }, [claims]);
 
   // Reset selected hospital if it is no longer in the active list
@@ -146,12 +157,7 @@ export default function AwaitingPaymentPage() {
   };
 
   if (isLoadingClaims) {
-    return (
-      <div className="flex h-64 flex-col gap-3 items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-slate-800" />
-        <p className="text-xs font-black uppercase tracking-widest text-slate-400">Loading Payments Queue...</p>
-      </div>
-    );
+    return <PageLoader className="min-h-64" label="Loading payment queue..." />;
   }
 
   const activeHospitalName = selectedHospitalId === "all" 
@@ -187,7 +193,7 @@ export default function AwaitingPaymentPage() {
                     setHospitalSearchQuery("");
                   }} 
                 />
-                <div className="absolute left-0 mt-1 w-full max-w-xs sm:w-80 rounded-xl border border-slate-100 bg-white/95 backdrop-blur-md shadow-lg p-2 z-20 space-y-2 animate-in fade-in slide-in-from-top-1 duration-200">
+                <div className="absolute left-0 z-20 mt-1 w-full max-w-xs space-y-2 rounded-xl border border-slate-200 bg-white p-2 shadow-md animate-in fade-in duration-150 sm:w-80">
                   <div className="relative">
                     <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
                     <input
@@ -314,7 +320,22 @@ export default function AwaitingPaymentPage() {
          </div>
        </div>
 
-{/* Warning/Selection Helper Banner */}
+        {/* Dispute Window Informational Banner */}
+        {inContestClaims.length > 0 && (
+          <div className="flex items-center justify-between bg-amber-50/70 border border-amber-200 px-4 py-3 rounded-xl text-xs text-amber-900">
+            <div className="flex items-center gap-2">
+              <Clock className="h-4 w-4 text-amber-600 shrink-0" />
+              <span>
+                <strong>{inContestClaims.length} partially approved {inContestClaims.length === 1 ? "claim" : "claims"}</strong> currently in the 7-day hospital dispute window.
+              </span>
+            </div>
+            <span className="text-[11px] font-semibold text-amber-700 hidden sm:inline">
+              Automatically qualifies upon expiry, or can be released early via the Claims Audit Ledger.
+            </span>
+          </div>
+        )}
+
+        {/* Warning/Selection Helper Banner */}
         {!isViewOnly && selectedHospitalId === "all" && filteredClaims.length > 0 && (
           <div className="flex items-center gap-2.5 bg-slate-50/50 border border-slate-200 p-3 rounded-xl">
             <AlertCircle className="h-4 w-4 text-amber-600 shrink-0" />

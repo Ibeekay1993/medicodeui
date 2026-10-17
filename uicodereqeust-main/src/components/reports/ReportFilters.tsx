@@ -202,7 +202,7 @@ export default function ReportFilters({
             >
               <div className="flex items-center gap-2">
                 <FileBarChart2 className="h-4 w-4 text-slate-600" />
-                <span className="text-sm font-medium text-slate-800">Premium Dashboard</span>
+                <span className="text-sm font-medium text-slate-800">Full report</span>
               </div>
               <p className="text-[11px] leading-relaxed text-slate-500">Summary, trends, clinical detail, and payment advice</p>
             </DropdownMenuItem>

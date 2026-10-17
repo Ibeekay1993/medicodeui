@@ -58,7 +58,7 @@ export function DeployVersionWatcher() {
       const registration = (event as CustomEvent).detail as ServiceWorkerRegistration;
 
       toast({
-        title: "Update Available ✨",
+        title: "Update available",
         description: "A new version of the portal is ready.",
         duration: 0, // Keep until user acts
         action: (

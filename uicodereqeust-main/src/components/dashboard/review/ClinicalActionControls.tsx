@@ -48,7 +48,7 @@ export const ClinicalActionControls = React.memo(function ClinicalActionControls
       {isPending && !approvalResult && !declineResult && (
         <div className="space-y-1.5">
           <div className="flex items-center justify-between">
-            <label className="text-[11px] sm:text-xs uppercase font-black text-slate-500 tracking-wider pl-1">
+            <label className="text-sm font-medium text-slate-700 pl-1">
               Decision Note <span className="text-rose-500">*</span>
             </label>
             <span className="text-[10px] text-slate-400 font-medium hidden sm:inline">Required for approval/decline</span>
@@ -72,7 +72,7 @@ export const ClinicalActionControls = React.memo(function ClinicalActionControls
           <div className="hidden sm:flex w-full flex-row items-center justify-end gap-3">
             {request?.status === "referral_declined" && handleReassign && (
               <Button
-                className="h-12 rounded-xl bg-gradient-to-r from-slate-600 to-slate-700 text-xs font-black uppercase tracking-widest text-white hover:from-slate-700 hover:to-slate-800 shadow-md transition-all duration-300 hover:-translate-y-0.5 active:scale-[0.98]"
+                className="h-12 rounded-xl bg-slate-700 text-sm font-semibold text-white hover:bg-slate-800 transition-colors active:scale-[0.98]"
                 onClick={handleReassign}
                 disabled={processing || isAwaitingDeletion}
               >
@@ -85,7 +85,7 @@ export const ClinicalActionControls = React.memo(function ClinicalActionControls
               </Button>
             )}
             <Button
-              className="h-12 rounded-xl bg-gradient-to-r from-slate-800 to-slate-900 text-xs font-black uppercase tracking-widest text-white hover:from-slate-900 hover:to-black shadow-md transition-all duration-300 hover:-translate-y-0.5 active:scale-[0.98]"
+              className="h-12 rounded-xl bg-slate-800 text-sm font-semibold text-white hover:bg-slate-950 transition-colors active:scale-[0.98]"
               onClick={saveRecordEdits}
               disabled={processing || isAwaitingDeletion}
             >
@@ -98,7 +98,7 @@ export const ClinicalActionControls = React.memo(function ClinicalActionControls
             </Button>
             <Button
               variant="outline"
-              className="h-12 px-6 rounded-xl font-black text-xs uppercase tracking-widest border-2 border-slate-200 text-slate-600 hover:bg-slate-50 transition-all"
+              className="h-12 px-6 rounded-xl font-semibold text-sm border-2 border-slate-200 text-slate-600 hover:bg-slate-50 transition-all"
               onClick={onClose}
               disabled={processing}
             >
@@ -109,7 +109,7 @@ export const ClinicalActionControls = React.memo(function ClinicalActionControls
           {/* Mobile Layout */}
           <div className="flex sm:hidden w-full flex-row items-center gap-2">
             <Button
-              className="h-11 flex-1 rounded-xl bg-gradient-to-r from-slate-800 to-slate-900 text-[11px] font-black uppercase tracking-widest text-white shadow-md active:scale-95"
+              className="h-11 flex-1 rounded-xl bg-slate-800 text-sm font-semibold text-white shadow-md active:scale-95"
               onClick={saveRecordEdits}
               disabled={processing || isAwaitingDeletion}
             >
@@ -133,7 +133,7 @@ export const ClinicalActionControls = React.memo(function ClinicalActionControls
               {allowDelete && !approvalResult && !declineResult && (
                 <Button
                   variant="destructive"
-                  className="h-12 rounded-xl font-black text-xs uppercase tracking-widest gap-2 bg-rose-600 hover:bg-rose-700 shadow-lg shadow-rose-100 hover:shadow-rose-200 transition-all active:scale-95"
+                  className="h-12 rounded-xl font-semibold text-sm gap-2 bg-rose-600 hover:bg-rose-700  transition-all active:scale-95"
                   onClick={() => setDeleteConfirmOpen(true)}
                   disabled={processing || isAwaitingDeletion}
                 >
@@ -149,7 +149,7 @@ export const ClinicalActionControls = React.memo(function ClinicalActionControls
                   <Button
                     variant="outline"
                     onClick={onClose}
-                    className="h-12 px-6 rounded-xl font-black text-xs uppercase tracking-widest border-2 border-slate-200 hover:bg-slate-50 transition-all active:scale-95"
+                    className="h-12 px-6 rounded-xl font-semibold text-sm border-2 border-slate-200 hover:bg-slate-50 transition-all active:scale-95"
                     disabled={processing}
                   >
                     Close
@@ -157,7 +157,7 @@ export const ClinicalActionControls = React.memo(function ClinicalActionControls
                   <Button
                     variant="destructive"
                     onClick={handleDecline}
-                    className="h-12 px-6 rounded-xl font-black text-xs uppercase tracking-widest bg-rose-600 hover:bg-rose-700 text-white active:scale-95 transition-all shadow-md shadow-rose-100"
+                    className="h-12 px-6 rounded-xl font-semibold text-sm bg-rose-600 hover:bg-rose-700 text-white active:scale-95 transition-all "
                     disabled={processing || isAwaitingDeletion}
                   >
                     {processingAction === "decline" ? (
@@ -169,7 +169,7 @@ export const ClinicalActionControls = React.memo(function ClinicalActionControls
                   </Button>
                   <Button
                     onClick={handleApprove}
-                    className="h-12 rounded-xl bg-emerald-600 px-8 text-xs font-black uppercase tracking-widest text-white shadow-lg shadow-emerald-200 transition-all hover:bg-emerald-700 hover:shadow-emerald-300 active:scale-95"
+                    className="h-12 rounded-xl bg-emerald-600 px-8 text-sm font-semibold text-white shadow-lg shadow-emerald-200 transition-all hover:bg-emerald-700 hover:shadow-emerald-300 active:scale-95"
                     disabled={processing || isAwaitingDeletion}
                   >
                     {processingAction === "approve" ? (
@@ -183,7 +183,7 @@ export const ClinicalActionControls = React.memo(function ClinicalActionControls
               ) : (
                 <Button
                   onClick={onClose}
-                  className="h-12 px-8 rounded-xl font-black text-xs uppercase tracking-widest bg-slate-900 text-white shadow-xl hover:bg-slate-950 active:scale-95 transition-all"
+                  className="h-12 px-8 rounded-xl font-semibold text-sm bg-slate-900 text-white hover:bg-slate-950 active:scale-95 transition-all"
                 >
                   Done
                 </Button>
@@ -208,7 +208,7 @@ export const ClinicalActionControls = React.memo(function ClinicalActionControls
                 <Button
                   variant="destructive"
                   onClick={handleDecline}
-                  className="h-11 flex-1 rounded-xl bg-rose-600 text-[11px] font-black uppercase tracking-widest text-white shadow-md transition-all active:scale-95"
+                  className="h-11 flex-1 rounded-xl bg-rose-600 text-sm font-semibold text-white shadow-md transition-all active:scale-95"
                   disabled={processing || isAwaitingDeletion}
                 >
                   {processingAction === "decline" ? (
@@ -220,7 +220,7 @@ export const ClinicalActionControls = React.memo(function ClinicalActionControls
                 </Button>
                 <Button
                   onClick={handleApprove}
-                  className="h-11 flex-1 rounded-xl bg-emerald-600 text-[11px] font-black uppercase tracking-widest text-white shadow-md transition-all active:scale-95"
+                  className="h-11 flex-1 rounded-xl bg-emerald-600 text-sm font-semibold text-white shadow-md transition-all active:scale-95"
                   disabled={processing || isAwaitingDeletion}
                 >
                   {processingAction === "approve" ? (
@@ -234,7 +234,7 @@ export const ClinicalActionControls = React.memo(function ClinicalActionControls
             ) : (
               <Button
                 onClick={onClose}
-                className="h-11 w-full rounded-xl font-black text-[11px] uppercase tracking-widest bg-slate-900 text-white shadow-md active:scale-95 transition-all"
+                className="h-11 w-full rounded-xl font-semibold text-sm bg-slate-900 text-white shadow-md active:scale-95 transition-all"
               >
                 Done
               </Button>

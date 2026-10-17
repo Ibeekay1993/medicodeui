@@ -101,7 +101,7 @@ export default function HospitalPortalPage() {
       </section>
       
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 mt-4">
-        <Card className="premium-card rounded-xl border border-slate-100 shadow-sm bg-white overflow-hidden transition-shadow hover:shadow-md">
+        <Card className="rounded-xl border border-slate-200 bg-white overflow-hidden">
           <CardHeader className="p-3 sm:p-4 flex flex-row items-center justify-between">
             <CardTitle className="text-[14px] font-medium text-slate-500 tracking-normal capitalize">Quick Actions</CardTitle>
           </CardHeader>
@@ -111,7 +111,7 @@ export default function HospitalPortalPage() {
               onClick={() => navigate("/dashboard/new-request")}
               className="h-auto p-2 sm:p-3 flex flex-col gap-1 items-center justify-center border-slate-200 hover:border-emerald-500 hover:bg-emerald-50/50 hover:text-emerald-700 transition-all rounded-xl group"
             >
-              <FileText className="h-5 w-5 text-emerald-600 mb-1 group-hover:scale-110 transition-transform" />
+              <FileText className="h-5 w-5 text-emerald-700 mb-1" aria-hidden="true" />
               <span className="text-xs leading-tight min-h-[2.6em] flex items-center justify-center text-center">New Auth<br/>Request</span>
             </Button>
             
@@ -120,7 +120,7 @@ export default function HospitalPortalPage() {
               onClick={() => navigate("/dashboard/claims")}
               className="h-auto p-2 sm:p-3 flex flex-col gap-1 items-center justify-center border-slate-200 hover:border-primary/40 hover:bg-slate-50 hover:text-primary transition-all rounded-xl group"
             >
-              <Send className="h-5 w-5 text-slate-500 mb-1 group-hover:scale-110 transition-transform" />
+              <Send className="h-5 w-5 text-slate-600 mb-1" aria-hidden="true" />
               <span className="text-xs leading-tight min-h-[2.6em] flex items-center justify-center text-center">Submit<br/>Claim</span>
             </Button>
 
@@ -129,13 +129,13 @@ export default function HospitalPortalPage() {
               onClick={() => navigate("/dashboard/messages")}
               className="h-auto p-2 sm:p-3 flex flex-col gap-1 items-center justify-center border-slate-200 hover:border-purple-500 hover:bg-purple-50/50 hover:text-purple-700 transition-all rounded-xl group"
             >
-              <MessageSquare className="h-5 w-5 text-purple-600 mb-1 group-hover:scale-110 transition-transform" />
+              <MessageSquare className="h-5 w-5 text-slate-600 mb-1" aria-hidden="true" />
               <span className="text-xs leading-tight min-h-[2.6em] flex items-center justify-center text-center">Support</span>
             </Button>
           </CardContent>
         </Card>
 
-        <Card className="premium-card rounded-xl border border-slate-100 shadow-sm bg-white overflow-hidden transition-shadow hover:shadow-md">
+        <Card className="rounded-xl border border-slate-200 bg-white overflow-hidden">
           <CardHeader className="p-3 sm:p-4 flex flex-row items-center justify-between">
             <CardTitle className="text-[14px] font-medium text-slate-500 tracking-normal capitalize flex items-center gap-2">
               <Megaphone className="h-4 w-4 text-amber-500" />

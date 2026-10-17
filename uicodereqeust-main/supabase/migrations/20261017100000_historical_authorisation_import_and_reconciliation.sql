@@ -379,7 +379,7 @@ BEGIN
     action,
     entity_type,
     user_id,
-    metadata
+    details
   )
   VALUES (
     'HISTORICAL_AUTHORISATIONS_COMMITTED',

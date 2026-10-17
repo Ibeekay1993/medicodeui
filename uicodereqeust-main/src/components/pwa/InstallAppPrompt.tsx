@@ -174,7 +174,7 @@ export function InstallAppPrompt() {
     <>
       <aside
         aria-label="Install Ronsberger HMO app"
-        className="fixed bottom-16 sm:bottom-4 left-3 right-3 sm:left-auto sm:right-4 sm:max-w-md z-50 bg-slate-900/95 text-white p-3.5 sm:p-4 rounded-2xl shadow-2xl border border-slate-700/80 backdrop-blur-md transition-all duration-300 animate-in fade-in slide-in-from-bottom-5"
+        className="fixed bottom-16 left-3 right-3 z-50 rounded-xl border border-slate-700 bg-slate-900 p-3.5 text-white shadow-lg transition-opacity duration-200 sm:bottom-4 sm:left-auto sm:right-4 sm:max-w-md"
       >
         <div className="flex items-start gap-3">
           <div className="h-10 w-10 rounded-xl bg-white flex items-center justify-center shrink-0 p-1 shadow-sm">

@@ -199,6 +199,23 @@ export default function HospitalClaims() {
     }
   };
 
+  const handleAcceptPayment = async (claim: ClaimDraft) => {
+    try {
+      const { error } = await supabase.rpc("release_claim_to_payment" as any, {
+        p_claim_id: claim.id
+      });
+      if (error) throw error;
+      toast({
+        title: "Payout Accepted",
+        description: "Claim has been moved directly to the payment queue for settlement.",
+      });
+      setDetailsOpen(false);
+      await refetch();
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Action Failed", description: err.message });
+    }
+  };
+
   const handleOpenContestChange = (open: boolean) => {
     if (!open) {
       setContestTarget(null);
@@ -254,6 +271,7 @@ export default function HospitalClaims() {
                 setDetailsOpen(false);
                 setContestTarget(claim);
               }}
+              onAcceptPayment={handleAcceptPayment}
             />
           )}
         </DialogContent>

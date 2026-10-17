@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
 import { accessStatus } from "@/lib/user-helpers";
+import { isMfaRequiredForUser } from "@/lib/mfa-policy";
 import type { Database } from "@/integrations/supabase/types";
 
 type AppRole = Database["public"]["Enums"]["app_role"];
@@ -21,9 +22,9 @@ const MAX_FAILED_ATTEMPTS = 3;
 const LOCKOUT_DURATION_MS = 30_000; // 30 seconds
 const AUTH_REQUEST_TIMEOUT_MS = 30_000; // 30 seconds
 
-function withAuthTimeout<T>(promise: Promise<T>): Promise<T> {
+function withAuthTimeout<T>(promise: PromiseLike<T>): Promise<T> {
   return Promise.race([
-    promise,
+    Promise.resolve(promise),
     new Promise<T>((_, reject) =>
       window.setTimeout(
         () => reject(new Error("Authentication service did not respond in time.")),
@@ -90,22 +91,53 @@ export default function Login() {
         return;
       }
 
-      supabase.auth.mfa.getAuthenticatorAssuranceLevel().then(({ data }) => {
-        if (data && data.nextLevel === "aal2" && data.currentLevel === "aal1") {
-          setShowMfa(true);
+      let active = true;
+      const redirectAfterLogin = () => {
+        if (fromPath) {
+          navigate(fromPath, { replace: true });
+        } else if (role === "admin") {
+          navigate("/backoffice/admin", { replace: true });
+        } else if (role === "utilization_manager" || role === "utilization_manager_lead") {
+          navigate("/backoffice/utilization-manager", { replace: true });
+        } else if (role === "claims") {
+          navigate("/backoffice/claims", { replace: true });
+        } else if (role === "finance") {
+          navigate("/backoffice/finance", { replace: true });
         } else {
-          if (fromPath) {
-            navigate(fromPath, { replace: true });
+          navigate("/", { replace: true });
+        }
+      };
+
+      const checkMfaRequirement = async () => {
+        try {
+          if (!(await isMfaRequiredForUser(session.user.id))) {
+            if (active) redirectAfterLogin();
             return;
           }
-          if (role === "hospital") navigate("/dashboard", { replace: true });
-          else if (role === "admin") navigate("/backoffice/admin", { replace: true });
-          else if (role === "utilization_manager") navigate("/backoffice/utilization-manager", { replace: true });
-          else if (role === "utilization_manager_lead") navigate("/backoffice/utilization-manager", { replace: true });
-          else if (role === "claims") navigate("/backoffice/claims", { replace: true });
-          else navigate("/", { replace: true });
+
+          const { data: mfaLevel, error: mfaError } =
+            await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+          if (mfaError) throw mfaError;
+          if (!mfaLevel) throw new Error("MFA assurance level is unavailable.");
+          if (!active) return;
+
+          if (mfaLevel?.nextLevel === "aal2" && mfaLevel.currentLevel === "aal1") {
+            setShowMfa(true);
+          } else {
+            redirectAfterLogin();
+          }
+        } catch (mfaError) {
+          console.error("Unable to check the MFA requirement after login:", mfaError);
+          if (active) {
+            setError("Could not verify the MFA policy. Please try signing in again.");
+          }
         }
-      });
+      };
+
+      void checkMfaRequirement();
+      return () => {
+        active = false;
+      };
     }
   }, [session, loading, role, navigate, showMfa, fromPath]);
 
@@ -142,7 +174,7 @@ export default function Login() {
     userEmail: string
   ): Promise<AppRole | null> => {
     const { data: roleRow, error: roleError } = await withAuthTimeout(
-      (supabase as any)
+      supabase
         .from("user_roles")
         .select("role, access_status, onboarding_completed")
         .eq("user_id", userId)
@@ -152,18 +184,15 @@ export default function Login() {
     if (roleError) throw roleError;
 
     if (roleRow) {
-      const status = accessStatus(roleRow as any);
+      const status = accessStatus(roleRow);
       if (status === "revoked") {
         throw new Error("Account locked. Please contact your IT administrator.");
       }
-      return (roleRow as any).role;
+      return roleRow.role;
     }
 
     const { data: healed, error: healErr } = await withAuthTimeout(
-      (supabase.rpc as any)(
-        "heal_hospital_user_link",
-        { p_user_id: userId, p_email: userEmail }
-      )
+      supabase.rpc("heal_hospital_user_link", { p_user_id: userId, p_email: userEmail })
     );
 
     if (healErr) {
@@ -173,7 +202,7 @@ export default function Login() {
     }
 
     const { data: retry, error: retryError } = await withAuthTimeout(
-      (supabase as any)
+      supabase
         .from("user_roles")
         .select("role, access_status, onboarding_completed")
         .eq("user_id", userId)
@@ -183,11 +212,11 @@ export default function Login() {
     if (retryError) throw retryError;
 
     if (retry) {
-      const status = accessStatus(retry as any);
+      const status = accessStatus(retry);
       if (status === "revoked") {
         throw new Error("Account locked. Please contact your IT administrator.");
       }
-      return (retry as any).role;
+      return retry.role;
     }
 
     return null;
@@ -204,7 +233,7 @@ export default function Login() {
 
 
 
-  // FIX 3: Categorise errors correctly � don't expose internals but distinguish network issues
+  // FIX 3: Categorise errors correctly ï¿½ don't expose internals but distinguish network issues
   const isTransientAuthError = (err: any): boolean => {
     const msg: string = (err?.message || "").toLowerCase();
     if (msg.includes("invalid login credentials") || msg.includes("invalid_credentials") || msg.includes("account locked")) {
@@ -228,9 +257,9 @@ export default function Login() {
       return err.message;
     }
     if (isTransientAuthError(err)) {
-      return "Connection error. Supabase did not respond. Please wait a moment and try again.";
+      return "Connection error. Unable to reach the server. Please check your internet connection and try again.";
     }
-    // Generic message for any auth failure � prevents user enumeration
+    // Generic message for any auth failure ï¿½ prevents user enumeration
     return "Invalid credentials. Please check your email and password.";
   };
 
@@ -280,22 +309,26 @@ export default function Login() {
       setFailedAttempts(0);
       setLockedUntil(null);
 
-      // Update last_sign_in timestamp on user_roles — fire-and-forget, must not block login
+      // Update last_sign_in timestamp on user_roles â€” fire-and-forget, must not block login
       void supabase
         .from("user_roles")
-        .update({ last_sign_in: new Date().toISOString() } as any)
+        .update({ last_sign_in: new Date().toISOString() })
         .eq("user_id", userId)
-        .then(() => {/* ignore */})
-        .catch((err) => console.warn("Could not update last_sign_in on login", err));
+        .then(
+          () => undefined,
+          (err: unknown) => console.warn("Could not update last_sign_in on login", err),
+        );
 
       const { data: factors } = await withAuthTimeout(supabase.auth.mfa.listFactors());
       const verifiedFactor = factors?.all.find((f) => f.status === "verified");
 
       if (verifiedFactor && resolvedRole !== "hospital") {
-        setPendingAdminRole(resolvedRole);
-        setShowMfa(true);
-        setIsLoading(false);
-        return;
+        if (await isMfaRequiredForUser(userId)) {
+          setPendingAdminRole(resolvedRole);
+          setShowMfa(true);
+          setIsLoading(false);
+          return;
+        }
       }
 
       // Wait for useEffect to navigate
@@ -314,9 +347,8 @@ export default function Login() {
       // Auth's server-side rate limits. An unauthenticated, email-based RPC
       // allowed anyone to revoke another user's account by submitting guesses.
       const dbAttempts = 1;
-      const dbStatus = "active";
 
-      // When auth succeeded but role loading failed — don't increment counter, just show retry
+      // When auth succeeded but role loading failed â€” don't increment counter, just show retry
       if (authenticationSucceeded) {
         setError("Your password was accepted, but your account profile could not be loaded. Please try again.");
         return;
@@ -329,7 +361,7 @@ export default function Login() {
         setLockedUntil(Date.now() + LOCKOUT_DURATION_MS);
       }
 
-      if (dbStatus === "revoked" || effectiveAttempts >= 5 || err.message?.includes("Account locked")) {
+      if (effectiveAttempts >= 5 || err.message?.includes("Account locked")) {
         // Automatically trigger password reset on the exact 5th attempt
         if (effectiveAttempts === 5 && localAttempts === 5) {
           supabase.auth.resetPasswordForEmail(email, {
@@ -360,6 +392,13 @@ export default function Login() {
     setIsLoading(true);
 
     try {
+      if (!session || !(await isMfaRequiredForUser(session.user.id))) {
+        setShowMfa(false);
+        setMfaCode("");
+        setPendingAdminRole(null);
+        return;
+      }
+
       const { data: factors } = await withAuthTimeout(supabase.auth.mfa.listFactors());
       const factor = factors?.all.find((f) => f.status === "verified");
 
@@ -390,7 +429,7 @@ export default function Login() {
       setError("MFA enrollment required for this account.");
     } catch (err: any) {
       setError(isTransientAuthError(err)
-        ? "Connection error. Supabase did not respond. Please wait a moment and try again."
+        ? "Connection error. Unable to reach the server. Please check your internet connection and try again."
         : err.message || "MFA verification failed. Please try again.");
     } finally {
       setIsLoading(false);
@@ -403,16 +442,16 @@ export default function Login() {
   return (
     <main className="min-h-screen bg-slate-50 font-sans">
       <div className="mx-auto flex min-h-screen w-full max-w-md items-center justify-center px-4 py-10">
-        <Card className="w-full rounded-2xl shadow-xl border-slate-200 bg-white overflow-hidden">
+        <Card className="w-full overflow-hidden rounded-xl border-slate-200 bg-white shadow-md">
           <CardContent className="p-8 sm:p-10">
             <div className="mb-8 text-center">
-              <div className="mx-auto mb-4 flex h-[80px] w-[80px] items-center justify-center rounded-2xl bg-white border border-slate-100 shadow-xl p-2 overflow-hidden">
+              <div className="mx-auto mb-4 flex h-[72px] w-[72px] items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-white p-2 shadow-sm">
                 <img src="/ronsberger-logo.webp" alt="Ronsberger HMO Logo" className="h-full w-full object-contain" fetchPriority="high" />
               </div>
-              <h1 className="text-xl font-extrabold text-brand-700 uppercase tracking-normal">
+              <h1 className="text-xl font-semibold normal-case tracking-normal text-brand-700">
                 Ronsberger <span className="text-lime-800">HMO</span>
               </h1>
-              <p className="mt-2 text-xs font-semibold text-slate-700 uppercase tracking-wider">
+              <p className="mt-2 text-sm font-medium text-slate-700">
                 Sign in to your account
               </p>
             </div>
@@ -458,7 +497,7 @@ export default function Login() {
                   <Button
                     type="submit"
                     disabled={isLoading}
-                    className="h-12 w-full rounded-xl font-semibold bg-brand-700 hover:bg-brand-800 text-white shadow-lg shadow-brand-700/10 active:scale-95 transition-all"
+                    className="h-12 w-full rounded-lg bg-brand-700 font-semibold text-white shadow-sm transition-colors hover:bg-brand-800"
                   >
                     {isLoading ? (
                       <Loader2 className="h-4 w-4 animate-spin mx-auto" />
@@ -587,7 +626,7 @@ export default function Login() {
                   <div className="flex items-center gap-2 p-3 rounded-xl bg-amber-50 border border-amber-200 animate-in fade-in">
                     <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
                     <p className="text-xs font-semibold text-amber-800">
-                      Too many attempts � please wait {lockCountdown}s
+                      Too many attempts ï¿½ please wait {lockCountdown}s
                     </p>
                   </div>
                 )}
@@ -595,12 +634,12 @@ export default function Login() {
                 <Button
                   type="submit"
                   disabled={isLoading || isLocked}
-                  className="h-12 w-full rounded-xl font-semibold bg-brand-700 hover:bg-brand-800 text-white shadow-lg shadow-brand-700/10 active:scale-95 transition-all disabled:opacity-60"
+                  className="h-12 w-full rounded-lg bg-brand-700 font-semibold text-white shadow-sm transition-colors hover:bg-brand-800 disabled:opacity-60"
                 >
                   {isLoading ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : isLocked ? (
-                    `Locked � ${lockCountdown}s`
+                    `Locked ï¿½ ${lockCountdown}s`
                   ) : (
                     "Login"
                   )}

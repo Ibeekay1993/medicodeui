@@ -386,7 +386,7 @@ export default function DashboardHome() {
     { name: "Users", desc: "Manage staff access", href: `${actionBase}/users`, icon: Users, ...actionStyle },
     { name: "Authorizations", desc: "Review all requests", href: `${actionBase}/requests`, icon: ShieldCheck, ...actionStyle },
     { name: "Claims", desc: "Review and pay claims", href: `${actionBase}/claims`, icon: Banknote, ...actionStyle },
-    { name: "Claims Reports", desc: "Export claims and payment data", href: `${actionBase}/claims-reports`, icon: LayoutDashboard, ...actionStyle },
+    { name: "Claims Reports", desc: "Analyze claims and export detailed reports", href: `${actionBase}/claims-reports`, icon: LayoutDashboard, ...actionStyle },
   ];
   const nurseActions = [
     { name: "Authorization queue", desc: "Review pending requests", href: `${actionBase}/requests`, icon: FileText, ...actionStyle },

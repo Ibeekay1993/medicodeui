@@ -1,4 +1,4 @@
-﻿import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import webpush from "https://esm.sh/web-push@3.6.7";
 import { corsHeaders, getServiceClient, validateUser } from "../_shared/auth.ts";
 
@@ -31,11 +31,14 @@ serve(async (req) => {
   try {
     const apiKey = req.headers.get("x-api-key") || "";
     const workerSecret = req.headers.get("x-worker-secret") || "";
-    const internalCall = !!INTERNAL_SHARED_SECRET &&
-      (constantTimeEqual(apiKey, INTERNAL_SHARED_SECRET) || constantTimeEqual(workerSecret, INTERNAL_SHARED_SECRET));
+    const authHeader = req.headers.get("authorization") || "";
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+    const isServiceRole = Boolean(serviceKey && authHeader.includes(serviceKey));
+    const internalCall = isServiceRole || (!!INTERNAL_SHARED_SECRET &&
+      (constantTimeEqual(apiKey, INTERNAL_SHARED_SECRET) || constantTimeEqual(workerSecret, INTERNAL_SHARED_SECRET)));
 
     // Browser callers must be signed-in staff. The trusted server-to-server
-    // path is used for requests created by Evolution's WhatsApp worker.
+    // path is used for requests created by Evolution's WhatsApp worker or service role.
     if (!internalCall) await validateUser(req, ALLOWED_ROLES);
 
     if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) {

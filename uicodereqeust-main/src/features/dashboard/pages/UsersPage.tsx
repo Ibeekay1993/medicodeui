@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+﻿import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -83,6 +83,7 @@ export default function UsersPage() {
   const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
   const [resendingUserId, setResendingUserId] = useState<string | null>(null);
   const [mfaUnenrollTarget, setMfaUnenrollTarget] = useState<any | null>(null);
+  const [mfaExemptTarget, setMfaExemptTarget] = useState<any | null>(null);
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
@@ -119,7 +120,7 @@ export default function UsersPage() {
       const mfaMap = new Map();
       if (mfaData) {
         mfaData.forEach((row: any) => {
-          mfaMap.set(row.user_id, row.mfa_enabled);
+          mfaMap.set(row.user_id, { mfa_enabled: row.mfa_enabled, mfa_exempt: row.mfa_exempt ?? null });
         });
       }
 
@@ -140,7 +141,8 @@ export default function UsersPage() {
         last_sign_in: ur.last_sign_in,
         onboarding_completed: ur.onboarding_completed,
         invite_status: ur.invite_status,
-        mfa_enabled: mfaMap.get(ur.user_id) || false,
+        mfa_enabled: mfaMap.get(ur.user_id)?.mfa_enabled || false,
+        mfa_exempt: mfaMap.get(ur.user_id)?.mfa_exempt ?? null,
       }));
 
       formatted.sort((a, b) => String(a.full_name || "").localeCompare(String(b.full_name || "")));
@@ -282,6 +284,35 @@ export default function UsersPage() {
     }
   };
 
+  const handleSetMfaExempt = async (targetUser: any, exempt: boolean) => {
+    if (!targetUser) return;
+    try {
+      setIsUpdatingAccess(true);
+      const { error } = await supabase.rpc("admin_set_user_mfa_exempt", {
+        p_user_id: targetUser.user_id,
+        p_exempt: exempt,
+      });
+      if (error) throw error;
+      toast({
+        title: exempt ? "MFA Disabled for User" : "MFA Re-enabled for User",
+        description: exempt
+          ? `${targetUser.full_name || "User"} is now exempt from MFA. Their authenticator has been removed.`
+          : `${targetUser.full_name || "User"} will now follow the global MFA policy.`,
+      });
+      setMfaExemptTarget(null);
+      fetchUsers();
+    } catch (e: any) {
+      console.error(e);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: e.message || "Failed to update MFA settings.",
+      });
+    } finally {
+      setIsUpdatingAccess(false);
+    }
+  };
+
   const handleDecideRequest = async (requestId: string, decideStatus: "approved" | "rejected") => {
     if (role !== "admin") return;
     setActioningRequest({ id: requestId, action: decideStatus });
@@ -386,9 +417,14 @@ export default function UsersPage() {
                         <td className="px-4 py-2.5 break-words whitespace-normal">
                           <div className="font-semibold text-slate-900 leading-snug flex items-center gap-2">
                             {item.full_name || "Unnamed User"}
-                            {item.mfa_enabled && (
+                            {item.mfa_enabled && item.mfa_exempt !== true && (
                               <div className="flex items-center gap-1 bg-emerald-50 text-emerald-600 px-1.5 py-0.5 rounded text-[10px] uppercase font-bold tracking-widest border border-emerald-100 shrink-0" title="MFA Secured">
                                 <ShieldCheck className="w-3 h-3" /> MFA
+                              </div>
+                            )}
+                            {item.mfa_exempt === true && (
+                              <div className="flex items-center gap-1 bg-amber-50 text-amber-600 px-1.5 py-0.5 rounded text-[10px] uppercase font-bold tracking-widest border border-amber-100 shrink-0" title="MFA Disabled for this user">
+                                <ShieldAlert className="w-3 h-3" /> MFA Off
                               </div>
                             )}
                           </div>
@@ -437,9 +473,21 @@ export default function UsersPage() {
                               <DropdownMenuItem onClick={() => setDeleteTarget(item)} className="cursor-pointer text-rose-600 focus:text-rose-700 focus:bg-rose-50">
                                 <Trash2 className="mr-2 h-3.5 w-3.5" /> Delete User
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => setMfaUnenrollTarget(item)} className="cursor-pointer text-rose-600 focus:text-rose-700 focus:bg-rose-50">
-                                <ShieldOff className="mr-2 h-3.5 w-3.5" /> Unenroll MFA
-                              </DropdownMenuItem>
+                              {item.mfa_enabled && (
+                                <DropdownMenuItem onClick={() => setMfaUnenrollTarget(item)} className="cursor-pointer text-rose-600 focus:text-rose-700 focus:bg-rose-50">
+                                  <ShieldOff className="mr-2 h-3.5 w-3.5" /> Unenroll MFA
+                                </DropdownMenuItem>
+                              )}
+                              {item.role !== "hospital" && (
+                                <DropdownMenuItem
+                                  onClick={() => { setMfaExemptTarget({ user: item, exempt: item.mfa_exempt !== true }); }}
+                                  className={item.mfa_exempt === true ? "cursor-pointer text-emerald-600 focus:text-emerald-700 focus:bg-emerald-50" : "cursor-pointer text-amber-600 focus:text-amber-700 focus:bg-amber-50"}
+                                >
+                                  {item.mfa_exempt === true
+                                    ? <><ShieldCheck className="mr-2 h-3.5 w-3.5" /> Follow Global MFA Policy</>
+                                    : <><ShieldOff className="mr-2 h-3.5 w-3.5" /> Disable MFA for User</>}
+                                </DropdownMenuItem>
+                              )}
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </td>
@@ -464,7 +512,14 @@ export default function UsersPage() {
                   <div key={item.id} className="p-4 transition-colors hover:bg-slate-50/50">
                     <div className="flex min-w-0 items-start gap-2">
                       <div className="min-w-0 flex-1 space-y-1">
-                      <span className="block break-words text-base font-semibold leading-snug text-slate-900">{item.full_name || "Unnamed User"}</span>
+                      <span className="flex flex-wrap items-center gap-2 break-words text-base font-semibold leading-snug text-slate-900">
+                        {item.full_name || "Unnamed User"}
+                        {item.mfa_exempt === true && (
+                          <span className="inline-flex items-center gap-1 rounded border border-amber-100 bg-amber-50 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-widest text-amber-600">
+                            <ShieldAlert className="h-3 w-3" /> MFA Off
+                          </span>
+                        )}
+                      </span>
                       {!item.full_name && <div className="text-xs text-rose-600 font-medium leading-none">Update name required</div>}
                       <div className="text-sm text-slate-500 font-normal space-y-0.5">
                         <p className="font-mono truncate" title={item.email}>{item.email || "No email"}</p>
@@ -499,6 +554,21 @@ export default function UsersPage() {
                           <DropdownMenuItem onClick={() => setDeleteTarget(item)} className="cursor-pointer text-rose-600 focus:text-rose-700 focus:bg-rose-50">
                             <Trash2 className="mr-2 h-3.5 w-3.5" /> Delete User
                           </DropdownMenuItem>
+                          {item.mfa_enabled && (
+                            <DropdownMenuItem onClick={() => setMfaUnenrollTarget(item)} className="cursor-pointer text-rose-600 focus:text-rose-700 focus:bg-rose-50">
+                              <ShieldOff className="mr-2 h-3.5 w-3.5" /> Unenroll MFA
+                            </DropdownMenuItem>
+                          )}
+                          {item.role !== "hospital" && (
+                            <DropdownMenuItem
+                              onClick={() => { setMfaExemptTarget({ user: item, exempt: item.mfa_exempt !== true }); }}
+                              className={item.mfa_exempt === true ? "cursor-pointer text-emerald-600 focus:text-emerald-700 focus:bg-emerald-50" : "cursor-pointer text-amber-600 focus:text-amber-700 focus:bg-amber-50"}
+                            >
+                              {item.mfa_exempt === true
+                                ? <><ShieldCheck className="mr-2 h-3.5 w-3.5" /> Follow Global MFA Policy</>
+                                : <><ShieldOff className="mr-2 h-3.5 w-3.5" /> Disable MFA for User</>}
+                            </DropdownMenuItem>
+                          )}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>
@@ -598,6 +668,35 @@ export default function UsersPage() {
           );
         }}
       />
+      <AlertDialog open={!!mfaExemptTarget} onOpenChange={(o) => !o && setMfaExemptTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {mfaExemptTarget?.exempt ? "Disable MFA for User?" : "Restore Global MFA Policy?"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {mfaExemptTarget?.exempt
+                ? <>Disabling MFA for <strong>{mfaExemptTarget?.user?.full_name || mfaExemptTarget?.user?.email}</strong> will remove their authenticator factor and exempt them from MFA prompts, even when global enforcement is on.</>
+                : <>This will remove the MFA exemption for <strong>{mfaExemptTarget?.user?.full_name || mfaExemptTarget?.user?.email}</strong>. They will follow the global MFA policy and will only be required to use MFA while global enforcement is enabled.</>
+              }
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <Button
+              variant={mfaExemptTarget?.exempt ? "destructive" : "default"}
+              onClick={() => mfaExemptTarget && handleSetMfaExempt(mfaExemptTarget.user, mfaExemptTarget.exempt)}
+              disabled={isUpdatingAccess}
+            >
+              {isUpdatingAccess
+                ? <Loader2 className="h-4 w-4 animate-spin" />
+                : mfaExemptTarget?.exempt ? "Disable MFA" : "Follow Global Policy"
+              }
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <AlertDialog open={!!mfaUnenrollTarget} onOpenChange={(o) => !o && setMfaUnenrollTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>

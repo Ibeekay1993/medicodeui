@@ -2264,6 +2264,7 @@ export type Database = {
           invite_status: string
           is_team_lead: boolean
           last_sign_in: string | null
+          mfa_exempt: boolean | null
           onboarding_completed: boolean
           onboarding_completed_at: string | null
           phone: string | null
@@ -2282,6 +2283,7 @@ export type Database = {
           invite_status?: string
           is_team_lead?: boolean
           last_sign_in?: string | null
+          mfa_exempt?: boolean | null
           onboarding_completed?: boolean
           onboarding_completed_at?: string | null
           phone?: string | null
@@ -2300,6 +2302,7 @@ export type Database = {
           invite_status?: string
           is_team_lead?: boolean
           last_sign_in?: string | null
+          mfa_exempt?: boolean | null
           onboarding_completed?: boolean
           onboarding_completed_at?: string | null
           phone?: string | null
@@ -2639,10 +2642,15 @@ export type Database = {
         Args: never
         Returns: {
           mfa_enabled: boolean
+          mfa_exempt: boolean | null
           user_id: string
         }[]
       }
       admin_unenroll_mfa: { Args: { p_user_id: string }; Returns: undefined }
+      admin_set_user_mfa_exempt: {
+        Args: { p_exempt: boolean | null; p_user_id: string }
+        Returns: Json
+      }
       assert_support_participant: {
         Args: { _allow_internal?: boolean; _conversation_id: string }
         Returns: boolean

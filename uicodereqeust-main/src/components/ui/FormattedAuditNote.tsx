@@ -83,11 +83,11 @@ export function FormattedAuditNote({ text }: { text: string }) {
       {/* Header Banner */}
       <div className="flex items-center justify-between gap-3 pb-3 border-b border-slate-200/80">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-sm">
+          <div className="w-8 h-8 rounded-lg bg-slate-700 flex items-center justify-center shadow-sm">
             <Shield className="w-4 h-4 text-white" />
           </div>
           <div>
-            <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">AI Clinical Audit</p>
+            <p className="text-xs font-semibold text-slate-500">AI Clinical Audit</p>
             {claimRef && <p className="text-[10px] font-mono font-semibold text-slate-400 mt-0.5">{claimRef}</p>}
           </div>
         </div>
@@ -110,8 +110,8 @@ export function FormattedAuditNote({ text }: { text: string }) {
         <div className="space-y-2">
           <div className="flex items-center gap-2">
             <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-            <span className="text-[10px] font-black uppercase tracking-widest text-emerald-700">Approved Items</span>
-            <span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-full">{approvedItems.length}</span>
+            <span className="text-xs font-semibold text-emerald-700">Approved Items</span>
+            <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded-full">{approvedItems.length}</span>
           </div>
           <div className="space-y-1">
             {approvedItems.map((item, i) => (
@@ -132,9 +132,9 @@ export function FormattedAuditNote({ text }: { text: string }) {
         <div className="space-y-2">
           <div className="flex items-center gap-2">
             <XCircle className="w-3.5 h-3.5 text-rose-500" />
-            <span className="text-[10px] font-black uppercase tracking-widest text-rose-700">Excluded from Payout</span>
+            <span className="text-xs font-semibold text-rose-700">Excluded from Payout</span>
             {declinedItems.length > 0 && (
-              <span className="text-[9px] font-bold text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded-full">{declinedItems.length}</span>
+              <span className="text-[10px] font-semibold text-rose-700 bg-rose-50 px-1.5 py-0.5 rounded-full">{declinedItems.length}</span>
             )}
           </div>
           {noneDeclined && declinedItems.length === 0 ? (
@@ -159,20 +159,20 @@ export function FormattedAuditNote({ text }: { text: string }) {
 
       {/* Financial Summary */}
       {requestedAmount && (
-        <div className="bg-gradient-to-br from-slate-50 to-slate-100/80 rounded-xl p-3 border border-slate-200/60 shadow-sm">
-          <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2.5">Financial Summary</p>
+        <div className="bg-slate-50 rounded-xl p-3 border border-slate-200/60 shadow-sm">
+          <p className="text-xs font-semibold text-slate-600 mb-2.5">Financial Summary</p>
           <div className="grid grid-cols-3 gap-3">
             <div className="text-center">
               <div className="flex items-center justify-center gap-1 mb-1">
                 <FileText className="w-3 h-3 text-slate-400" />
-                <span className="text-[10px] font-semibold text-slate-500">Requested</span>
+                <span className="text-xs font-medium text-slate-600">Requested</span>
               </div>
               <span className="font-mono text-sm font-bold text-slate-800 block">{requestedAmount}</span>
             </div>
             <div className="text-center border-x border-slate-200/60">
               <div className="flex items-center justify-center gap-1 mb-1">
                 <TrendingUp className="w-3 h-3 text-emerald-500" />
-                <span className="text-[10px] font-semibold text-emerald-600">Approved</span>
+                <span className="text-xs font-medium text-emerald-700">Approved</span>
               </div>
               <span className="font-mono text-sm font-bold text-emerald-700 block">{approvedPayout}</span>
             </div>
@@ -183,7 +183,7 @@ export function FormattedAuditNote({ text }: { text: string }) {
                 ) : (
                   <TrendingDown className="w-3 h-3 text-rose-500" />
                 )}
-                <span className={`text-[10px] font-semibold ${penalty === "₦0" || penalty === "N0" ? "text-slate-500" : "text-rose-600"}`}>
+                <span className={`text-xs font-medium ${penalty === "₦0" || penalty === "N0" ? "text-slate-500" : "text-rose-600"}`}>
                   Penalty
                 </span>
               </div>
@@ -212,10 +212,10 @@ function SimpleFormattedNote({ text }: { text: string }) {
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-2 pb-2 border-b border-slate-200/80">
-        <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-slate-500 to-slate-600 flex items-center justify-center">
+        <div className="w-7 h-7 rounded-lg bg-slate-600 flex items-center justify-center">
           <FileText className="w-3.5 h-3.5 text-white" />
         </div>
-        <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Clinical Notes</p>
+        <p className="text-xs font-semibold text-slate-500">Clinical Notes</p>
       </div>
       <div className="space-y-1.5">
         {lines.map((line, i) => (

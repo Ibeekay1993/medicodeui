@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Lock, FileSpreadsheet, Mail, Play, Loader2, ShieldAlert, CheckCircle2 } from "lucide-react";
+import { Lock, Mail, Play, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface AdminControlsCardProps {
@@ -129,14 +129,14 @@ export default function AdminControlsCard({ user }: AdminControlsCardProps) {
       if (error) throw new Error(error.message);
       if (data?.error) throw new Error(data.error);
       toast({
-        title: "✅ Test Report Sent",
+        title: "Test report sent",
         description: data?.message || `Check ${reportEmail} for the test email.`,
       });
     } catch (e: any) {
       toast({
         variant: "destructive",
         title: "Test Send Failed",
-        description: e.message || "Unknown error. Check Supabase function logs.",
+        description: e.message || "Unknown error. Please check the server logs for details.",
       });
     } finally {
       setIsTriggeringReport(false);
@@ -180,7 +180,7 @@ export default function AdminControlsCard({ user }: AdminControlsCardProps) {
               </Badge>
             </div>
             <p className="text-xs text-slate-500 leading-relaxed">
-              Forces all admin and manager roles to activate 2FA before accessing portal dashboards.
+              When disabled, no account is required to complete MFA. When enabled, MFA can be disabled for individual users from Users.
             </p>
           </div>
           <div className="w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-200/60 flex justify-end">

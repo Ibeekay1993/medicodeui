@@ -496,7 +496,7 @@ export function SupportChatArea({
                 {selected.ticket_number && (
                   <Badge
                     variant="outline"
-                    className="shrink-0 rounded border-slate-200 bg-slate-100 text-slate-800 text-[10px] font-black uppercase px-1.5 py-0 tracking-wider"
+                    className="shrink-0 rounded border-slate-200 bg-slate-100 text-slate-800 text-xs font-semibold px-1.5 py-0 tracking-wider"
                   >
                     {selected.ticket_number}
                   </Badge>
@@ -558,7 +558,7 @@ export function SupportChatArea({
                       })
                     }
                   >
-                    <SelectTrigger className="h-6 w-[100px] rounded bg-white border-slate-200 text-[10px] font-bold text-slate-700 shadow-sm px-2">
+                    <SelectTrigger className="h-9 w-[120px] rounded-lg bg-white border-slate-200 text-xs font-medium text-slate-700 shadow-sm px-2">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -575,7 +575,7 @@ export function SupportChatArea({
                 <div className="flex items-center gap-1">
                   <span className="font-bold uppercase text-slate-400">Priority:</span>
                   <Select value={selected.priority || "normal"} onValueChange={(p) => updateConversation({ priority: p })}>
-                    <SelectTrigger className="h-6 w-[75px] rounded bg-white border-slate-200 text-[10px] font-bold text-slate-700 shadow-sm px-2">
+                    <SelectTrigger className="h-9 w-[100px] rounded-lg bg-white border-slate-200 text-xs font-medium text-slate-700 shadow-sm px-2">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -591,14 +591,14 @@ export function SupportChatArea({
                 <div className="flex items-center gap-1">
                   <span className="font-bold uppercase text-slate-400">Status:</span>
                   <Select value={selected.status || "open"} onValueChange={(s) => updateConversation({ status: s })}>
-                    <SelectTrigger className="h-6 w-[100px] rounded bg-white border-slate-200 text-[10px] font-bold text-slate-700 shadow-sm px-2">
+                    <SelectTrigger className="h-9 w-[120px] rounded-lg bg-white border-slate-200 text-xs font-medium text-slate-700 shadow-sm px-2">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
                       {[
                         "new", "open", "pending_customer_response", "waiting_internal_action", "resolved", "closed", "reopened", "pending"
                       ].map((item) => (
-                        <SelectItem key={item} value={item} className="text-[10px] font-semibold">
+                        <SelectItem key={item} value={item} className="text-xs font-medium">
                           {item.replace(/_/g, " ").toUpperCase()}
                         </SelectItem>
                       ))}
@@ -695,7 +695,7 @@ export function SupportChatArea({
                   type="button"
                   onClick={() => setIsPrivateNoteState(!isPrivateNoteState)}
                   className={cn(
-                    "h-9 px-2 rounded-lg flex items-center gap-1 text-[10px] font-black uppercase tracking-wider transition-colors shrink-0",
+                    "h-9 px-2 rounded-lg flex items-center gap-1 text-xs font-semibold transition-colors shrink-0",
                     isPrivateNoteState
                       ? "bg-amber-100 text-amber-700 hover:bg-amber-200"
                       : "bg-slate-100 text-slate-500 hover:bg-slate-200"
@@ -720,7 +720,7 @@ export function SupportChatArea({
                 type="button"
                 onClick={() => handleSendMessage()}
                 disabled={sending || (!replyText.trim() && pendingFiles.length === 0) || selectedClosed}
-                className="h-9 px-4 rounded-[14px] bg-gradient-to-tr from-indigo-600 to-indigo-500 hover:from-indigo-700 hover:to-indigo-600 shadow-md shadow-indigo-500/20 text-white shrink-0 transition-all duration-300 hover:scale-[1.02] active:scale-95"
+                className="h-10 shrink-0 rounded-lg bg-primary px-4 text-white transition-colors hover:bg-primary/90"
               >
                 {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
               </Button>
@@ -736,4 +736,3 @@ export function SupportChatArea({
     </div>
   );
 }
-

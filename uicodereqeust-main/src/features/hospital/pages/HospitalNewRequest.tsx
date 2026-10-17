@@ -615,7 +615,7 @@ export default function HospitalNewRequest() {
 
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-          <div className="bg-white rounded-3xl shadow-xl border border-slate-100">
+          <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
             
             {step === 1 && (
               <PatientSection
@@ -712,7 +712,7 @@ export default function HospitalNewRequest() {
                   </div>
                   <div className="flex justify-between">
                     <span className="text-xs font-semibold text-slate-500">Priority:</span>
-                    <span className="text-xs font-bold uppercase text-slate-900">{urgency}</span>
+                    <span className="text-sm font-medium capitalize text-slate-900">{urgency}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-xs font-semibold text-slate-500">Total Items:</span>
@@ -727,7 +727,7 @@ export default function HospitalNewRequest() {
                   </div>
                   {treatments.length > 0 && (
                     <div className="pt-2">
-                      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2">Requested Items</p>
+                      <p className="mb-2 text-xs font-semibold text-slate-600">Requested items</p>
                       <div className="space-y-2">
                         {treatments.map((t: any, idx: number) => {
                           const isRef = Boolean(referralHospitalId || (referralHospitalName && referralHospitalName.trim().length > 0));
@@ -735,13 +735,13 @@ export default function HospitalNewRequest() {
                             <div key={idx} className="flex justify-between items-start text-xs border border-slate-100 rounded-lg p-2 bg-white">
                               <div className="flex-1 pr-2">
                                 <p className="font-bold text-slate-900">{t.name}</p>
-                                <p className="text-[10px] text-slate-500">Code: {t.code} &middot; {t.category || "Service"}</p>
+                                <p className="text-xs text-slate-600">Code: {t.code} · {t.category || "Service"}</p>
                               </div>
                               <div className="text-right whitespace-nowrap">
                                 {!isRef ? (
                                   <>
                                     <p className="font-bold text-slate-900">{t.quantity} x NGN {t.amount.toLocaleString()}</p>
-                                    <p className="text-[10px] text-emerald-600 font-bold">NGN {(t.quantity * t.amount).toLocaleString()}</p>
+                                    <p className="text-xs font-semibold text-emerald-800">NGN {(t.quantity * t.amount).toLocaleString()}</p>
                                   </>
                                 ) : (
                                   <p className="font-bold text-slate-900">Qty: {t.quantity}</p>
@@ -791,7 +791,7 @@ export default function HospitalNewRequest() {
               <Button
                 type="submit"
                 disabled={isSubmitting || !canSubmit}
-                className={`h-12 px-10 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-xs font-black uppercase tracking-widest transition-all ${!canSubmit && !isSubmitting ? 'opacity-50 cursor-not-allowed' : 'active:scale-95'}`}
+                className={`h-12 rounded-lg bg-emerald-700 px-8 text-sm font-semibold text-white transition-colors hover:bg-emerald-800 ${!canSubmit && !isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
                 {isSubmitting ? "Submitting..." : "Submit Request"}
               </Button>

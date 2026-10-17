@@ -3,8 +3,9 @@ import { useDebounce } from "@/hooks/use-debounce";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { money } from "@/lib/claims-helpers";
-import { Loader2, FolderOpen, Search, ChevronDown, Check, Calendar } from "lucide-react";
+import { FolderOpen, Search, ChevronDown, Check, Calendar } from "lucide-react";
 import { usePaidClaims } from "../hooks/usePayments";
+import { PageLoader } from "@/components/PageLoader";
 
 export default function PaidClaimsPage() {
   const [selectedHospitalId, setSelectedHospitalId] = useState<string>("all");
@@ -60,12 +61,7 @@ export default function PaidClaimsPage() {
   };
 
   if (isLoadingClaims) {
-    return (
-      <div className="flex h-64 flex-col gap-3 items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-slate-800" />
-        <p className="text-xs font-black uppercase tracking-widest text-slate-400">Loading Paid Claims...</p>
-      </div>
-    );
+    return <PageLoader className="min-h-64" label="Loading paid claims..." />;
   }
 
   return (
@@ -97,7 +93,7 @@ export default function PaidClaimsPage() {
                     setHospitalSearchQuery("");
                   }} 
                 />
-                <div className="absolute left-0 mt-1 w-full max-w-xs sm:w-80 rounded-xl border border-slate-100 bg-white/95 backdrop-blur-md shadow-lg p-2 z-20 space-y-2 animate-in fade-in slide-in-from-top-1 duration-200">
+                <div className="absolute left-0 z-20 mt-1 w-full max-w-xs space-y-2 rounded-xl border border-slate-200 bg-white p-2 shadow-md animate-in fade-in duration-150 sm:w-80">
                   <div className="relative">
                     <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
                     <input
