@@ -137,8 +137,14 @@ export const LAB_MAP: Record<string, { code: string; name: string; amount: numbe
   tonometry: { code: "NHIA-081-008", name: "Applanation Tonometry", amount: 3000.0 },
   "specialist consultation": { code: "NHIA-010-001", name: "Specialist Initial Consultation", amount: 4000.0 },
   consultation: { code: "NHIA-010-001", name: "Specialist Initial Consultation", amount: 4000.0 },
-  "follow up": { code: "NHIA-010-001", name: "Specialist Follow-up Consultation", amount: 4000.0 },
-  "follow-up": { code: "NHIA-010-001", name: "Specialist Follow-up Consultation", amount: 4000.0 },
+  "initial consultation": { code: "NHIA-010-001", name: "Specialist Initial Consultation", amount: 4000.0 },
+  "specialist initial consultation": { code: "NHIA-010-001", name: "Specialist Initial Consultation", amount: 4000.0 },
+  consult: { code: "NHIA-010-001", name: "Specialist Initial Consultation", amount: 4000.0 },
+  "follow up": { code: "NHIA-010-002", name: "Specialist Review (Per visit)", amount: 2600.0 },
+  "follow-up": { code: "NHIA-010-002", name: "Specialist Review (Per visit)", amount: 2600.0 },
+  "follw up": { code: "NHIA-010-002", name: "Specialist Review (Per visit)", amount: 2600.0 },
+  review: { code: "NHIA-010-002", name: "Specialist Review (Per visit)", amount: 2600.0 },
+  "specialist review": { code: "NHIA-010-002", name: "Specialist Review (Per visit)", amount: 2600.0 },
 };
 
 export const BRAND_MAP: Record<string, { code: string; name: string; amount: number }> = {
@@ -453,10 +459,30 @@ export function reconcileHistoricalRow(
   } else if (
     cleanTreatment.toUpperCase() === "FOLLOW UP" ||
     cleanTreatment.toUpperCase() === "FOLLW UP" ||
-    cleanTreatment.toUpperCase() === "CONSULT" ||
-    cleanTreatment.toUpperCase() === "SPECIALIST CONSULTATION"
+    cleanTreatment.toUpperCase() === "FOLLOW-UP" ||
+    cleanTreatment.toUpperCase() === "REVIEW" ||
+    cleanTreatment.toUpperCase() === "SPECIALIST REVIEW" ||
+    cleanTreatment.toUpperCase().startsWith("FOLLOW UP") ||
+    cleanTreatment.toUpperCase().startsWith("FOLLOW-UP")
   ) {
-    // 3. Specialist Consult / Follow-up Referral
+    // 3. Follow up / Specialist Review (Per visit) - ₦2,600.00
+    matchedItems.push({
+      code: "NHIA-010-002",
+      name: "Specialist Review (Per visit)",
+      quantity: 1,
+      unit_price: 2600.0,
+      amount: 2600.0,
+      confidence: "high",
+      source_term: cleanTreatment,
+    });
+  } else if (
+    cleanTreatment.toUpperCase() === "CONSULT" ||
+    cleanTreatment.toUpperCase() === "CONSULTATION" ||
+    cleanTreatment.toUpperCase() === "SPECIALIST CONSULTATION" ||
+    cleanTreatment.toUpperCase() === "INITIAL CONSULTATION" ||
+    cleanTreatment.toUpperCase() === "SPECIALIST INITIAL CONSULTATION"
+  ) {
+    // 4. Specialist Initial Consultation - ₦4,000.00 (same flow/amount for initial consultation and consultation)
     matchedItems.push({
       code: "NHIA-010-001",
       name: "Specialist Initial Consultation",

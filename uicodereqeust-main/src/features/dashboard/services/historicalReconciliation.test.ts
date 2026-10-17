@@ -20,6 +20,7 @@ describe("Historical Reconciliation Engine", () => {
     { code: "NHIA-02-04-08", name: "Diclofenac sodium Gel 1% Tube", category: "drug", amount: 1200.0 },
     { code: "NHIA-040-008", name: "Electrocardiography (ECG)", category: "procedure", amount: 10000.0 },
     { code: "NHIA-010-001", name: "Specialist Initial Consultation", category: "procedure", amount: 4000.0 },
+    { code: "NHIA-010-002", name: "Specialist Review (Per visit)", category: "procedure", amount: 2600.0 },
     { code: "NHIA-081-001", name: "Manual Refraction", category: "procedure", amount: 3000.0 },
     { code: "NHIA-12-06-01", name: "Atorvastatin Tab/Caps 10mg Tab/ Cap.", category: "drug", amount: 122.0 },
     { code: "NHIA-12-06-02", name: "Atorvastatin Tab/Caps 20mg Tab/ Cap.", category: "drug", amount: 154.0 },
@@ -140,7 +141,41 @@ describe("Historical Reconciliation Engine", () => {
     expect(reconciled.requesting_hospital_id).toBe("hosp-jaja");
     expect(reconciled.referred_hospital_id).toBe("hosp-uch");
     expect(reconciled.claiming_hospital_id).toBe("hosp-uch");
-    expect(reconciled.total_amount).toBe(4000.0); // Specialist Follow-up Consultation
+    expect(reconciled.total_amount).toBe(2600.0); // Specialist Review (Per visit)
+    expect(reconciled.approved_items[0].code).toBe("NHIA-010-002");
+    expect(reconciled.approved_items[0].name).toBe("Specialist Review (Per visit)");
+  });
+
+  it("differentiates consultation / initial consultation (NHIA-010-001 @ ₦4000) from follow-up / review (NHIA-010-002 @ ₦2600)", () => {
+    const consultRow: HistoricalRawRow = {
+      date: "2026-07-02",
+      hospital: "UNIVERSITY OF IBADAN HEALTH SERVICES (JAJA HEALTH CLINIC)",
+      patient_name: "TEST PATIENT 1",
+      policy_number: "1111111",
+      authorization_code: "AUTH001",
+      diagnosis: "General",
+      treatment: "Specialist Initial Consultation",
+      status: "APPROVED",
+      category: "consultation",
+    };
+    const reconciledConsult = reconcileHistoricalRow(consultRow, 1, mockTariffs, mockHospitals);
+    expect(reconciledConsult.total_amount).toBe(4000.0);
+    expect(reconciledConsult.approved_items[0].code).toBe("NHIA-010-001");
+
+    const reviewRow: HistoricalRawRow = {
+      date: "2026-07-02",
+      hospital: "UNIVERSITY OF IBADAN HEALTH SERVICES (JAJA HEALTH CLINIC)",
+      patient_name: "TEST PATIENT 2",
+      policy_number: "2222222",
+      authorization_code: "AUTH002",
+      diagnosis: "Follow-up",
+      treatment: "FOLLOW UP REVIEW",
+      status: "APPROVED",
+      category: "review",
+    };
+    const reconciledReview = reconcileHistoricalRow(reviewRow, 2, mockTariffs, mockHospitals);
+    expect(reconciledReview.total_amount).toBe(2600.0);
+    expect(reconciledReview.approved_items[0].code).toBe("NHIA-010-002");
   });
 
   it("accurately parses historical date strings like 2-Jul-26 and 2026-07-24 into July 2026 UTC", () => {

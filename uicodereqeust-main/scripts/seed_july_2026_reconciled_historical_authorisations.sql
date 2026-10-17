@@ -126,7 +126,7 @@ BEGIN
     'REQ-HIST-RAO19062673BD', 'R/AO/19062673BD', 'OLUYEMISI SHITTU', '2872895', 'nephropathy', 'FOLLOW UP',
     v_jaja_id, 'UNIVERSITY OF IBADAN HEALTH SERVICES (JAJA HEALTH CLINIC)', v_jaja_id, 'UNIVERSITY OF IBADAN HEALTH SERVICES (JAJA HEALTH CLINIC)',
     NULL, 'UNIVERSITY COLLEGE HOSPITAL', v_jaja_id, 'UNIVERSITY COLLEGE HOSPITAL',
-    'approved', 'historical_import', TRUE, '[{"code":"NHIA-010-001","name":"Specialist Initial Consultation","quantity":1,"unit_price":4000,"amount":4000,"confidence":"high","source_term":"FOLLOW UP"}]'::jsonb, 4000, '2026-07-02T12:00:00.000Z'::timestamptz,
+    'approved', 'historical_import', TRUE, '[{"code":"NHIA-010-002","name":"Specialist Review (Per visit)","quantity":1,"unit_price":2600,"amount":2600,"confidence":"high","source_term":"FOLLOW UP"}]'::jsonb, 2600, '2026-07-02T12:00:00.000Z'::timestamptz,
     'Authorizing Officer (AO)', v_admin_id, v_admin_id, '2026-07-02T12:00:00.000Z'::timestamptz, now()
   )
   ON CONFLICT (authorization_code) WHERE authorization_code IS NOT NULL DO UPDATE SET
@@ -270,7 +270,7 @@ BEGIN
     'REQ-HIST-RAO19062677BD', 'R/AO/19062677BD', 'Patrick Peace Uchechi', '2872477', 'Right inguinal hernia', 'FOLLOW UP',
     v_jaja_id, 'UNIVERSITY OF IBADAN HEALTH SERVICES (JAJA HEALTH CLINIC)', v_jaja_id, 'UNIVERSITY OF IBADAN HEALTH SERVICES (JAJA HEALTH CLINIC)',
     NULL, 'UNIVERSITY COLLEGE HOSPITAL', v_jaja_id, 'UNIVERSITY COLLEGE HOSPITAL',
-    'approved', 'historical_import', TRUE, '[{"code":"NHIA-010-001","name":"Specialist Initial Consultation","quantity":1,"unit_price":4000,"amount":4000,"confidence":"high","source_term":"FOLLOW UP"}]'::jsonb, 4000, '2026-07-02T12:00:00.000Z'::timestamptz,
+    'approved', 'historical_import', TRUE, '[{"code":"NHIA-010-002","name":"Specialist Review (Per visit)","quantity":1,"unit_price":2600,"amount":2600,"confidence":"high","source_term":"FOLLOW UP"}]'::jsonb, 2600, '2026-07-02T12:00:00.000Z'::timestamptz,
     'Authorizing Officer (AO)', v_admin_id, v_admin_id, '2026-07-02T12:00:00.000Z'::timestamptz, now()
   )
   ON CONFLICT (authorization_code) WHERE authorization_code IS NOT NULL DO UPDATE SET
@@ -1062,7 +1062,7 @@ BEGIN
     'REQ-HIST-RAO19062699BD', 'R/AO/19062699BD', 'OLALEYE HANNAH AYODELE', '7841923', 'UTERINE FIBROID', 'FOLLOW UP',
     v_jaja_id, 'UNIVERSITY OF IBADAN HEALTH SERVICES (JAJA HEALTH CLINIC)', v_jaja_id, 'UNIVERSITY OF IBADAN HEALTH SERVICES (JAJA HEALTH CLINIC)',
     NULL, 'UNIVERSITY COLLEGE HOSPITAL', v_jaja_id, 'UNIVERSITY COLLEGE HOSPITAL',
-    'approved', 'historical_import', TRUE, '[{"code":"NHIA-010-001","name":"Specialist Initial Consultation","quantity":1,"unit_price":4000,"amount":4000,"confidence":"high","source_term":"FOLLOW UP"}]'::jsonb, 4000, '2026-07-02T12:00:00.000Z'::timestamptz,
+    'approved', 'historical_import', TRUE, '[{"code":"NHIA-010-002","name":"Specialist Review (Per visit)","quantity":1,"unit_price":2600,"amount":2600,"confidence":"high","source_term":"FOLLOW UP"}]'::jsonb, 2600, '2026-07-02T12:00:00.000Z'::timestamptz,
     'Authorizing Officer (AO)', v_admin_id, v_admin_id, '2026-07-02T12:00:00.000Z'::timestamptz, now()
   )
   ON CONFLICT (authorization_code) WHERE authorization_code IS NOT NULL DO UPDATE SET
@@ -2301,7 +2301,7 @@ BEGIN
     'REQ-HIST-RAO190626132BD', 'R/AO/190626132BD', 'AKOLEOWO VICTORIA', '7841700', 'thyroid adenoma', 'follow up',
     v_jaja_id, 'UNIVERSITY OF IBADAN HEALTH SERVICES (JAJA HEALTH CLINIC)', v_jaja_id, 'UNIVERSITY OF IBADAN HEALTH SERVICES (JAJA HEALTH CLINIC)',
     NULL, 'UNIVERSITY COLLEGE HOSPITAL', v_jaja_id, 'UNIVERSITY COLLEGE HOSPITAL',
-    'approved', 'historical_import', TRUE, '[{"code":"NHIA-010-001","name":"Specialist Initial Consultation","quantity":1,"unit_price":4000,"amount":4000,"confidence":"high","source_term":"follow up"}]'::jsonb, 4000, '2026-07-09T12:00:00.000Z'::timestamptz,
+    'approved', 'historical_import', TRUE, '[{"code":"NHIA-010-002","name":"Specialist Review (Per visit)","quantity":1,"unit_price":2600,"amount":2600,"confidence":"high","source_term":"follow up"}]'::jsonb, 2600, '2026-07-09T12:00:00.000Z'::timestamptz,
     'Authorizing Officer (AO)', v_admin_id, v_admin_id, '2026-07-09T12:00:00.000Z'::timestamptz, now()
   )
   ON CONFLICT (authorization_code) WHERE authorization_code IS NOT NULL DO UPDATE SET
@@ -4569,7 +4569,7 @@ BEGIN
     'REQ-HIST-RAO190626195BD', 'R/AO/190626195BD', 'Babalola Rose', '1458280', 'Goitre', 'FOLLW UP',
     v_jaja_id, 'UNIVERSITY OF IBADAN HEALTH SERVICES (JAJA HEALTH CLINIC)', v_jaja_id, 'UNIVERSITY OF IBADAN HEALTH SERVICES (JAJA HEALTH CLINIC)',
     NULL, 'UNIVERSITY COLLEGE HOSPITAL', v_jaja_id, 'UNIVERSITY COLLEGE HOSPITAL',
-    'approved', 'historical_import', TRUE, '[{"code":"NHIA-010-001","name":"Specialist Initial Consultation","quantity":1,"unit_price":4000,"amount":4000,"confidence":"high","source_term":"FOLLW UP"}]'::jsonb, 4000, '2026-07-10T12:00:00.000Z'::timestamptz,
+    'approved', 'historical_import', TRUE, '[{"code":"NHIA-010-002","name":"Specialist Review (Per visit)","quantity":1,"unit_price":2600,"amount":2600,"confidence":"high","source_term":"FOLLW UP"}]'::jsonb, 2600, '2026-07-10T12:00:00.000Z'::timestamptz,
     'Authorizing Officer (AO)', v_admin_id, v_admin_id, '2026-07-10T12:00:00.000Z'::timestamptz, now()
   )
   ON CONFLICT (authorization_code) WHERE authorization_code IS NOT NULL DO UPDATE SET
@@ -6333,7 +6333,7 @@ BEGIN
     'REQ-HIST-RAO190626314BD', 'R/AO/190626314BD', 'Ajayi Olaitan', '1639183', 'Hypertensive heart disease', 'FOLLW UP',
     v_jaja_id, 'UNIVERSITY OF IBADAN HEALTH SERVICES (JAJA HEALTH CLINIC)', v_jaja_id, 'UNIVERSITY OF IBADAN HEALTH SERVICES (JAJA HEALTH CLINIC)',
     NULL, 'UNIVERSITY COLLEGE HOSPITAL', v_jaja_id, 'UNIVERSITY COLLEGE HOSPITAL',
-    'approved', 'historical_import', TRUE, '[{"code":"NHIA-010-001","name":"Specialist Initial Consultation","quantity":1,"unit_price":4000,"amount":4000,"confidence":"high","source_term":"FOLLW UP"}]'::jsonb, 4000, '2026-07-17T12:00:00.000Z'::timestamptz,
+    'approved', 'historical_import', TRUE, '[{"code":"NHIA-010-002","name":"Specialist Review (Per visit)","quantity":1,"unit_price":2600,"amount":2600,"confidence":"high","source_term":"FOLLW UP"}]'::jsonb, 2600, '2026-07-17T12:00:00.000Z'::timestamptz,
     'Authorizing Officer (AO)', v_admin_id, v_admin_id, '2026-07-17T12:00:00.000Z'::timestamptz, now()
   )
   ON CONFLICT (authorization_code) WHERE authorization_code IS NOT NULL DO UPDATE SET
@@ -6477,7 +6477,7 @@ BEGIN
     'REQ-HIST-RAO190626318BD', 'R/AO/190626318BD', 'Olaogun Kayode', '2839684', 'Pterygium', 'FOLLOW UP',
     v_jaja_id, 'UNIVERSITY OF IBADAN HEALTH SERVICES (JAJA HEALTH CLINIC)', v_jaja_id, 'UNIVERSITY OF IBADAN HEALTH SERVICES (JAJA HEALTH CLINIC)',
     NULL, 'UNIVERSITY COLLEGE HOSPITAL', v_jaja_id, 'UNIVERSITY COLLEGE HOSPITAL',
-    'approved', 'historical_import', TRUE, '[{"code":"NHIA-010-001","name":"Specialist Initial Consultation","quantity":1,"unit_price":4000,"amount":4000,"confidence":"high","source_term":"FOLLOW UP"}]'::jsonb, 4000, '2026-07-17T12:00:00.000Z'::timestamptz,
+    'approved', 'historical_import', TRUE, '[{"code":"NHIA-010-002","name":"Specialist Review (Per visit)","quantity":1,"unit_price":2600,"amount":2600,"confidence":"high","source_term":"FOLLOW UP"}]'::jsonb, 2600, '2026-07-17T12:00:00.000Z'::timestamptz,
     'Authorizing Officer (AO)', v_admin_id, v_admin_id, '2026-07-17T12:00:00.000Z'::timestamptz, now()
   )
   ON CONFLICT (authorization_code) WHERE authorization_code IS NOT NULL DO UPDATE SET
@@ -6945,7 +6945,7 @@ BEGIN
     'REQ-HIST-RAO190626331BD', 'R/AO/190626331BD', 'Anyaeche Christopher', '2556955', 'BPH', 'FOLLOW UP',
     v_jaja_id, 'UNIVERSITY OF IBADAN HEALTH SERVICES (JAJA HEALTH CLINIC)', v_jaja_id, 'UNIVERSITY OF IBADAN HEALTH SERVICES (JAJA HEALTH CLINIC)',
     NULL, 'UNIVERSITY COLLEGE HOSPITAL', v_jaja_id, 'UNIVERSITY COLLEGE HOSPITAL',
-    'approved', 'historical_import', TRUE, '[{"code":"NHIA-010-001","name":"Specialist Initial Consultation","quantity":1,"unit_price":4000,"amount":4000,"confidence":"high","source_term":"FOLLOW UP"}]'::jsonb, 4000, '2026-07-23T12:00:00.000Z'::timestamptz,
+    'approved', 'historical_import', TRUE, '[{"code":"NHIA-010-002","name":"Specialist Review (Per visit)","quantity":1,"unit_price":2600,"amount":2600,"confidence":"high","source_term":"FOLLOW UP"}]'::jsonb, 2600, '2026-07-23T12:00:00.000Z'::timestamptz,
     'Authorizing Officer (AO)', v_admin_id, v_admin_id, '2026-07-23T12:00:00.000Z'::timestamptz, now()
   )
   ON CONFLICT (authorization_code) WHERE authorization_code IS NOT NULL DO UPDATE SET
@@ -7754,7 +7754,7 @@ BEGIN
     'REQ-HIST-RAO190626353BD', 'R/AO/190626353BD', 'OLUEBUBECHUKWU EKEMEZIE', '2872805', 'pes planusi ?Plantar fascitis', 'FOLLOW UP',
     v_jaja_id, 'UNIVERSITY OF IBADAN HEALTH SERVICES (JAJA HEALTH CLINIC)', v_jaja_id, 'UNIVERSITY OF IBADAN HEALTH SERVICES (JAJA HEALTH CLINIC)',
     NULL, NULL, v_jaja_id, 'UNIVERSITY OF IBADAN HEALTH SERVICES (JAJA HEALTH CLINIC)',
-    'approved', 'historical_import', TRUE, '[{"code":"NHIA-010-001","name":"Specialist Initial Consultation","quantity":1,"unit_price":4000,"amount":4000,"confidence":"high","source_term":"FOLLOW UP"}]'::jsonb, 4000, '2026-07-23T12:00:00.000Z'::timestamptz,
+    'approved', 'historical_import', TRUE, '[{"code":"NHIA-010-002","name":"Specialist Review (Per visit)","quantity":1,"unit_price":2600,"amount":2600,"confidence":"high","source_term":"FOLLOW UP"}]'::jsonb, 2600, '2026-07-23T12:00:00.000Z'::timestamptz,
     'Authorizing Officer (AO)', v_admin_id, v_admin_id, '2026-07-23T12:00:00.000Z'::timestamptz, now()
   )
   ON CONFLICT (authorization_code) WHERE authorization_code IS NOT NULL DO UPDATE SET
@@ -7934,7 +7934,7 @@ BEGIN
     'REQ-HIST-RAO190626358BD', 'R/AO/190626358BD', 'Ebelechukwu Ajuka', '2873194', 'Oblique fracture of distal L fibula', 'FOLLOW UP',
     v_jaja_id, 'UNIVERSITY OF IBADAN HEALTH SERVICES (JAJA HEALTH CLINIC)', v_jaja_id, 'UNIVERSITY OF IBADAN HEALTH SERVICES (JAJA HEALTH CLINIC)',
     NULL, 'UNIVERSITY COLLEGE HOSPITAL', v_jaja_id, 'UNIVERSITY COLLEGE HOSPITAL',
-    'approved', 'historical_import', TRUE, '[{"code":"NHIA-010-001","name":"Specialist Initial Consultation","quantity":1,"unit_price":4000,"amount":4000,"confidence":"high","source_term":"FOLLOW UP"}]'::jsonb, 4000, '2026-07-24T12:00:00.000Z'::timestamptz,
+    'approved', 'historical_import', TRUE, '[{"code":"NHIA-010-002","name":"Specialist Review (Per visit)","quantity":1,"unit_price":2600,"amount":2600,"confidence":"high","source_term":"FOLLOW UP"}]'::jsonb, 2600, '2026-07-24T12:00:00.000Z'::timestamptz,
     'Authorizing Officer (AO)', v_admin_id, v_admin_id, '2026-07-24T12:00:00.000Z'::timestamptz, now()
   )
   ON CONFLICT (authorization_code) WHERE authorization_code IS NOT NULL DO UPDATE SET
@@ -9086,7 +9086,7 @@ BEGIN
     'REQ-HIST-RAO190626390BD', 'R/AO/190626390BD', 'Adejumobi Olumuyiwa', '2871066', 'Wrist Tendinitis, HTN', 'E/U/Cr, follow up',
     v_jaja_id, 'UNIVERSITY OF IBADAN HEALTH SERVICES (JAJA HEALTH CLINIC)', v_jaja_id, 'UNIVERSITY OF IBADAN HEALTH SERVICES (JAJA HEALTH CLINIC)',
     NULL, NULL, v_jaja_id, 'UNIVERSITY OF IBADAN HEALTH SERVICES (JAJA HEALTH CLINIC)',
-    'approved', 'historical_import', TRUE, '[{"code":"NHIA-181-030","name":"Electrolytes, Urea and Creatinine","quantity":1,"unit_price":9000,"amount":9000,"confidence":"high","source_term":"E/U/Cr"},{"code":"NHIA-010-001","name":"Specialist Follow-up Consultation","quantity":1,"unit_price":4000,"amount":4000,"confidence":"high","source_term":"follow up"}]'::jsonb, 13000, '2026-07-24T12:00:00.000Z'::timestamptz,
+    'approved', 'historical_import', TRUE, '[{"code":"NHIA-181-030","name":"Electrolytes, Urea and Creatinine","quantity":1,"unit_price":9000,"amount":9000,"confidence":"high","source_term":"E/U/Cr"},{"code":"NHIA-010-002","name":"Specialist Review (Per visit)","quantity":1,"unit_price":2600,"amount":2600,"confidence":"high","source_term":"follow up"}]'::jsonb, 11600, '2026-07-24T12:00:00.000Z'::timestamptz,
     'Authorizing Officer (AO)', v_admin_id, v_admin_id, '2026-07-24T12:00:00.000Z'::timestamptz, now()
   )
   ON CONFLICT (authorization_code) WHERE authorization_code IS NOT NULL DO UPDATE SET
@@ -9191,7 +9191,7 @@ BEGIN
     'authorization_requests',
     'july-2026-ao-import',
     v_admin_id,
-    jsonb_build_object('source_file', 'july ao.xlsx', 'total_records', 256, 'approved_count', 251, 'total_amount', 2929914),
+    jsonb_build_object('source_file', 'july ao.xlsx', 'total_records', 256, 'approved_count', 251, 'total_amount', 2914514),
     now()
   );
 END $$;
