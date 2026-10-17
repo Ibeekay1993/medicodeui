@@ -117,10 +117,10 @@ export const LAB_MAP: Record<string, { code: string; name: string; amount: numbe
   hba1c: { code: "NHIA-181-046", name: "Glycated Hemoglobin (HbA1c)", amount: 10000.0 },
   hbalc: { code: "NHIA-181-046", name: "Glycated Hemoglobin (HbA1c)", amount: 10000.0 },
   hbaic: { code: "NHIA-181-046", name: "Glycated Hemoglobin (HbA1c)", amount: 10000.0 },
-  "e/u/cr": { code: "NHIA-181-030", name: "Electrolytes, Urea and Creatinine", amount: 8500.0 },
-  "e/u": { code: "NHIA-181-030", name: "Electrolytes, Urea and Creatinine", amount: 8500.0 },
-  eucr: { code: "NHIA-181-030", name: "Electrolytes, Urea and Creatinine", amount: 8500.0 },
-  "serum e/u": { code: "NHIA-181-030", name: "Electrolytes, Urea and Creatinine", amount: 8500.0 },
+  "e/u/cr": { code: "NHIA-181-030", name: "Electrolytes, Urea and Creatinine", amount: 9000.0 },
+  "e/u": { code: "NHIA-181-030", name: "Electrolytes, Urea and Creatinine", amount: 9000.0 },
+  eucr: { code: "NHIA-181-030", name: "Electrolytes, Urea and Creatinine", amount: 9000.0 },
+  "serum e/u": { code: "NHIA-181-030", name: "Electrolytes, Urea and Creatinine", amount: 9000.0 },
   "urine mcs": { code: "NHIA-181-110", name: "Urine Microscopy, Culture & Sensitivity", amount: 5000.0 },
   "stool microscopy": { code: "NHIA-181-098", name: "Stool Microscopy, Culture & Sensitivity", amount: 5000.0 },
   scan: { code: "NHIA-030-001", name: "Abdominopelvic Ultrasound Scan", amount: 6000.0 },
@@ -144,7 +144,6 @@ export const BRAND_MAP: Record<string, { code: string; name: string; amount: num
   vasoprin: { code: "NHIA-02-03-01", name: "Acetylsalicylic Acid Tablet 75mg/100mg", amount: 30.0 },
   moduretic: { code: "NHIA-12-03-01", name: "Amiloride + Hydrochlorothiazide Tablet 5mg+ 50mg Tab", amount: 36.0 },
   aldomet: { code: "NHIA-12-04-51", name: "Methyldopa Tablet 500mg Tablet", amount: 69.0 },
-  amaryl: { code: "NHIA-17-06-18", name: "Glimepiride Tab 2mg", amount: 102.0 },
   daonil: { code: "NHIA-17-06-14", name: "Glibenclamide Tablet 5mg Tab.", amount: 30.0 },
   tegretol: { code: "NHIA-05-01-01", name: "Carbamazepine Tablet 200mg Tab", amount: 50.0 },
   avsar: { code: "NHIA-12-04-04", name: "Amlodipine + Valsartan Tablet 5 mg + 160mg Tab", amount: 280.0 },
@@ -152,35 +151,15 @@ export const BRAND_MAP: Record<string, { code: string; name: string; amount: num
   lantus: { code: "NHIA-17-06-03", name: "Insulin Soluble/Glargine Injection 100 units/ml Vial", amount: 12474.0 },
   insulin: { code: "NHIA-17-06-03", name: "Insulin Soluble/Glargine Injection 100 units/ml Vial", amount: 12474.0 },
   insulisn: { code: "NHIA-17-06-03", name: "Insulin Soluble/Glargine Injection 100 units/ml Vial", amount: 12474.0 },
-  glucophage: { code: "NHIA-17-06-13", name: "Metformin Tablets 500mg (HCL) Tab.", amount: 44.0 },
-  norvasc: { code: "NHIA-12-04-03", name: "Amlodipine Tablet (Besylate) 10mg Tab.", amount: 70.0 },
-  cozaar: { code: "NHIA-12-04-49", name: "Losartan 50mg Tablet Tablet 50mg Tablet", amount: 100.0 },
   hct: { code: "NHIA-12-03-05", name: "Hydrochlorothiazide Tablet 25mg Tab.", amount: 40.0 },
   htc: { code: "NHIA-12-03-05", name: "Hydrochlorothiazide Tablet 25mg Tab.", amount: 40.0 },
   amiloride: { code: "NHIA-12-03-01", name: "Amiloride + Hydrochlorothiazide Tablet", amount: 36.0 },
   indapamide: { code: "NHIA-12-03-08", name: "Indapamide Tablet 1.5mg Tab.", amount: 80.0 },
   indapimide: { code: "NHIA-12-03-08", name: "Indapamide Tablet 1.5mg Tab.", amount: 80.0 },
-  bisoprolol: { code: "NHIA-12-04-12", name: "Bisoprolol Tablet 5mg Tab.", amount: 95.0 },
-  bisoporol: { code: "NHIA-12-04-12", name: "Bisoprolol Tablet 5mg Tab.", amount: 95.0 },
   tamsulosin: { code: "NHIA-18-01-01", name: "Tamsulosin Capsule 0.4mg Cap.", amount: 150.0 },
-  telmisartan: { code: "NHIA-12-04-63", name: "Telmisartan Tablet 40mg/80mg Tab.", amount: 180.0 },
-  temisartan: { code: "NHIA-12-04-63", name: "Telmisartan Tablet 40mg/80mg Tab.", amount: 180.0 },
-  telmisitan: { code: "NHIA-12-04-63", name: "Telmisartan Tablet 40mg/80mg Tab.", amount: 180.0 },
   benxehexol: { code: "NHIA-05-02-01", name: "Trihexyphenidyl (Benzhexol) 5mg Tab.", amount: 45.0 },
   chlorpromazine: { code: "NHIA-24-01-01", name: "Chlorpromazine Tablet 100mg/300mg", amount: 55.0 },
   clopidogrel: { code: "NHIA-12-04-20", name: "Clopidogrel Tablet 75mg Tab.", amount: 110.0 },
-  chlopidogrel: { code: "NHIA-12-04-20", name: "Clopidogrel Tablet 75mg Tab.", amount: 110.0 },
-  atovastatin: { code: "NHIA-12-06-01", name: "Atorvastatin Tab/Caps 10mg Tab/ Cap.", amount: 122.0 },
-  artovastatin: { code: "NHIA-12-06-02", name: "Atorvastatin Tab/Caps 20mg Tab/ Cap.", amount: 154.0 },
-  amlodipne: { code: "NHIA-12-04-03", name: "Amlodipine Tablet (Besylate) 10mg Tab.", amount: 70.0 },
-  lorsatan: { code: "NHIA-12-04-49", name: "Losartan 50mg Tablet Tablet 50mg Tablet", amount: 100.0 },
-  glibenciamide: { code: "NHIA-17-06-14", name: "Glibenclamide Tablet 5mg Tab.", amount: 30.0 },
-  metroprolol: { code: "NHIA-12-04-55", name: "Metoprolol Succinate 50mg tab Tablet 50mg Tablet", amount: 157.0 },
-  metoprolol: { code: "NHIA-12-04-55", name: "Metoprolol Succinate 50mg tab Tablet 50mg Tablet", amount: 157.0 },
-  labetelol: { code: "NHIA-12-04-40", name: "Labetalol Tablet (HCL) 200mg Tab.", amount: 318.0 },
-  labetalol: { code: "NHIA-12-04-40", name: "Labetalol Tablet (HCL) 200mg Tab.", amount: 318.0 },
-  donapezil: { code: "NHIA-10-02-02", name: "Donepezil HCL Tablet 5mg, 10mg tablet", amount: 417.0 },
-  donepezil: { code: "NHIA-10-02-02", name: "Donepezil HCL Tablet 5mg, 10mg tablet", amount: 417.0 },
 };
 
 // ── CLINICAL TEXT CLEANING & PARSING ─────────────────────────────────────────
@@ -199,10 +178,36 @@ export function cleanClinicalText(value: unknown): string {
   // Normalize 1g / 2g to 1000mg / 2000mg so strength matches exactly
   t = t.replace(/\b1\s*g\b/gi, "1000mg");
   t = t.replace(/\b2\s*g\b/gi, "2000mg");
+  // Normalize drug spelling variants to ensure generic matching with correct mg:
+  t = t.replace(/\b(?:artovastatin|atovastatin)\b/gi, "atorvastatin");
+  t = t.replace(/\bamlodipne\b/gi, "amlodipine");
+  t = t.replace(/\blorsatan\b/gi, "losartan");
+  t = t.replace(/\bglibenciamide\b/gi, "glibenclamide");
+  t = t.replace(/\bmetroprolol\b/gi, "metoprolol");
+  t = t.replace(/\blabetelol\b/gi, "labetalol");
+  t = t.replace(/\bdonapezil\b/gi, "donepezil");
+  t = t.replace(/\bbisoporol\b/gi, "bisoprolol");
+  t = t.replace(/\b(?:temisartan|telmisitan)\b/gi, "telmisartan");
+  t = t.replace(/\bchlopidogrel\b/gi, "clopidogrel");
+  // Normalize common brands that carry variable strengths:
+  t = t.replace(/\bamaryl\b/gi, "glimepiride");
+  t = t.replace(/\bnorvasc\b/gi, "amlodipine");
+  t = t.replace(/\bcozaar\b/gi, "losartan");
+  t = t.replace(/\bglucophage\b/gi, "metformin");
   return t;
 }
 
 export function extractMedicationQuantity(text: string): number {
+  // 1. Detect discrete unit-based prescriptions (1 pen, 1 cartridge, 1 vial, 1 inhaler, 2 pens)
+  const unitMatch = text.match(
+    /\b(\d+)\s*(?:pens?|cartridges?|vials?|ampoules?|inhalers?|prefilled\s*syringes?|auto[- ]?injectors?)\b/i
+  );
+  if (unitMatch) {
+    const qty = parseInt(unitMatch[1], 10);
+    if (!isNaN(qty) && qty > 0) return Math.min(qty, 600);
+  }
+
+  // 2. Check for explicit total supply count, e.g. "(30 tabs)", "(60 tabs)", "(14 tabs each)"
   const explicit = Array.from(text.matchAll(/\(?\b(\d+)\s*(?:tabs?|tablets?|caps?|capsules?|each)\b\)?/gi));
   if (explicit.length > 0) {
     const qty = parseInt(explicit[explicit.length - 1][1], 10);
@@ -210,7 +215,7 @@ export function extractMedicationQuantity(text: string): number {
   }
 
   let days = 30;
-  const dur = text.match(/(\d+)\s*\/\s*(12|52|7)/);
+  const dur = text.match(/(\d+)\s*[/\\]\s*(12|52|7)/);
   if (dur) {
     const num = parseInt(dur[1], 10);
     const denom = parseInt(dur[2], 10);
@@ -223,9 +228,13 @@ export function extractMedicationQuantity(text: string): number {
   if (/\b(bd|b\.d|bid|twice)\b/i.test(text)) freq = 2;
   else if (/\b(tds|tid|t\.i\.d|three)\b/i.test(text)) freq = 3;
   else if (/\b(qid|four)\b/i.test(text)) freq = 4;
+  else if (/\b(dly|daily|nocte|mane|od|once)\b/i.test(text)) freq = 1;
 
   let dose = 1;
-  if (/1000mg|1g/i.test(text) && !/500mg/i.test(text)) dose = 2;
+  const multiDose = text.match(/\b([1-4])\s*(?:tabs?|tablets?|caps?|capsules?)\s*(?:bd|b\.d|bid|tds|tid|qid|dly|daily|nocte|mane)\b/i);
+  if (multiDose) {
+    dose = parseInt(multiDose[1], 10);
+  }
 
   return Math.max(1, Math.min(days * freq * dose, 600));
 }
@@ -646,14 +655,32 @@ export function reconcileHistoricalRow(
               const tNorm = tLower.replace(/\s+/g, "");
               const hasStem = drugTokens.some((tok) => tLower.includes(tok));
               if (hasStem) {
-                const isCombo = tLower.includes("+") || tLower.includes(" with ") || tLower.includes("&") || tLower.includes("/");
+                // Strip formulation/packaging slashes like Tab/Cap, mg/ml, units/ml before combo detection
+                const cleanTariffText = tLower
+                  .replace(/\b(?:tab|tabs?|caps?|cap|tablets?|capsules?)\s*\/\s*(?:tab|tabs?|caps?|cap|tablets?|capsules?)\b/gi, " ")
+                  .replace(/\b\d+(?:\.\d+)?\s*(?:mg|g|mcg|iu|u)\s*\/\s*(?:\d+(?:\.\d+)?)?\s*(?:ml|l|drop|dose|amp|vial|g)\b/gi, " ");
+                const isCombo =
+                  cleanTariffText.includes("+") ||
+                  cleanTariffText.includes(" with ") ||
+                  cleanTariffText.includes("&") ||
+                  /[a-z]{3,}\s*\/\s*[a-z]{3,}/.test(cleanTariffText);
+
                 let score = 0;
                 let exactMg = false;
 
-                // 1. Exact strength match (highest priority)
-                if (targetMg && tNorm.includes(targetMg)) {
-                  score += 120;
-                  exactMg = true;
+                // 1. Strength matching:
+                const tariffMgMatch = tLower.match(/(\d+(?:\.\d+)?)\s*mg\b/i);
+                const tariffMg = tariffMgMatch ? `${tariffMgMatch[1]}mg`.toLowerCase() : null;
+
+                if (targetMg) {
+                  if (tNorm.includes(targetMg) || (tariffMg && tariffMg === targetMg)) {
+                    score += 300;
+                    exactMg = true;
+                  } else if (tariffMg && tariffMg !== targetMg) {
+                    score -= 500; // Strong penalty if candidate has an explicit different strength!
+                  } else {
+                    score -= 100;
+                  }
                 }
 
                 // 2. Combo alignment:
@@ -699,8 +726,11 @@ export function reconcileHistoricalRow(
           }
 
           if (candidates.length > 0) {
-            candidates.sort((a, b) => b.score - a.score);
-            const best = candidates[0];
+            // Strictly prefer exact strength matches if any exist
+            const exactCandidates = candidates.filter((c) => c.exactMg);
+            const eligibleCandidates = exactCandidates.length > 0 ? exactCandidates : candidates;
+            eligibleCandidates.sort((a, b) => b.score - a.score);
+            const best = eligibleCandidates[0];
             foundMatch = {
               code: best.tariff.code,
               name: best.tariff.name,

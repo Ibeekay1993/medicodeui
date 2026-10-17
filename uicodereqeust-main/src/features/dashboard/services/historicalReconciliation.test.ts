@@ -21,7 +21,9 @@ describe("Historical Reconciliation Engine", () => {
     { code: "NHIA-040-008", name: "Electrocardiography (ECG)", category: "procedure", amount: 10000.0 },
     { code: "NHIA-010-001", name: "Specialist Initial Consultation", category: "procedure", amount: 4000.0 },
     { code: "NHIA-081-001", name: "Manual Refraction", category: "procedure", amount: 3000.0 },
-    { code: "NHIA-081-015", name: "Low-priced spectacles/contact lens - frame and lens", category: "procedure", amount: 20000.0 },
+    { code: "NHIA-12-06-01", name: "Atorvastatin Tab/Caps 10mg Tab/ Cap.", category: "drug", amount: 122.0 },
+    { code: "NHIA-12-06-02", name: "Atorvastatin Tab/Caps 20mg Tab/ Cap.", category: "drug", amount: 154.0 },
+    { code: "NHIA-12-06-12", name: "Atorvastatin 40mg Tablet Tablet 40mg Tablet", category: "drug", amount: 494.0 },
     { code: "NHIA-133-005", name: "Physiotherapy", category: "procedure", amount: 7500.0 },
   ];
 
@@ -208,5 +210,74 @@ describe("Historical Reconciliation Engine", () => {
     expect(res.approved_items.length).toBe(1);
     expect(res.approved_items[0].code).toBe("NHIA-02-04-06"); // Diclofenac Tablet 50mg, NOT gel
     expect(res.approved_items[0].unit_price).toBe(35.0);
+  });
+
+  it("strictly picks the 10mg tariff for Atorvastatin 10mg and not 40mg or 20mg", () => {
+    const rawRow: HistoricalRawRow = {
+      date: "2026-07-02",
+      hospital: "UNIVERSITY OF IBADAN HEALTH SERVICES (JAJA HEALTH CLINIC)",
+      patient_name: "SANNI ADETUTU",
+      policy_number: "1637962",
+      authorization_code: "R/AO/19062672BD",
+      diagnosis: "Hypertension , dyslipidaemia",
+      treatment: "Tab Atorvastatin 10mg nocte x 1/12 (30 tabs each )",
+      status: "APPROVED",
+      category: "drug",
+    };
+
+    const res = reconcileHistoricalRow(rawRow, 2, mockTariffs, mockHospitals);
+    expect(res.approved_items.length).toBe(1);
+    expect(res.approved_items[0].code).toBe("NHIA-12-06-01"); // 10mg Tab/Caps, NOT 40mg
+    expect(res.approved_items[0].name).toContain("10mg");
+    expect(res.approved_items[0].unit_price).toBe(122.0);
+    expect(res.approved_items[0].quantity).toBe(30);
+    expect(res.approved_items[0].amount).toBe(3660.0);
+  });
+
+  it("calculates 60 tablets for Tab metformin 1g BD x1/12 (not 120)", () => {
+    const rawRow: HistoricalRawRow = {
+      date: "2026-07-02",
+      hospital: "UNIVERSITY OF IBADAN HEALTH SERVICES (JAJA HEALTH CLINIC)",
+      patient_name: "Okunlola Justina",
+      policy_number: "2872766",
+      authorization_code: "R/AO/19062691BD",
+      diagnosis: "Diabetes mellitus, Hypertension",
+      treatment: "Tab metformin 1g BD x1/12",
+      status: "APPROVED",
+      category: "Drug",
+    };
+
+    const res = reconcileHistoricalRow(rawRow, 21, mockTariffs, mockHospitals);
+    expect(res.approved_items.length).toBe(1);
+    expect(res.approved_items[0].code).toBe("NHIA-17-06-21"); // Metformin 1000mg
+    expect(res.approved_items[0].quantity).toBe(60); // 30 days * 2 BD = 60 tabs, NOT 120!
+    expect(res.approved_items[0].unit_price).toBe(106.0);
+    expect(res.approved_items[0].amount).toBe(6360.0);
+  });
+
+  it("extracts discrete unit quantity of 1 for Lantus insulin 1 pen (not 30)", () => {
+    expect(extractMedicationQuantity("Lantus insulin 1 pen")).toBe(1);
+    expect(extractMedicationQuantity("Lantus insulin 2 pens")).toBe(2);
+    expect(extractMedicationQuantity("1 vial gentamycin")).toBe(1);
+  });
+
+  it("prices Electrolytes, Urea and Creatinine at the official NHIA sum of ₦9,000.00", () => {
+    const rawRow: HistoricalRawRow = {
+      date: "2026-07-02",
+      hospital: "UNIVERSITY OF IBADAN HEALTH SERVICES (JAJA HEALTH CLINIC)",
+      patient_name: "Alawode Olusola",
+      policy_number: "2872373",
+      authorization_code: "R/AO/19062686BD",
+      diagnosis: "HTN + DM + BPH",
+      treatment: "HBA1C, E/U/CR, PSA.",
+      status: "APPROVED",
+      category: "lab",
+    };
+
+    const res = reconcileHistoricalRow(rawRow, 16, mockTariffs, mockHospitals);
+    const eucr = res.approved_items.find((i) => i.name.toLowerCase().includes("electrolytes"));
+    expect(eucr).toBeDefined();
+    expect(eucr?.unit_price).toBe(9000.0);
+    expect(eucr?.amount).toBe(9000.0);
   });
 });
