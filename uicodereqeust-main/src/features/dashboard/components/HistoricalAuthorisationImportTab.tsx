@@ -551,16 +551,16 @@ export function HistoricalAuthorisationImportTab() {
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
                   <tr className="bg-slate-50 border-b border-slate-200 text-slate-700 font-semibold">
-                    <th className="py-3 px-3 w-10">#</th>
-                    <th className="py-3 px-3 w-28">Date</th>
-                    <th className="py-3 px-3 w-48">Hospital / Referral</th>
-                    <th className="py-3 px-3 w-36">Auth Code</th>
-                    <th className="py-3 px-3 w-40">Patient & Policy</th>
-                    <th className="py-3 px-3 w-44">Diagnosis</th>
-                    <th className="py-3 px-3 min-w-[280px]">Reconciled Tariffs (Code, Qty, Amount)</th>
-                    <th className="py-3 px-3 text-right w-28">Approved (₦)</th>
-                    <th className="py-3 px-3 text-center w-24">Status</th>
-                    <th className="py-3 px-3 text-center w-20">Action</th>
+                    <th className="py-3 px-2.5 w-8 text-center">#</th>
+                    <th className="py-3 px-3 whitespace-nowrap">Date</th>
+                    <th className="py-3 px-3 min-w-[200px]">Hospital / Referral</th>
+                    <th className="py-3 px-3 whitespace-nowrap">Auth Code</th>
+                    <th className="py-3 px-3 min-w-[160px]">Patient & Policy</th>
+                    <th className="py-3 px-3 min-w-[150px]">Diagnosis</th>
+                    <th className="py-3 px-3 min-w-[340px]">Reconciled Tariffs (Code, Qty, Amount)</th>
+                    <th className="py-3 px-3 text-right whitespace-nowrap">Approved (₦)</th>
+                    <th className="py-3 px-3 text-center whitespace-nowrap">Status</th>
+                    <th className="py-3 px-3 text-center whitespace-nowrap">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -570,26 +570,26 @@ export function HistoricalAuthorisationImportTab() {
 
                     return (
                       <tr key={rec.row_number} className="hover:bg-slate-50/70 transition-colors">
-                        <td className="py-3 px-3 text-slate-400 font-mono text-[11px]">{rec.row_number}</td>
-                        <td className="py-3 px-3 font-mono text-[11px] text-slate-600">
+                        <td className="py-3 px-2.5 text-center text-slate-400 font-mono text-[11px]">{rec.row_number}</td>
+                        <td className="py-3 px-3 font-mono text-[11px] text-slate-600 whitespace-nowrap">
                           {rec.decided_at ? new Date(rec.decided_at).toLocaleDateString("en-GB") : "N/A"}
                         </td>
                         <td className="py-3 px-3">
-                          <div className="font-semibold text-slate-800 line-clamp-1">{rec.hospital_name}</div>
+                          <div className="font-semibold text-slate-800 leading-snug">{rec.hospital_name}</div>
                           {rec.referred_hospital_name && (
-                            <div className="text-[10px] text-indigo-600 font-medium">
+                            <div className="text-[10px] text-indigo-600 font-medium mt-0.5">
                               &rarr; Ref: {rec.referred_hospital_name}
                             </div>
                           )}
                         </td>
-                        <td className="py-3 px-3 font-mono font-semibold text-slate-800">
+                        <td className="py-3 px-3 font-mono font-semibold text-slate-800 whitespace-nowrap">
                           {rec.authorization_code || <span className="text-slate-400 italic">None</span>}
                         </td>
                         <td className="py-3 px-3">
                           <div className="font-medium text-slate-900">{rec.patient_name}</div>
                           <div className="text-[10px] text-slate-500 font-mono">Pol: {rec.policy_number}</div>
                         </td>
-                        <td className="py-3 px-3 text-slate-700 line-clamp-2">{rec.diagnosis}</td>
+                        <td className="py-3 px-3 text-slate-700 leading-snug">{rec.diagnosis}</td>
                         <td className="py-3 px-3">
                           <div className="space-y-1">
                             {rec.approved_items.map((item, idx) => (

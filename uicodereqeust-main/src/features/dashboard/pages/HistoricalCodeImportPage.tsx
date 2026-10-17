@@ -259,7 +259,7 @@ export default function HistoricalCodeImportPage() {
   if (role !== "admin") return null;
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6 pb-12 animate-in fade-in duration-500">
+    <div className="w-full space-y-6 pb-12 animate-in fade-in duration-500 px-2 sm:px-4 lg:px-6">
       {/* Top Navigation Tabs */}
       <div className="flex border-b border-slate-200 gap-6">
         <button
