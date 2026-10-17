@@ -1,5 +1,4 @@
 import { useMemo, useState, useEffect, useCallback } from "react";
-import * as XLSX from "xlsx";
 import { Upload, FileSpreadsheet, Loader2, CheckCircle2, AlertTriangle, RefreshCw, Trash2, ChevronLeft, ChevronRight, Info } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useImportHistoricalCodes } from "../hooks/useAdminOps";
@@ -21,6 +20,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
+import { HistoricalAuthorisationImportTab } from "../components/HistoricalAuthorisationImportTab";
 
 type ImportMode = "add" | "replace" | "wipe";
 
@@ -151,6 +151,7 @@ export default function HistoricalCodeImportPage() {
   }, [mappedRows]);
 
   const parseFile = async (f: File, headersIncluded: boolean) => {
+    const XLSX = await import("xlsx");
     const buffer = await f.arrayBuffer();
     const workbook = XLSX.read(buffer, { type: "array", cellDates: false });
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
@@ -253,18 +254,53 @@ export default function HistoricalCodeImportPage() {
     setReplaceDialogOpen(true);
   };
 
+  const [activeTab, setActiveTab] = useState<"authorisations" | "codes">("authorisations");
+
   if (role !== "admin") return null;
 
   return (
     <div className="mx-auto max-w-5xl space-y-6 pb-12 animate-in fade-in duration-500">
-      {!file && rows.length === 0 && (
-        <Card className="border-slate-200 shadow-sm rounded-2xl overflow-hidden">
-          <div className="bg-slate-50 border-b border-slate-100 p-4">
-            <h2 className="text-sm font-bold text-slate-800 flex items-center gap-2">
-              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-100 text-xs text-emerald-700">1</span>
-              Upload Historical File
-            </h2>
-          </div>
+      {/* Top Navigation Tabs */}
+      <div className="flex border-b border-slate-200 gap-6">
+        <button
+          type="button"
+          onClick={() => setActiveTab("authorisations")}
+          className={`pb-3 text-sm font-semibold transition-colors relative flex items-center gap-2 ${
+            activeTab === "authorisations"
+              ? "text-emerald-700 border-b-2 border-emerald-600 font-bold"
+              : "text-slate-500 hover:text-slate-800"
+          }`}
+        >
+          <FileSpreadsheet className="h-4 w-4" />
+          Historical Authorisations & Tariffs (Payment Advice)
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab("codes")}
+          className={`pb-3 text-sm font-semibold transition-colors relative flex items-center gap-2 ${
+            activeTab === "codes"
+              ? "text-emerald-700 border-b-2 border-emerald-600 font-bold"
+              : "text-slate-500 hover:text-slate-800"
+          }`}
+        >
+          <Upload className="h-4 w-4" />
+          Legacy Code Registry
+        </button>
+      </div>
+
+      {activeTab === "authorisations" ? (
+        <HistoricalAuthorisationImportTab />
+      ) : (
+        <>
+          {!file && rows.length === 0 && (
+            <Card className="border-slate-200 shadow-sm rounded-2xl overflow-hidden">
+              <div className="bg-slate-50 border-b border-slate-100 p-4">
+                <h2 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-100 text-xs text-emerald-700">1</span>
+                  Upload Historical File
+                </h2>
+              </div>
           <CardContent className="p-6">
             <div className="mb-6 rounded-lg bg-slate-50 p-4 border border-slate-100 flex items-start gap-3">
               <Info className="h-5 w-5 text-slate-400 shrink-0 mt-0.5" />
@@ -542,6 +578,8 @@ export default function HistoricalCodeImportPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+        </>
+      )}
     </div>
   );
 }
