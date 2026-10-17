@@ -54,6 +54,7 @@ export interface HistoricalReconciledRecord {
   claiming_hospital_name: string | null;
   diagnosis: string;
   treatment: string;
+  raw_treatment?: string;
   status: "approved" | "declined" | "pending";
   raw_status: string;
   decided_at: string;
@@ -800,6 +801,7 @@ export function reconcileHistoricalRow(
     claiming_hospital_name: hospEntities.claiming_hospital_name,
     diagnosis: (row.diagnosis || "").trim() || "No diagnosis recorded",
     treatment: cleanTreatment || "Treatment details unavailable",
+    raw_treatment: String(row.treatment || "").trim() || cleanTreatment || "Treatment details unavailable",
     status,
     raw_status: rawStatus,
     decided_at: decidedAt,

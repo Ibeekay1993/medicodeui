@@ -170,6 +170,7 @@ export function HistoricalAuthorisationImportTab() {
         (r.authorization_code || "").toLowerCase().includes(term) ||
         r.diagnosis.toLowerCase().includes(term) ||
         r.treatment.toLowerCase().includes(term) ||
+        (r.raw_treatment || "").toLowerCase().includes(term) ||
         r.hospital_name.toLowerCase().includes(term)
       );
     });
@@ -557,6 +558,7 @@ export function HistoricalAuthorisationImportTab() {
                     <th className="py-3 px-3 whitespace-nowrap">Auth Code</th>
                     <th className="py-3 px-3 min-w-[160px]">Patient & Policy</th>
                     <th className="py-3 px-3 min-w-[150px]">Diagnosis</th>
+                    <th className="py-3 px-3 min-w-[280px]">Original Request (Drug / Service)</th>
                     <th className="py-3 px-3 min-w-[340px]">Reconciled Tariffs (Code, Qty, Amount)</th>
                     <th className="py-3 px-3 text-right whitespace-nowrap">Approved (₦)</th>
                     <th className="py-3 px-3 text-center whitespace-nowrap">Status</th>
@@ -590,6 +592,11 @@ export function HistoricalAuthorisationImportTab() {
                           <div className="text-[10px] text-slate-500 font-mono">Pol: {rec.policy_number}</div>
                         </td>
                         <td className="py-3 px-3 text-slate-700 leading-snug">{rec.diagnosis}</td>
+                        <td className="py-3 px-3">
+                          <div className="max-w-[300px] whitespace-normal break-words text-[11px] text-slate-800 font-mono bg-slate-50/80 p-2 rounded border border-slate-200/80 leading-relaxed">
+                            {rec.raw_treatment || rec.treatment}
+                          </div>
+                        </td>
                         <td className="py-3 px-3">
                           <div className="space-y-1">
                             {rec.approved_items.map((item, idx) => (
@@ -699,7 +706,7 @@ export function HistoricalAuthorisationImportTab() {
                 Original Prescription / Excel Entry:
               </span>
               <p className="text-slate-800 font-mono text-xs bg-white p-2 rounded-lg border border-slate-200/60 break-words">
-                {selectedRecord?.treatment}
+                {selectedRecord?.raw_treatment || selectedRecord?.treatment}
               </p>
               {selectedRecord?.review_issues && selectedRecord.review_issues.length > 0 && (
                 <div className="mt-2 text-[11px] text-amber-800 bg-amber-50 p-2 rounded-lg border border-amber-200/80 flex items-start gap-1.5">
