@@ -280,14 +280,76 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
     !codeMatch
   );
 
+  // Helper: extract treatment/services text from a request even when treatment
+  // field is empty. WhatsApp requests may have "Services: ..." in clinical_notes
+  // or the worker may have failed to map it â€” this recovers those cases.
+  const extractTreatmentText = (req: any): string => {
+    if (req?.treatment?.trim()) return req.treatment.trim();
+    const cn = req?.clinical_notes;
+    if (cn) {
+      let parsed: any = cn;
+      if (typeof cn === "string") {
+        try { parsed = JSON.parse(cn); } catch { /* ignore */ }
+      }
+      if (typeof parsed === "object" && parsed !== null) {
+        const candidates = [
+          parsed.raw_text,
+          parsed.services,
+          parsed.treatment,
+          parsed.requested_service,
+          parsed.requestedService,
+        ];
+        for (const c of candidates) {
+          if (typeof c === "string" && c.trim()) return c.trim();
+        }
+      }
+      if (typeof parsed === "string" && /services?\s*:/i.test(parsed)) {
+        return parsed.trim();
+      }
+    }
+    return "";
+  };
   // 2. Add local state for editTreatment
   const [editTreatment, setEditTreatment] = useState("");
 
   useEffect(() => {
     if (open && request) {
-      setEditTreatment(request.treatment || "");
+      setEditTreatment(extractTreatmentText(request));
     }
   }, [open, request]);
+
+  // Fallback for WhatsApp requests where treatment field is empty in DB:
+  // fetch the raw WhatsApp message body and extract Services/Treatment lines.
+  useEffect(() => {
+    if (!open || !request) return;
+    if (request.treatment?.trim()) return; // already has treatment
+    if (request.source !== "whatsapp") return; // only WhatsApp requests need this
+    const msgId = request.whatsapp_message_id;
+    if (!msgId) return;
+
+    supabase
+      .from("whatsapp_messages")
+      .select("message_body")
+      .or(`message_id.eq.${msgId},id.eq.${msgId}`)
+      .maybeSingle()
+      .then(({ data }) => {
+        const body = data?.message_body;
+        if (!body || typeof body !== "string") return;
+        const lines = body.split(/\r?\n/);
+        const serviceLines: string[] = [];
+        for (const line of lines) {
+          if (/^\s*(?:services?|drugs?|treatment|procedure|investigation)\s*:/i.test(line)) {
+            const val = line.replace(/^\s*[\w\s]+:\s*/i, "").trim();
+            if (val) serviceLines.push(val);
+          }
+        }
+        if (serviceLines.length > 0) {
+          setEditTreatment(serviceLines.join(", "));
+        }
+      })
+      .catch(() => { /* silently ignore */ });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, request?.id, request?.source, request?.whatsapp_message_id, request?.treatment]);
 
   useEffect(() => {
     if (!open || !request) return;
