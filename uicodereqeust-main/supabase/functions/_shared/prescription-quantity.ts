@@ -2,10 +2,10 @@ export function extractFrequency(term: string) {
   const normalized = term.replace(/\t+/g, " ").replace(/\s+/g, " ");
   const upper = ` ${normalized.toUpperCase()} `;
   const patterns: Array<[RegExp, number, string]> = [
-    [/(?:^|\s)(OD|DLY|DAILY|QD|Q\.D\.|QDAY|ONCE DAILY)(?:\s|X|$)/i, 1, "once daily"],
-    [/(?:^|\s)(BD|BID|B\.I\.D\.|TWICE DAILY)(?:\s|X|$)/i, 2, "twice daily"],
-    [/(?:^|\s)(TDS|TID|T\.I\.D\.|THREE TIMES DAILY)(?:\s|X|$)/i, 3, "three times daily"],
-    [/(?:^|\s)(QID|Q\.I\.D\.|FOUR TIMES DAILY)(?:\s|X|$)/i, 4, "four times daily"],
+    [/(?:^|\s)(OD|O\.D|O\.D\.|DLY|DAILY|QD|Q\.D\.|QDAY|ONCE DAILY)(?:\s|X|$)/i, 1, "once daily"],
+    [/(?:^|\s)(BD|B\.D|B\.D\.|BID|B\.I\.D\.|TWICE DAILY)(?:\s|X|$)/i, 2, "twice daily"],
+    [/(?:^|\s)(TDS|T\.D\.S|T\.D\.S\.|TID|T\.I\.D\.|THREE TIMES DAILY)(?:\s|X|$)/i, 3, "three times daily"],
+    [/(?:^|\s)(QID|Q\.I\.D\.|QDS|Q\.D\.S|Q\.D\.S\.|FOUR TIMES DAILY)(?:\s|X|$)/i, 4, "four times daily"],
     [/(?:^|\s)(HS|NOCTE|NIGHTLY|AT NIGHT)(?:\s|X|$)/i, 1, "nightly"],
     [/(?:^|\s)(PRN|WHEN REQUIRED|AS NEEDED)(?:\s|X|$)/i, 1, "as needed"],
     [/(?:^|\s)(STAT|IMMEDIATELY)(?:\s|X|$)/i, 1, "stat"],
@@ -33,7 +33,7 @@ export function extractDurationDays(term: string) {
   const cleaned = stripTabsEachAnnotation(term);
   const compact = cleaned.replace(/\s+/g, "");
   // Support both / and \ in fractions like 1/12 or 1\12
-  const fraction = compact.match(/(?:x|for|×|\*)?(\d+)[/\\](7|12|52)(?!\d)/i);
+  const fraction = compact.match(/(?:x|for|×|\*)?(\d+)[/\\]+(7|12|52)(?!\d)/i);
   if (fraction) {
     const value = Number(fraction[1]);
     const denominator = Number(fraction[2]);

@@ -932,7 +932,7 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
                     value={actions.editTreatment}
                     onChange={(e) => actions.setEditTreatment(e.target.value)}
                     onBlur={() => {
-                      if (isLocked || role === "hospital" || !(["hospital", "hospital_portal"].includes(role ?? ""))) return;
+                      if (isLocked || role === "hospital") return;
                       void tariffSearch.parseTreatmentText({ replaceAuto: true, quiet: true });
                     }}
                     readOnly={isLocked || request?.deletion_status === "awaiting_admin_approval" || role === "hospital"}

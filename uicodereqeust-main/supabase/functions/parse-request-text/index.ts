@@ -167,6 +167,7 @@ const DRUG_PREFIXES = new Set([
   "tabs",
   "tablet",
   "tablets",
+  "t",
   "cap",
   "caps",
   "capsule",
@@ -199,7 +200,7 @@ const DRUG_PREFIXES = new Set([
 ]);
 
 const FORM_ALIASES: Array<[RegExp, string]> = [
-  [/\b(tab|tabs|tablet|tablets)\b/i, "tablet"],
+  [/\b(tab|tabs|tablet|tablets|t)\b/i, "tablet"],
   [/\b(cap|caps|capsule|capsules)\b/i, "capsule"],
   [/\b(inj|injection|amp|ampoule|vial)\b/i, "injection"],
   [/\b(syr|syrup|susp|suspension)\b/i, "syrup"],
@@ -214,7 +215,32 @@ const FORM_ALIASES: Array<[RegExp, string]> = [
  * Build a set of known field labels (lowercased, without trailing colon) for
  * use in stripping field label prefixes from unstructured text.
  */
-function buildKnownLabelSet(): Set<string> {
+function buildKnownLabelList(): string[] {
+  const labels: string[] = [];
+  for (const variations of Object.values(STANDARD_FIELDS)) {
+    for (const v of variations) {
+      labels.push(v.toLowerCase().replace(/:$/, ""));
+    }
+  }
+  return Array.from(new Set(labels)).sort((a, b) => b.length - a.length);
+}
+
+const KNOWN_FIELD_LABELS = buildKnownLabelList();
+
+/**
+ * Strips known field label prefixes (e.g., "Patient:", "Code:", "Diagnosis:")
+ * from each line of text, preserving the value portion that follows.
+ * This prevents field labels from interfering with medical term parsing.
+ */
+function stripFieldLabels(text: string): string {
+  return text
+    .split(/\r?\n/)
+    .map(line => {
+      let trimmed = line.trim();
+      for (const label of KNOWN_FIELD_LABELS) {
+        // eslint-disable-next-line security/detect-non-literal-regexp
+        const labelPattern = new RegExp(
+          `^${label.replace(/[.*+?^${}()|[\]\\]/g, "\\function buildKnownLabelSet(): Set<string> {
   const labels = new Set<string>();
   for (const variations of Object.values(STANDARD_FIELDS)) {
     for (const v of variations) {
@@ -244,6 +270,17 @@ function stripFieldLabels(text: string): string {
         );
         if (labelPattern.test(trimmed)) {
           return trimmed.replace(labelPattern, "").trim();
+        }
+      }
+      return trimmed;
+    })
+    .filter(line => line.length > 0)
+    .join("\n");
+}")}(?:\\s*:|:\\s*|\\s+)`,
+          "i"
+        );
+        if (labelPattern.test(trimmed)) {
+          trimmed = trimmed.replace(labelPattern, "").trim();
         }
       }
       return trimmed;
@@ -624,7 +661,19 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
-    await validateUser(req, ["utilization_manager", "utilization_manager_lead", "admin", "hospital", "claims"]);
+    await validateUser(req, [
+      "utilization_manager",
+      "utilization_manager_lead",
+      "admin",
+      "hospital",
+      "claims",
+      "nurse",
+      "support",
+      "doctor",
+      "medical_officer",
+      "bureau",
+      "finance",
+    ]);
     const { text } = await req.json();
     if (!text) throw new Error("Text required");
 
@@ -708,6 +757,7 @@ serve(async (req) => {
   } catch (err) {
     return new Response(JSON.stringify({ error: true, message: err instanceof Error ? err.message : "Parse failed" }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 400,
     });
   }
 });

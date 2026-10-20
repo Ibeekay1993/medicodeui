@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -6,6 +6,7 @@ import { MessageSquare, Save, Wand2, Loader2, AlertTriangle, CheckCircle2 } from
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { notifyPendingAuthorizationRequest } from "@/lib/pushNotifications";
+import { parsePrescriptionClientFallback } from "@/lib/prescriptionParser";
 
 const whatsappSamples = [
   {
@@ -218,6 +219,26 @@ export default function WhatsAppPage() {
           }
         } catch (e) {
           console.error("Auto-detect failed during WhatsApp parse:", e);
+        }
+
+        if (detectedItems.length === 0) {
+          try {
+            const fallbackItems = await parsePrescriptionClientFallback(data.treatment, supabase);
+            if (fallbackItems.length > 0) {
+              detectedItems = fallbackItems.map((item) => ({
+                code: item.code,
+                name: item.name,
+                category: item.category,
+                amount: item.price,
+                unit_price: item.unitPrice,
+                quantity: item.quantity,
+                matched_via: item.matched_via,
+                confidence: item.confidence,
+              }));
+            }
+          } catch (fallbackErr) {
+            console.error("Client fallback parse failed:", fallbackErr);
+          }
         }
       }
       data.approved_items = detectedItems;

@@ -60,7 +60,7 @@ serve(async (req) => {
       });
     }
 
-    const { user, profile, assuranceLevel } = await validateUser(req, ["utilization_manager", "utilization_manager_lead", "admin", "hospital"]);
+    const { user, profile, assuranceLevel } = await validateUser(req, ["utilization_manager", "utilization_manager_lead", "admin", "hospital", "nurse", "support", "doctor", "medical_officer"]);
     await assertMfaForSensitiveAction(user.id, assuranceLevel);
     const supabase = getServiceClient();
 

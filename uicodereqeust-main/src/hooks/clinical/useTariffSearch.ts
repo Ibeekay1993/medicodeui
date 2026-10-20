@@ -7,6 +7,7 @@ import {
   itemQuantity,
   itemTotal,
 } from "@/lib/clinicalUtils";
+import { parsePrescriptionClientFallback } from "@/lib/prescriptionParser";
 
 export function useTariffSearch(
   open: boolean,
@@ -86,23 +87,46 @@ export function useTariffSearch(
       setParseStatus("Analyzing prescription...");
 
       try {
-        const { data, error } = await supabase.functions.invoke("parse-request-text", {
-          body: { text },
-        });
-        if (error) throw error;
-        const parsed = ((data?.items || []) as any[]).map((item) => ({
-          code: item.code,
-          name: item.name,
-          category: item.category,
-          price: Number(item.amount || item.price || 0),
-          unitPrice: Number(item.unit_price || item.amount || item.price || 0),
-          quantity: Number(item.quantity || 1),
-          frequency: item.frequency || null,
-          duration: item.duration || null,
-          matched_via: item.matched_via,
-          matched_text: item.matched_text,
-          confidence: item.confidence,
-        }));
+        let parsed: TariffOption[] = [];
+
+        // 1. First attempt parsing via backend Edge Function
+        try {
+          const { data, error } = await supabase.functions.invoke("parse-request-text", {
+            body: { text },
+          });
+          if (error) throw error;
+          if (data && data.error) throw new Error(data.message || "Parse failed");
+
+          if (Array.isArray(data?.items)) {
+            parsed = (data.items as any[]).map((item) => ({
+              code: item.code,
+              name: item.name,
+              category: item.category,
+              price: Number(item.amount || item.price || 0),
+              unitPrice: Number(item.unit_price || item.amount || item.price || 0),
+              quantity: Number(item.quantity || 1),
+              frequency: item.frequency || null,
+              duration: item.duration || null,
+              matched_via: item.matched_via,
+              matched_text: item.matched_text,
+              confidence: item.confidence,
+            }));
+          }
+        } catch (edgeErr) {
+          console.warn("parse-request-text Edge Function call failed or rejected, falling back to client parser:", edgeErr);
+        }
+
+        // 2. Resilient fallback: If Edge Function returned 0 items or failed, run client-side parser against nhia_items
+        if (parsed.length === 0) {
+          try {
+            const clientParsed = await parsePrescriptionClientFallback(text, supabase);
+            if (clientParsed.length > 0) {
+              parsed = clientParsed;
+            }
+          } catch (fallbackErr) {
+            console.error("Client prescription parse fallback error:", fallbackErr);
+          }
+        }
 
         setApprovedItems((current) => {
           const retained = options?.replaceAuto
