@@ -239,44 +239,9 @@ function stripFieldLabels(text: string): string {
       let trimmed = line.trim();
       for (const label of KNOWN_FIELD_LABELS) {
         // eslint-disable-next-line security/detect-non-literal-regexp
+        const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
         const labelPattern = new RegExp(
-          `^${label.replace(/[.*+?^${}()|[\]\\]/g, "\\function buildKnownLabelSet(): Set<string> {
-  const labels = new Set<string>();
-  for (const variations of Object.values(STANDARD_FIELDS)) {
-    for (const v of variations) {
-      labels.add(v.toLowerCase().replace(/:$/, ""));
-    }
-  }
-  return labels;
-}
-
-const KNOWN_FIELD_LABELS = buildKnownLabelSet();
-
-/**
- * Strips known field label prefixes (e.g., "Patient:", "Code:", "Diagnosis:")
- * from each line of text, preserving the value portion that follows.
- * This prevents field labels from interfering with medical term parsing.
- */
-function stripFieldLabels(text: string): string {
-  return text
-    .split(/\r?\n/)
-    .map(line => {
-      const trimmed = line.trim();
-      for (const label of KNOWN_FIELD_LABELS) {
-        // eslint-disable-next-line security/detect-non-literal-regexp
-        const labelPattern = new RegExp(
-          `^${label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}[\\s:]*`,
-          "i"
-        );
-        if (labelPattern.test(trimmed)) {
-          return trimmed.replace(labelPattern, "").trim();
-        }
-      }
-      return trimmed;
-    })
-    .filter(line => line.length > 0)
-    .join("\n");
-}")}(?:\\s*:|:\\s*|\\s+)`,
+          `^${escaped}(?:\\s*:|:\\s*|\\s+)`,
           "i"
         );
         if (labelPattern.test(trimmed)) {
@@ -288,7 +253,6 @@ function stripFieldLabels(text: string): string {
     .filter(line => line.length > 0)
     .join("\n");
 }
-
 function normalizeClinicalText(value: string) {
   return String(value || "")
     .normalize("NFKD")
