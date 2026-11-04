@@ -16,7 +16,7 @@ import {
   ChevronDown,
   ChevronUp,
   Loader2,
-  Sparkles,
+  Zap,
   Minus,
   Plus,
   Search,
@@ -147,7 +147,7 @@ export const TreatmentCart = React.memo(function TreatmentCart({
               {parseLoading ? (
                 <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
               ) : (
-                <Sparkles className="mr-1.5 h-3.5 w-3.5" />
+                <Zap className="mr-1.5 h-3.5 w-3.5" />
               )}
               {isHospitalDirected ? "Re-Detect Disabled" : <span className="hidden sm:inline">Re-Detect Items</span>}
               {!isHospitalDirected && <span className="sm:hidden">Re-Detect</span>}
@@ -172,7 +172,7 @@ export const TreatmentCart = React.memo(function TreatmentCart({
               {parseLoading ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin text-slate-500 shrink-0" />
               ) : (
-                <Sparkles className="h-3.5 w-3.5 text-slate-500 shrink-0" />
+                <Zap className="h-3.5 w-3.5 text-slate-500 shrink-0" />
               )}
               <span className="min-w-0">{parseStatus}</span>
             </div>

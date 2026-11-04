@@ -975,20 +975,20 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
                   </div>
                   
                   <textarea 
-                    className="w-full p-2.5 border border-slate-100 rounded-lg text-xs sm:text-[13px] font-semibold text-slate-800 bg-slate-50 min-h-[60px] focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-80"
+                    className="w-full p-2.5 border border-slate-200 rounded-lg text-xs sm:text-[13px] font-semibold text-slate-900 bg-white min-h-[60px] focus:outline-none focus:ring-2 focus:ring-slate-500/30 placeholder:text-slate-400 disabled:opacity-80"
                     placeholder="Diagnosis..."
                     value={actions.editDiagnosis}
                     onChange={(e) => actions.setEditDiagnosis(e.target.value)}
                     readOnly={isLocked || request?.deletion_status === "awaiting_admin_approval" || role === "hospital" || !!request?.referred_hospital_name}
                   />
 
-                  <div className="text-[11px] sm:text-xs font-medium text-slate-500 flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100">
+                  <div className="text-[11px] sm:text-xs font-bold text-slate-700 uppercase tracking-wide flex flex-wrap items-center gap-2 pt-2 border-t border-slate-200">
                     {request?.referred_hospital_name ? "Current Treatment Request" : "Proposed Treatment"}
                     {request?.referred_hospital_name && <span className="bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded text-[10px] font-medium">Referred Hospital</span>}
                   </div>
                   
                   <textarea 
-                    className="w-full p-2.5 border border-slate-100 rounded-lg text-xs sm:text-[13px] font-semibold text-slate-800 bg-slate-50 min-h-[76px] focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-80"
+                    className="w-full p-2.5 border border-slate-200 rounded-lg text-xs sm:text-[13px] font-semibold text-slate-900 bg-white min-h-[76px] focus:outline-none focus:ring-2 focus:ring-slate-500/30 placeholder:text-slate-400 disabled:opacity-80"
                     placeholder="Treatment Plan..."
                     value={actions.editTreatment}
                     onChange={(e) => actions.setEditTreatment(e.target.value)}
