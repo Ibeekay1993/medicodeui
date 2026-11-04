@@ -15,6 +15,7 @@ import {
   canSubmitClaimFor,
   isClaimLockedAfterTransfer,
   isFrozenAuthorization,
+  isClaimEligible,
 } from "@/lib/authorizations-helpers";
 
 import AuthorizationsHeader from "@/components/authorizations/AuthorizationsHeader";
@@ -87,21 +88,23 @@ export default function HospitalAuthorizations() {
 
   const handleClaimSubmit = async () => {
     if (!selectedRequest || !hospital || !user) return;
-    if (isFrozenAuthorization(selectedRequest)) {
+    
+    if (!isClaimEligible(selectedRequest, hospital)) {
       toast({
         variant: "destructive",
-        title: "Claim not allowed",
-        description: selectedRequest.deletion_status === "awaiting_admin_approval"
-          ? "This authorization request is awaiting deletion approval and cannot be claimed."
-          : `This authorization is ${String(selectedRequest.status || "not eligible").replace(/_/g, " ")} and cannot be claimed.`,
+        title: "Claim Ineligible",
+        description: "This authorization request is not eligible for claim submission. It must be approved with a valid non-referral authorization code.",
       });
       return;
     }
-    if (String(selectedRequest.status || "").toLowerCase() !== "approved" || !selectedRequest.authorization_code) {
+
+    if (isFrozenAuthorization(selectedRequest)) {
       toast({
         variant: "destructive",
-        title: "Claim not allowed",
-        description: "Only approved authorizations with a valid authorization code can be claimed.",
+        title: "Claim blocked",
+        description: selectedRequest.deletion_status === "awaiting_admin_approval"
+          ? "This authorization request is awaiting deletion approval and cannot be claimed."
+          : `This authorization is ${String(selectedRequest.status || "not eligible").replace(/_/g, " ")} and cannot be claimed.`,
       });
       return;
     }
@@ -133,6 +136,20 @@ export default function HospitalAuthorizations() {
     setIsSubmitting(true);
 
     try {
+      // 1. Attempt atomic database submission RPC first
+      const { data: rpcRes, error: rpcErr } = await (supabase.rpc as any)("rpc_submit_new_hospital_claim", {
+        p_request_id: selectedRequest.id,
+        p_notes: `Automated claim submission for auth ${selectedRequest.authorization_code}`,
+      });
+
+      if (!rpcErr && rpcRes?.success) {
+        toast({ title: "Claim Submitted", description: `Reimbursement claim ${rpcRes.claim_number} has been logged and queued for audit.` });
+        setIsReviewing(false);
+        await refetch();
+        return;
+      }
+
+      // 2. Resilient fallback if RPC not yet deployed
       const approvedItems = getApprovedItems(selectedRequest);
       const { data: claimData, error: createError } = await supabase.from("hospital_claims" as any).insert({
         hospital_id: hospital.id,
@@ -169,6 +186,13 @@ export default function HospitalAuthorizations() {
       });
 
       if (updateError) throw updateError;
+
+      // Synchronize the authorization request status
+      await supabase.from("authorization_requests").update({
+        claimed: true,
+        claim_status: "submitted",
+        updated_at: new Date().toISOString()
+      }).eq("id", selectedRequest.id);
 
       toast({ title: "Claim Submitted", description: "Your reimbursement request has been logged successfully." });
       setIsReviewing(false);
@@ -268,6 +292,14 @@ export default function HospitalAuthorizations() {
         return;
       }
 
+            const sanitizeCsvCell = (val: any): string => {
+        let str = String(val ?? "");
+        if (/^[=\+\-@\t\r]/.test(str)) {
+          str = "'" + str;
+        }
+        return `"${str.replace(/"/g, '""')}"`;
+      };
+
       const headers = ["Date", "Patient Name", "Diagnosis", "Treatment", "Policy Number", "Auth Code", "Status", "Clinical Notes"];
       const rows = exportableRequests.map((r: any) => [
         new Date(r.created_at).toLocaleDateString("en-GB"),
@@ -280,7 +312,7 @@ export default function HospitalAuthorizations() {
         r.clinical_notes || ""
       ]);
 
-      const csvContent = [headers.join(","), ...rows.map((e: any) => e.map((f: any) => `"${String(f).replace(/"/g, '""')}"`).join(","))].join("\n");
+      const csvContent = [headers.join(","), ...rows.map((e: any) => e.map(sanitizeCsvCell).join(","))].join("\n");
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
       const link = document.createElement("a");
       link.href = URL.createObjectURL(blob);

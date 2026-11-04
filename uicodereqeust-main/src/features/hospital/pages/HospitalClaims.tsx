@@ -58,7 +58,7 @@ export default function HospitalClaims() {
   const start = total === 0 ? 0 : (page - 1) * pageSize + 1;
   const end = Math.min(page * pageSize, total);
 
-  const claimStats = claimsData?.statsData ? calculateHospitalClaimStats(claimsData.statsData) : { pending: 0, approved: 0, paid: 0, totalValue: 0 };
+  const claimStats = claimsData?.stats || (claimsData?.statsData ? calculateHospitalClaimStats(claimsData.statsData) : { pending: 0, approved: 0, paid: 0, totalValue: 0 });
 
   useTabVisibilityRefresh(() => { void refetch(); }, Boolean(hospital));
 
@@ -84,29 +84,15 @@ export default function HospitalClaims() {
         return;
       }
 
-      const safeName = String(hosp.name || "").replace(/[%(),]/g, " ");
-      const safeCode = String(hosp.code || "").replace(/[%(),]/g, " ");
-
-      const orQuery = [
+            const claimIdsFilter = [
         `hospital_id.eq.${hosp.id}`,
-        `hospital_name.ilike.%${safeName}%`
+        `claiming_hospital_id.eq.${hosp.id}`,
       ];
-
-      if (safeCode.trim()) {
-        orQuery.push(`hospital_name.ilike.%${safeCode}%`);
-      }
-      
-      const isUHS = safeName.toLowerCase().includes("university health") || safeCode.toUpperCase().includes("UHS");
-      if (isUHS) {
-        orQuery.push(`hospital_name.ilike.%UHS%`);
-        orQuery.push(`hospital_name.ilike.%U.H.S%`);
-        orQuery.push(`hospital_name.ilike.%University Health%`);
-      }
 
       const { data: allClaimsData, error } = await (supabase
         .from("hospital_claims" as any)
         .select("created_at, claim_number, patient_name, policy_number, auth_code, total_amount, approved_amount, declined_amount, contest_note, status, notes, line_items, paid_at, contest_submitted_at")
-        .or(orQuery.join(","))
+        .or(claimIdsFilter.join(","))
         .order("created_at", { ascending: false }) as any);
 
       if (error) throw error;
@@ -114,6 +100,14 @@ export default function HospitalClaims() {
         toast({ title: "No claims to export" });
         return;
       }
+
+      const sanitizeCsvCell = (val: any): string => {
+        let str = String(val ?? "");
+        if (/^[=\+\-@\t\r]/.test(str)) {
+          str = "'" + str;
+        }
+        return `"${str.replace(/"/g, '""')}"`;
+      };
 
       const headers = ["Date", "Claim ID", "Patient Name", "Policy Number", "Auth Code", "Total Amount", "Approved Amount", "Declined Amount", "Contest Note", "Contest Status", "Paid Date", "Status", "Notes", "Items Breakdown"];
       const rows = allClaimsData.map((r: any) => [
@@ -135,7 +129,7 @@ export default function HospitalClaims() {
         Array.isArray(r.line_items) ? r.line_items.map((item: any) => `${item.name} (${item.quantity} x ₦${item.unit_price})`).join("; ") : ""
       ]);
 
-      const csvContent = [headers.join(","), ...rows.map((e: any) => e.map((f: any) => `"${String(f).replace(/"/g, '""')}"`).join(","))].join("\n");
+      const csvContent = [headers.join(","), ...rows.map((e: any) => e.map(sanitizeCsvCell).join(","))].join("\n");
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
       const link = document.createElement("a");
       link.href = URL.createObjectURL(blob);

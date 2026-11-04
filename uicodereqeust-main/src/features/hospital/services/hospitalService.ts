@@ -44,59 +44,115 @@ export class HospitalService {
   }
 
   /**
-   * Fetches data for the hospital portal dashboard.
+   * Fetches data for the hospital portal dashboard with high-performance aggregation.
    */
   static async getDashboardData(hosp: Hospital) {
-    const safeName = String(hosp.name || "").replace(/[%(),]/g, " ");
-    const safeCode = String(hosp.code || "").replace(/[%(),]/g, " ");
-
-    const fuzzyQuery = [`hospital_name.ilike.%${safeName}%`];
-    if (safeCode.trim()) fuzzyQuery.push(`hospital_name.ilike.%${safeCode}%`);
-
-    const isUHS = safeName.toLowerCase().includes("university health") || safeCode.toUpperCase().includes("UHS");
-    if (isUHS) {
-      fuzzyQuery.push(`hospital_name.ilike.%UHS%`);
-      fuzzyQuery.push(`hospital_name.ilike.%U.H.S%`);
-      fuzzyQuery.push(`hospital_name.ilike.%University Health%`);
+    if (!hosp?.id) {
+      return {
+        metrics: {
+          approvedCount: 0,
+          pendingCount: 0,
+          deniedCount: 0,
+          totalValue: 0,
+          pendingPayout: 0,
+          paidClaims: 0,
+        },
+        approachingDeadlineClaims: [],
+      };
     }
 
-    const claimQuery = [
+    // 1. Attempt high-performance database-side aggregation RPC first
+    try {
+      const { data: rpcMetrics, error: rpcError } = await (supabase.rpc as any)(
+        'get_hospital_dashboard_metrics',
+        { p_hospital_id: hosp.id }
+      );
+      if (!rpcError && rpcMetrics) {
+        return {
+          metrics: {
+            approvedCount: Number(rpcMetrics.approvedCount || 0),
+            pendingCount: Number(rpcMetrics.pendingCount || 0),
+            deniedCount: Number(rpcMetrics.deniedCount || 0),
+            totalValue: Number(rpcMetrics.totalValue || 0),
+            pendingPayout: Number(rpcMetrics.pendingPayout || 0),
+            paidClaims: Number(rpcMetrics.paidClaims || 0),
+          },
+          approachingDeadlineClaims: Array.isArray(rpcMetrics.approachingDeadlineClaims)
+            ? rpcMetrics.approachingDeadlineClaims
+            : [],
+        };
+      }
+    } catch {
+      // Fallback to strict client-side query below if RPC not yet deployed
+    }
+
+    // 2. Strict multi-tenant isolation fallback (NEVER search by fuzzy substring name)
+    const authQuery = [
       `hospital_id.eq.${hosp.id}`,
       `requesting_hospital_id.eq.${hosp.id}`,
       `referring_hospital_id.eq.${hosp.id}`,
       `referred_hospital_id.eq.${hosp.id}`,
       `claiming_hospital_id.eq.${hosp.id}`,
-      ...fuzzyQuery,
+    ];
+
+    const claimQuery = [
+      `hospital_id.eq.${hosp.id}`,
+      `claiming_hospital_id.eq.${hosp.id}`,
     ];
 
     const [authRes, claimsRes] = await Promise.all([
       supabase
-        .from("authorization_requests")
-        .select("id, status, total_amount, referred_hospital_id, hospital_id")
-        .or([
-          `hospital_id.eq.${hosp.id}`,
-          `requesting_hospital_id.eq.${hosp.id}`,
-          `referring_hospital_id.eq.${hosp.id}`,
-          `referred_hospital_id.eq.${hosp.id}`,
-          `claiming_hospital_id.eq.${hosp.id}`,
-          ...fuzzyQuery,
-        ].join(","))
-        .order("created_at", { ascending: false })
-        .limit(2000),
+        .from('authorization_requests')
+        .select('id, status, total_amount, referred_hospital_id, hospital_id')
+        .or(authQuery.join(','))
+        .eq('is_historical', false)
+        .order('created_at', { ascending: false })
+        .limit(1000),
       supabase
-        .from("hospital_claims" as any)
-        .select("id, status, approved_amount, total_amount, contest_deadline, claim_number, patient_name")
-        .or(claimQuery.join(","))
-        .order("created_at", { ascending: false })
-        .limit(2000),
+        .from('hospital_claims' as any)
+        .select('id, status, approved_amount, total_amount, contest_deadline, claim_number, patient_name')
+        .or(claimQuery.join(','))
+        .order('created_at', { ascending: false })
+        .limit(1000),
     ]);
 
     if (authRes.error) throw authRes.error;
     if (claimsRes.error) throw claimsRes.error;
 
+    const auths = authRes.data || [];
+    const claims = claimsRes.data || [];
+
+    const metrics = {
+      approvedCount: auths.filter((d: any) => ['approved', 'authorization_approved'].includes(String(d.status).toLowerCase())).length,
+      pendingCount: auths.filter((d: any) => [
+        'pending', 'pending_referral', 'referral_approved', 'referral_accepted', 'pending_authorization'
+      ].includes(String(d.status).toLowerCase())).length,
+      deniedCount: auths.filter((d: any) => ['rejected', 'referral_declined', 'referral_expired'].includes(String(d.status).toLowerCase())).length,
+      totalValue: auths
+        .filter((d: any) => !(d.referred_hospital_id && d.hospital_id === hosp.id))
+        .reduce((sum: number, d: any) => sum + (Number(d.total_amount) || 0), 0),
+      pendingPayout: claims
+        .filter((c: any) => ['approved', 'partially_approved'].includes(String(c.status).toLowerCase()))
+        .reduce((sum: number, c: any) => sum + (Number(c.approved_amount || c.total_amount) || 0), 0),
+      paidClaims: claims
+        .filter((c: any) => String(c.status).toLowerCase() === 'paid')
+        .reduce((sum: number, c: any) => sum + (Number(c.approved_amount || c.total_amount) || 0), 0),
+    };
+
+    const now = new Date();
+    const fiveDaysFromNow = new Date();
+    fiveDaysFromNow.setDate(now.getDate() + 5);
+
+    const approachingDeadlineClaims = claims.filter((c: any) => {
+      if (String(c.status).toLowerCase() !== 'partially_approved') return false;
+      if (!c.contest_deadline) return false;
+      const deadline = new Date(c.contest_deadline);
+      return deadline > now && deadline <= fiveDaysFromNow;
+    });
+
     return {
-      authorizations: authRes.data || [],
-      claims: claimsRes.data || []
+      metrics,
+      approachingDeadlineClaims,
     };
   }
 
@@ -179,7 +235,7 @@ export class HospitalService {
   }
 
   /**
-   * Fetches the claims list for a hospital
+   * Fetches the claims list for a hospital with strict tenant isolation and fast aggregated stats.
    */
   static async getHospitalClaims({
     hospital,
@@ -192,33 +248,25 @@ export class HospitalService {
     page: number;
     pageSize: number;
   }) {
-    const safeName = String(hospital.name || "").replace(/[%(),]/g, " ");
-    const safeCode = String(hospital.code || "").replace(/[%(),]/g, " ");
+    if (!hospital?.id) {
+      return {
+        claims: [],
+        total: 0,
+        statsData: [],
+        stats: { pending: 0, approved: 0, paid: 0, totalValue: 0 },
+      };
+    }
 
+    // Strict multi-tenant query: only claims where hospital is the provider or legal claimant
     const orQuery = [
       `hospital_id.eq.${hospital.id}`,
-      `requesting_hospital_id.eq.${hospital.id}`,
-      `referring_hospital_id.eq.${hospital.id}`,
-      `referred_hospital_id.eq.${hospital.id}`,
       `claiming_hospital_id.eq.${hospital.id}`,
-      `hospital_name.ilike.%${safeName}%`
     ];
 
-    if (safeCode.trim()) {
-      orQuery.push(`hospital_name.ilike.%${safeCode}%`);
-    }
-
-    const isUHS = safeName.toLowerCase().includes("university health") || safeCode.toUpperCase().includes("UHS");
-    if (isUHS) {
-      orQuery.push(`hospital_name.ilike.%UHS%`);
-      orQuery.push(`hospital_name.ilike.%U.H.S%`);
-      orQuery.push(`hospital_name.ilike.%University Health%`);
-    }
-
     let query: any = supabase
-      .from("hospital_claims" as any)
-      .select("*", { count: "exact" })
-      .or(orQuery.join(","));
+      .from('hospital_claims' as any)
+      .select('*', { count: 'exact' })
+      .or(orQuery.join(','));
 
     if (searchTerm.trim()) {
       const term = `%${searchTerm.trim()}%`;
@@ -228,24 +276,51 @@ export class HospitalService {
     const from = (page - 1) * pageSize;
     const to = from + pageSize - 1;
 
-    const [pageRes, statsRes] = await Promise.all([
+    // Fast database-level stats aggregation
+    let stats: { pending: number; approved: number; paid: number; totalValue: number } | null = null;
+    try {
+      const { data: rpcStats, error: rpcStatsError } = await (supabase.rpc as any)(
+        'get_hospital_claims_stats',
+        { p_hospital_id: hospital.id }
+      );
+      if (!rpcStatsError && rpcStats) {
+        stats = {
+          pending: Number(rpcStats.pending || 0),
+          approved: Number(rpcStats.approved || 0),
+          paid: Number(rpcStats.paid || 0),
+          totalValue: Number(rpcStats.totalValue || 0),
+        };
+      }
+    } catch {
+      // Fallback below
+    }
+
+    const promises: [Promise<any>, Promise<any>?] = [
       query
-        .order("created_at", { ascending: false })
+        .order('created_at', { ascending: false })
         .range(from, to),
-      supabase
-        .from("hospital_claims" as any)
-        .select("status, total_amount")
-        .or(orQuery.join(","))
-        .limit(3000),
-    ]);
+    ];
+
+    if (!stats) {
+      promises.push(
+        supabase
+          .from('hospital_claims' as any)
+          .select('status, total_amount')
+          .or(orQuery.join(','))
+          .limit(1000)
+      );
+    }
+
+    const [pageRes, statsRes] = await Promise.all(promises);
 
     if (pageRes.error) throw pageRes.error;
-    if (statsRes.error) throw statsRes.error;
+    if (statsRes && statsRes.error) throw statsRes.error;
 
     return {
       claims: (pageRes.data || []) as any[],
       total: pageRes.count || 0,
-      statsData: (statsRes.data || []) as any[]
+      statsData: (statsRes?.data || []) as any[],
+      stats: stats || undefined,
     };
   }
 
@@ -300,6 +375,9 @@ export class HospitalService {
   }
 
   static async createAuthorizationRequest(payload: any) {
+    if (!payload?.hospital_id) {
+      throw new Error("Security verification failed: Hospital facility identifier is required.");
+    }
     if (payload.policy_number && payload.patient_phone) {
       const phoneResult = await this.registerPolicyPhone(
         payload.patient_phone,

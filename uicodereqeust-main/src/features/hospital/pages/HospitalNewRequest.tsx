@@ -361,6 +361,15 @@ export default function HospitalNewRequest() {
     const currentHospId = hospitalId || hospital?.id;
     const currentHospName = hospital?.name || "";
 
+    if (!currentHospId) {
+      toast({
+        variant: "destructive",
+        title: "Facility Identification Error",
+        description: "Your hospital facility account could not be identified. Please reload or contact support.",
+      });
+      return;
+    }
+
     if (
       (refId && currentHospId && refId === currentHospId) ||
       (refName.trim() && currentHospName.trim() && refName.toLowerCase().trim() === currentHospName.toLowerCase().trim())
