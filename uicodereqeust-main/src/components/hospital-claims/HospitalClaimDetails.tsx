@@ -11,7 +11,7 @@ import {
 
 interface HospitalClaimDetailsProps {
   selectedClaim: ClaimDraft;
-  statusClass: (status?: string | null) => string;
+  statusClass?: (status?: string | null) => string;
   statusLabel: (status?: string | null) => string;
   onContestClick: (claim: ClaimDraft) => void;
   onAcceptPayment?: (claim: ClaimDraft) => void;
@@ -19,7 +19,6 @@ interface HospitalClaimDetailsProps {
 
 export default function HospitalClaimDetails({
   selectedClaim,
-  statusClass,
   statusLabel,
   onContestClick,
   onAcceptPayment

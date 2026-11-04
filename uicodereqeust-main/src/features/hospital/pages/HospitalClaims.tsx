@@ -299,7 +299,6 @@ export default function HospitalClaims() {
           {selectedClaim && (
             <HospitalClaimDetails
               selectedClaim={selectedClaim}
-              statusClass={statusClass}
               statusLabel={statusLabel}
               onContestClick={(claim) => {
                 setDetailsOpen(false);

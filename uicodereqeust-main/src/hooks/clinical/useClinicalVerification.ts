@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import {
   cleanPatientName,
@@ -75,7 +75,7 @@ export function useClinicalVerification(
       let rpcSucceeded = false;
       let rpcUnavailable = !policy && !beneficiaryNum;
       if (!rpcUnavailable) {
-        const { data: rpcData, error: rpcError } = await withAbortTimeout(
+        const { data: rpcData, error: rpcError } = await withAbortTimeout<{ data: any; error: any }>(
           (signal) => (supabase as any).rpc("get_patient_authorization_history", {
             p_policy_number: policy || null,
             p_policy_root: policyRoot || null,

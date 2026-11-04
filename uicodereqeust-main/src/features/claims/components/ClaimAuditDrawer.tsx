@@ -394,12 +394,12 @@ export default function ClaimAuditDrawer({
                     <div className="grid gap-2">
                       {hasClinical && (
                         <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
-                          <FormattedAuditNote text={noteSections.clinical} />
+                          <FormattedAuditNote text={noteSections.clinical || ""} />
                         </div>
                       )}
                       {hasAudit && (
                         <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3 shadow-sm">
-                          <FormattedAuditNote text={noteSections.audit} />
+                          <FormattedAuditNote text={noteSections.audit || ""} />
                         </div>
                       )}
                     </div>

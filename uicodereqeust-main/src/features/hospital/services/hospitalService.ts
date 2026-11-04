@@ -338,7 +338,7 @@ export class HospitalService {
       // Fallback below
     }
 
-    const promises: [Promise<any>, Promise<any>?] = [
+    const promises: PromiseLike<any>[] = [
       query
         .order('created_at', { ascending: false })
         .range(from, to),

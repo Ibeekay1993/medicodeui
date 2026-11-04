@@ -1,4 +1,4 @@
-﻿/**
+/**
  * pushNotifications.ts
  * Utility helpers for the Web Push Notification API.
  *
@@ -182,7 +182,7 @@ export async function subscribeToPushNotifications(userId: string): Promise<{
   // 5. Store in Supabase push_subscriptions table
   let dbErr: { message: string } | null = null;
   try {
-    const { error } = await withTimeout(
+    const { error } = await withTimeout<{ error: any }>(
       (supabase as any)
         .from("push_subscriptions")
         .upsert(

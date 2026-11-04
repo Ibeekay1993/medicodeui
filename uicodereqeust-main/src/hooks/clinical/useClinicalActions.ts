@@ -236,7 +236,7 @@ export function useClinicalActions({
             .then(({ data }) => {
               const resolvedName = String(data?.full_name || "").trim();
               if (!resolvedName || isGenericApproverName(resolvedName)) return;
-              setApprovalResult((current) => current?.authCode === (request.authorization_code || "Pending")
+              setApprovalResult((current: any) => current?.authCode === (request.authorization_code || "Pending")
                 ? { ...current, authorizedByName: resolvedName }
                 : current);
             });

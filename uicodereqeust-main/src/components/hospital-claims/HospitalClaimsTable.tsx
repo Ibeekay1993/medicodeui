@@ -29,7 +29,7 @@ interface HospitalClaimsTableProps {
   filteredClaims: ClaimDraft[];
   paginatedClaims: ClaimDraft[];
   onViewDetails: (id: string) => void;
-  statusClass: (status?: string | null) => string;
+  statusClass?: (status?: string | null) => string;
   statusLabel: (status?: string | null) => string;
   page: number;
   totalPages: number;

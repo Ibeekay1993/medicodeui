@@ -44,7 +44,7 @@ const solidBadgeClass = (status?: string | null) =>
   STATUS_SOLID[String(status || "").toLowerCase()] ?? "bg-slate-500 text-white border-transparent";
 
 export default function HospitalPortalPage() {
-  const { user, fullName, hospitalId } = useAuth();
+  const { user, hospitalId } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [currentAnnouncementIndex, setCurrentAnnouncementIndex] = useState(0);
