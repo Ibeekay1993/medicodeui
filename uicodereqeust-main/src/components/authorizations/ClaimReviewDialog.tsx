@@ -190,7 +190,7 @@ export default function ClaimReviewDialog({
                   )}
                 </p>
                 {!isReferring && (
-                  <span className="text-[10px] text-slate-400 font-medium">NHIA Tariffs</span>
+                  <span className="text-[10px] text-slate-600 font-semibold">NHIA Tariffs</span>
                 )}
               </div>
 
@@ -218,7 +218,7 @@ export default function ClaimReviewDialog({
                           <FileText
                             className={cn(
                               "h-3.5 w-3.5 mt-0.5 shrink-0",
-                              isDeclined ? "text-rose-400" : "text-slate-400"
+                              isDeclined ? "text-rose-600 font-medium" : "text-slate-600 font-medium"
                             )}
                           />
                           <span
@@ -296,7 +296,7 @@ export default function ClaimReviewDialog({
                     );
                   })
                 ) : (
-                  <p className="text-xs text-slate-400 italic py-1">No itemized treatment records available.</p>
+                  <p className="text-xs text-slate-600 font-medium italic py-1">No itemized treatment records available.</p>
                 )}
               </div>
 

@@ -60,7 +60,7 @@ export default function HospitalClaimsStats({
             <item.icon className={cn("h-5 w-5", item.color)} strokeWidth={2} />
           </span>
           <div className="min-w-0 flex-1">
-            <p className="text-xs font-medium text-slate-500 truncate">{item.label}</p>
+            <p className="text-xs font-bold text-slate-700 truncate">{item.label}</p>
             <p className={cn("mt-0.5 whitespace-nowrap text-base font-bold tabular-nums sm:text-lg", item.color)}>
               {item.value}
             </p>

@@ -70,7 +70,7 @@ export default function HospitalClaimDetails({
             <h4 className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
               <FileText className="h-3.5 w-3.5 text-slate-400" /> Itemized Breakdown
             </h4>
-            <span className="text-[10px] text-slate-400 font-medium">{auditedItems.length} items</span>
+            <span className="text-[10px] text-slate-600 font-semibold">{auditedItems.length} items</span>
           </div>
 
           <div className="space-y-1.5 bg-slate-50/70 rounded-lg p-2.5 border border-slate-200">

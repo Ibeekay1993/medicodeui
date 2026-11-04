@@ -24,8 +24,11 @@ const STATUS_BADGE: Record<string, string> = {
   partially_approved: "bg-sky-600    text-white border-transparent",
   referral_approved:  "bg-indigo-600 text-white border-transparent",
   referral_accepted:  "bg-blue-600   text-white border-transparent",
+  pending_referral:   "bg-amber-500  text-white border-transparent",
   pending:            "bg-amber-500  text-white border-transparent",
   rejected:           "bg-rose-600   text-white border-transparent",
+  referral_declined:  "bg-rose-600   text-white border-transparent",
+  awaiting_admin_approval: "bg-rose-700 text-white border-transparent",
 };
 const STATUS_BADGE_DEFAULT = "bg-slate-500 text-white border-transparent";
 
@@ -295,7 +298,7 @@ export default function AuthorizationsTable({
       </Card>
       <div className="flex flex-col gap-3 md:hidden">
         {paginatedRequests.length === 0 ? (
-          <div className="py-12 text-center text-xs font-black uppercase tracking-widest text-slate-400 bg-white rounded-xl border border-slate-100 p-6">
+          <div className="py-12 text-center text-xs font-bold uppercase tracking-widest text-slate-700 bg-white rounded-xl border border-slate-100 p-6">
             No authorization requests found.
           </div>
         ) : (
@@ -423,7 +426,7 @@ export default function AuthorizationsTable({
                           ) : r.authorization_code ? (
                             <div className="flex items-center gap-1 min-w-0 w-full justify-between bg-slate-50 p-2 rounded-lg border border-slate-100">
                               <div className="flex flex-col">
-                                <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Auth Code</span>
+                                <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">Auth Code</span>
                                 <span className="text-sm font-black text-[#1D9E75] font-mono truncate">{r.authorization_code}</span>
                               </div>
                               <Button variant="ghost" size="icon" aria-label={`Copy authorization code for ${r.patient_name}`} title={`Copy authorization code for ${r.patient_name}`} onClick={(e) => { e.stopPropagation(); handleCopyAuth(r); }} className="h-8 w-8 shrink-0 border border-slate-200 bg-white text-slate-600 hover:bg-slate-50">

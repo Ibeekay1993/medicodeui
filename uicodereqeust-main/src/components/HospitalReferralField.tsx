@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, useRef } from "react";
-import { Search, Sparkles, X } from "lucide-react";
+import { Search, Building2, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -205,7 +205,7 @@ export function HospitalReferralField({
 
         {open && !disabled ? (
           <div className="absolute z-50 mt-2 max-h-96 w-full overflow-y-auto rounded-xl border border-slate-100 bg-white p-1 shadow-xl">
-            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-100 bg-white px-3 py-2 text-xs font-bold text-slate-400">
+            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-100 bg-white px-3 py-2 text-xs font-bold text-slate-700">
               <span>ACCREDITED HOSPITALS ({suggestions.length} shown)</span>
               <button 
                 type="button" 
@@ -231,11 +231,11 @@ export function HospitalReferralField({
                 >
                   <span className="min-w-0">
                     <span className="block truncate text-sm font-black text-slate-900">{hospital.name}</span>
-                    <span className="block truncate text-xs font-bold uppercase tracking-wide text-slate-400">
+                    <span className="block truncate text-xs font-semibold uppercase tracking-wide text-slate-600">
                       {[hospital.code, hospital.state].filter(Boolean).join(" / ") || "Registered hospital"}
                     </span>
                   </span>
-                  <Sparkles className="h-4 w-4 shrink-0 text-emerald-500" />
+                  <Building2 className="h-4 w-4 shrink-0 text-emerald-600" />
                 </button>
               ))
             ) : (
@@ -247,7 +247,7 @@ export function HospitalReferralField({
         ) : null}
       </div>
 
-      {helperText ? <p id="referral-hospital-helper" className="text-xs font-semibold leading-relaxed text-slate-400">{helperText}</p> : null}
+      {helperText ? <p id="referral-hospital-helper" className="text-xs font-semibold leading-relaxed text-slate-600">{helperText}</p> : null}
     </div>
   );
 }

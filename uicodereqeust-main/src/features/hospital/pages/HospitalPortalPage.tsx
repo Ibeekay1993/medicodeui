@@ -33,13 +33,16 @@ const STATUS_SOLID: Record<string, string> = {
   partially_approved: "bg-sky-600     text-white border-transparent",
   referral_approved:  "bg-indigo-600 text-white border-transparent",
   referral_accepted:  "bg-blue-600   text-white border-transparent",
+  pending_referral:   "bg-amber-500  text-white border-transparent",
   paid:               "bg-emerald-700 text-white border-transparent",
   pending:            "bg-amber-500   text-white border-transparent",
   submitted:          "bg-amber-500   text-white border-transparent",
   under_review:       "bg-sky-500     text-white border-transparent",
   rejected:           "bg-rose-600    text-white border-transparent",
   declined:           "bg-rose-600    text-white border-transparent",
+  referral_declined:  "bg-rose-600    text-white border-transparent",
   contested:          "bg-purple-600  text-white border-transparent",
+  awaiting_admin_approval: "bg-rose-700 text-white border-transparent",
 };
 const solidBadgeClass = (status?: string | null) =>
   STATUS_SOLID[String(status || "").toLowerCase()] ?? "bg-slate-500 text-white border-transparent";
@@ -211,7 +214,7 @@ export default function HospitalPortalPage() {
           <h2 id="kpi-heading" className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
             Authorization &amp; Financial Ledger
           </h2>
-          <span className="text-[10px] font-medium text-slate-400">
+          <span className="text-[10px] font-semibold text-slate-600">
             Real-time Aggregation
           </span>
         </div>
@@ -364,7 +367,7 @@ export default function HospitalPortalPage() {
               <tbody className="divide-y divide-slate-100">
                 {recentAuthorizations.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="py-8 text-center text-xs text-slate-400">
+                    <td colSpan={5} className="py-8 text-center text-xs font-bold uppercase tracking-wider text-slate-600">
                       No authorization requests found.
                     </td>
                   </tr>
@@ -382,7 +385,7 @@ export default function HospitalPortalPage() {
                         <p className="font-semibold text-slate-900 truncate leading-tight">
                           {r.patient_name}
                         </p>
-                        <p className="font-mono text-[10px] text-slate-400 truncate">
+                        <p className="font-mono text-[10px] font-medium text-slate-600 truncate">
                           {r.policy_number}
                         </p>
                       </td>
@@ -486,7 +489,7 @@ export default function HospitalPortalPage() {
               <tbody className="divide-y divide-slate-100">
                 {recentClaims.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="py-8 text-center text-xs text-slate-400">
+                    <td colSpan={5} className="py-8 text-center text-xs font-bold uppercase tracking-wider text-slate-600">
                       No claims submitted yet.
                     </td>
                   </tr>
@@ -504,7 +507,7 @@ export default function HospitalPortalPage() {
                         <p className="font-semibold text-slate-900 truncate leading-tight">
                           {c.patient_name}
                         </p>
-                        <p className="font-mono text-[10px] text-slate-400 truncate">
+                        <p className="font-mono text-[10px] font-medium text-slate-600 truncate">
                           {c.auth_code ? `Auth ${c.auth_code}` : "—"}
                         </p>
                       </td>
