@@ -22,8 +22,7 @@ import {
   ChevronRight,
   ArrowUpRight,
   Megaphone,
-  Check,
-  FileText
+  Check
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
@@ -75,7 +74,7 @@ export default function HospitalPortalPage() {
       setIsRefreshing(true);
       try {
         await refreshDashboard();
-        toast({ title: "Metrics Updated", description: "Real-time ledger data synchronized." });
+        toast({ title: "Metrics Updated", description: "Real-time ledger synchronized." });
       } finally {
         setIsRefreshing(false);
       }
@@ -102,66 +101,45 @@ export default function HospitalPortalPage() {
   };
 
   return (
-    <div className="space-y-4 max-w-full overflow-x-hidden pb-12 animate-in fade-in duration-200">
+    <div className="space-y-3.5 max-w-full overflow-x-hidden pb-10 animate-in fade-in duration-200">
       
-      {/* 1. Header Command Bar */}
-      <div className="rounded-xl border border-slate-200 bg-white p-3.5 shadow-sm sm:p-4">
-        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-900 text-white font-mono text-sm font-bold shadow-sm">
-              <Building2 className="h-5 w-5 text-emerald-400" />
-            </div>
+      {/* 1. Compact Header Strip (No redundant Authorizations button) */}
+      <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm sm:px-4 sm:py-3">
+        <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-900 text-white font-mono text-xs font-bold shadow-sm">
+              <Building2 className="h-4 w-4 text-emerald-400" />
+            </span>
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
-                <h1 className="truncate text-base font-bold text-slate-900 tracking-tight sm:text-lg">
+                <h1 className="truncate text-sm sm:text-base font-bold text-slate-900 tracking-tight">
                   {hospital?.name || fullName || "Facility Provider"}
                 </h1>
-                <Badge variant="outline" className="font-mono text-[11px] font-semibold bg-slate-50 text-slate-700 border-slate-200">
+                <Badge variant="outline" className="font-mono text-[10px] font-semibold bg-slate-50 text-slate-700 border-slate-200 px-1.5 py-0">
                   {hospital?.code || "HOSP"}
                 </Badge>
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 border border-emerald-200">
+                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0 text-[10px] font-semibold text-emerald-700 border border-emerald-200">
                   <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  Verified Facility
+                  Active Facility
                 </span>
               </div>
-              <p className="mt-0.5 text-xs text-slate-500 truncate">
-                Direct Provider Ledger · Authorizations & Claims Settlement Console
-              </p>
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
             <Button
               variant="outline"
               size="sm"
               onClick={() => void refresh()}
               disabled={isRefreshing || pageLoading}
-              className="h-8 rounded-lg border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+              className="h-8 px-2.5 rounded-lg border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50"
             >
-              <RefreshCw className={cn("mr-1.5 h-3.5 w-3.5", isRefreshing && "animate-spin text-emerald-600")} />
+              <RefreshCw className={cn("mr-1 h-3.5 w-3.5", isRefreshing && "animate-spin text-emerald-600")} />
               Sync
             </Button>
             <Button
-              variant="outline"
-              size="sm"
-              onClick={() => navigate("/dashboard/authorizations")}
-              className="h-8 rounded-lg border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50"
-            >
-              <Layers className="mr-1.5 h-3.5 w-3.5 text-slate-500" />
-              All Auths
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => navigate("/dashboard/claims")}
-              className="h-8 rounded-lg border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50"
-            >
-              <Receipt className="mr-1.5 h-3.5 w-3.5 text-slate-500" />
-              Claims Queue
-            </Button>
-            <Button
               onClick={() => navigate("/dashboard/new-request")}
-              className="h-8 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold gap-1.5 shadow-sm"
+              className="h-8 px-3.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold gap-1.5 shadow-sm"
             >
               <Plus className="h-3.5 w-3.5 text-emerald-400" />
               New Pre-Auth
@@ -170,10 +148,10 @@ export default function HospitalPortalPage() {
         </div>
       </div>
 
-      {/* 2. Active Announcements Ticker (Clean Pill, Zero Slop) */}
+      {/* 2. Active Announcements Ticker (High-Density Top Pill) */}
       {announcements.length > 0 && (
-        <div className="rounded-xl border border-slate-200 bg-slate-50/80 px-3.5 py-2.5 shadow-sm flex items-center justify-between gap-3 text-xs">
-          <div className="flex items-center gap-2.5 min-w-0">
+        <div className="rounded-xl border border-slate-200 bg-slate-50/90 px-3 py-2 shadow-sm flex items-center justify-between gap-3 text-xs">
+          <div className="flex items-center gap-2 min-w-0">
             <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-amber-100 text-amber-800">
               <Megaphone className="h-3 w-3" />
             </span>
@@ -203,9 +181,9 @@ export default function HospitalPortalPage() {
         </div>
       )}
 
-      {/* 3. Approaching Contest Deadline Notice */}
+      {/* 3. Approaching Contest Deadline Alert */}
       {approachingDeadlineClaims.length > 0 && (
-        <div className="rounded-xl border border-amber-200 bg-amber-50/80 p-3.5 shadow-sm animate-in slide-in-from-top duration-200">
+        <div className="rounded-xl border border-amber-200 bg-amber-50/90 p-3 shadow-sm animate-in slide-in-from-top duration-200">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-start gap-2.5">
               <AlertCircle className="h-4 w-4 text-amber-700 shrink-0 mt-0.5" />
@@ -214,14 +192,14 @@ export default function HospitalPortalPage() {
                   {approachingDeadlineClaims.length} Partially Approved {approachingDeadlineClaims.length === 1 ? "Claim Requires" : "Claims Require"} Review
                 </p>
                 <p className="text-[11px] text-amber-800 mt-0.5">
-                  Contestation deadlines expire within 5 days. Undisputed deductions will lock automatically for finance payout.
+                  Contestation deadlines expire within 5 days. Undisputed deductions lock automatically for payment.
                 </p>
               </div>
             </div>
             <Button
               size="sm"
               onClick={() => navigate("/dashboard/claims")}
-              className="h-7 text-xs font-semibold rounded-lg bg-amber-700 hover:bg-amber-800 text-white shrink-0"
+              className="h-7 text-xs font-semibold rounded-lg bg-amber-700 hover:bg-amber-800 text-white shrink-0 px-3"
             >
               Review Deductions <ChevronRight className="ml-1 h-3 w-3" />
             </Button>
@@ -229,104 +207,122 @@ export default function HospitalPortalPage() {
         </div>
       )}
 
-      {/* 4. Financial & Operational KPI Grid (100% Mathematically Exact) */}
+      {/* 4. Compact KPI Grid (Values auto-scale and never truncate) */}
       <section aria-labelledby="kpi-heading" className="space-y-1.5">
-        <h2 id="kpi-heading" className="text-[11px] font-bold uppercase tracking-wider text-slate-500 px-0.5">
-          Financial & Operational Telemetry
-        </h2>
-        <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
+        <div className="flex items-center justify-between px-0.5">
+          <h2 id="kpi-heading" className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+            Authorization & Financial Ledger
+          </h2>
+          <span className="text-[10px] font-medium text-slate-400">
+            Real-time Aggregation
+          </span>
+        </div>
+        
+        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-2.5">
           
-          {/* Card 1: Authorized Clinical Value */}
-          <Card className="rounded-xl border border-slate-200 bg-white p-3 sm:p-3.5 shadow-sm flex flex-col justify-between">
-            <div className="flex items-center justify-between text-slate-500 mb-1">
-              <span className="text-[11px] font-semibold text-slate-500">Authorized Care</span>
-              <TrendingUp className="h-4 w-4 text-emerald-600" />
+          {/* 1. Authorized Care Value */}
+          <Card className="rounded-xl border border-slate-200 bg-white p-2.5 sm:p-3 shadow-sm flex flex-col justify-between min-h-[72px]">
+            <div className="flex items-center justify-between text-slate-500 mb-0.5">
+              <span className="text-[11px] font-medium text-slate-500">Authorized Care</span>
+              <TrendingUp className="h-3.5 w-3.5 text-emerald-600" />
             </div>
             <div>
-              <p className="font-mono text-base sm:text-lg font-bold text-slate-900 tabular-nums leading-tight">
+              <p 
+                className="font-mono text-sm min-[420px]:text-base xl:text-sm 2xl:text-base font-bold text-slate-900 tabular-nums leading-tight truncate"
+                title={`₦${Number(metrics.totalValue || 0).toLocaleString("en-NG")}`}
+              >
                 ₦{Number(metrics.totalValue || 0).toLocaleString("en-NG")}
               </p>
-              <p className="mt-0.5 text-[10px] font-medium text-emerald-700 truncate">
-                {metrics.approvedCount} approved decisions
+              <p className="text-[10px] font-medium text-emerald-700 truncate mt-0.5">
+                {metrics.approvedCount.toLocaleString()} approved auths
               </p>
             </div>
           </Card>
 
-          {/* Card 2: Awaiting Reimbursement */}
-          <Card className="rounded-xl border border-slate-200 bg-white p-3 sm:p-3.5 shadow-sm flex flex-col justify-between">
-            <div className="flex items-center justify-between text-slate-500 mb-1">
-              <span className="text-[11px] font-semibold text-slate-500">Awaiting Payout</span>
-              <Banknote className="h-4 w-4 text-amber-600" />
+          {/* 2. Awaiting Payout */}
+          <Card className="rounded-xl border border-slate-200 bg-white p-2.5 sm:p-3 shadow-sm flex flex-col justify-between min-h-[72px]">
+            <div className="flex items-center justify-between text-slate-500 mb-0.5">
+              <span className="text-[11px] font-medium text-slate-500">Awaiting Payout</span>
+              <Banknote className="h-3.5 w-3.5 text-amber-600" />
             </div>
             <div>
-              <p className="font-mono text-base sm:text-lg font-bold text-amber-700 tabular-nums leading-tight">
+              <p 
+                className="font-mono text-sm min-[420px]:text-base xl:text-sm 2xl:text-base font-bold text-amber-700 tabular-nums leading-tight truncate"
+                title={`₦${Number(metrics.pendingPayout || 0).toLocaleString("en-NG")}`}
+              >
                 ₦{Number(metrics.pendingPayout || 0).toLocaleString("en-NG")}
               </p>
-              <p className="mt-0.5 text-[10px] font-medium text-slate-500 truncate">
-                {metrics.awaitingPaymentCount || 0} claims in payment queue
+              <p className="text-[10px] font-medium text-slate-500 truncate mt-0.5">
+                {metrics.awaitingPaymentCount || 0} claims in pay queue
               </p>
             </div>
           </Card>
 
-          {/* Card 3: Settled Cash Disbursed */}
-          <Card className="rounded-xl border border-slate-200 bg-white p-3 sm:p-3.5 shadow-sm flex flex-col justify-between">
-            <div className="flex items-center justify-between text-slate-500 mb-1">
-              <span className="text-[11px] font-semibold text-slate-500">Settled Funds</span>
-              <ShieldCheck className="h-4 w-4 text-emerald-600" />
+          {/* 3. Settled Cash Funds */}
+          <Card className="rounded-xl border border-slate-200 bg-white p-2.5 sm:p-3 shadow-sm flex flex-col justify-between min-h-[72px]">
+            <div className="flex items-center justify-between text-slate-500 mb-0.5">
+              <span className="text-[11px] font-medium text-slate-500">Settled Funds</span>
+              <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
             </div>
             <div>
-              <p className="font-mono text-base sm:text-lg font-bold text-slate-900 tabular-nums leading-tight">
+              <p 
+                className="font-mono text-sm min-[420px]:text-base xl:text-sm 2xl:text-base font-bold text-slate-900 tabular-nums leading-tight truncate"
+                title={`₦${Number(metrics.paidClaims || 0).toLocaleString("en-NG")}`}
+              >
                 ₦{Number(metrics.paidClaims || 0).toLocaleString("en-NG")}
               </p>
-              <p className="mt-0.5 text-[10px] font-medium text-slate-500 truncate">
-                {metrics.paidCount || 0} disbursed claims
+              <p className="text-[10px] font-medium text-slate-500 truncate mt-0.5">
+                {metrics.paidCount || 0} claims disbursed
               </p>
             </div>
           </Card>
 
-          {/* Card 4: In Audit Queue */}
-          <Card className="rounded-xl border border-slate-200 bg-white p-3 sm:p-3.5 shadow-sm flex flex-col justify-between">
-            <div className="flex items-center justify-between text-slate-500 mb-1">
-              <span className="text-[11px] font-semibold text-slate-500">In Claims Audit</span>
-              <Clock className="h-4 w-4 text-sky-600" />
+          {/* 4. In Claims Audit */}
+          <Card className="rounded-xl border border-slate-200 bg-white p-2.5 sm:p-3 shadow-sm flex flex-col justify-between min-h-[72px]">
+            <div className="flex items-center justify-between text-slate-500 mb-0.5">
+              <span className="text-[11px] font-medium text-slate-500">In Claims Audit</span>
+              <Clock className="h-3.5 w-3.5 text-sky-600" />
             </div>
             <div>
-              <p className="font-mono text-base sm:text-lg font-bold text-slate-900 tabular-nums leading-tight">
+              <p 
+                className="font-mono text-sm min-[420px]:text-base xl:text-sm 2xl:text-base font-bold text-slate-900 tabular-nums leading-tight truncate"
+                title={`₦${Number(metrics.inAuditValue || 0).toLocaleString("en-NG")}`}
+              >
                 ₦{Number(metrics.inAuditValue || 0).toLocaleString("en-NG")}
               </p>
-              <p className="mt-0.5 text-[10px] font-medium text-sky-700 truncate">
-                {metrics.inAuditCount || 0} claims under examiner audit
+              <p className="text-[10px] font-medium text-sky-700 truncate mt-0.5">
+                {metrics.inAuditCount || 0} under examiner audit
               </p>
             </div>
           </Card>
 
-          {/* Card 5: Pending Pre-Auths */}
-          <Card className="rounded-xl border border-slate-200 bg-white p-3 sm:p-3.5 shadow-sm flex flex-col justify-between">
-            <div className="flex items-center justify-between text-slate-500 mb-1">
-              <span className="text-[11px] font-semibold text-slate-500">Pending Review</span>
-              <Clock className="h-4 w-4 text-amber-500" />
+          {/* 5. Pending Pre-Auths */}
+          <Card className="rounded-xl border border-slate-200 bg-white p-2.5 sm:p-3 shadow-sm flex flex-col justify-between min-h-[72px]">
+            <div className="flex items-center justify-between text-slate-500 mb-0.5">
+              <span className="text-[11px] font-medium text-slate-500">Pending Review</span>
+              <Clock className="h-3.5 w-3.5 text-amber-500" />
             </div>
             <div>
-              <p className="font-mono text-base sm:text-lg font-bold text-slate-900 tabular-nums leading-tight">
-                {metrics.pendingCount}
+              <p className="font-mono text-sm min-[420px]:text-base xl:text-sm 2xl:text-base font-bold text-slate-900 tabular-nums leading-tight">
+                {metrics.pendingCount.toLocaleString()}
               </p>
-              <p className="mt-0.5 text-[10px] font-medium text-slate-500 truncate">
-                Pre-authorizations in queue
+              <p className="text-[10px] font-medium text-slate-500 truncate mt-0.5">
+                Awaiting HMO decision
               </p>
             </div>
           </Card>
 
-          {/* Card 6: Declined Decisions */}
-          <Card className="rounded-xl border border-slate-200 bg-white p-3 sm:p-3.5 shadow-sm flex flex-col justify-between">
-            <div className="flex items-center justify-between text-slate-500 mb-1">
-              <span className="text-[11px] font-semibold text-slate-500">Declined Auths</span>
-              <XCircle className="h-4 w-4 text-rose-600" />
+          {/* 6. Declined Auths */}
+          <Card className="rounded-xl border border-slate-200 bg-white p-2.5 sm:p-3 shadow-sm flex flex-col justify-between min-h-[72px]">
+            <div className="flex items-center justify-between text-slate-500 mb-0.5">
+              <span className="text-[11px] font-medium text-slate-500">Declined Auths</span>
+              <XCircle className="h-3.5 w-3.5 text-rose-600" />
             </div>
             <div>
-              <p className="font-mono text-base sm:text-lg font-bold text-slate-900 tabular-nums leading-tight">
-                {metrics.deniedCount}
+              <p className="font-mono text-sm min-[420px]:text-base xl:text-sm 2xl:text-base font-bold text-slate-900 tabular-nums leading-tight">
+                {metrics.deniedCount.toLocaleString()}
               </p>
-              <p className="mt-0.5 text-[10px] font-medium text-rose-600 truncate">
+              <p className="text-[10px] font-medium text-rose-600 truncate mt-0.5">
                 Ineligible care requests
               </p>
             </div>
@@ -335,16 +331,16 @@ export default function HospitalPortalPage() {
         </div>
       </section>
 
-      {/* 5. Live Operational Ledgers: Authorizations & Claims Tables (Zero Slop, Pure Utility) */}
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+      {/* 5. Live Data Ledgers (Non-Repetitive, Direct Utility) */}
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-3.5">
         
         {/* Recent Authorizations Ledger */}
         <Card className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden flex flex-col">
-          <CardHeader className="p-3.5 border-b border-slate-100 flex flex-row items-center justify-between">
+          <CardHeader className="py-2.5 px-3.5 border-b border-slate-100 flex flex-row items-center justify-between">
             <div className="flex items-center gap-2">
               <Layers className="h-4 w-4 text-emerald-600" />
               <CardTitle className="text-xs font-bold uppercase tracking-wider text-slate-800">
-                Recent Authorizations
+                Authorizations Ledger
               </CardTitle>
             </div>
             <Button
@@ -360,11 +356,11 @@ export default function HospitalPortalPage() {
             <table className="w-full text-left border-collapse text-xs">
               <thead>
                 <tr className="border-b border-slate-100 bg-slate-50/70 text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                  <th className="px-3.5 py-2.5">Date</th>
-                  <th className="py-2.5 pr-3">Patient</th>
-                  <th className="py-2.5 pr-3">Auth Code</th>
-                  <th className="py-2.5 pr-3">Amount</th>
-                  <th className="py-2.5 pr-3.5 text-right">Status</th>
+                  <th className="px-3.5 py-2">Date</th>
+                  <th className="py-2 pr-3">Patient</th>
+                  <th className="py-2 pr-3">Auth Code</th>
+                  <th className="py-2 pr-3">Amount</th>
+                  <th className="py-2 pr-3.5 text-right">Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -381,10 +377,10 @@ export default function HospitalPortalPage() {
                       onClick={() => navigate("/dashboard/authorizations")}
                       className="hover:bg-slate-50/80 transition-colors cursor-pointer group"
                     >
-                      <td className="px-3.5 py-2.5 font-mono text-[11px] text-slate-500 whitespace-nowrap">
+                      <td className="px-3.5 py-2 font-mono text-[11px] text-slate-500 whitespace-nowrap">
                         {r.created_at ? new Date(r.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : "—"}
                       </td>
-                      <td className="py-2.5 pr-3 max-w-[140px]">
+                      <td className="py-2 pr-3 max-w-[140px]">
                         <p className="font-semibold text-slate-900 truncate leading-tight">
                           {r.patient_name}
                         </p>
@@ -392,7 +388,7 @@ export default function HospitalPortalPage() {
                           {r.policy_number}
                         </p>
                       </td>
-                      <td className="py-2.5 pr-3">
+                      <td className="py-2 pr-3">
                         {r.authorization_code ? (
                           <div className="flex items-center gap-1 font-mono text-[11px] font-bold text-slate-800">
                             <span>{r.authorization_code}</span>
@@ -416,10 +412,10 @@ export default function HospitalPortalPage() {
                           <span className="text-[10px] font-mono text-slate-400">—</span>
                         )}
                       </td>
-                      <td className="py-2.5 pr-3 font-mono font-bold text-slate-900 tabular-nums">
+                      <td className="py-2 pr-3 font-mono font-bold text-slate-900 tabular-nums">
                         ₦{Number(r.total_amount || 0).toLocaleString("en-NG")}
                       </td>
-                      <td className="py-2.5 pr-3.5 text-right">
+                      <td className="py-2 pr-3.5 text-right">
                         <Badge
                           variant="outline"
                           className={cn("text-[10px] font-semibold px-2 py-0.5 rounded-full border shadow-none", statusPillClass(r.status))}
@@ -437,11 +433,11 @@ export default function HospitalPortalPage() {
 
         {/* Recent Claims Ledger */}
         <Card className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden flex flex-col">
-          <CardHeader className="p-3.5 border-b border-slate-100 flex flex-row items-center justify-between">
+          <CardHeader className="py-2.5 px-3.5 border-b border-slate-100 flex flex-row items-center justify-between">
             <div className="flex items-center gap-2">
               <Receipt className="h-4 w-4 text-purple-600" />
               <CardTitle className="text-xs font-bold uppercase tracking-wider text-slate-800">
-                Recent Claims & Settlements
+                Claims & Settlements Queue
               </CardTitle>
             </div>
             <Button
@@ -457,11 +453,11 @@ export default function HospitalPortalPage() {
             <table className="w-full text-left border-collapse text-xs">
               <thead>
                 <tr className="border-b border-slate-100 bg-slate-50/70 text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                  <th className="px-3.5 py-2.5">Claim ID</th>
-                  <th className="py-2.5 pr-3">Patient</th>
-                  <th className="py-2.5 pr-3">Claimed</th>
-                  <th className="py-2.5 pr-3">Approved</th>
-                  <th className="py-2.5 pr-3.5 text-right">Payout Status</th>
+                  <th className="px-3.5 py-2">Claim ID</th>
+                  <th className="py-2 pr-3">Patient</th>
+                  <th className="py-2 pr-3">Claimed</th>
+                  <th className="py-2 pr-3">Approved</th>
+                  <th className="py-2 pr-3.5 text-right">Payout Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -478,10 +474,10 @@ export default function HospitalPortalPage() {
                       onClick={() => navigate("/dashboard/claims")}
                       className="hover:bg-slate-50/80 transition-colors cursor-pointer group"
                     >
-                      <td className="px-3.5 py-2.5 font-mono text-[11px] font-bold text-slate-700 whitespace-nowrap">
+                      <td className="px-3.5 py-2 font-mono text-[11px] font-bold text-slate-700 whitespace-nowrap">
                         {c.claim_number}
                       </td>
-                      <td className="py-2.5 pr-3 max-w-[140px]">
+                      <td className="py-2 pr-3 max-w-[140px]">
                         <p className="font-semibold text-slate-900 truncate leading-tight">
                           {c.patient_name}
                         </p>
@@ -489,15 +485,15 @@ export default function HospitalPortalPage() {
                           {c.auth_code ? `Auth ${c.auth_code}` : "—"}
                         </p>
                       </td>
-                      <td className="py-2.5 pr-3 font-mono font-bold text-slate-900 tabular-nums">
+                      <td className="py-2 pr-3 font-mono font-bold text-slate-900 tabular-nums">
                         ₦{Number(c.total_amount || 0).toLocaleString("en-NG")}
                       </td>
-                      <td className="py-2.5 pr-3 font-mono font-bold text-emerald-700 tabular-nums">
+                      <td className="py-2 pr-3 font-mono font-bold text-emerald-700 tabular-nums">
                         {c.approved_amount !== null && c.approved_amount !== undefined
                           ? `₦${Number(c.approved_amount).toLocaleString("en-NG")}`
                           : "—"}
                       </td>
-                      <td className="py-2.5 pr-3.5 text-right">
+                      <td className="py-2 pr-3.5 text-right">
                         <Badge
                           variant="outline"
                           className={cn("text-[10px] font-semibold px-2 py-0.5 rounded-full border shadow-none", statusPillClass(c.status))}
