@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Trash2, CheckCircle2, Search, X, Stethoscope, Plus, Minus } from "lucide-react";
+import { Loader2, Trash2, CheckCircle2, Search, Stethoscope, Plus, Minus } from "lucide-react";
 import { TreatmentItem } from "@/lib/new-request-helpers";
 
 interface ReferralTreatmentFormDialogProps {
@@ -162,7 +162,7 @@ export default function ReferralTreatmentFormDialog({
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-xl rounded-xl border border-slate-200 bg-white p-0 shadow-xl max-h-[92dvh] overflow-y-auto overflow-x-hidden">
         <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50/80 px-4 py-3 sm:px-5">
-          <div>
+          <div className="pr-8">
             <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
               <Stethoscope className="h-4 w-4 text-emerald-600" /> Referral Treatment Plan
             </h2>
@@ -170,16 +170,6 @@ export default function ReferralTreatmentFormDialog({
               Submit diagnosis and NHIA treatment tariff items for HMO authorization
             </p>
           </div>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            onClick={onClose}
-            className="h-8 w-8 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 shrink-0"
-            aria-label="Close"
-          >
-            <X className="h-4 w-4" />
-          </Button>
         </div>
 
         <div className="p-4 sm:p-5 space-y-4">

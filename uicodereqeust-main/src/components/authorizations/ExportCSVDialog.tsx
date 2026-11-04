@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Calendar, Loader2, X } from "lucide-react";
+import { Calendar, Loader2 } from "lucide-react";
 
 interface ExportCSVDialogProps {
   open: boolean;
@@ -50,7 +50,7 @@ export default function ExportCSVDialog({ open, onOpenChange, onExport, isExport
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md rounded-xl border border-slate-200 bg-white p-0 overflow-hidden shadow-xl">
         <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50/80 px-4 py-3 sm:px-5">
-          <div>
+          <div className="pr-8">
             <DialogTitle className="text-sm font-bold text-slate-900 flex items-center gap-2">
               <Calendar className="h-4 w-4 text-emerald-600" /> Export Authorizations
             </DialogTitle>
@@ -58,16 +58,6 @@ export default function ExportCSVDialog({ open, onOpenChange, onExport, isExport
               Select a date range to download the authorizations ledger CSV
             </DialogDescription>
           </div>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            onClick={() => onOpenChange(false)}
-            className="h-8 w-8 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 shrink-0"
-            aria-label="Close"
-          >
-            <X className="h-4 w-4" />
-          </Button>
         </div>
 
         <form onSubmit={handleSubmit} className="p-4 sm:p-5 bg-white space-y-4">

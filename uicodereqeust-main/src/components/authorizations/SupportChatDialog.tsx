@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { MessageSquare, X, Loader2 } from "lucide-react";
+import { MessageSquare, Loader2 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 
 interface SupportChatDialogProps {
@@ -26,7 +26,7 @@ export default function SupportChatDialog({
     <Dialog open={requestChatOpen} onOpenChange={setRequestChatOpen}>
       <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto overflow-x-hidden rounded-xl border border-slate-200 bg-white p-0 shadow-xl">
         <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50/80 px-4 py-3 sm:px-5">
-          <div>
+          <div className="pr-8">
             <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
               <MessageSquare className="h-4 w-4 text-emerald-600" /> Request Support Chat
             </h2>
@@ -34,16 +34,6 @@ export default function SupportChatDialog({
               Send a direct query linked to this authorization request
             </p>
           </div>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            onClick={() => setRequestChatOpen(false)}
-            className="h-8 w-8 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 shrink-0"
-            aria-label="Close"
-          >
-            <X className="h-4 w-4" />
-          </Button>
         </div>
 
         <div className="p-4 sm:p-5 space-y-3.5">

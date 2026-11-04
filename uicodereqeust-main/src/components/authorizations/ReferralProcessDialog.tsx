@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, CheckCircle2, AlertOctagon, X, UserCheck } from "lucide-react";
+import { Loader2, CheckCircle2, AlertOctagon, UserCheck } from "lucide-react";
 
 interface ReferralProcessDialogProps {
   open: boolean;
@@ -138,7 +138,7 @@ export default function ReferralProcessDialog({
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto overflow-x-hidden rounded-xl border border-slate-200 bg-white p-0 shadow-xl">
         <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50/80 px-4 py-3 sm:px-5">
-          <div>
+          <div className="pr-8">
             <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
               <UserCheck className="h-4 w-4 text-emerald-600" /> Accept Incoming Referral
             </h2>
@@ -146,16 +146,6 @@ export default function ReferralProcessDialog({
               Verify patient arrival PIN to take over treatment
             </p>
           </div>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            onClick={onClose}
-            className="h-8 w-8 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 shrink-0"
-            aria-label="Close"
-          >
-            <X className="h-4 w-4" />
-          </Button>
         </div>
 
         <div className="p-4 sm:p-5 space-y-4">

@@ -1,4 +1,4 @@
-import { FileText, X, Loader2, CheckCircle2, EyeOff } from "lucide-react";
+import { FileText, Loader2, CheckCircle2, EyeOff } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
@@ -53,7 +53,7 @@ export default function ClaimReviewDialog({
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto overflow-x-hidden rounded-xl border border-slate-200 bg-white p-0 shadow-xl">
         {/* Clean, compact header */}
         <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50/80 px-4 py-3 sm:px-5">
-          <div className="min-w-0 pr-3">
+          <div className="min-w-0 pr-8">
             <div className="flex items-center gap-2">
               <h2 className="text-sm font-bold text-slate-900 tracking-tight">
                 Authorization &amp; Claim Review
@@ -85,16 +85,6 @@ export default function ClaimReviewDialog({
               Review pre-authorized treatments and submit claim to HMO
             </p>
           </div>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            onClick={() => setIsReviewing(false)}
-            className="h-8 w-8 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 shrink-0"
-            aria-label="Close review dialog"
-          >
-            <X className="h-4 w-4" />
-          </Button>
         </div>
 
         {/* Modal content body */}

@@ -7,7 +7,7 @@ import {
   DialogFooter,
   DialogTitle
 } from "@/components/ui/dialog";
-import { Loader2, AlertTriangle, X } from "lucide-react";
+import { Loader2, AlertTriangle } from "lucide-react";
 import { ClaimDraft } from "@/lib/claims-helpers";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -66,7 +66,7 @@ export default function ContestDecisionDialog({
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="w-[calc(100vw-2rem)] max-w-md max-h-[90vh] overflow-y-auto overflow-x-hidden rounded-xl border border-slate-200 bg-white p-0 shadow-xl">
         <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50/80 px-4 py-3 sm:px-5">
-          <div>
+          <div className="pr-8">
             <DialogTitle className="text-sm font-bold text-slate-900 flex items-center gap-2">
               <AlertTriangle className="h-4 w-4 text-amber-600" /> Contest Audit Decision
             </DialogTitle>
@@ -74,16 +74,6 @@ export default function ContestDecisionDialog({
               Submit clinical justification for disputed deduction or rejection
             </DialogDescription>
           </div>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            onClick={handleClose}
-            className="h-8 w-8 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 shrink-0"
-            aria-label="Close"
-          >
-            <X className="h-4 w-4" />
-          </Button>
         </div>
 
         <div className="p-4 sm:p-5 space-y-3.5">
