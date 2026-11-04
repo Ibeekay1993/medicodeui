@@ -152,6 +152,8 @@ export default function HospitalClaims() {
     }
   };  const handleContestClaim = async (data: ContestFormData) => {
     if (!contestTarget) return;
+
+    // ── Client-side pre-flight guards (mirror server-side RPC checks) ──
     if (!hasContestableDeductions(contestTarget)) {
       toast({
         variant: "destructive",
@@ -161,38 +163,65 @@ export default function HospitalClaims() {
       return;
     }
 
-    const amountUnderContest = contestedAmount(contestTarget);
-    const documents = await Promise.all((data.contestFiles || []).map((file: File) => new Promise<any>((resolve) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve({ name: file.name, size: file.size, type: file.type, data_url: reader.result, captured_at: new Date().toISOString() });
-      reader.onerror = () => resolve({ name: file.name, size: file.size, type: file.type, captured_at: new Date().toISOString() });
-      reader.readAsDataURL(file);
-    })));
-    const updatedNotes = `${contestTarget.notes || ""}\n\n[HOSPITAL CONTEST APPEAL SUBMITTED on ${new Date().toLocaleDateString("en-GB")}]\nJustification: ${data.contestReason}`;
+    if (contestTarget.contest_deadline && new Date(contestTarget.contest_deadline) < new Date()) {
+      toast({
+        variant: "destructive",
+        title: "Contest Window Closed",
+        description: "The 7-day contest window for this claim has expired.",
+      });
+      return;
+    }
 
-    const { error } = await supabase
-      .from("hospital_claims" as any)
-      .update({ 
-        status: "contested",
-        notes: updatedNotes,
-        contest_note: data.contestReason,
-        contest_documents: documents,
-        under_contest_amount: amountUnderContest,
-        contest_submitted_at: new Date().toISOString(),
-        audit_summary: {
-          ...(contestTarget.audit_summary || {}),
-          contest: {
-            status: "awaiting_reaudit",
-            hospital_note: data.contestReason,
-            amount_under_contest: amountUnderContest,
-            documents
-          }
-        }
-      })
-      .eq("id", contestTarget.id);
+    if (contestTarget.under_contest_amount && Number(contestTarget.under_contest_amount) > 0) {
+      toast({
+        variant: "destructive",
+        title: "Already Contested",
+        description: "This claim has already been submitted for contest review.",
+      });
+      return;
+    }
+
+    const amountUnderContest = contestedAmount(contestTarget);
+
+    const documents = await Promise.all(
+      (data.contestFiles || []).map(
+        (file: File) =>
+          new Promise<any>((resolve) => {
+            const reader = new FileReader();
+            reader.onload = () =>
+              resolve({ name: file.name, size: file.size, type: file.type, data_url: reader.result, captured_at: new Date().toISOString() });
+            reader.onerror = () =>
+              resolve({ name: file.name, size: file.size, type: file.type, captured_at: new Date().toISOString() });
+            reader.readAsDataURL(file);
+          })
+      )
+    );
+
+    // ── Secure server-side RPC — enforces ownership, status, deadline ──
+    const { error } = await supabase.rpc("rpc_submit_claim_contest" as any, {
+      p_claim_id:              contestTarget.id,
+      p_reason:                data.contestReason,
+      p_documents:             documents,
+      p_under_contest_amount:  amountUnderContest,
+    });
 
     if (error) {
-      toast({ variant: "destructive", title: "Contest Submission Failed", description: error.message });
+      const msg = error.message || "";
+      let description = "Failed to submit the contest appeal. Please try again.";
+      if (msg.includes("UNAUTHORIZED") || msg.includes("FORBIDDEN")) {
+        description = "You are not authorised to contest this claim.";
+      } else if (msg.includes("DEADLINE_EXPIRED")) {
+        description = "The 7-day contest window for this claim has closed.";
+      } else if (msg.includes("DUPLICATE")) {
+        description = "This claim has already been contested.";
+      } else if (msg.includes("INVALID_STATE")) {
+        description = "This claim cannot be contested in its current state.";
+      } else if (msg.includes("NOT_FOUND")) {
+        description = "Claim record not found. Please refresh and try again.";
+      } else {
+        description = msg;
+      }
+      toast({ variant: "destructive", title: "Contest Submission Failed", description });
     } else {
       toast({ title: "Contest Appeal Submitted", description: "The auditing panel has been notified for manual reconciliation." });
       await refetch();

@@ -1,4 +1,4 @@
-import { FileText, X, Loader2, CheckCircle2 } from "lucide-react";
+import { FileText, X, Loader2, CheckCircle2, EyeOff } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
@@ -56,7 +56,7 @@ export default function ClaimReviewDialog({
           <div className="min-w-0 pr-3">
             <div className="flex items-center gap-2">
               <h2 className="text-sm font-bold text-slate-900 tracking-tight">
-                Authorization & Claim Review
+                Authorization &amp; Claim Review
               </h2>
               {selectedRequest?.status && (
                 <Badge
@@ -151,7 +151,7 @@ export default function ClaimReviewDialog({
                 <p className="text-xs font-medium text-slate-400 mt-1 italic">Hidden (Referred)</p>
               ) : (
                 <p className="text-xs font-mono font-bold text-emerald-700 mt-1">
-                  ₦{Number(selectedRequest?.total_amount || 0).toLocaleString("en-NG")}
+                  &#8358;{Number(selectedRequest?.total_amount || 0).toLocaleString("en-NG")}
                 </p>
               )}
             </div>
@@ -166,115 +166,137 @@ export default function ClaimReviewDialog({
               </p>
             </div>
 
-            {!isReferring ? (
-              <div className="pt-2 border-t border-slate-100">
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-[11px] font-medium text-slate-500">
-                    Authorized Items & Tariff Breakdown
-                  </p>
+            {/* Pre-authorized treatment items — amounts hidden for referring hospital */}
+            <div className="pt-2 border-t border-slate-100">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-[11px] font-medium text-slate-500 flex items-center gap-1.5">
+                  Authorized Items &amp; Tariff Breakdown
+                  {isReferring && (
+                    <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-amber-700 bg-amber-100 border border-amber-200 rounded px-1.5 py-0.5">
+                      <EyeOff className="h-2.5 w-2.5" />
+                      View Only
+                    </span>
+                  )}
+                </p>
+                {!isReferring && (
                   <span className="text-[10px] text-slate-400 font-medium">NHIA Tariffs</span>
-                </div>
+                )}
+              </div>
 
-                <div className="space-y-1.5 max-h-[220px] overflow-y-auto pr-1">
-                  {approvedItems.length > 0 ? (
-                    approvedItems.map((item: any, idx: number) => {
-                      const isDeclined = !!item.declined || item.status === "rejected";
-                      const qty = Math.max(1, Number(item.quantity || item.qty || 1));
-                      const unitPrice = Number(
-                        item.unit_price || item.price || item.unitPrice || (item.amount ? Number(item.amount) / qty : 0)
-                      );
-                      const total = isDeclined ? 0 : Number(item.amount || item.total || qty * unitPrice || 0);
+              <div className="space-y-1.5 max-h-[220px] overflow-y-auto pr-1">
+                {approvedItems.length > 0 ? (
+                  approvedItems.map((item: any, idx: number) => {
+                    const isDeclined = !!item.declined || item.status === "rejected";
+                    const qty = Math.max(1, Number(item.quantity || item.qty || 1));
+                    const unitPrice = Number(
+                      item.unit_price || item.price || item.unitPrice || (item.amount ? Number(item.amount) / qty : 0)
+                    );
+                    const total = isDeclined ? 0 : Number(item.amount || item.total || qty * unitPrice || 0);
 
-                      return (
-                        <div
-                          key={`${item.code || item.name || idx}`}
-                          className={cn(
-                            "flex flex-col gap-1 text-xs px-3 py-2 rounded-lg border",
-                            isDeclined
-                              ? "bg-rose-50/50 border-rose-100 text-rose-900"
-                              : "bg-slate-50/70 border-slate-200/80 text-slate-800"
-                          )}
-                        >
-                          <div className="flex items-start gap-2">
-                            <FileText
-                              className={cn(
-                                "h-3.5 w-3.5 mt-0.5 shrink-0",
-                                isDeclined ? "text-rose-400" : "text-slate-400"
-                              )}
-                            />
-                            <span
-                              className={cn(
-                                "font-medium leading-tight flex-1",
-                                isDeclined ? "line-through text-rose-700/80" : "text-slate-900"
-                              )}
-                            >
-                              {item.code ? <span className="font-mono text-slate-500 mr-1">{item.code}</span> : null}
-                              {item.name || item.item_name || "Approved item"}
-                            </span>
-                            {isDeclined && (
-                              <Badge
-                                variant="outline"
-                                className="border-rose-200 bg-rose-50 text-[10px] font-semibold text-rose-700 px-1.5 py-0 h-4 shrink-0"
-                              >
-                                Declined
-                              </Badge>
+                    return (
+                      <div
+                        key={`${item.code || item.name || idx}`}
+                        className={cn(
+                          "flex flex-col gap-1 text-xs px-3 py-2 rounded-lg border",
+                          isDeclined
+                            ? "bg-rose-50/50 border-rose-100 text-rose-900"
+                            : "bg-slate-50/70 border-slate-200/80 text-slate-800"
+                        )}
+                      >
+                        <div className="flex items-start gap-2">
+                          <FileText
+                            className={cn(
+                              "h-3.5 w-3.5 mt-0.5 shrink-0",
+                              isDeclined ? "text-rose-400" : "text-slate-400"
                             )}
-                          </div>
-                          <div className="pl-5.5 flex flex-wrap items-center justify-between gap-2 pt-0.5">
-                            <span className="text-[11px] text-slate-500">
-                              {qty} unit{qty === 1 ? "" : "s"} × ₦{unitPrice.toLocaleString("en-NG")}
-                            </span>
+                          />
+                          <span
+                            className={cn(
+                              "font-medium leading-tight flex-1",
+                              isDeclined ? "line-through text-rose-700/80" : "text-slate-900"
+                            )}
+                          >
+                            {item.code ? <span className="font-mono text-slate-500 mr-1">{item.code}</span> : null}
+                            {item.name || item.item_name || "Approved item"}
+                          </span>
+                          {isDeclined && (
+                            <Badge
+                              variant="outline"
+                              className="border-rose-200 bg-rose-50 text-[10px] font-semibold text-rose-700 px-1.5 py-0 h-4 shrink-0"
+                            >
+                              Declined
+                            </Badge>
+                          )}
+                        </div>
+                        {/* Quantity — always shown; unit price & total masked for referring hospital */}
+                        <div className="pl-5.5 flex flex-wrap items-center justify-between gap-2 pt-0.5">
+                          <span className="text-[11px] text-slate-500">
+                            {qty} unit{qty === 1 ? "" : "s"}
+                            {!isReferring && (
+                              <> &times; &#8358;{unitPrice.toLocaleString("en-NG")}</>
+                            )}
+                          </span>
+                          {!isReferring && (
                             <span
                               className={cn(
                                 "font-mono font-semibold text-xs",
                                 isDeclined ? "text-rose-600 line-through" : "text-slate-900"
                               )}
                             >
-                              ₦{total.toLocaleString("en-NG")}
+                              &#8358;{total.toLocaleString("en-NG")}
                             </span>
-                          </div>
-                          {isDeclined && item.decline_reason && (
-                            <div className="text-[11px] text-rose-700 font-medium bg-rose-100/40 rounded px-2 py-1 border border-rose-200/40 mt-0.5 pl-5">
-                              <span className="font-semibold text-rose-800">Reason:</span> {item.decline_reason}
-                            </div>
                           )}
                         </div>
-                      );
-                    })
-                  ) : selectedRequest?.treatment ? (
-                    selectedRequest.treatment.split(/[;,]/).map((item: string, idx: number) => {
-                      const text = item.trim();
-                      if (!text) return null;
-                      const hasPrice = text.includes("₦");
-                      return (
-                        <div
-                          key={idx}
-                          className="flex flex-col gap-1 text-xs text-slate-700 bg-slate-50/70 px-3 py-2 rounded-lg border border-slate-200/80"
-                        >
-                          <div className="flex items-start gap-2">
-                            <FileText className="h-3.5 w-3.5 text-slate-400 mt-0.5 shrink-0" />
-                            <span className="font-medium text-slate-900 leading-tight">
-                              {hasPrice ? text.split("(")[0].trim() : text}
-                            </span>
+                        {isDeclined && item.decline_reason && (
+                          <div className="text-[11px] text-rose-700 font-medium bg-rose-100/40 rounded px-2 py-1 border border-rose-200/40 mt-0.5 pl-5">
+                            <span className="font-semibold text-rose-800">Reason:</span> {item.decline_reason}
                           </div>
-                          {hasPrice && (
-                            <div className="pl-5.5 text-[11px] text-slate-500">
-                              Calculation: {text.split("(")[1]?.replace(")", "").trim()}
-                            </div>
-                          )}
+                        )}
+                      </div>
+                    );
+                  })
+                ) : selectedRequest?.treatment ? (
+                  selectedRequest.treatment.split(/[;,]/).map((item: string, idx: number) => {
+                    const text = item.trim();
+                    if (!text) return null;
+                    // Strip pricing info from free-text treatment string for referring hospital
+                    const displayText = isReferring
+                      ? text.replace(/₦[\d,]+(\s*[×x]\s*[\d,]+)?/gi, "").replace(/\([\s\S]*?\)/g, "").trim()
+                      : text;
+                    const hasPrice = !isReferring && text.includes("₦");
+                    if (!displayText) return null;
+                    return (
+                      <div
+                        key={idx}
+                        className="flex flex-col gap-1 text-xs text-slate-700 bg-slate-50/70 px-3 py-2 rounded-lg border border-slate-200/80"
+                      >
+                        <div className="flex items-start gap-2">
+                          <FileText className="h-3.5 w-3.5 text-slate-400 mt-0.5 shrink-0" />
+                          <span className="font-medium text-slate-900 leading-tight">
+                            {hasPrice ? displayText.split("(")[0].trim() : displayText}
+                          </span>
                         </div>
-                      );
-                    })
-                  ) : (
-                    <p className="text-xs text-slate-400 italic py-1">No itemized treatment records available.</p>
-                  )}
+                        {hasPrice && (
+                          <div className="pl-5.5 text-[11px] text-slate-500">
+                            Calculation: {text.split("(")[1]?.replace(")", "").trim()}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })
+                ) : (
+                  <p className="text-xs text-slate-400 italic py-1">No itemized treatment records available.</p>
+                )}
+              </div>
+
+              {/* Confidentiality notice — only shown to referring hospital */}
+              {isReferring && (
+                <div className="mt-2.5 rounded-lg border border-amber-200 bg-amber-50/70 px-3 py-2 text-[11px] text-amber-800 leading-relaxed">
+                  <span className="font-semibold">Confidential:</span> Tariff pricing is restricted to the treating facility.
+                  Only <span className="font-semibold">{claimOwnerNameFor(selectedRequest) || "the treating hospital"}</span> may submit the claim for financial settlement.
                 </div>
-              </div>
-            ) : (
-              <div className="pt-3 border-t border-slate-100 text-center py-2 text-slate-500 text-xs">
-                Pre-authorization items are reserved for the treating hospital.
-              </div>
-            )}
+              )}
+            </div>
           </div>
 
           {/* Submission and Action States */}
