@@ -29,6 +29,7 @@ export default function HospitalClaims() {
   
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 400);
+  const [statusFilter, setStatusFilter] = useState("all");
   const [selectedClaimId, setSelectedClaimId] = useState<string | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
@@ -39,7 +40,7 @@ export default function HospitalClaims() {
 
   useEffect(() => {
     setPage(1);
-  }, [debouncedSearch]);
+  }, [debouncedSearch, statusFilter]);
 
   const { data: hospital, isLoading: hospitalLoading } = useHospitalProfile(hospitalId || undefined, user?.id, user?.email);
 
@@ -63,8 +64,14 @@ export default function HospitalClaims() {
   useTabVisibilityRefresh(() => { void refetch(); }, Boolean(hospital));
 
   const selectedClaim = claims.find(c => c.id === selectedClaimId) || null;
-  const filteredClaims = claims;
-  const paginatedClaims = claims;
+  const filteredClaims = statusFilter === "all" 
+    ? claims 
+    : claims.filter(c => {
+        const s = String(c.status || "").toLowerCase();
+        if (statusFilter === "submitted") return s === "submitted" || s === "pending" || s === "under_review";
+        return s === statusFilter.toLowerCase();
+      });
+  const paginatedClaims = filteredClaims;
 
   const handleViewDetails = (id: string) => {
     setSelectedClaimId(id);
@@ -224,6 +231,10 @@ export default function HospitalClaims() {
         exportCSV={exportCSV}
         isExporting={isExporting}
         loading={loading}
+        hospitalName={hospital?.name}
+        hospitalCode={hospital?.code}
+        statusFilter={statusFilter}
+        setStatusFilter={setStatusFilter}
       />
 
       <HospitalClaimsStats

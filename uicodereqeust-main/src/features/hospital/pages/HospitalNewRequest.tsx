@@ -5,6 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { notifyPendingAuthorizationRequest } from "@/lib/pushNotifications";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, ArrowRight, CheckCircle2, FileText } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -598,28 +599,74 @@ export default function HospitalNewRequest() {
 
   return (
     <div className="max-w-2xl mx-auto pb-10 animate-in fade-in duration-300">
-      <div className="flex items-center gap-4 mb-4">
-        <Button variant="ghost" size="icon" onClick={() => navigate("/dashboard")} className="rounded-full h-8 w-8 bg-white border border-slate-100 shadow-sm shrink-0">
-          <ArrowLeft className="h-4 w-4" />
-        </Button>
-        <div className="flex flex-col">
-          <h1 className="text-base sm:text-xl font-black text-slate-800">New Authorization Request</h1>
-          <p className="text-xs font-semibold text-slate-400">Step {step} of 5</p>
+      <div className="rounded-xl border border-slate-200 bg-white p-3.5 shadow-sm sm:p-4 mb-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              onClick={() => navigate("/dashboard")}
+              className="rounded-lg h-9 w-9 border-slate-200 text-slate-600 hover:bg-slate-50 shrink-0"
+              aria-label="Back to dashboard"
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+            <div>
+              <div className="flex items-center gap-2">
+                <h1 className="text-base sm:text-lg font-bold text-slate-900 tracking-tight">
+                  New Authorization Request
+                </h1>
+                {hospital?.code && (
+                  <Badge variant="outline" className="font-mono text-[10px] font-semibold bg-slate-50 text-slate-700 border-slate-200">
+                    {hospital.code}
+                  </Badge>
+                )}
+              </div>
+              <p className="text-xs text-slate-500">
+                Step {step} of 5 · Clinical pre-authorization & referral request submission
+              </p>
+            </div>
+          </div>
+          <span className="hidden sm:inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            Live Verification
+          </span>
         </div>
       </div>
       
       {/* Stepper Header */}
-      <div className="flex items-center justify-between px-2 mb-6">
-        {[1, 2, 3, 4, 5].map(num => (
-          <div key={num} className="flex items-center">
-            <div className={`flex items-center justify-center w-8 h-8 rounded-full text-xs font-black transition-colors ${step === num ? "bg-emerald-500 text-white shadow-md shadow-emerald-500/20" : step > num ? "bg-emerald-100 text-emerald-600" : "bg-slate-100 text-slate-400"}`}>
-              {step > num ? <CheckCircle2 className="w-4 h-4" /> : num}
+      <div className="mb-5 rounded-xl border border-slate-200 bg-white p-3 shadow-sm sm:p-3.5">
+        <div className="grid grid-cols-5 gap-2">
+          {[
+            { num: 1, label: "Patient" },
+            { num: 2, label: "Diagnosis" },
+            { num: 3, label: "Urgency" },
+            { num: 4, label: "Treatment" },
+            { num: 5, label: "Review" },
+          ].map(({ num, label }) => (
+            <div key={num} className="flex flex-col items-center text-center">
+              <div
+                className={`flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-full text-xs font-bold transition-all ${
+                  step === num
+                    ? "bg-slate-900 text-white shadow-sm ring-2 ring-emerald-500 ring-offset-2"
+                    : step > num
+                    ? "bg-emerald-100 text-emerald-700"
+                    : "bg-slate-100 text-slate-400"
+                }`}
+              >
+                {step > num ? <CheckCircle2 className="h-4 w-4" /> : num}
+              </div>
+              <span
+                className={`mt-1 text-[10px] sm:text-[11px] font-semibold truncate ${
+                  step === num ? "text-slate-900 font-bold" : step > num ? "text-emerald-700" : "text-slate-400"
+                }`}
+              >
+                {label}
+              </span>
             </div>
-            {num < 5 && (
-              <div className={`w-12 sm:w-24 h-1 rounded-full mx-2 transition-colors ${step > num ? "bg-emerald-100" : "bg-slate-100"}`} />
-            )}
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
 
       <Form {...form}>

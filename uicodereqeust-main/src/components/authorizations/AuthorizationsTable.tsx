@@ -19,11 +19,12 @@ import {
 } from "@/lib/authorizations-helpers";
 
 const STATUS_COLORS: Record<string, { bg: string; text: string; border: string }> = {
-  approved: { bg: "bg-emerald-600", text: "text-white", border: "border-transparent" },
-  partially_approved: { bg: "bg-sky-600", text: "text-white", border: "border-transparent" },
-  referral_approved: { bg: "bg-indigo-600", text: "text-white", border: "border-transparent" },
-  pending: { bg: "bg-amber-500", text: "text-white", border: "border-transparent" },
-  rejected: { bg: "bg-rose-600", text: "text-white", border: "border-transparent" },
+  approved: { bg: "bg-emerald-50", text: "text-emerald-700", border: "border-emerald-200" },
+  partially_approved: { bg: "bg-amber-50", text: "text-amber-700", border: "border-amber-200" },
+  referral_approved: { bg: "bg-indigo-50", text: "text-indigo-700", border: "border-indigo-200" },
+  referral_accepted: { bg: "bg-blue-50", text: "text-blue-700", border: "border-blue-200" },
+  pending: { bg: "bg-amber-50", text: "text-amber-700", border: "border-amber-200" },
+  rejected: { bg: "bg-rose-50", text: "text-rose-700", border: "border-rose-200" },
 };
 
 interface AuthorizationsTableProps {
@@ -118,13 +119,13 @@ export default function AuthorizationsTable({
       <Card className="hidden overflow-hidden rounded-xl border border-slate-200 bg-white md:block">
         <div className="w-full overflow-x-auto">
           <table className="w-full text-left border-collapse min-w-[800px]">
-            <thead className="table-heading">
+            <thead className="border-b border-slate-200 bg-slate-50/80 text-[11px] font-bold uppercase tracking-wider text-slate-500">
               <tr>
-                <th className="w-[170px] min-w-[170px] px-4 py-2">Date</th>
-                <th className="py-2 pr-4">Patient</th>
-                <th className="py-2 pr-4">Code</th>
-                <th className="py-2 pr-4">Status</th>
-                <th className="py-2 pr-4">Action</th>
+                <th className="w-[170px] min-w-[170px] px-4 py-3">Submission Date</th>
+                <th className="py-3 pr-4">Patient & Diagnosis</th>
+                <th className="py-3 pr-4">Auth Code</th>
+                <th className="py-3 pr-4">Review Status</th>
+                <th className="py-3 pr-4">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">

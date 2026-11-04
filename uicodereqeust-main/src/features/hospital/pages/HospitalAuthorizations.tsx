@@ -352,34 +352,9 @@ export default function HospitalAuthorizations() {
         exportCSV={() => setIsExportDialogOpen(true)}
         isExporting={isExporting}
         loading={loading}
+        statusFilter={statusFilter}
+        setStatusFilter={setStatusFilter}
       />
-
-      <div className="flex px-4 sm:px-0 pb-2 md:w-[250px]">
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-full h-9 rounded-lg bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold hover:bg-slate-100/50 transition-colors focus:ring-1 focus:ring-emerald-500 shadow-none">
-            <SelectValue placeholder="All Status" />
-          </SelectTrigger>
-          <SelectContent className="rounded-xl border-slate-200">
-            {[
-              { id: "all", label: "All Status" },
-              { id: "pending", label: "Pending" },
-              { id: "approved", label: "Approved" },
-              { id: "partially_approved", label: "Partially Approved" },
-              { id: "rejected", label: "Rejected" },
-              { id: "pending_referral", label: "Pending Referral" },
-              { id: "referral_approved", label: "Referral Approved" },
-              { id: "referral_accepted", label: "Referral Accepted" },
-              { id: "pending_authorization", label: "Pending Authorization" },
-              { id: "referral_declined", label: "Referral Declined" },
-              { id: "referral_expired", label: "Referral Expired" }
-            ].map(filter => (
-              <SelectItem key={filter.id} value={filter.id} className="font-semibold text-slate-700 focus:bg-emerald-50 focus:text-emerald-500 cursor-pointer">
-                {filter.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
 
       <AuthorizationsTable
         paginatedRequests={paginatedRequests}

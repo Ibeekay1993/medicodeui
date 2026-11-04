@@ -1,3 +1,5 @@
+import { Card } from "@/components/ui/card";
+import { Clock, CheckCircle2, ShieldCheck, Banknote } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface HospitalClaimsStatsProps {
@@ -14,19 +16,56 @@ export default function HospitalClaimsStats({
   totalValue
 }: HospitalClaimsStatsProps) {
   const statsList = [
-    { label: "Pending Audit", value: String(pendingCount), tone: "text-amber-700 bg-amber-50" },
-    { label: "Approved", value: String(approvedCount), tone: "text-emerald-700 bg-emerald-50" },
-    { label: "Paid", value: String(paidCount), tone: "text-slate-700 bg-slate-100" },
-    { label: "Claim Value", value: `₦${totalValue.toLocaleString()}`, tone: "text-slate-700 bg-slate-50" }
+    { 
+      label: "Pending Audit", 
+      value: pendingCount.toLocaleString(), 
+      icon: Clock, 
+      color: "text-amber-600",
+      bg: "bg-amber-50"
+    },
+    { 
+      label: "Approved Claims", 
+      value: approvedCount.toLocaleString(), 
+      icon: CheckCircle2, 
+      color: "text-emerald-600",
+      bg: "bg-emerald-50"
+    },
+    { 
+      label: "Settled / Paid", 
+      value: paidCount.toLocaleString(), 
+      icon: ShieldCheck, 
+      color: "text-slate-800",
+      bg: "bg-slate-100"
+    },
+    { 
+      label: "Total Claim Value", 
+      value: `₦${Number(totalValue || 0).toLocaleString("en-NG")}`, 
+      icon: Banknote, 
+      color: "text-slate-900",
+      bg: "bg-slate-50"
+    }
   ];
 
   return (
-    <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+    <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
       {statsList.map((item) => (
-        <div key={item.label} className={cn("rounded-lg p-2.5", item.tone)}>
-          <p className="text-xs font-black uppercase tracking-widest opacity-70">{item.label}</p>
-          <p className="mt-1 text-sm font-black leading-none">{item.value}</p>
-        </div>
+        <Card 
+          key={item.label} 
+          className="flex min-h-[76px] min-w-0 items-center gap-3 rounded-xl border border-slate-200 bg-white p-3 sm:gap-3.5 sm:p-3.5 shadow-sm"
+        >
+          <span 
+            className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-lg", item.bg)} 
+            aria-hidden="true"
+          >
+            <item.icon className={cn("h-5 w-5", item.color)} strokeWidth={2} />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-medium text-slate-500 truncate">{item.label}</p>
+            <p className={cn("mt-0.5 whitespace-nowrap text-base font-bold tabular-nums sm:text-lg", item.color)}>
+              {item.value}
+            </p>
+          </div>
+        </Card>
       ))}
     </div>
   );

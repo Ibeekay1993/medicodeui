@@ -19,24 +19,39 @@ import {
   Loader2,
   Megaphone,
   Send,
-  MessageSquare
+  MessageSquare,
+  Building2,
+  RefreshCw,
+  Layers,
+  ArrowUpRight,
+  HelpCircle,
+  Check,
+  ChevronRight,
+  FileCheck
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
-import { getErrorMessage } from "@/lib/errors";
 
 export default function HospitalPortalPage() {
   const { user, fullName, hospitalId } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [currentAnnouncementIndex, setCurrentAnnouncementIndex] = useState(0);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const { data: hospital, isLoading: profileLoading } = useHospitalProfile(hospitalId, user?.id, user?.email);
   const { data: dashboardData, isLoading: dashboardLoading, refetch: refreshDashboard } = useHospitalDashboard(hospital);
   const { data: announcements = [] } = useHospitalAnnouncements();
 
-  const metrics = dashboardData?.metrics || { approvedCount: 0, pendingCount: 0, deniedCount: 0, totalValue: 0, pendingPayout: 0, paidClaims: 0 };
+  const metrics = dashboardData?.metrics || { 
+    approvedCount: 0, 
+    pendingCount: 0, 
+    deniedCount: 0, 
+    totalValue: 0, 
+    pendingPayout: 0, 
+    paidClaims: 0 
+  };
   const approachingDeadlineClaims = dashboardData?.approachingDeadlineClaims || [];
   const pageLoading = profileLoading || dashboardLoading;
 
@@ -44,136 +59,299 @@ export default function HospitalPortalPage() {
     if (announcements.length > 1) {
       const timer = setInterval(() => {
         setCurrentAnnouncementIndex((prev) => (prev + 1) % announcements.length);
-      }, 10000); // 10 seconds
+      }, 10000);
       return () => clearInterval(timer);
     }
   }, [announcements.length]);
 
   const refresh = useCallback(async () => {
     if (hospital) {
-      await refreshDashboard();
+      setIsRefreshing(true);
+      try {
+        await refreshDashboard();
+        toast({ title: "Dashboard refreshed", description: "All facility metrics are up to date." });
+      } finally {
+        setIsRefreshing(false);
+      }
     }
-  }, [hospital, refreshDashboard]);
+  }, [hospital, refreshDashboard, toast]);
 
   useTabVisibilityRefresh(refresh, Boolean(hospital));
 
   return (
-    <div className="space-y-4 max-w-full overflow-x-hidden pb-10 animate-in fade-in duration-500">
-      {approachingDeadlineClaims.length > 0 && (
-        <div className="bg-slate-50/50 border border-slate-200 text-slate-700 rounded-lg p-3 flex items-start gap-3 shadow-sm animate-in slide-in-from-top duration-300">
-          <AlertCircle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
-          <div className="flex-1">
-            <h4 className="text-xs font-black uppercase tracking-wider text-amber-900">Approaching Contest Deadline</h4>
-            <p className="text-xs font-semibold text-amber-700 mt-1">
-              You have {approachingDeadlineClaims.length} partially approved {approachingDeadlineClaims.length === 1 ? 'claim' : 'claims'} with contest deadlines expiring in the next 5 days (minimum {Math.min(...approachingDeadlineClaims.map(c => {
-                const diff = new Date(c.contest_deadline!).getTime() - new Date().getTime();
-                return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
-              }))} days remaining). Please review and submit any contestations to avoid losing your eligibility.
-            </p>
+    <div className="space-y-4 max-w-full overflow-x-hidden pb-10 animate-in fade-in duration-300">
+      {/* Facility Header Command Bar */}
+      <div className="rounded-xl border border-slate-200 bg-white p-3.5 shadow-sm sm:p-4">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-slate-900 text-white shadow-sm">
+              <Building2 className="h-5 w-5 text-emerald-400" />
+            </div>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="truncate text-base font-bold tracking-tight text-slate-900 sm:text-lg">
+                  {hospital?.name || fullName || "Healthcare Provider"}
+                </h1>
+                <Badge variant="outline" className="font-mono text-[11px] font-semibold bg-slate-50 text-slate-700 border-slate-200">
+                  {hospital?.code || "HOSP"}
+                </Badge>
+                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 border border-emerald-200">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  Active Facility
+                </span>
+              </div>
+              <p className="mt-0.5 text-xs text-slate-500 truncate">
+                Hospital Provider Portal · Role: Authorized Facility Provider
+              </p>
+            </div>
           </div>
-        </div>
-      )}
-      <div className="pb-3 border-b border-slate-200">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="text-sm font-semibold tracking-tight text-slate-800">Facility: {hospital?.name || fullName || "Loading..."} · {hospital?.code || "???"}</p>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => void refresh()}
+              disabled={isRefreshing || pageLoading}
+              className="h-8 rounded-lg border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+            >
+              <RefreshCw className={cn("mr-1.5 h-3.5 w-3.5", isRefreshing && "animate-spin text-emerald-600")} />
+              Refresh
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate("/dashboard/authorizations")}
+              className="h-8 rounded-lg border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+            >
+              <Layers className="mr-1.5 h-3.5 w-3.5 text-slate-500" />
+              Authorizations
+            </Button>
+            <Button
+              onClick={() => navigate("/dashboard/new-request")}
+              className="h-8 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold gap-1.5 shadow-sm"
+            >
+              <Plus className="h-3.5 w-3.5 text-emerald-400" />
+              New Auth Request
+            </Button>
           </div>
-          <Button 
-            onClick={() => navigate("/dashboard/new-request")}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg h-8 px-4 text-xs font-bold gap-1.5 w-full sm:w-auto"
-          >
-            <Plus className="h-4 w-4" /> New Auth
-          </Button>
         </div>
       </div>
 
-      {/* Dashboard Stats */}
-      <section aria-labelledby="hospital-summary-heading" className="space-y-2">
-        <h2 id="hospital-summary-heading" className="text-sm font-semibold text-slate-900">Authorization and payment summary</h2>
-        <DashboardMetricGrid loading={pageLoading} columns="grid-cols-1 min-[420px]:grid-cols-2 xl:grid-cols-3" items={[
-          { label: "Approved", value: metrics.approvedCount, icon: CheckCircle2, color: "text-emerald-700" },
-          { label: "Pending", value: metrics.pendingCount, icon: Clock, color: "text-amber-700" },
-          { label: "Rejected", value: metrics.deniedCount, icon: XCircle, color: "text-rose-700" },
-          { label: "Authorization value", value: `₦${metrics.totalValue.toLocaleString("en-NG")}`, icon: TrendingUp },
-          { label: "Awaiting payment", value: `₦${metrics.pendingPayout.toLocaleString("en-NG")}`, icon: Banknote, color: "text-amber-700" },
-          { label: "Paid claims", value: `₦${metrics.paidClaims.toLocaleString("en-NG")}`, icon: ShieldCheck, color: "text-emerald-700" },
-        ]} />
-      </section>
-      
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 mt-4">
-        <Card className="rounded-xl border border-slate-200 bg-white overflow-hidden">
-          <CardHeader className="p-3 sm:p-4 flex flex-row items-center justify-between">
-            <CardTitle className="text-[14px] font-medium text-slate-500 tracking-normal capitalize">Quick Actions</CardTitle>
-          </CardHeader>
-          <CardContent className="p-3 sm:p-4 grid grid-cols-3 gap-2 sm:gap-3">
-            <Button
-              variant="outline"
-              onClick={() => navigate("/dashboard/new-request")}
-              className="h-auto p-2 sm:p-3 flex flex-col gap-1 items-center justify-center border-slate-200 hover:border-emerald-500 hover:bg-emerald-50/50 hover:text-emerald-700 transition-all rounded-xl group"
-            >
-              <FileText className="h-5 w-5 text-emerald-700 mb-1" aria-hidden="true" />
-              <span className="text-xs leading-tight min-h-[2.6em] flex items-center justify-center text-center">New Auth<br/>Request</span>
-            </Button>
-            
-            <Button
-              variant="outline"
-              onClick={() => navigate("/dashboard/claims")}
-              className="h-auto p-2 sm:p-3 flex flex-col gap-1 items-center justify-center border-slate-200 hover:border-primary/40 hover:bg-slate-50 hover:text-primary transition-all rounded-xl group"
-            >
-              <Send className="h-5 w-5 text-slate-600 mb-1" aria-hidden="true" />
-              <span className="text-xs leading-tight min-h-[2.6em] flex items-center justify-center text-center">Submit<br/>Claim</span>
-            </Button>
-
-            <Button
-              variant="outline"
-              onClick={() => navigate("/dashboard/messages")}
-              className="h-auto p-2 sm:p-3 flex flex-col gap-1 items-center justify-center border-slate-200 hover:border-purple-500 hover:bg-purple-50/50 hover:text-purple-700 transition-all rounded-xl group"
-            >
-              <MessageSquare className="h-5 w-5 text-slate-600 mb-1" aria-hidden="true" />
-              <span className="text-xs leading-tight min-h-[2.6em] flex items-center justify-center text-center">Support</span>
-            </Button>
-          </CardContent>
-        </Card>
-
-        <Card className="rounded-xl border border-slate-200 bg-white overflow-hidden">
-          <CardHeader className="p-3 sm:p-4 flex flex-row items-center justify-between">
-            <CardTitle className="text-[14px] font-medium text-slate-500 tracking-normal capitalize flex items-center gap-2">
-              <Megaphone className="h-4 w-4 text-amber-500" />
-              Announcements
-            </CardTitle>
-          </CardHeader>
-          <div className="p-0">
-            {pageLoading ? (
-              <div className="flex items-center justify-center p-8"><Loader2 className="h-5 w-5 animate-spin text-slate-300" /></div>
-            ) : announcements.length === 0 ? (
-              <div className="p-8 text-center">
-                <p className="text-xs font-black uppercase tracking-widest text-slate-300">No new announcements</p>
-              </div>
-            ) : (
-              <div className="p-4 bg-slate-50/40 relative min-h-[140px] flex flex-col justify-center transition-all duration-500 ease-in-out">
-                <div className="flex items-center justify-between mb-2">
-                  <h4 className="font-bold text-sm text-slate-900">{announcements[currentAnnouncementIndex].title}</h4>
-                  <Badge variant="outline" className={cn("text-[10px] font-bold uppercase", 
-                    announcements[currentAnnouncementIndex].priority === 'high' || announcements[currentAnnouncementIndex].priority === 'critical' ? 'text-rose-600 border-rose-200 bg-rose-50' : 
-                    announcements[currentAnnouncementIndex].priority === 'medium' ? 'text-amber-600 border-amber-200 bg-amber-50' : 
-                    'text-slate-600 border-slate-200 bg-slate-50'
-                  )}>
-                    {announcements[currentAnnouncementIndex].priority}
+      {/* Approaching Contest Deadline Banner */}
+      {approachingDeadlineClaims.length > 0 && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50/70 p-3.5 shadow-sm animate-in slide-in-from-top duration-300">
+          <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-3">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-800">
+                <AlertCircle className="h-4 w-4" />
+              </span>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-amber-900">
+                    Contest Deadline Notice
+                  </h4>
+                  <Badge variant="outline" className="border-amber-300 bg-amber-100 text-[10px] font-bold text-amber-800">
+                    {approachingDeadlineClaims.length} Action Required
                   </Badge>
                 </div>
-                <p className="text-sm text-slate-600">{announcements[currentAnnouncementIndex].content}</p>
-                <div className="flex items-center justify-between mt-4">
-                  <p className="text-[10px] text-slate-400 font-medium">
-                    {new Date(announcements[currentAnnouncementIndex].created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                <p className="mt-0.5 text-xs text-amber-800">
+                  You have {approachingDeadlineClaims.length} partially approved {approachingDeadlineClaims.length === 1 ? "claim" : "claims"} expiring in the next 5 days. Review and submit contestations to avoid forfeiture.
+                </p>
+              </div>
+            </div>
+            <Button
+              size="sm"
+              onClick={() => navigate("/dashboard/claims")}
+              className="h-8 shrink-0 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold px-3"
+            >
+              Review Claims
+              <ChevronRight className="ml-1 h-3.5 w-3.5" />
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Dashboard Stats Grid */}
+      <section aria-labelledby="hospital-metrics-heading" className="space-y-2">
+        <div className="flex items-center justify-between px-1">
+          <h2 id="hospital-metrics-heading" className="text-xs font-bold uppercase tracking-wider text-slate-500">
+            Authorization & Financial Overview
+          </h2>
+          <span className="text-[11px] font-medium text-slate-400">
+            Real-time Aggregation
+          </span>
+        </div>
+        <DashboardMetricGrid
+          loading={pageLoading}
+          columns="grid-cols-2 lg:grid-cols-3 xl:grid-cols-6"
+          items={[
+            { label: "Approved Auths", value: metrics.approvedCount, icon: CheckCircle2, color: "text-emerald-600" },
+            { label: "Pending Review", value: metrics.pendingCount, icon: Clock, color: "text-amber-600" },
+            { label: "Declined Auths", value: metrics.deniedCount, icon: XCircle, color: "text-rose-600" },
+            { label: "Total Auth Value", value: `₦${Number(metrics.totalValue || 0).toLocaleString("en-NG")}`, icon: TrendingUp, color: "text-slate-900" },
+            { label: "Awaiting Payment", value: `₦${Number(metrics.pendingPayout || 0).toLocaleString("en-NG")}`, icon: Banknote, color: "text-amber-600" },
+            { label: "Settled Claims", value: `₦${Number(metrics.paidClaims || 0).toLocaleString("en-NG")}`, icon: ShieldCheck, color: "text-emerald-600" },
+          ]}
+        />
+      </section>
+
+      {/* Quick Workflows / Navigation Cards */}
+      <section aria-labelledby="quick-actions-heading" className="space-y-2">
+        <h2 id="quick-actions-heading" className="text-xs font-bold uppercase tracking-wider text-slate-500 px-1">
+          Operational Workflows
+        </h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <Card
+            onClick={() => navigate("/dashboard/new-request")}
+            className="cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-sm hover:border-emerald-500 hover:shadow-md transition-all group"
+          >
+            <div className="flex items-center justify-between mb-2">
+              <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white transition-colors">
+                <FileText className="h-5 w-5" />
+              </span>
+              <ArrowUpRight className="h-4 w-4 text-slate-300 group-hover:text-emerald-600 transition-colors" />
+            </div>
+            <h3 className="text-sm font-bold text-slate-900 group-hover:text-emerald-700 transition-colors">
+              New Pre-Auth
+            </h3>
+            <p className="mt-1 text-xs text-slate-500 leading-relaxed">
+              Submit routine, emergency, or referral care requests for instant medical review.
+            </p>
+          </Card>
+
+          <Card
+            onClick={() => navigate("/dashboard/authorizations")}
+            className="cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-sm hover:border-blue-500 hover:shadow-md transition-all group"
+          >
+            <div className="flex items-center justify-between mb-2">
+              <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50 text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                <Layers className="h-5 w-5" />
+              </span>
+              <ArrowUpRight className="h-4 w-4 text-slate-300 group-hover:text-blue-600 transition-colors" />
+            </div>
+            <h3 className="text-sm font-bold text-slate-900 group-hover:text-blue-700 transition-colors">
+              Authorizations Ledger
+            </h3>
+            <p className="mt-1 text-xs text-slate-500 leading-relaxed">
+              Track approval decisions, unlock patient codes, and convert auths to claims.
+            </p>
+          </Card>
+
+          <Card
+            onClick={() => navigate("/dashboard/claims")}
+            className="cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-sm hover:border-purple-500 hover:shadow-md transition-all group"
+          >
+            <div className="flex items-center justify-between mb-2">
+              <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-purple-50 text-purple-600 group-hover:bg-purple-600 group-hover:text-white transition-colors">
+                <Send className="h-5 w-5" />
+              </span>
+              <ArrowUpRight className="h-4 w-4 text-slate-300 group-hover:text-purple-600 transition-colors" />
+            </div>
+            <h3 className="text-sm font-bold text-slate-900 group-hover:text-purple-700 transition-colors">
+              Claims Management
+            </h3>
+            <p className="mt-1 text-xs text-slate-500 leading-relaxed">
+              Monitor claim reimbursement progress, audit deductions, and dispute settlements.
+            </p>
+          </Card>
+
+          <Card
+            onClick={() => navigate("/dashboard/messages")}
+            className="cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-sm hover:border-slate-800 hover:shadow-md transition-all group"
+          >
+            <div className="flex items-center justify-between mb-2">
+              <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 text-slate-700 group-hover:bg-slate-900 group-hover:text-white transition-colors">
+                <MessageSquare className="h-5 w-5" />
+              </span>
+              <ArrowUpRight className="h-4 w-4 text-slate-300 group-hover:text-slate-900 transition-colors" />
+            </div>
+            <h3 className="text-sm font-bold text-slate-900 group-hover:text-slate-900 transition-colors">
+              Utilization Support
+            </h3>
+            <p className="mt-1 text-xs text-slate-500 leading-relaxed">
+              Direct secure messaging with HMO nurses and medical utilization leads.
+            </p>
+          </Card>
+        </div>
+      </section>
+
+      {/* Announcements and Operating Guidelines */}
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+        {/* Announcements Card */}
+        <Card className="rounded-xl border border-slate-200 bg-white overflow-hidden shadow-sm flex flex-col">
+          <CardHeader className="p-3.5 sm:p-4 border-b border-slate-100 flex flex-row items-center justify-between">
+            <CardTitle className="text-xs font-bold uppercase tracking-wider text-slate-600 flex items-center gap-2">
+              <Megaphone className="h-4 w-4 text-amber-500" />
+              Facility Notices & Announcements
+            </CardTitle>
+            {announcements.length > 0 && (
+              <span className="text-[11px] font-medium text-slate-400">
+                {currentAnnouncementIndex + 1} of {announcements.length}
+              </span>
+            )}
+          </CardHeader>
+          <CardContent className="p-4 flex-1 flex flex-col justify-between">
+            {pageLoading ? (
+              <div className="flex items-center justify-center py-10">
+                <Loader2 className="h-5 w-5 animate-spin text-slate-400" />
+              </div>
+            ) : announcements.length === 0 ? (
+              <div className="py-10 text-center">
+                <Megaphone className="h-8 w-8 text-slate-200 mx-auto mb-2" />
+                <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                  No active announcements
+                </p>
+                <p className="text-[11px] text-slate-400 mt-1">
+                  Updates from the HMO Medical Board will appear here.
+                </p>
+              </div>
+            ) : (
+              <div className="flex flex-col justify-between h-full">
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="font-bold text-sm text-slate-900">
+                      {announcements[currentAnnouncementIndex].title}
+                    </h4>
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        "text-[10px] font-bold uppercase px-2 py-0.5 rounded-full",
+                        announcements[currentAnnouncementIndex].priority === "high" ||
+                        announcements[currentAnnouncementIndex].priority === "critical"
+                          ? "text-rose-700 border-rose-200 bg-rose-50"
+                          : announcements[currentAnnouncementIndex].priority === "medium"
+                          ? "text-amber-700 border-amber-200 bg-amber-50"
+                          : "text-slate-600 border-slate-200 bg-slate-50"
+                      )}
+                    >
+                      {announcements[currentAnnouncementIndex].priority}
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-slate-600 leading-relaxed">
+                    {announcements[currentAnnouncementIndex].content}
+                  </p>
+                </div>
+
+                <div className="flex items-center justify-between pt-4 mt-4 border-t border-slate-100">
+                  <p className="text-[11px] text-slate-400 font-medium">
+                    Posted on {new Date(announcements[currentAnnouncementIndex].created_at).toLocaleDateString("en-GB", {
+                      day: "numeric",
+                      month: "short",
+                      year: "numeric",
+                    })}
                   </p>
                   {announcements.length > 1 && (
-                    <div className="flex gap-1">
+                    <div className="flex items-center gap-1.5">
                       {announcements.map((_, idx) => (
-                        <div 
-                          key={idx} 
-                          className={cn("h-1.5 rounded-full transition-all duration-300", 
-                            idx === currentAnnouncementIndex ? "w-4 bg-emerald-500" : "w-1.5 bg-slate-300"
-                          )} 
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => setCurrentAnnouncementIndex(idx)}
+                          className={cn(
+                            "h-1.5 rounded-full transition-all duration-300",
+                            idx === currentAnnouncementIndex ? "w-4 bg-emerald-600" : "w-1.5 bg-slate-300 hover:bg-slate-400"
+                          )}
+                          aria-label={`Go to announcement ${idx + 1}`}
                         />
                       ))}
                     </div>
@@ -181,17 +359,79 @@ export default function HospitalPortalPage() {
                 </div>
               </div>
             )}
-          </div>
+          </CardContent>
+        </Card>
+
+        {/* Operating Guidelines Card */}
+        <Card className="rounded-xl border border-slate-200 bg-white overflow-hidden shadow-sm flex flex-col">
+          <CardHeader className="p-3.5 sm:p-4 border-b border-slate-100 flex flex-row items-center justify-between">
+            <CardTitle className="text-xs font-bold uppercase tracking-wider text-slate-600 flex items-center gap-2">
+              <HelpCircle className="h-4 w-4 text-emerald-600" />
+              Provider Operating Standards
+            </CardTitle>
+            <Badge variant="outline" className="border-slate-200 text-[10px] font-semibold text-slate-600">
+              Clinical Guidelines
+            </Badge>
+          </CardHeader>
+          <CardContent className="p-4 space-y-3 flex-1 flex flex-col justify-around">
+            <div className="flex items-start gap-3">
+              <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-emerald-50 text-emerald-700 text-xs font-bold">
+                1
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-slate-800">Contest Window (7 Days)</p>
+                <p className="text-[11px] text-slate-500 leading-snug">
+                  Partially approved claims must be reviewed and contested within 7 days before automated finance release.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-3">
+              <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-blue-50 text-blue-700 text-xs font-bold">
+                2
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-slate-800">Patient Arrival OTP</p>
+                <p className="text-[11px] text-slate-500 leading-snug">
+                  Referral cases generate an arrival PIN sent to the patient. Input this OTP to unlock the full authorization code.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-3">
+              <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-purple-50 text-purple-700 text-xs font-bold">
+                3
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-slate-800">WhatsApp Intake</p>
+                <p className="text-[11px] text-slate-500 leading-snug">
+                  Prescription snapshots received on the official WhatsApp intake line are parsed and queued in real-time.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-3">
+              <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-amber-50 text-amber-700 text-xs font-bold">
+                4
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-slate-800">Direct Claims Submission</p>
+                <p className="text-[11px] text-slate-500 leading-snug">
+                  Once care is delivered, submit your claim directly from the Authorizations Ledger with one click.
+                </p>
+              </div>
+            </div>
+          </CardContent>
         </Card>
       </div>
 
       {/* Floating Action Button (Mobile Only) */}
       <button 
         onClick={() => navigate("/dashboard/new-request")}
-        className="md:hidden fixed bottom-[calc(72px+env(safe-area-inset-bottom))] right-4 w-14 h-14 rounded-full bg-slate-900 text-white flex items-center justify-center shadow-lg z-40 active:scale-95 transition-transform" 
+        className="md:hidden fixed bottom-[calc(72px+env(safe-area-inset-bottom))] right-4 w-12 h-12 rounded-full bg-slate-900 text-white flex items-center justify-center shadow-xl z-40 active:scale-95 transition-transform" 
         aria-label="New Authorization Request"
       >
-        <Plus className="h-6 w-6" strokeWidth={2.5} />
+        <Plus className="h-5 w-5 text-emerald-400" strokeWidth={2.5} />
       </button>
     </div>
   );
