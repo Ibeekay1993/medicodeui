@@ -375,7 +375,7 @@ export function SupportDetailsSidebar({
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-1 p-1 bg-slate-100 rounded-xl text-xs font-black uppercase">
+                <div className="grid grid-cols-2 gap-1 p-1 bg-slate-100 rounded-lg text-xs font-bold h-9">
                   <button
                     type="button"
                     onClick={() => {
@@ -383,8 +383,8 @@ export function SupportDetailsSidebar({
                       setLinkSearchTerm("");
                     }}
                     className={cn(
-                      "py-1.5 rounded-lg transition-all",
-                      activeLinkType === "request" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500"
+                      "h-full rounded-md transition-colors",
+                      activeLinkType === "request" ? "bg-slate-900 text-white shadow-none" : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/70"
                     )}
                   >
                     Auth Request
@@ -396,8 +396,8 @@ export function SupportDetailsSidebar({
                       setLinkSearchTerm("");
                     }}
                     className={cn(
-                      "py-1.5 rounded-lg transition-all",
-                      activeLinkType === "claim" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500"
+                      "h-full rounded-md transition-colors",
+                      activeLinkType === "claim" ? "bg-slate-900 text-white shadow-none" : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/70"
                     )}
                   >
                     Hospital Claim

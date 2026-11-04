@@ -691,16 +691,16 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
           )}
 
           {/* TabsList */}
-          <TabsList className="flex w-full h-10 bg-slate-100/80 p-1 gap-1 mt-3 sm:h-11">
+          <TabsList className="grid grid-cols-2 w-full h-9 sm:h-10 bg-slate-100 p-1 gap-1 mt-3 rounded-lg">
             <TabsTrigger
               value="verification"
-              className="flex-1 rounded-md text-[11px] sm:text-xs font-medium data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=inactive]:bg-transparent data-[state=inactive]:text-slate-600 data-[state=active]:shadow-sm transition-colors h-full border-0 whitespace-normal leading-tight px-1"
+              className="h-full min-h-0 min-w-0 w-full whitespace-nowrap rounded-md px-2 py-0 text-xs font-bold text-slate-600 transition-colors data-[state=active]:bg-slate-900 data-[state=active]:text-white data-[state=active]:shadow-none data-[state=inactive]:bg-transparent data-[state=inactive]:text-slate-600 data-[state=inactive]:hover:bg-slate-200/70 active:bg-slate-200 sm:px-4"
             >
               Patient Verify & History
             </TabsTrigger>
             <TabsTrigger
               value="clinical"
-              className="flex-1 rounded-md text-[11px] sm:text-xs font-medium data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=inactive]:bg-transparent data-[state=inactive]:text-slate-600 data-[state=active]:shadow-sm transition-colors h-full border-0 whitespace-normal leading-tight px-1"
+              className="h-full min-h-0 min-w-0 w-full whitespace-nowrap rounded-md px-2 py-0 text-xs font-bold text-slate-600 transition-colors data-[state=active]:bg-slate-900 data-[state=active]:text-white data-[state=active]:shadow-none data-[state=inactive]:bg-transparent data-[state=inactive]:text-slate-600 data-[state=inactive]:hover:bg-slate-200/70 active:bg-slate-200 sm:px-4"
             >
               Clinical Review
             </TabsTrigger>

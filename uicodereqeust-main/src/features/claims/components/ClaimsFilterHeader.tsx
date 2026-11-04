@@ -29,9 +29,9 @@ export default function ClaimsFilterHeader({
       <div className="flex w-full flex-col items-stretch gap-3 sm:w-auto sm:flex-row sm:items-center sm:gap-4">
         <h2 className="text-lg font-black text-slate-900 tracking-tight">Claims Ledger</h2>
         <Tabs value={statusTab === 'pending' ? 'pending' : 'all'} onValueChange={(val: any) => setStatusTab(val)} className="w-full sm:w-auto">
-          <TabsList className="h-9 w-full bg-slate-100 rounded-lg sm:w-auto">
-            <TabsTrigger value="pending" className="min-w-0 flex-1 text-xs font-bold px-2 rounded-md sm:flex-none sm:px-4">Action Needed</TabsTrigger>
-            <TabsTrigger value="all" className="min-w-0 flex-1 text-xs font-bold px-2 rounded-md sm:flex-none sm:px-4">All Claims</TabsTrigger>
+          <TabsList className="h-9 sm:h-10 w-full bg-slate-100 rounded-lg p-1 gap-1 sm:w-auto">
+            <TabsTrigger value="pending" className="h-full min-h-0 min-w-0 flex-1 whitespace-nowrap rounded-md px-2 py-0 text-xs font-bold text-slate-600 transition-colors data-[state=active]:bg-slate-900 data-[state=active]:text-white data-[state=active]:shadow-none data-[state=inactive]:bg-transparent data-[state=inactive]:text-slate-600 data-[state=inactive]:hover:bg-slate-200/70 active:bg-slate-200 sm:flex-none sm:px-4">Action Needed</TabsTrigger>
+            <TabsTrigger value="all" className="h-full min-h-0 min-w-0 flex-1 whitespace-nowrap rounded-md px-2 py-0 text-xs font-bold text-slate-600 transition-colors data-[state=active]:bg-slate-900 data-[state=active]:text-white data-[state=active]:shadow-none data-[state=inactive]:bg-transparent data-[state=inactive]:text-slate-600 data-[state=inactive]:hover:bg-slate-200/70 active:bg-slate-200 sm:flex-none sm:px-4">All Claims</TabsTrigger>
           </TabsList>
         </Tabs>
       </div>

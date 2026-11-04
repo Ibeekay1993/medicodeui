@@ -464,11 +464,11 @@ export default function ClaimsReportsPage() {
 
   return (
     <Tabs value={activeTab} onValueChange={handleTabChange} className="max-w-full space-y-5 overflow-x-hidden pb-10">
-      <TabsList className="h-10 rounded-xl border border-slate-200 bg-slate-50 p-1">
-        <TabsTrigger value="analysis" className="rounded-lg px-5 text-sm font-medium data-[state=active]:bg-white data-[state=active]:shadow-sm">
+      <TabsList className="h-9 sm:h-10 rounded-lg bg-slate-100 p-1 gap-1 border border-slate-200">
+        <TabsTrigger value="analysis" className="h-full rounded-md px-4 text-xs font-bold transition-colors data-[state=active]:bg-slate-900 data-[state=active]:text-white data-[state=active]:shadow-none data-[state=inactive]:bg-transparent data-[state=inactive]:text-slate-600 data-[state=inactive]:hover:bg-slate-200/70">
           Claims Analysis
         </TabsTrigger>
-        <TabsTrigger value="reports" className="rounded-lg px-5 text-sm font-medium data-[state=active]:bg-white data-[state=active]:shadow-sm">
+        <TabsTrigger value="reports" className="h-full rounded-md px-4 text-xs font-bold transition-colors data-[state=active]:bg-slate-900 data-[state=active]:text-white data-[state=active]:shadow-none data-[state=inactive]:bg-transparent data-[state=inactive]:text-slate-600 data-[state=inactive]:hover:bg-slate-200/70">
           Claims Reports
         </TabsTrigger>
       </TabsList>
