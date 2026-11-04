@@ -1,8 +1,7 @@
-import React from "react";
+import type { RefObject } from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Loader2, Search, Plus, CheckCircle2, X } from "lucide-react";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Loader2, Search, Plus, CheckCircle2, X, User } from "lucide-react";
 import Dropdown from "./Dropdown";
 
 interface PatientSectionProps {
@@ -18,7 +17,7 @@ interface PatientSectionProps {
   setPhone: (val: string) => void;
   patientEmail: string;
   setPatientEmail: (val: string) => void;
-  patientRef: React.RefObject<HTMLDivElement>;
+  patientRef: RefObject<HTMLDivElement>;
 }
 
 export default function PatientSection({
@@ -43,12 +42,21 @@ export default function PatientSection({
   };
 
   return (
-    <div className="p-6 space-y-4">
-      <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">Patient</p>
+    <div className="p-4 sm:p-5 space-y-3.5">
+      <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+        <div>
+          <h3 className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+            <User className="h-3.5 w-3.5 text-emerald-600" /> Patient Identification
+          </h3>
+          <p className="text-[11px] text-slate-500">Search enrollee registry or verify active policy</p>
+        </div>
+      </div>
 
       {/* Search input */}
-      <div className="space-y-1.5">
-        <Label htmlFor="patient-search-input" className="text-xs font-semibold text-slate-500">Search by Name or Policy Number</Label>
+      <div className="space-y-1">
+        <Label htmlFor="patient-search-input" className="text-xs font-semibold text-slate-700">
+          Search Enrollee by Name or Policy Number
+        </Label>
         <div ref={patientRef} className="relative">
           <Input
             id="patient-search-input"
@@ -59,18 +67,18 @@ export default function PatientSection({
               setPatientSearch(e.target.value);
             }}
             onFocus={() => patientResults.length > 0 && setPatientOpen(true)}
-            className="h-12 rounded-xl bg-slate-50 border border-slate-200 pr-10 text-sm placeholder:text-slate-300 placeholder:text-xs"
+            className="h-9 sm:h-10 rounded-lg bg-white border border-slate-200 pr-9 text-xs placeholder:text-slate-400"
           />
-          <div className="absolute right-3 top-3.5 pointer-events-none">
+          <div className="absolute right-3 top-2.5 pointer-events-none">
             {patientLoading ? (
-              <Loader2 className="h-4 w-4 animate-spin text-emerald-500" />
+              <Loader2 className="h-4 w-4 animate-spin text-emerald-600" />
             ) : (
-              <Search className="h-4 w-4 text-slate-300" />
+              <Search className="h-4 w-4 text-slate-400" />
             )}
           </div>
         </div>
         <Dropdown anchorRef={patientRef} open={patientOpen && !selectedPatient} onClose={() => setPatientOpen(false)}>
-          <div className="divide-y divide-slate-50">
+          <div className="divide-y divide-slate-100 max-h-60 overflow-y-auto">
             {patientResults.map((p, i) => (
               <button
                 type="button"
@@ -79,18 +87,18 @@ export default function PatientSection({
                   e.preventDefault();
                   selectPatient(p);
                 }}
-                className="w-full text-left px-4 py-3 hover:bg-emerald-50 transition-colors group flex items-center justify-between"
+                className="w-full text-left px-3 py-2.5 hover:bg-slate-50 transition-colors group flex items-center justify-between text-xs"
               >
                 <div>
-                  <p className="text-sm font-bold text-slate-900 group-hover:text-emerald-700">{p.full_name}</p>
-                  <p className="text-xs text-slate-500 font-mono">
+                  <p className="font-semibold text-slate-900 group-hover:text-emerald-700">{p.full_name}</p>
+                  <p className="text-[11px] text-slate-500 font-mono mt-0.5">
                     {p.beneficiary_number || p.policy_number}
                     {p.beneficiary_number && p.beneficiary_number !== p.policy_number && (
-                      <span className="ml-2 text-slate-400">Family {p.policy_number}</span>
+                      <span className="ml-1.5 text-slate-400">Family {p.policy_number}</span>
                     )}
                   </p>
                 </div>
-                <Plus className="h-4 w-4 text-emerald-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                <Plus className="h-3.5 w-3.5 text-emerald-600 opacity-0 group-hover:opacity-100 transition-opacity" />
               </button>
             ))}
           </div>
@@ -99,57 +107,60 @@ export default function PatientSection({
 
       {/* Selected patient display */}
       {selectedPatient ? (
-        <div className="flex items-center justify-between bg-slate-50/50 border border-slate-200 rounded-xl px-4 py-3">
-          <div className="flex items-center gap-3">
-            <CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0" />
-            <div>
-              <p className="text-sm font-black text-emerald-900">{selectedPatient.full_name}</p>
-              <p className="text-xs font-bold text-emerald-500 uppercase tracking-widest">
-                {selectedPatient.policy_number}
+        <div className="flex items-center justify-between bg-slate-50/80 border border-slate-200 rounded-lg p-3">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+            <div className="min-w-0">
+              <p className="text-xs font-bold text-slate-900 truncate">{selectedPatient.full_name}</p>
+              <p className="text-[11px] font-mono text-slate-600 mt-0.5">
+                Policy: {selectedPatient.policy_number}
+                {selectedPatient.beneficiary_number && selectedPatient.beneficiary_number !== selectedPatient.policy_number && (
+                  <span className="ml-1 text-slate-500">· ID: {selectedPatient.beneficiary_number}</span>
+                )}
               </p>
-              {selectedPatient.beneficiary_number && (
-                <p className="mt-0.5 text-xs font-mono text-slate-600">
-                  Beneficiary ID: {selectedPatient.beneficiary_number}
-                </p>
-              )}
             </div>
           </div>
           <button
             type="button"
             onClick={() => setSelectedPatient(null)}
-            className="text-emerald-300 hover:text-rose-500 transition-colors ml-3"
+            className="text-slate-400 hover:text-rose-600 transition-colors ml-2 shrink-0 p-1"
             aria-label={`Deselect patient ${selectedPatient.full_name}`}
           >
-            <X className="h-4 w-4" />
+            <X className="h-3.5 w-3.5" />
           </button>
         </div>
       ) : (
-        <div className="h-12 flex items-center px-4 rounded-xl bg-slate-50 border border-dashed border-slate-200">
-          <p className="text-xs text-slate-300 italic">Patient name will appear here after selection</p>
+        <div className="h-9 flex items-center px-3 rounded-lg bg-slate-50/60 border border-dashed border-slate-200">
+          <p className="text-xs text-slate-400 italic">No enrollee selected yet</p>
         </div>
       )}
 
       {/* Phone */}
-      <div className="space-y-1.5">
-        <Label htmlFor="phone-input" className="text-xs font-semibold text-slate-500">Phone Number</Label>
+      <div className="space-y-1">
+        <Label htmlFor="phone-input" className="text-xs font-semibold text-slate-700">
+          Phone Number <span className="text-rose-500">*</span>
+        </Label>
         <Input
           id="phone-input"
           placeholder="e.g. 08012345678"
           value={phone}
           onChange={(e) => setPhone(e.target.value)}
-          className="h-12 rounded-xl bg-slate-50 border border-slate-200 text-sm placeholder:text-slate-300 placeholder:text-xs"
+          className="h-9 sm:h-10 rounded-lg bg-white border border-slate-200 text-xs placeholder:text-slate-400"
         />
       </div>
 
       {/* Patient Email */}
-      <div className="space-y-3">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <Label htmlFor="email-input" className="text-xs font-semibold text-slate-500">
+      <div className="space-y-2">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <Label htmlFor="email-input" className="text-xs font-semibold text-slate-700">
             Patient Email <span className="text-rose-500">*</span>
           </Label>
-          <div className="flex items-center gap-2 bg-slate-50 sm:bg-transparent p-2 sm:p-0 rounded-lg border sm:border-none border-slate-200">
-            <label className="flex items-center gap-2.5 cursor-pointer w-fit group mt-0.5">
-              <div className="relative inline-flex h-5 w-9 items-center rounded-full transition-colors duration-300 ease-in-out shadow-inner" style={{ backgroundColor: patientEmail === "no-email@medicode.com" ? '#334155' : '#e2e8f0' }}>
+          <div className="flex items-center gap-2">
+            <label className="flex items-center gap-2 cursor-pointer w-fit group">
+              <div
+                className="relative inline-flex h-4 w-7 items-center rounded-full transition-colors duration-200 ease-in-out shadow-inner"
+                style={{ backgroundColor: patientEmail === "no-email@medicode.com" ? '#334155' : '#cbd5e1' }}
+              >
                 <input 
                   type="checkbox" 
                   className="peer sr-only"
@@ -163,9 +174,9 @@ export default function PatientSection({
                     }
                   }}
                 />
-                <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition duration-300 ease-in-out shadow-sm ${patientEmail === "no-email@medicode.com" ? 'translate-x-4' : 'translate-x-1'}`} />
+                <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition duration-200 ease-in-out shadow-xs ${patientEmail === "no-email@medicode.com" ? 'translate-x-3.5' : 'translate-x-0.5'}`} />
               </div>
-              <span className="text-xs font-semibold text-slate-700 tracking-wider select-none">Patient does not have an email</span>
+              <span className="text-[11px] font-medium text-slate-600 select-none">No email (use WhatsApp SMS PIN)</span>
             </label>
           </div>
         </div>
@@ -179,19 +190,18 @@ export default function PatientSection({
               value={patientEmail}
               onChange={(e) => setPatientEmail(e.target.value)}
               aria-describedby="email-input-description"
-              className="h-12 rounded-xl bg-slate-50 border border-slate-200 text-sm placeholder:text-slate-300 placeholder:text-xs"
+              className="h-9 sm:h-10 rounded-lg bg-white border border-slate-200 text-xs placeholder:text-slate-400"
             />
-            <p id="email-input-description" className="text-xs font-semibold text-slate-400">
-              A request OTP will be sent to this email for patient verification.
+            <p id="email-input-description" className="text-[11px] text-slate-500">
+              Arrival and Treatment PIN will be emailed directly to this address.
             </p>
           </>
         ) : (
-          <div className="h-12 flex items-center px-4 rounded-xl bg-emerald-50/50 border border-dashed border-emerald-200">
-            <p className="text-xs text-emerald-600 font-medium">No email provided. The request PIN will be sent via WhatsApp to the provided phone number.</p>
+          <div className="h-9 flex items-center px-3 rounded-lg bg-emerald-50/60 border border-slate-200 text-emerald-800 text-[11px]">
+            No email provided. The verification PIN will be sent via WhatsApp to the phone number.
           </div>
         )}
       </div>
     </div>
   );
 }
-

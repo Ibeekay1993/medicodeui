@@ -274,7 +274,7 @@ export default function AuthorizationsTable({
                                 setIsReviewing(true); 
                               }
                             }}
-                            className="h-8 px-2.5 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-100 text-xs font-black uppercase tracking-wider"
+                            className="h-8 px-2.5 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-100 text-xs font-semibold"
                           >
                             {r.status === "referral_approved" && canSubmitClaimFor(r, hospital)
                               ? "Accept Referral"
@@ -283,7 +283,7 @@ export default function AuthorizationsTable({
                               : "View Items"}
                           </Button>
                           {isClaimEligible(r, hospital) && claimStatus && (
-                            <Badge variant="outline" className="h-8 px-2.5 rounded-lg border-emerald-200 text-emerald-700 bg-emerald-50 text-xs font-black uppercase tracking-wider">
+                            <Badge variant="outline" className="h-8 px-2.5 rounded-lg border-emerald-200 text-emerald-700 bg-emerald-50 text-xs font-semibold">
                               Claim Submitted
                             </Badge>
                           )}
@@ -305,7 +305,6 @@ export default function AuthorizationsTable({
           </div>
         ) : (
           paginatedRequests.map(r => {
-            const claimStatus = claimStatusFor(r);
             return (
               <Card key={r.id} className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden cursor-pointer active:scale-[0.98] transition-all duration-150" onClick={() => { 
                   setSelectedRequest(r); 

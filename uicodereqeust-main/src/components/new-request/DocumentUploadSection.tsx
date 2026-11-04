@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import { useState, useRef } from "react";
 import { Upload, FileText, X, CheckCircle2, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -95,16 +95,18 @@ export default function DocumentUploadSection({
   };
 
   return (
-    <div className="p-6 space-y-4">
-      <div className="flex items-center justify-between">
+    <div className="p-4 sm:p-5 space-y-3.5">
+      <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
         <div>
-          <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">Supporting Document</p>
-          <p className="text-xs text-slate-500 mt-1">Upload the doctor's report or diagnosis form</p>
+          <h4 className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+            <FileText className="h-3.5 w-3.5 text-emerald-600" /> Supporting Clinical Documents
+          </h4>
+          <p className="text-[11px] text-slate-500">Upload doctor prescription, lab report, or clinical summary</p>
         </div>
         {doctorReportPath && (
-          <Badge variant="outline" className="rounded-full border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700">
-            <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
-            Required
+          <Badge variant="outline" className="rounded-full border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-[10px] font-semibold text-emerald-700">
+            <CheckCircle2 className="mr-1 h-3 w-3" />
+            Attached
           </Badge>
         )}
       </div>
@@ -113,41 +115,59 @@ export default function DocumentUploadSection({
 
       {!doctorReportPath ? (
         <div
-          className={cn("relative rounded-2xl border-2 border-dashed p-8 transition-all", isDragging ? "border-emerald-400 bg-emerald-50/50" : "border-slate-200 bg-slate-50/50")}
+          className={cn(
+            "relative rounded-lg border-2 border-dashed p-6 transition-all text-center",
+            isDragging ? "border-emerald-400 bg-emerald-50/40" : "border-slate-200 bg-slate-50/60"
+          )}
           onDragOver={e => { e.preventDefault(); setIsDragging(true); }}
           onDragLeave={e => { e.preventDefault(); setIsDragging(false); }}
           onDrop={e => { e.preventDefault(); setIsDragging(false); uploadFile(e.dataTransfer.files[0]); }}
         >
           {isUploading ? (
-            <div className="flex flex-col items-center space-y-4">
-              <Loader2 className="h-12 w-12 animate-spin text-emerald-600" />
-              <div className="w-full max-w-xs bg-slate-200 rounded-full h-2 overflow-hidden">
+            <div className="flex flex-col items-center space-y-3">
+              <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
+              <div className="w-full max-w-xs bg-slate-200 rounded-full h-1.5 overflow-hidden">
                 <div className="bg-emerald-600 h-full transition-all" style={{ width: `${uploadProgress}%` }} />
               </div>
+              <span className="text-xs text-slate-500 font-medium">Uploading document…</span>
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center text-center">
-              <Upload className="mx-auto h-10 w-10 mb-4 text-slate-400" />
-              <h3 className="text-sm font-bold text-slate-900">{isDragging ? "Drop file here" : "Upload doctor's report"}</h3>
-              <p className="text-xs text-slate-500 mt-1">PDF, JPG, or PNG (max 10MB)</p>
-              <label htmlFor="doctor-report-upload" className="cursor-pointer inline-flex items-center justify-center mt-4 px-4 py-2 rounded-xl bg-white border border-slate-200 text-xs font-bold hover:bg-slate-50">
-                <FileText className="mr-2 h-4 w-4" />
+              <Upload className="mx-auto h-7 w-7 mb-2 text-slate-400" />
+              <p className="text-xs font-semibold text-slate-800">{isDragging ? "Drop document here" : "Drag & drop clinical report"}</p>
+              <p className="text-[11px] text-slate-500 mt-0.5">PDF, JPG, or PNG (up to 5MB)</p>
+              <label
+                htmlFor="doctor-report-upload"
+                className="cursor-pointer inline-flex items-center justify-center mt-3 h-8 px-3 rounded-lg bg-white border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50 shadow-xs"
+              >
+                <FileText className="mr-1.5 h-3.5 w-3.5 text-slate-500" />
                 Select File
               </label>
             </div>
           )}
         </div>
       ) : (
-        <div className="rounded-2xl border-2 border-emerald-200 bg-emerald-50/30 p-4">
-          <div className="flex items-start justify-between">
-            <div className="flex items-start space-x-3 flex-1">
-              <div className="p-2 rounded-xl bg-emerald-100"><FileText className="h-5 w-5 text-emerald-700" /></div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-bold text-slate-900 truncate">{doctorReportName}</p>
-                <p className="text-xs text-slate-500 mt-1">Uploaded</p>
+        <div className="rounded-lg border border-emerald-200 bg-emerald-50/40 p-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2.5 min-w-0 flex-1">
+              <div className="p-1.5 rounded-lg bg-emerald-100 text-emerald-700 shrink-0">
+                <FileText className="h-4 w-4" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-bold text-slate-900 truncate">{doctorReportName}</p>
+                <p className="text-[10px] text-slate-500">Document attached</p>
               </div>
             </div>
-            <Button type="button" variant="ghost" size="icon" onClick={removeFile} className="h-8 w-8"><X className="h-4 w-4" /></Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={removeFile}
+              className="h-7 w-7 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded shrink-0 ml-2"
+              aria-label="Remove document"
+            >
+              <X className="h-3.5 w-3.5" />
+            </Button>
           </div>
         </div>
       )}

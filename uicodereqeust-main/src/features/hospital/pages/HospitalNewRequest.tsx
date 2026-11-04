@@ -745,62 +745,63 @@ export default function HospitalNewRequest() {
             )}
 
             {step === 5 && (
-              <div className="p-6 space-y-6">
-                <div>
-                  <h3 className="text-lg font-black text-slate-800">Review Request</h3>
-                  <p className="text-sm text-slate-500">Ensure all details are correct before submitting.</p>
+              <div className="p-4 sm:p-5 space-y-4">
+                <div className="border-b border-slate-100 pb-2.5">
+                  <h3 className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" /> Review Authorization Request
+                  </h3>
+                  <p className="text-[11px] text-slate-500">Verify enrollee details, clinical diagnoses, and tariff items before submitting</p>
                 </div>
                 
-                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-3">
-                  <div className="flex justify-between">
-                    <span className="text-xs font-semibold text-slate-500">Patient:</span>
-                    <span className="text-xs font-bold text-slate-900">{selectedPatient?.full_name} ({selectedPatient?.policy_number})</span>
+                <div className="bg-slate-50/70 p-3.5 rounded-lg border border-slate-200 space-y-2.5 text-xs">
+                  <div className="flex justify-between items-start gap-2">
+                    <span className="text-slate-500">Patient:</span>
+                    <span className="font-bold text-slate-900 text-right">{selectedPatient?.full_name} ({selectedPatient?.policy_number})</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-xs font-semibold text-slate-500">Contact:</span>
-                    <span className="text-xs font-bold text-slate-900">
-                      {phone} {(!noEmail && patientEmail && patientEmail !== "no-email@medicode.com") ? `| ${patientEmail}` : ""}
+                  <div className="flex justify-between items-start gap-2">
+                    <span className="text-slate-500">Contact:</span>
+                    <span className="font-semibold text-slate-900 text-right">
+                      {phone} {(!noEmail && patientEmail && patientEmail !== "no-email@medicode.com") ? `· ${patientEmail}` : ""}
                     </span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-xs font-semibold text-slate-500">Diagnoses:</span>
-                    <span className="text-xs font-bold text-slate-900 text-right">{diagnoses.join(", ")}</span>
+                  <div className="flex justify-between items-start gap-2">
+                    <span className="text-slate-500">Diagnoses:</span>
+                    <span className="font-semibold text-slate-900 text-right">{diagnoses.join(", ")}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-xs font-semibold text-slate-500">Priority:</span>
-                    <span className="text-sm font-medium capitalize text-slate-900">{urgency}</span>
+                  <div className="flex justify-between items-center gap-2">
+                    <span className="text-slate-500">Urgency:</span>
+                    <span className="font-semibold capitalize text-slate-900">{urgency}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-xs font-semibold text-slate-500">Total Items:</span>
-                    <span className="text-xs font-bold text-slate-900">{treatments.length}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-xs font-semibold text-slate-500">Doctor Report:</span>
-                    <span className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                  <div className="flex justify-between items-center gap-2">
+                    <span className="text-slate-500">Doctor Report:</span>
+                    <span className="font-medium text-slate-900 flex items-center gap-1.5">
                       <FileText className="h-3.5 w-3.5 text-emerald-600" />
-                      {doctorReportName || "Uploaded"}
+                      {doctorReportName || "None attached"}
                     </span>
                   </div>
+
                   {treatments.length > 0 && (
-                    <div className="pt-2">
-                      <p className="mb-2 text-xs font-semibold text-slate-600">Requested items</p>
-                      <div className="space-y-2">
-                        {treatments.map((t: any, idx: number) => {
+                    <div className="pt-2 border-t border-slate-200">
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-[11px] font-semibold text-slate-600">Selected Tariff Items ({treatments.length})</span>
+                      </div>
+                      <div className="space-y-1.5 max-h-[200px] overflow-y-auto pr-1">
+                        {treatments.map((t, idx) => {
                           const isRef = Boolean(referralHospitalId || (referralHospitalName && referralHospitalName.trim().length > 0));
                           return (
-                            <div key={idx} className="flex justify-between items-start text-xs border border-slate-100 rounded-lg p-2 bg-white">
-                              <div className="flex-1 pr-2">
-                                <p className="font-bold text-slate-900">{t.name}</p>
-                                <p className="text-xs text-slate-600">Code: {t.code} · {t.category || "Service"}</p>
+                            <div key={idx} className="flex justify-between items-center text-xs border border-slate-200/80 rounded-md p-2 bg-white">
+                              <div className="flex-1 min-w-0 pr-2">
+                                <p className="font-semibold text-slate-900 truncate">{t.name}</p>
+                                <p className="text-[11px] text-slate-500 font-mono">{t.code} · {t.category || "Service"}</p>
                               </div>
-                              <div className="text-right whitespace-nowrap">
+                              <div className="text-right whitespace-nowrap shrink-0">
                                 {!isRef ? (
-                                  <>
-                                    <p className="font-bold text-slate-900">{t.quantity} x NGN {t.amount.toLocaleString()}</p>
-                                    <p className="text-xs font-semibold text-emerald-800">NGN {(t.quantity * t.amount).toLocaleString()}</p>
-                                  </>
+                                  <div>
+                                    <p className="text-[11px] text-slate-500">{t.quantity} × ₦{Number(t.amount).toLocaleString("en-NG")}</p>
+                                    <p className="font-mono font-bold text-slate-900">₦{(t.quantity * t.amount).toLocaleString("en-NG")}</p>
+                                  </div>
                                 ) : (
-                                  <p className="font-bold text-slate-900">Qty: {t.quantity}</p>
+                                  <p className="font-semibold text-slate-900">Qty: {t.quantity}</p>
                                 )}
                               </div>
                             </div>
@@ -809,10 +810,11 @@ export default function HospitalNewRequest() {
                       </div>
                     </div>
                   )}
+
                   {!(referralHospitalId || (referralHospitalName && referralHospitalName.trim().length > 0)) && (
-                    <div className="flex justify-between border-t border-slate-200 pt-3 mt-3">
-                      <span className="text-sm font-black text-slate-900">Total Amount:</span>
-                      <span className="text-sm font-black text-emerald-600">NGN {total.toLocaleString()}</span>
+                    <div className="flex justify-between border-t border-slate-200 pt-2.5 mt-2">
+                      <span className="font-bold text-slate-900">Total Requested Amount:</span>
+                      <span className="font-mono font-bold text-emerald-700 text-sm">₦{total.toLocaleString("en-NG")}</span>
                     </div>
                   )}
                 </div>
@@ -822,7 +824,7 @@ export default function HospitalNewRequest() {
             
           </div>
 
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between pt-1">
             <Button
               type="button"
               variant="outline"
@@ -830,7 +832,7 @@ export default function HospitalNewRequest() {
                 if (step === 1) navigate("/dashboard");
                 else setStep(s => s - 1);
               }}
-              className="h-12 px-6 rounded-xl border-slate-200 text-slate-600 font-bold hover:bg-slate-50 hover:text-slate-900"
+              className="h-9 sm:h-10 px-4 sm:px-5 rounded-lg border-slate-200 text-slate-700 font-medium hover:bg-slate-50"
             >
               {step === 1 ? "Cancel" : "Back"}
             </Button>
@@ -839,17 +841,17 @@ export default function HospitalNewRequest() {
               <Button
                 type="button"
                 onClick={handleNextStep}
-                className="h-12 px-8 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
+                className="h-9 sm:h-10 px-5 sm:px-6 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shadow-sm transition-colors"
               >
-                Next Step <ArrowRight className="ml-2 h-4 w-4" />
+                Next Step <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
               </Button>
             ) : (
               <Button
                 type="submit"
                 disabled={isSubmitting || !canSubmit}
-                className={`h-12 rounded-lg bg-emerald-700 px-8 text-sm font-semibold text-white transition-colors hover:bg-emerald-800 ${!canSubmit && !isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}
+                className={`h-9 sm:h-10 rounded-lg bg-emerald-600 px-5 sm:px-6 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-emerald-700 ${!canSubmit && !isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
-                {isSubmitting ? "Submitting..." : "Submit Request"}
+                {isSubmitting ? "Submitting…" : "Confirm & Submit Request"}
               </Button>
             )}
           </div>

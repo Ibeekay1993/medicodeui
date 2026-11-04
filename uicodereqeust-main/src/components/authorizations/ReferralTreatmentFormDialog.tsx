@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Trash2, CheckCircle2, Search } from "lucide-react";
+import { Loader2, Trash2, CheckCircle2, Search, X, Stethoscope, Plus, Minus } from "lucide-react";
 import { TreatmentItem } from "@/lib/new-request-helpers";
 
 interface ReferralTreatmentFormDialogProps {
@@ -102,12 +102,7 @@ export default function ReferralTreatmentFormDialog({
 
     setIsSubmitting(true);
     try {
-      const newTreatmentItems = treatments
-        .map((t) => `${t.name} [Code: ${t.code}] (Qty: ${t.quantity} x ₦${t.amount} = ₦${t.quantity * t.amount})`)
-        .join("; ");
-
-      const treatmentText = `[ORIGINAL REFERRAL REASON (From ${request.requesting_hospital_name || request.hospital_name || "Referring Hospital"})]:\n${request.treatment || "Not specified"}\n\n[PROPOSED TREATMENT PLAN (From ${hospital.name})]:\n${newTreatmentItems}`;
-
+      const treatmentText = treatments.map(t => `${t.name} (Qty: ${t.quantity}, Price: ₦${t.amount})`).join("; ");
       const approvedPayload = treatments.map((item) => ({
         code: item.code,
         name: item.name,
@@ -122,9 +117,9 @@ export default function ReferralTreatmentFormDialog({
         confidence: "high"
       }));
 
-      // 1. Submit Treatment request - set status to pending_authorization
-      const newDiagnosis = currentDiagnosis.trim() ? `${request.diagnosis}\n\n[CURRENT DIAGNOSIS BY ${hospital.name}]:\n${currentDiagnosis.trim()}` : request.diagnosis;
+      const newDiagnosis = currentDiagnosis.trim() ? currentDiagnosis.trim() : request.diagnosis;
 
+      // 1. Submit treatment items
       const { error: updateError } = await supabase
         .from("authorization_requests")
         .update({
@@ -153,7 +148,7 @@ export default function ReferralTreatmentFormDialog({
         }
       }).then(({ error }) => { if (error) console.error("Async log error:", error); });
 
-      toast({ title: "Treatment Submitted", description: "Treatment request submitted. Treatment OTP will be sent to the patient upon HMO approval." });
+      toast({ title: "Treatment Submitted", description: "Treatment request submitted. Treatment PIN will be sent to the patient upon HMO approval." });
       onUpdated();
       onClose();
     } catch (err: any) {
@@ -165,82 +160,99 @@ export default function ReferralTreatmentFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-xl rounded-2xl border-none shadow-2xl p-0 max-h-[92dvh] overflow-y-auto overflow-x-hidden">
-        <div className="bg-slate-800 p-6 text-white relative">
-          <h2 className="text-sm font-black uppercase tracking-tight italic">
-            Treatment <span className="text-slate-300">Request Form</span>
-          </h2>
-          <p className="text-xs font-bold text-slate-200/80 uppercase tracking-widest mt-1">
-            Stage 4: Referral Case Details
-          </p>
+      <DialogContent className="max-w-xl rounded-xl border border-slate-200 bg-white p-0 shadow-xl max-h-[92dvh] overflow-y-auto overflow-x-hidden">
+        <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50/80 px-4 py-3 sm:px-5">
+          <div>
+            <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+              <Stethoscope className="h-4 w-4 text-emerald-600" /> Referral Treatment Plan
+            </h2>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Submit diagnosis and NHIA treatment tariff items for HMO authorization
+            </p>
+          </div>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={onClose}
+            className="h-8 w-8 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 shrink-0"
+            aria-label="Close"
+          >
+            <X className="h-4 w-4" />
+          </Button>
         </div>
 
-        <div className="p-6 space-y-6">
-          {/* SECTION A: Referral Info (Read Only) */}
-          <div className="p-4 rounded-xl bg-slate-50 border border-slate-100 space-y-2">
-            <p className="text-xs font-black text-slate-400 uppercase tracking-wider">SECTION A: Referral Information (Read-Only)</p>
-            <div className="grid grid-cols-2 gap-2">
+        <div className="p-4 sm:p-5 space-y-4">
+          {/* Referral Info (Read Only) */}
+          <div className="p-3 rounded-lg bg-slate-50/70 border border-slate-200 space-y-2">
+            <p className="text-[11px] font-semibold text-slate-500">Referral Overview (Read-Only)</p>
+            <div className="grid grid-cols-2 gap-2 text-xs">
               <div>
-                <Label className="text-xs text-slate-400">Patient Name</Label>
-                <p className="text-xs font-black uppercase text-slate-800">{request.patient_name}</p>
+                <span className="text-[11px] text-slate-500 block">Patient Name</span>
+                <span className="font-bold text-slate-900">{request.patient_name}</span>
               </div>
               <div>
-                <Label className="text-xs text-slate-400">Referral Code</Label>
-                <p className="text-xs font-mono font-black text-slate-800">{request.authorization_code}</p>
+                <span className="text-[11px] text-slate-500 block">Referral Code</span>
+                <span className="font-mono font-bold text-slate-900">{request.authorization_code || "—"}</span>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-200/50">
+            <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-200/60 text-xs">
               <div>
-                <Label className="text-xs text-slate-400">Diagnosis</Label>
-                <p className="text-xs font-bold uppercase text-slate-700">{request.diagnosis || "N/A"}</p>
+                <span className="text-[11px] text-slate-500 block">Diagnosis</span>
+                <span className="font-semibold text-slate-800">{request.diagnosis || "N/A"}</span>
               </div>
               <div>
-                <Label className="text-xs text-slate-400">Referring Hospital</Label>
-                <p className="text-xs font-bold uppercase text-slate-700">{request.referring_hospital_name || "N/A"}</p>
+                <span className="text-[11px] text-slate-500 block">Referring Facility</span>
+                <span className="font-semibold text-slate-800">{request.referring_hospital_name || "N/A"}</span>
               </div>
             </div>
           </div>
 
-          {/* SECTION B: Treatment Request (Editable) */}
-          <div className="space-y-4">
-            <p className="text-xs font-black text-slate-400 uppercase tracking-wider">SECTION B: Current Diagnosis & Treatment Items (Editable)</p>
-
-            <div className="space-y-2 relative">
-              <Label className="text-xs uppercase font-black text-slate-400 tracking-wider">Current Diagnosis (Optional)</Label>
+          {/* Treatment Request (Editable) */}
+          <div className="space-y-3.5">
+            <div className="space-y-1">
+              <Label htmlFor="current-diagnosis-input" className="text-xs font-semibold text-slate-700">
+                Updated Diagnosis (Optional)
+              </Label>
               <Textarea
-                placeholder="Enter current diagnosis here if different or updated from the original..."
+                id="current-diagnosis-input"
+                placeholder="Enter current diagnosis here if modified upon clinical examination..."
                 value={currentDiagnosis}
                 onChange={(e) => setCurrentDiagnosis(e.target.value)}
-                className="min-h-[60px] rounded-xl border-slate-200 focus:ring-primary/20 bg-white"
+                className="min-h-[55px] rounded-lg border-slate-200 text-xs bg-white"
               />
             </div>
 
-            <div className="space-y-2 relative">
-              <Label className="text-xs uppercase font-black text-slate-400 tracking-wider">Search NHIA Tariff Database</Label>
+            <div className="space-y-1 relative">
+              <Label htmlFor="tariff-search-input" className="text-xs font-semibold text-slate-700">
+                Search NHIA Tariff Database
+              </Label>
               <div className="relative">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+                <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
                 <Input
-                  placeholder="Type drug, procedure, or consumable..."
+                  id="tariff-search-input"
+                  placeholder="Type drug, procedure, or consumable name..."
                   value={treatSearch}
                   onChange={(e) => setTreatSearch(e.target.value)}
-                  className="pl-9 h-10 rounded-xl focus:ring-primary/20 bg-white"
+                  className="pl-9 h-9 rounded-lg text-xs border-slate-200 bg-white"
                 />
               </div>
 
               {/* Suggestions dropdown */}
               {searchResults.length > 0 && (
-                <div className="absolute z-55 left-0 right-0 top-18 bg-white border border-slate-200 rounded-xl shadow-xl max-h-[220px] overflow-y-auto">
+                <div className="absolute z-50 left-0 right-0 top-[60px] bg-white border border-slate-200 rounded-lg shadow-lg max-h-[200px] overflow-y-auto">
                   {searchResults.map((item) => (
                     <button
                       key={item.code}
+                      type="button"
                       onClick={() => handleAddItem(item)}
-                      className="w-full text-left p-3 hover:bg-slate-50 transition-colors border-b border-slate-100 flex items-center justify-between text-xs"
+                      className="w-full text-left p-2.5 hover:bg-slate-50 transition-colors border-b border-slate-100 flex items-center justify-between text-xs"
                     >
-                      <div>
-                        <p className="font-black text-slate-900 uppercase">{item.name}</p>
-                        <p className="text-xs font-bold text-slate-400 tracking-wide font-mono mt-0.5">{item.code} - {item.subcategory || item.category}</p>
+                      <div className="min-w-0 pr-2">
+                        <p className="font-semibold text-slate-900 truncate">{item.name}</p>
+                        <p className="text-[11px] text-slate-400 font-mono mt-0.5">{item.code} · {item.subcategory || item.category}</p>
                       </div>
-                      <span className="font-black text-emerald-600 font-mono">₦{Number(item.amount).toLocaleString()}</span>
+                      <span className="font-semibold text-emerald-700 font-mono shrink-0">₦{Number(item.amount).toLocaleString("en-NG")}</span>
                     </button>
                   ))}
                 </div>
@@ -250,34 +262,50 @@ export default function ReferralTreatmentFormDialog({
             {/* Selected Treatment items */}
             <div className="space-y-2">
               {treatments.length === 0 ? (
-                <div className="p-8 rounded-xl border border-dashed border-slate-200 text-center text-slate-400 text-xs font-semibold">
-                  No treatments selected. Use the search bar above to select items.
+                <div className="p-5 rounded-lg border border-dashed border-slate-200 text-center text-slate-400 text-xs">
+                  No treatments selected. Use the search bar above to add items from the NHIA tariff list.
                 </div>
               ) : (
-                <div className="space-y-2 max-h-[250px] overflow-y-auto pr-1">
+                <div className="space-y-1.5 max-h-[220px] overflow-y-auto pr-1">
                   {treatments.map((item) => (
-                    <div key={item.code} className="flex items-center justify-between p-3 bg-white border border-slate-100 rounded-xl shadow-xs gap-3">
+                    <div key={item.code} className="flex items-center justify-between p-2.5 bg-slate-50/70 border border-slate-200 rounded-lg gap-2 text-xs">
                       <div className="min-w-0 flex-1">
-                        <p className="text-xs font-black text-slate-800 uppercase truncate">{item.name}</p>
-                        <p className="text-xs font-mono text-slate-400 mt-0.5">₦{item.amount.toLocaleString()} each</p>
+                        <p className="font-semibold text-slate-900 truncate">{item.name}</p>
+                        <p className="text-[11px] font-mono text-slate-500 mt-0.5">₦{item.amount.toLocaleString("en-NG")} each</p>
                       </div>
-                      <div className="flex items-center gap-3 shrink-0">
-                        {/* Qty selectors */}
-                        <div className="flex items-center border border-slate-200 rounded-lg">
-                          <button onClick={() => handleQtyChange(item.code, -1)} className="px-2 py-1 text-slate-500 hover:bg-slate-100 font-bold">-</button>
-                          <span className="px-2 text-xs font-black font-mono">{item.quantity}</span>
-                          <button onClick={() => handleQtyChange(item.code, 1)} className="px-2 py-1 text-slate-500 hover:bg-slate-100 font-bold">+</button>
+                      <div className="flex items-center gap-2 shrink-0">
+                        {/* Qty controls */}
+                        <div className="flex items-center border border-slate-200 rounded-md bg-white">
+                          <button
+                            type="button"
+                            onClick={() => handleQtyChange(item.code, -1)}
+                            className="h-6 w-6 flex items-center justify-center text-slate-500 hover:bg-slate-100"
+                            aria-label="Decrease quantity"
+                          >
+                            <Minus className="h-3 w-3" />
+                          </button>
+                          <span className="px-2 text-xs font-semibold font-mono tabular-nums">{item.quantity}</span>
+                          <button
+                            type="button"
+                            onClick={() => handleQtyChange(item.code, 1)}
+                            className="h-6 w-6 flex items-center justify-center text-slate-500 hover:bg-slate-100"
+                            aria-label="Increase quantity"
+                          >
+                            <Plus className="h-3 w-3" />
+                          </button>
                         </div>
-                        <span className="w-16 text-right text-xs font-black font-mono text-slate-800">
-                          ₦{(item.amount * item.quantity).toLocaleString()}
+                        <span className="w-20 text-right font-mono font-semibold text-slate-900">
+                          ₦{(item.amount * item.quantity).toLocaleString("en-NG")}
                         </span>
                         <Button
+                          type="button"
                           variant="ghost"
                           size="icon"
                           onClick={() => handleRemoveItem(item.code)}
-                          className="h-8 w-8 text-rose-500 hover:bg-rose-50 rounded-lg"
+                          className="h-7 w-7 text-rose-500 hover:bg-rose-50 rounded"
+                          aria-label={`Remove ${item.name}`}
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <Trash2 className="h-3.5 w-3.5" />
                         </Button>
                       </div>
                     </div>
@@ -288,33 +316,40 @@ export default function ReferralTreatmentFormDialog({
 
             {/* Total summary */}
             {treatments.length > 0 && (
-              <div className="flex items-center justify-between p-4 bg-emerald-50 rounded-xl border border-emerald-100 text-emerald-800 font-black">
-                <span className="text-xs uppercase tracking-wider">Total Request Amount</span>
-                <span className="font-mono text-sm">₦{total.toLocaleString()}</span>
+              <div className="flex items-center justify-between p-3 bg-emerald-50/80 rounded-lg border border-emerald-200 text-emerald-900 text-xs">
+                <span className="font-medium">Total Treatment Tariff Value</span>
+                <span className="font-mono font-bold text-sm text-emerald-700">₦{total.toLocaleString("en-NG")}</span>
               </div>
             )}
           </div>
 
           {/* Action buttons */}
-          <div className="flex gap-3 pt-2">
+          <div className="flex items-center justify-end gap-2.5 pt-2">
             <Button
+              type="button"
               variant="outline"
               onClick={onClose}
-              className="h-11 flex-1 rounded-xl text-xs font-black uppercase"
+              className="h-9 px-4 rounded-lg text-xs font-medium border-slate-200 text-slate-700"
             >
               Cancel
             </Button>
             <Button
+              type="button"
               onClick={handleSubmit}
               disabled={isSubmitting || treatments.length === 0}
-              className="h-11 flex-1 rounded-xl bg-slate-800 hover:bg-slate-900 text-white font-black uppercase text-xs tracking-wider shadow-lg shadow-slate-900/10"
+              className="h-9 px-4 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-sm transition-colors"
             >
               {isSubmitting ? (
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+                  Submitting…
+                </>
               ) : (
-                <CheckCircle2 className="h-4 w-4 mr-2" />
+                <>
+                  <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />
+                  Submit Treatment Plan
+                </>
               )}
-              Submit Request
             </Button>
           </div>
         </div>

@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, CheckCircle2, AlertOctagon } from "lucide-react";
+import { Loader2, CheckCircle2, AlertOctagon, X, UserCheck } from "lucide-react";
 
 interface ReferralProcessDialogProps {
   open: boolean;
@@ -35,7 +35,7 @@ export default function ReferralProcessDialog({
 
   const handleAccept = async () => {
     if (!otp.trim()) {
-      toast({ variant: "destructive", title: "OTP Required", description: "Please enter the 6-digit patient OTP/PIN." });
+      toast({ variant: "destructive", title: "OTP Required", description: "Please enter the 6-digit patient arrival PIN." });
       return;
     }
 
@@ -52,8 +52,8 @@ export default function ReferralProcessDialog({
       if (verifyError) throw verifyError;
 
       const result = verifyData as any;
-      if (!result.verified) {
-        throw new Error(result.error || "OTP verification failed");
+      if (!result?.verified) {
+        throw new Error(result?.error || "OTP verification failed");
       }
 
       // 2. Atomic update to referral_accepted status
@@ -66,7 +66,7 @@ export default function ReferralProcessDialog({
 
       if (updateError) throw updateError;
 
-      // 3. Log audit trail (asynchronous, non-blocking)
+      // 3. Log audit trail (asynchronous)
       supabase.from("authorization_logs").insert({
         request_id: request.id,
         action: "REFERRAL_ACCEPTED",
@@ -105,13 +105,13 @@ export default function ReferralProcessDialog({
         .from("authorization_requests")
         .update({
           status: "referral_declined",
-          decision_reason: finalReason
+          decision_reason: finalReason,
+          is_unlocked: false
         } as any)
         .eq("id", request.id);
 
       if (updateError) throw updateError;
 
-      // Log audit (asynchronous)
       supabase.from("authorization_logs").insert({
         request_id: request.id,
         action: "REFERRAL_DECLINED",
@@ -124,7 +124,7 @@ export default function ReferralProcessDialog({
         }
       }).then(({ error }) => { if (error) console.error("Async log error:", error); });
 
-      toast({ title: "Referral Declined", description: "This referral has been declined and permanently locked." });
+      toast({ title: "Referral Declined", description: "This referral has been declined." });
       onUpdated();
       onClose();
     } catch (err: any) {
@@ -136,92 +136,107 @@ export default function ReferralProcessDialog({
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto overflow-x-hidden rounded-2xl border-none shadow-2xl p-0">
-        <div className="bg-slate-800 p-6 text-white relative">
-          <h2 className="text-sm font-black uppercase tracking-tight italic">
-            Accept <span className="text-white/80">Referral</span>
-          </h2>
-          <p className="text-xs font-bold text-slate-200/80 uppercase tracking-widest mt-1">
-            Stage 3: Acceptance
-          </p>
+      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto overflow-x-hidden rounded-xl border border-slate-200 bg-white p-0 shadow-xl">
+        <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50/80 px-4 py-3 sm:px-5">
+          <div>
+            <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+              <UserCheck className="h-4 w-4 text-emerald-600" /> Accept Incoming Referral
+            </h2>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Verify patient arrival PIN to take over treatment
+            </p>
+          </div>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={onClose}
+            className="h-8 w-8 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 shrink-0"
+            aria-label="Close"
+          >
+            <X className="h-4 w-4" />
+          </Button>
         </div>
 
-        <div className="p-6 space-y-5">
-          {/* Read Only Referral Information Container */}
-          <div className="p-4 rounded-xl border border-slate-100 bg-slate-50 space-y-2">
-            <p className="text-xs font-black text-slate-400 uppercase">Referral Information (Read-Only)</p>
+        <div className="p-4 sm:p-5 space-y-4">
+          {/* Read Only Referral Information */}
+          <div className="rounded-lg border border-slate-200 bg-slate-50/70 p-3 space-y-2">
+            <p className="text-[11px] font-semibold text-slate-500">Referral Details (Read-Only)</p>
             <div>
-              <Label className="text-xs text-slate-400">Patient Name</Label>
-              <p className="text-xs font-black uppercase text-slate-900">{request.patient_name}</p>
+              <p className="text-xs font-bold text-slate-900">{request.patient_name}</p>
+              <p className="text-[11px] font-mono text-slate-500">Policy: {request.policy_number || "—"}</p>
             </div>
-            <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-200/50">
+            <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-200/60 text-xs">
               <div>
-                <Label className="text-xs text-slate-400">Diagnosis</Label>
-                <p className="text-xs font-bold uppercase text-slate-700">{request.diagnosis || "N/A"}</p>
+                <span className="text-[11px] text-slate-500 block">Diagnosis</span>
+                <span className="font-semibold text-slate-800">{request.diagnosis || "N/A"}</span>
               </div>
               <div>
-                <Label className="text-xs text-slate-400">Referring Hospital</Label>
-                <p className="text-xs font-bold uppercase text-slate-700">{request.referring_hospital_name || "N/A"}</p>
+                <span className="text-[11px] text-slate-500 block">Referring Provider</span>
+                <span className="font-semibold text-slate-800">{request.referring_hospital_name || "N/A"}</span>
               </div>
             </div>
             {request.clinical_notes && (
-              <div className="pt-2 border-t border-slate-200/50">
-                <Label className="text-xs text-slate-400">Clinical Notes</Label>
-                <p className="text-xs text-slate-600 font-medium">{request.clinical_notes}</p>
+              <div className="pt-2 border-t border-slate-200/60">
+                <span className="text-[11px] text-slate-500 block">Clinical Notes</span>
+                <p className="text-xs text-slate-700 font-normal leading-relaxed mt-0.5">{request.clinical_notes}</p>
               </div>
             )}
           </div>
 
           {!showDeclineForm ? (
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label className="text-xs uppercase font-black text-slate-400 tracking-wider">
-                  Patient OTP/PIN (Verification)
+            <div className="space-y-3.5">
+              <div className="space-y-1.5">
+                <Label htmlFor="referral-otp-input" className="text-xs font-semibold text-slate-700">
+                  Patient Arrival PIN (Verification)
                 </Label>
                 <Input
+                  id="referral-otp-input"
                   maxLength={6}
-                  placeholder="Enter 6-digit OTP"
+                  placeholder="Enter 6-digit PIN"
                   value={otp}
                   onChange={(e) => setOtp(e.target.value.toUpperCase())}
-                  className="h-11 rounded-xl text-center font-mono font-black text-lg focus:ring-primary/20"
+                  className="h-10 rounded-lg text-center font-mono font-bold text-base border-slate-200 focus:border-emerald-500"
                 />
-                <p className="text-xs font-medium text-slate-400 leading-snug">
-                  Ask the patient/family for the OTP sent to their contact info upon initial referral.
+                <p className="text-[11px] text-slate-500 leading-snug">
+                  Obtain the arrival PIN sent to the patient/enrollee upon referral creation.
                 </p>
               </div>
 
-              <div className="flex flex-col gap-2 pt-2">
+              <div className="flex flex-col gap-2 pt-1">
                 <Button
                   onClick={handleAccept}
                   disabled={isVerifying}
-                  className="h-11 rounded-xl bg-slate-800 text-white font-black uppercase text-xs tracking-wider hover:bg-slate-900 transition-all shadow-md active:scale-98"
+                  className="h-9 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-sm transition-colors"
                 >
                   {isVerifying ? (
-                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
                   ) : (
-                    <CheckCircle2 className="h-4 w-4 mr-2" />
+                    <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />
                   )}
                   Accept Referral
                 </Button>
                 <Button
+                  type="button"
                   variant="ghost"
                   onClick={() => setShowDeclineForm(true)}
-                  className="h-10 text-xs font-black uppercase text-rose-600 hover:bg-rose-50"
+                  className="h-8 text-xs font-medium text-rose-600 hover:text-rose-700 hover:bg-rose-50"
                 >
                   Decline Referral
                 </Button>
               </div>
             </div>
           ) : (
-            <div className="space-y-4 animate-in slide-in-from-right duration-250">
-              <div className="space-y-2">
-                <Label className="text-xs uppercase font-black text-slate-400 tracking-wider">
+            <div className="space-y-3.5 animate-in slide-in-from-right duration-200">
+              <div className="space-y-1.5">
+                <Label htmlFor="decline-reason-select" className="text-xs font-semibold text-slate-700">
                   Reason for Decline
                 </Label>
                 <select
+                  id="decline-reason-select"
                   value={declineReason}
                   onChange={(e) => setDeclineReason(e.target.value)}
-                  className="w-full h-11 px-3 bg-white rounded-xl border border-slate-200 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  className="w-full h-9 px-3 bg-white rounded-lg border border-slate-200 text-xs font-medium text-slate-800 focus:outline-none focus:border-slate-400"
                 >
                   <option value="">Select Reason...</option>
                   <option value="Specialist unavailable">Specialist unavailable</option>
@@ -234,36 +249,39 @@ export default function ReferralProcessDialog({
               </div>
 
               {declineReason === "Other" && (
-                <div className="space-y-1.5">
-                  <Label className="text-xs uppercase font-black text-slate-400 tracking-wider">
-                    Please Explain
+                <div className="space-y-1">
+                  <Label htmlFor="other-text-input" className="text-xs font-semibold text-slate-700">
+                    Clinical Justification
                   </Label>
                   <Textarea
-                    placeholder="Enter details..."
+                    id="other-text-input"
+                    placeholder="Provide detailed clinical explanation..."
                     value={otherText}
                     onChange={(e) => setOtherText(e.target.value)}
-                    className="min-h-[70px] rounded-xl text-xs font-medium"
+                    className="min-h-[70px] rounded-lg text-xs border-slate-200"
                   />
                 </div>
               )}
 
-              <div className="flex gap-2 pt-2">
+              <div className="flex items-center justify-end gap-2 pt-1">
                 <Button
+                  type="button"
                   variant="outline"
                   onClick={() => setShowDeclineForm(false)}
-                  className="h-11 flex-1 rounded-xl text-xs font-black uppercase"
+                  className="h-9 px-4 rounded-lg text-xs font-medium border-slate-200"
                 >
                   Back
                 </Button>
                 <Button
+                  type="button"
                   onClick={handleDecline}
                   disabled={isDeclining}
-                  className="h-11 flex-1 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-black uppercase text-xs tracking-wider"
+                  className="h-9 px-4 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-semibold text-xs shadow-sm"
                 >
                   {isDeclining ? (
-                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
                   ) : (
-                    <AlertOctagon className="h-4 w-4 mr-2" />
+                    <AlertOctagon className="h-3.5 w-3.5 mr-1.5" />
                   )}
                   Confirm Decline
                 </Button>

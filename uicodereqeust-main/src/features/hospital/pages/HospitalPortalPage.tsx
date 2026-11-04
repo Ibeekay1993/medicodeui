@@ -2,13 +2,12 @@ import { useState, useEffect, useCallback } from "react";
 import { useTabVisibilityRefresh } from "@/hooks/use-tab-visibility-refresh";
 import { useAuth } from "@/contexts/AuthContext";
 import { useHospitalProfile, useHospitalDashboard, useHospitalAnnouncements } from "../hooks/useHospitalDashboard";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { 
   ShieldCheck, 
   Clock, 
-  CheckCircle2, 
   XCircle, 
   TrendingUp, 
   Banknote,
@@ -36,7 +35,7 @@ export default function HospitalPortalPage() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
 
-  const { data: hospital, isLoading: profileLoading } = useHospitalProfile(hospitalId, user?.id, user?.email);
+  const { data: hospital, isLoading: profileLoading } = useHospitalProfile(hospitalId || undefined, user?.id, user?.email);
   const { data: dashboardData, isLoading: dashboardLoading, refetch: refreshDashboard } = useHospitalDashboard(hospital);
   const { data: announcements = [] } = useHospitalAnnouncements();
 

@@ -1,6 +1,7 @@
 import { HospitalReferralField } from "@/components/HospitalReferralField";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useState, useEffect } from "react";
+import { Share2 } from "lucide-react";
 
 interface ReferralSectionProps {
   hospitalName: string;
@@ -29,26 +30,31 @@ export default function ReferralSection({
   }, [isReferral, setReferralHospitalId, setReferralHospitalName]);
 
   return (
-    <div className="p-6 space-y-4">
-      <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">Referral Ownership</p>
+    <div className="p-4 sm:p-5 space-y-3">
+      <div className="flex items-center justify-between">
+        <h4 className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+          <Share2 className="h-3.5 w-3.5 text-emerald-600" /> Referral Routing
+        </h4>
+        <span className="text-[11px] text-slate-500">Optional specialist transfer</span>
+      </div>
       
-      <div className="flex items-center space-x-3 mb-2 rounded-lg border border-slate-100 bg-slate-50 p-4 transition-colors hover:bg-slate-100/50">
+      <div className="flex items-center space-x-2.5 rounded-lg border border-slate-200 bg-slate-50/70 p-3 transition-colors hover:bg-slate-50">
         <Checkbox 
           id="referral-toggle" 
           checked={isReferral}
           onCheckedChange={(checked) => setIsReferral(!!checked)}
-          className="h-4 w-4 min-h-[16px] min-w-[16px] max-h-[16px] max-w-[16px] shrink-0 flex-none"
+          className="h-4 w-4 min-h-[16px] min-w-[16px] max-h-[16px] max-w-[16px] shrink-0 flex-none rounded"
         />
         <label
           htmlFor="referral-toggle"
-          className="text-sm font-medium leading-none cursor-pointer select-none text-slate-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+          className="text-xs font-medium leading-none cursor-pointer select-none text-slate-800"
         >
-          Is this a referral to another hospital?
+          Refer this patient case to an external or specialist facility
         </label>
       </div>
 
       {isReferral && (
-        <div className="mt-4 space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
+        <div className="mt-3 space-y-2.5 animate-in fade-in slide-in-from-top-1 duration-200">
           <HospitalReferralField
             value={referralHospitalName}
             selectedId={referralHospitalId}
@@ -58,13 +64,12 @@ export default function ReferralSection({
               setReferralHospitalId(next.id);
               setReferralHospitalName(next.name);
             }}
-            helperText="The treating hospital you select will own claim submission and payment."
+            helperText="The selected facility will receive the referral and claim authorization."
           />
           {referralHospitalName.trim() ? (
-            <div className="rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-xs font-bold leading-relaxed text-slate-700">
-              Request raised by: {hospitalName || "Your hospital"}
-              <br />
-              Treatment and claims assigned to: {referralHospitalName.trim()}
+            <div className="rounded-lg border border-blue-200 bg-blue-50/70 p-2.5 text-xs text-blue-900 leading-relaxed">
+              <span className="font-semibold">Case Origin:</span> {hospitalName || "Your hospital"}<br />
+              <span className="font-semibold">Treating Provider:</span> {referralHospitalName.trim()}
             </div>
           ) : null}
         </div>

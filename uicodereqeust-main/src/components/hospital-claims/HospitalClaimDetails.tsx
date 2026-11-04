@@ -1,7 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { FormattedAuditNote } from "@/components/ui/FormattedAuditNote";
-import { FileText } from "lucide-react";
+import { FileText, Clock, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   ClaimDraft,
@@ -28,34 +28,40 @@ export default function HospitalClaimDetails({
   const showContestBanner = hasContestableDeductions(selectedClaim);
 
   return (
-    <div className="space-y-5">
-      <div className="p-5 border-b border-slate-50 bg-slate-50/50 rounded-t-lg">
-        <div className="flex items-center justify-between mb-3">
+    <div className="space-y-4">
+      {/* Patient & Claim Top Strip */}
+      <div className="p-3.5 border-b border-slate-200 bg-slate-50/70 rounded-lg">
+        <div className="flex items-center justify-between mb-2">
           <Badge
             variant="outline"
             className={cn(
-              "text-xs font-bold uppercase tracking-widest px-2 py-0.5",
+              "text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5",
               statusClass(selectedClaim.status)
             )}
           >
             {statusLabel(selectedClaim.status)}
           </Badge>
-          <span className="font-mono text-sm font-bold text-slate-500">
+          <span className="font-mono text-xs text-slate-500">
             {selectedClaim.created_at ? new Date(selectedClaim.created_at).toLocaleDateString("en-GB") : "—"}
           </span>
         </div>
-        <h3 className="text-sm font-black uppercase text-slate-950 leading-tight">{selectedClaim.patient_name}</h3>
-        <p className="font-mono text-sm font-bold text-slate-500 mt-1">
-          {selectedClaim.policy_number} · {selectedClaim.auth_code}
+        <h3 className="text-sm font-bold text-slate-900 leading-tight">{selectedClaim.patient_name}</h3>
+        <p className="font-mono text-xs text-slate-500 mt-0.5">
+          {selectedClaim.policy_number} {selectedClaim.auth_code ? `· Auth: ${selectedClaim.auth_code}` : ""}
         </p>
       </div>
 
-      <div className="px-5 pb-5 space-y-5">
+      <div className="space-y-4">
+        {/* Itemized Breakdown */}
         <div>
-          <h4 className="text-xs font-black uppercase tracking-widest text-slate-400 mb-2 flex items-center gap-1">
-            <FileText className="h-3 w-3" /> Itemized Breakdown
-          </h4>
-          <div className="space-y-2 bg-slate-50 rounded-lg p-3 border border-slate-100">
+          <div className="flex items-center justify-between mb-2">
+            <h4 className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
+              <FileText className="h-3.5 w-3.5 text-slate-400" /> Itemized Breakdown
+            </h4>
+            <span className="text-[10px] text-slate-400 font-medium">{auditedItems.length} items</span>
+          </div>
+
+          <div className="space-y-1.5 bg-slate-50/70 rounded-lg p-2.5 border border-slate-200">
             {auditedItems.map((item: any, idx: number) => {
               const declined = item.audit_status === "declined" || item.status === "declined";
               return (
@@ -63,23 +69,23 @@ export default function HospitalClaimDetails({
                   key={idx}
                   className={cn(
                     "rounded-lg border p-2 text-xs",
-                    declined ? "border-rose-100 bg-rose-50/70" : "border-slate-100 bg-white"
+                    declined ? "border-rose-200 bg-rose-50/60" : "border-slate-200/80 bg-white"
                   )}
                 >
-                  <div className="flex justify-between items-start gap-3">
-                    <span className={cn("font-bold pr-2", declined ? "text-rose-700 line-through" : "text-slate-700")}>
-                      {item.name} <span className="text-slate-400 font-normal">x{item.approved_quantity ?? item.quantity}</span>
+                  <div className="flex justify-between items-start gap-2">
+                    <span className={cn("font-medium pr-1", declined ? "text-rose-700 line-through" : "text-slate-800")}>
+                      {item.name} <span className="text-slate-500 font-normal">× {item.approved_quantity ?? item.quantity}</span>
                     </span>
-                    <span className="font-mono font-black text-slate-900">
-                      ₦{Number(item.approved_total ?? item.total ?? 0).toLocaleString()}
+                    <span className="font-mono font-semibold text-slate-900 shrink-0">
+                      ₦{Number(item.approved_total ?? item.total ?? 0).toLocaleString("en-NG")}
                     </span>
                   </div>
                   {(item.hospital_explanation || item.decline_reason || item.audit_reason) && (
-                    <div className="mt-2 rounded-md bg-white/80 p-2 border border-rose-100">
-                      <p className="text-xs font-black uppercase tracking-widest text-rose-500">
+                    <div className="mt-1.5 rounded bg-white/90 p-2 border border-rose-200/80">
+                      <p className="text-[10px] font-bold text-rose-700 uppercase tracking-wider">
                         Auditor explanation
                       </p>
-                      <p className="mt-1 text-xs font-semibold leading-relaxed text-slate-700">
+                      <p className="mt-0.5 text-xs text-slate-700 leading-snug">
                         {item.hospital_explanation || item.audit_reason || item.decline_reason}
                       </p>
                     </div>
@@ -87,24 +93,25 @@ export default function HospitalClaimDetails({
                 </div>
               );
             })}
-            <div className="pt-2.5 mt-2.5 border-t border-slate-200 space-y-1.5">
+
+            <div className="pt-2 mt-2 border-t border-slate-200 space-y-1">
               <div className="flex justify-between items-center text-xs">
-                <span className="font-semibold text-slate-500">Submitted Total:</span>
+                <span className="text-slate-500">Submitted Total:</span>
                 <span className="font-mono font-bold text-slate-900">
                   ₦{Number(selectedClaim.total_amount || 0).toLocaleString("en-NG")}
                 </span>
               </div>
               {selectedClaim.approved_amount !== null && selectedClaim.approved_amount !== undefined && (
                 <div className="flex justify-between items-center text-xs">
-                  <span className="font-semibold text-emerald-700">Audited Approved:</span>
-                  <span className="font-mono font-bold text-emerald-600">
+                  <span className="font-medium text-emerald-700">Audited Approved:</span>
+                  <span className="font-mono font-bold text-emerald-700">
                     ₦{Number(selectedClaim.approved_amount).toLocaleString("en-NG")}
                   </span>
                 </div>
               )}
               {Number(selectedClaim.declined_amount || 0) > 0 && (
                 <div className="flex justify-between items-center text-xs">
-                  <span className="font-semibold text-rose-700">Audited Deductions:</span>
+                  <span className="font-medium text-rose-700">Audited Deductions:</span>
                   <span className="font-mono font-bold text-rose-600">
                     -₦{Number(selectedClaim.declined_amount).toLocaleString("en-NG")}
                   </span>
@@ -116,10 +123,10 @@ export default function HospitalClaimDetails({
 
         {selectedClaim.notes && (
           <div>
-            <h4 className="text-xs font-black uppercase tracking-widest text-slate-400 mb-2">
-              Clinical/Audit Notes
+            <h4 className="text-xs font-semibold text-slate-700 mb-1.5">
+              Clinical / Audit Notes
             </h4>
-            <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm">
+            <div className="bg-white p-3 rounded-lg border border-slate-200 text-xs">
               <FormattedAuditNote text={selectedClaim.notes} />
             </div>
           </div>
@@ -127,51 +134,51 @@ export default function HospitalClaimDetails({
 
         {/* Contest & Appeal Controls Block */}
         {selectedClaim.status === "contested" ? (
-          <div className="bg-amber-50 border border-amber-200 p-3.5 rounded-xl space-y-1">
-            <span className="text-xs font-black uppercase text-amber-700 tracking-wider block">
-              Decision Under Appeal Review
+          <div className="bg-amber-50 border border-amber-200 p-3 rounded-lg space-y-1">
+            <span className="text-xs font-bold text-amber-800 flex items-center gap-1.5">
+              <Clock className="h-3.5 w-3.5 text-amber-600" /> Decision Under Appeal Review
             </span>
-            <p className="text-xs font-medium text-amber-600 leading-snug">
-              You have submitted a contest appeal for this claim. The clinical audit panel is manually reconciling your
+            <p className="text-xs text-amber-700 leading-relaxed">
+              You have submitted a contest appeal for this claim. The clinical audit team is reconciling your
               justification. Payout status is pending review.
             </p>
           </div>
         ) : selectedClaim.payment_status === "awaiting_payment" ? (
-          <div className="bg-emerald-50 border border-emerald-200 p-3.5 rounded-xl space-y-1">
-            <span className="text-xs font-black uppercase text-emerald-700 tracking-wider block">
-              ✓ Ready for Payment Batch
+          <div className="bg-emerald-50 border border-emerald-200 p-3 rounded-lg space-y-1">
+            <span className="text-xs font-bold text-emerald-800 flex items-center gap-1.5">
+              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" /> Ready for Payment Batch
             </span>
-            <p className="text-xs font-medium text-emerald-600 leading-snug">
+            <p className="text-xs text-emerald-700 leading-relaxed">
               This claim has been released to the HMO payment queue and is awaiting the next settlement batch.
             </p>
           </div>
         ) : showContestBanner ? (
-          <div className="bg-rose-50 border border-rose-100 p-3.5 rounded-xl space-y-2.5">
+          <div className="bg-rose-50/70 border border-rose-200 p-3 rounded-lg space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-black uppercase text-rose-700 tracking-wider block">
-                Deductions Detected
+              <span className="text-xs font-bold text-rose-800 flex items-center gap-1.5">
+                <AlertTriangle className="h-3.5 w-3.5 text-rose-600" /> Deductions Applied
               </span>
               {selectedClaim.contest_deadline && (
-                <span className="text-[10px] font-bold text-amber-700 bg-amber-100/70 px-2 py-0.5 rounded-full">
-                  {Math.max(0, Math.ceil((new Date(selectedClaim.contest_deadline).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))} days left to dispute
+                <span className="text-[10px] font-semibold text-amber-800 bg-amber-100/80 px-2 py-0.5 rounded-full border border-amber-200">
+                  {Math.max(0, Math.ceil((new Date(selectedClaim.contest_deadline).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))} days left to contest
                 </span>
               )}
             </div>
-            <p className="text-[11px] font-medium text-rose-600 leading-snug">
-              Some items were excluded or adjusted during the clinical audit. You can submit a dispute with justifications within the 7-day window, or accept the audited total to expedite settlement.
+            <p className="text-xs text-rose-700 leading-relaxed">
+              Some items were adjusted during clinical audit. You can submit a dispute with justifications or accept the audited total to expedite settlement.
             </p>
             <div className="grid grid-cols-2 gap-2 pt-1">
               <Button
                 variant="outline"
                 onClick={() => onContestClick(selectedClaim)}
-                className="w-full bg-white hover:bg-rose-100 border border-rose-200 text-rose-600 font-bold text-xs h-9 rounded-lg transition-all"
+                className="w-full bg-white hover:bg-rose-50 border border-rose-200 text-rose-700 font-semibold text-xs h-8 rounded-lg"
               >
-                Contest Decisions
+                Contest Deductions
               </Button>
               {onAcceptPayment && (
                 <Button
                   onClick={() => onAcceptPayment(selectedClaim)}
-                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs h-9 rounded-lg transition-all shadow-sm"
+                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs h-8 rounded-lg shadow-sm"
                 >
                   Accept & Expedite Payment
                 </Button>

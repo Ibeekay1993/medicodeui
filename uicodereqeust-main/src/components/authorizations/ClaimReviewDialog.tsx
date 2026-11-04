@@ -46,195 +46,303 @@ export default function ClaimReviewDialog({
   const isEligible = (selectedRequest && hospital) ? isClaimEligible(selectedRequest, hospital) : false;
   const isClaimRejected = selectedRequest ? isRejected(selectedRequest) : false;
 
+  const approvedItems = selectedRequest ? getApprovedItems(selectedRequest) : [];
+
   return (
     <Dialog open={isReviewing} onOpenChange={setIsReviewing}>
-      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto overflow-x-hidden rounded-2xl border-none shadow-2xl p-0">
-        <div className="bg-slate-800 p-6 text-white relative">
-          <h2 className="text-sm font-black uppercase tracking-tight italic">
-            Claim <span className="text-slate-300">Review</span>
-          </h2>
-          <p className="text-xs font-bold text-slate-200/80 uppercase tracking-widest mt-1">
-            Final Verification Stage
-          </p>
-          <button 
-            onClick={() => setIsReviewing(false)} 
-            className="absolute right-4 top-4 text-slate-500 hover:text-white transition-colors"
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto overflow-x-hidden rounded-xl border border-slate-200 bg-white p-0 shadow-xl">
+        {/* Clean, compact header */}
+        <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50/80 px-4 py-3 sm:px-5">
+          <div className="min-w-0 pr-3">
+            <div className="flex items-center gap-2">
+              <h2 className="text-sm font-bold text-slate-900 tracking-tight">
+                Authorization & Claim Review
+              </h2>
+              {selectedRequest?.status && (
+                <Badge
+                  variant="outline"
+                  className={cn(
+                    "text-[10px] font-semibold px-2 py-0.5 rounded-full capitalize shrink-0",
+                    claimStatusClass(selectedRequest.status)
+                  )}
+                >
+                  {displayStatus(selectedRequest.status)}
+                </Badge>
+              )}
+            </div>
+            <p className="text-xs text-slate-500 mt-0.5 truncate">
+              Review pre-authorized treatments and submit claim to HMO
+            </p>
+          </div>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={() => setIsReviewing(false)}
+            className="h-8 w-8 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 shrink-0"
+            aria-label="Close review dialog"
           >
             <X className="h-4 w-4" />
-          </button>
+          </Button>
         </div>
 
-        <div className="p-6 space-y-5">
-          <div className="space-y-4">
-            <div className="flex items-start gap-4 p-4 rounded-xl bg-slate-50 border border-slate-100">
-              <div className="h-8 w-8 rounded-lg bg-emerald-100 flex items-center justify-center shrink-0">
-                <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+        {/* Modal content body */}
+        <div className="p-4 sm:p-5 space-y-3.5">
+          {/* Patient Card */}
+          <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50/70 p-3">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0">
+                <CheckCircle2 className="h-4 w-4" />
               </div>
-              <div>
-                <p className="text-xs font-black text-slate-900 uppercase">{selectedRequest?.patient_name}</p>
-                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">
-                  Policy: {selectedRequest?.policy_number}
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-slate-900 truncate">
+                  {selectedRequest?.patient_name || "Patient Record"}
+                </p>
+                <p className="text-[11px] font-mono text-slate-500 mt-0.5">
+                  Policy: {selectedRequest?.policy_number || "—"}
                 </p>
               </div>
             </div>
-            {isReferred ? (
-              <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 text-xs font-bold leading-relaxed text-slate-700">
-                Request Raised By: {selectedRequest?.requesting_hospital_name || selectedRequest?.hospital_name || "Original hospital"}<br />
-                Treatment and Claims Assigned To: {claimOwnerNameFor(selectedRequest)}<br />
-                {canSubmit
-                  ? "Your hospital can submit and receive payment for this authorization."
-                  : "This code is visible for coordination only. Claims and payment are restricted to the treating hospital."}
-              </div>
-            ) : null}
+            {selectedRequest?.urgency && (
+              <Badge variant="outline" className="text-[10px] uppercase font-semibold text-slate-600 bg-white border-slate-200 shrink-0">
+                {selectedRequest.urgency}
+              </Badge>
+            )}
+          </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="p-3 rounded-lg border border-slate-100 bg-white">
-                <p className="text-xs font-black text-slate-400 uppercase mb-1">Auth Code</p>
-                <p className={cn("text-xs font-mono font-black", selectedRequest?.deletion_status === "awaiting_admin_approval" ? "text-rose-700" : "text-primary")}>
-                  {selectedRequest?.deletion_status === "awaiting_admin_approval" ? "WITHDRAWN - Awaiting Delete" : selectedRequest?.authorization_code}
-                </p>
+          {/* Referral Notice */}
+          {isReferred && (
+            <div className="rounded-lg border border-blue-200 bg-blue-50/60 p-3 text-xs text-blue-950 space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="font-semibold text-blue-900">Referral Notice</span>
+                <span className="font-mono text-[10px] font-bold text-blue-700">Referred Case</span>
               </div>
-              <div className="p-3 rounded-lg border border-slate-100 bg-white">
-                <p className="text-xs font-black text-slate-400 uppercase mb-1">Total Amount</p>
-                {hospital && selectedRequest && isReferring ? (
-                  <p className="text-xs font-black text-slate-400 font-mono">Not visible (referred)</p>
-                ) : (
-                  <p className="text-xs font-black text-emerald-600 font-mono">₦{selectedRequest?.total_amount?.toLocaleString() || "0"}</p>
+              <p className="text-[11px] text-blue-800 leading-relaxed">
+                Origin: <span className="font-medium text-slate-900">{selectedRequest?.requesting_hospital_name || selectedRequest?.hospital_name || "Original facility"}</span> · Treating: <span className="font-medium text-slate-900">{claimOwnerNameFor(selectedRequest) || "Assigned facility"}</span>
+              </p>
+              {!canSubmit && (
+                <p className="text-[11px] text-blue-700 italic pt-0.5">
+                  This authorization is visible for clinical coordination only. Claims submission is restricted to the treating hospital.
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Auth Code & Financial Summary */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-lg border border-slate-200 bg-white p-3">
+              <p className="text-[11px] font-medium text-slate-500">Authorization Code</p>
+              <p
+                className={cn(
+                  "text-xs font-mono font-bold mt-1 truncate",
+                  selectedRequest?.deletion_status === "awaiting_admin_approval"
+                    ? "text-rose-600"
+                    : "text-slate-900"
                 )}
-              </div>
+              >
+                {selectedRequest?.deletion_status === "awaiting_admin_approval"
+                  ? "WITHDRAWN (Pending Delete)"
+                  : selectedRequest?.authorization_code || "PENDING"}
+              </p>
             </div>
-
-            <div className="p-4 rounded-xl border border-slate-100 bg-white space-y-3">
-              <div>
-                <p className="text-xs font-black text-slate-400 uppercase mb-1">Diagnosis</p>
-                <p className="text-xs font-black text-slate-900 uppercase leading-tight">{selectedRequest?.diagnosis || "Not Specified"}</p>
-              </div>
-              {!isReferring ? (
-                <div className="pt-2 border-t border-slate-50">
-                  <p className="text-xs font-black text-slate-400 uppercase mb-2">Treatment / Drugs / Breakdown</p>
-                  <div className="space-y-1.5 max-h-[200px] overflow-y-auto pr-1">
-                    {getApprovedItems(selectedRequest).length > 0 ? (
-                      getApprovedItems(selectedRequest).map((item: any, idx: number) => {
-                        const isDeclined = !!item.declined || item.status === "rejected";
-                        const qty = Math.max(1, Number(item.quantity || item.qty || 1));
-                        const unitPrice = Number(item.unit_price || item.price || item.unitPrice || (item.amount ? Number(item.amount) / qty : 0));
-                        const total = isDeclined ? 0 : Number(item.amount || item.total || qty * unitPrice || 0);
-                        return (
-                          <div 
-                            key={`${item.code || item.name || idx}`} 
-                            className={cn(
-                              "flex flex-col gap-1 text-xs font-bold px-3 py-2 rounded-lg border",
-                              isDeclined 
-                                ? "bg-rose-50/50 border-rose-100/50 text-rose-900/60" 
-                                : "bg-slate-50 border-slate-100 text-slate-600"
-                            )}
-                          >
-                            <div className="flex items-start gap-2">
-                              <FileText className={cn("h-3 w-3 mt-0.5 shrink-0", isDeclined ? "text-rose-300" : "text-slate-300")} />
-                              <span className={cn("uppercase leading-tight break-words flex-1", isDeclined ? "line-through text-rose-900/60" : "text-slate-900")}>
-                                {item.code ? `${item.code} - ` : ""}{item.name || item.item_name || "Approved item"}
-                              </span>
-                              {isDeclined && (
-                                <Badge variant="outline" className="border-rose-200 bg-rose-100/50 text-xs font-black uppercase tracking-wider text-rose-700 px-1 py-0 h-4 shrink-0">
-                                  Declined
-                                </Badge>
-                              )}
-                            </div>
-                            <div className="pl-5 flex flex-wrap items-center justify-between gap-2">
-                              <p className={cn("text-xs font-black uppercase tracking-tight italic", isDeclined ? "text-rose-700/50" : "text-emerald-600")}>
-                                {qty} unit{qty === 1 ? "" : "s"} x ₦{unitPrice.toLocaleString()}
-                              </p>
-                              <p className={cn("text-xs font-black font-mono", isDeclined ? "text-rose-700 line-through" : "text-slate-900")}>
-                                ₦{total.toLocaleString()}
-                              </p>
-                            </div>
-                            {isDeclined && item.decline_reason && (
-                              <div className="text-xs text-rose-700 font-medium bg-rose-100/30 rounded-md px-2 py-1 border border-rose-200/40 mt-1 pl-5">
-                                <span className="font-bold text-rose-800">Reason for decline:</span> {item.decline_reason}
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })
-                    ) : selectedRequest?.treatment?.split(/[;,]/).map((item: string, idx: number) => {
-                      const text = item.trim();
-                      if (!text) return null;
-                      const hasPrice = text.includes("₦");
-                      return (
-                        <div key={idx} className="flex flex-col gap-1 text-xs font-bold text-slate-600 bg-slate-50 px-3 py-2 rounded-lg border border-slate-100">
-                          <div className="flex items-start gap-2">
-                            <FileText className="h-3 w-3 text-slate-300 mt-0.5 shrink-0" />
-                            <span className="uppercase text-slate-900 leading-tight break-words">
-                              {hasPrice ? text.split("(")[0].trim() : text}
-                            </span>
-                          </div>
-                          {hasPrice && (
-                            <div className="pl-5 flex items-center justify-between">
-                              <p className="text-xs font-black text-emerald-600 uppercase tracking-tight italic">
-                                Calculation: {text.split("(")[1]?.replace(")", "").trim()}
-                              </p>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    }) || <p className="text-xs text-slate-300 italic">No treatment data recorded</p>}
-                  </div>
-                </div>
+            <div className="rounded-lg border border-slate-200 bg-white p-3">
+              <p className="text-[11px] font-medium text-slate-500">Authorized Value</p>
+              {hospital && selectedRequest && isReferring ? (
+                <p className="text-xs font-medium text-slate-400 mt-1 italic">Hidden (Referred)</p>
               ) : (
-                <div className="pt-4 border-t border-slate-50 text-center text-slate-400">
-                  <p className="text-xs font-black uppercase tracking-widest">Treatment Details Hidden</p>
-                  <p className="text-xs mt-1 font-semibold">Pre-authorization and treatment items are hidden from the referring hospital.</p>
-                </div>
+                <p className="text-xs font-mono font-bold text-emerald-700 mt-1">
+                  ₦{Number(selectedRequest?.total_amount || 0).toLocaleString("en-NG")}
+                </p>
               )}
             </div>
           </div>
 
+          {/* Diagnosis & Itemized Treatments */}
+          <div className="rounded-lg border border-slate-200 bg-white p-3.5 space-y-3">
+            <div>
+              <p className="text-[11px] font-medium text-slate-500">Diagnosis</p>
+              <p className="text-xs font-semibold text-slate-900 mt-0.5">
+                {selectedRequest?.diagnosis || "Not specified"}
+              </p>
+            </div>
+
+            {!isReferring ? (
+              <div className="pt-2 border-t border-slate-100">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-[11px] font-medium text-slate-500">
+                    Authorized Items & Tariff Breakdown
+                  </p>
+                  <span className="text-[10px] text-slate-400 font-medium">NHIA Tariffs</span>
+                </div>
+
+                <div className="space-y-1.5 max-h-[220px] overflow-y-auto pr-1">
+                  {approvedItems.length > 0 ? (
+                    approvedItems.map((item: any, idx: number) => {
+                      const isDeclined = !!item.declined || item.status === "rejected";
+                      const qty = Math.max(1, Number(item.quantity || item.qty || 1));
+                      const unitPrice = Number(
+                        item.unit_price || item.price || item.unitPrice || (item.amount ? Number(item.amount) / qty : 0)
+                      );
+                      const total = isDeclined ? 0 : Number(item.amount || item.total || qty * unitPrice || 0);
+
+                      return (
+                        <div
+                          key={`${item.code || item.name || idx}`}
+                          className={cn(
+                            "flex flex-col gap-1 text-xs px-3 py-2 rounded-lg border",
+                            isDeclined
+                              ? "bg-rose-50/50 border-rose-100 text-rose-900"
+                              : "bg-slate-50/70 border-slate-200/80 text-slate-800"
+                          )}
+                        >
+                          <div className="flex items-start gap-2">
+                            <FileText
+                              className={cn(
+                                "h-3.5 w-3.5 mt-0.5 shrink-0",
+                                isDeclined ? "text-rose-400" : "text-slate-400"
+                              )}
+                            />
+                            <span
+                              className={cn(
+                                "font-medium leading-tight flex-1",
+                                isDeclined ? "line-through text-rose-700/80" : "text-slate-900"
+                              )}
+                            >
+                              {item.code ? <span className="font-mono text-slate-500 mr-1">{item.code}</span> : null}
+                              {item.name || item.item_name || "Approved item"}
+                            </span>
+                            {isDeclined && (
+                              <Badge
+                                variant="outline"
+                                className="border-rose-200 bg-rose-50 text-[10px] font-semibold text-rose-700 px-1.5 py-0 h-4 shrink-0"
+                              >
+                                Declined
+                              </Badge>
+                            )}
+                          </div>
+                          <div className="pl-5.5 flex flex-wrap items-center justify-between gap-2 pt-0.5">
+                            <span className="text-[11px] text-slate-500">
+                              {qty} unit{qty === 1 ? "" : "s"} × ₦{unitPrice.toLocaleString("en-NG")}
+                            </span>
+                            <span
+                              className={cn(
+                                "font-mono font-semibold text-xs",
+                                isDeclined ? "text-rose-600 line-through" : "text-slate-900"
+                              )}
+                            >
+                              ₦{total.toLocaleString("en-NG")}
+                            </span>
+                          </div>
+                          {isDeclined && item.decline_reason && (
+                            <div className="text-[11px] text-rose-700 font-medium bg-rose-100/40 rounded px-2 py-1 border border-rose-200/40 mt-0.5 pl-5">
+                              <span className="font-semibold text-rose-800">Reason:</span> {item.decline_reason}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })
+                  ) : selectedRequest?.treatment ? (
+                    selectedRequest.treatment.split(/[;,]/).map((item: string, idx: number) => {
+                      const text = item.trim();
+                      if (!text) return null;
+                      const hasPrice = text.includes("₦");
+                      return (
+                        <div
+                          key={idx}
+                          className="flex flex-col gap-1 text-xs text-slate-700 bg-slate-50/70 px-3 py-2 rounded-lg border border-slate-200/80"
+                        >
+                          <div className="flex items-start gap-2">
+                            <FileText className="h-3.5 w-3.5 text-slate-400 mt-0.5 shrink-0" />
+                            <span className="font-medium text-slate-900 leading-tight">
+                              {hasPrice ? text.split("(")[0].trim() : text}
+                            </span>
+                          </div>
+                          {hasPrice && (
+                            <div className="pl-5.5 text-[11px] text-slate-500">
+                              Calculation: {text.split("(")[1]?.replace(")", "").trim()}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <p className="text-xs text-slate-400 italic py-1">No itemized treatment records available.</p>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="pt-3 border-t border-slate-100 text-center py-2 text-slate-500 text-xs">
+                Pre-authorization items are reserved for the treating hospital.
+              </div>
+            )}
+          </div>
+
+          {/* Submission and Action States */}
           {!canSubmit ? (
-            <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 text-center text-slate-700">
-              <p className="text-xs font-black uppercase tracking-widest">Claim Restricted</p>
-              <p className="mt-1 text-xs font-bold font-sans">
-                Only {claimOwnerNameFor(selectedRequest) || "the treating hospital"} can submit this claim.
+            <div className="rounded-lg border border-slate-200 bg-slate-50/80 p-3 text-center text-slate-700 text-xs">
+              <p className="font-semibold text-slate-900">Claim Restricted</p>
+              <p className="mt-0.5 text-slate-500 text-[11px]">
+                Only {claimOwnerNameFor(selectedRequest) || "the treating hospital"} can submit this claim for settlement.
               </p>
             </div>
           ) : isLocked ? (
-            <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 text-center text-slate-700">
-              <p className="text-xs font-black uppercase tracking-widest">Claim Blocked</p>
-              <p className="mt-1 text-xs font-bold font-sans">
-                Claims must be submitted by the receiving hospital after referral transfer.
+            <div className="rounded-lg border border-slate-200 bg-slate-50/80 p-3 text-center text-slate-700 text-xs">
+              <p className="font-semibold text-slate-900">Claim Locked</p>
+              <p className="mt-0.5 text-slate-500 text-[11px]">
+                Claims must be submitted by the receiving hospital following referral transfer.
               </p>
             </div>
           ) : !isEligible && !claimStatus ? (
-            <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 text-center text-slate-700">
-              <p className="text-xs font-black uppercase tracking-widest">Not Eligible for Claim</p>
-              <p className="mt-1 text-xs font-bold font-sans">
+            <div className="rounded-lg border border-slate-200 bg-slate-50/80 p-3 text-center text-slate-700 text-xs">
+              <p className="font-semibold text-slate-900">Not Eligible for Claim</p>
+              <p className="mt-0.5 text-slate-500 text-[11px]">
                 {selectedRequest?.deletion_status === "awaiting_admin_approval"
                   ? "This authorization request is awaiting deletion approval and cannot be claimed."
                   : isFrozen || isClaimRejected
                   ? "This authorization is not eligible for claim submission."
-                  : String(selectedRequest?.status || "").toLowerCase() !== "approved"
+                  : String(selectedRequest?.status || "").toLowerCase() !== "approved" && String(selectedRequest?.status || "").toLowerCase() !== "partially_approved"
                   ? "Claims can only be submitted after authorization is approved."
                   : !selectedRequest?.authorization_code
                   ? "No authorization code assigned yet."
                   : "This request is not eligible for claim submission."}
               </p>
               {rejectionReason(selectedRequest) && (isClaimRejected || isFrozen) ? (
-                <p className="mt-2 text-xs font-mono font-black leading-snug">Reason: {rejectionReason(selectedRequest)}</p>
+                <p className="mt-1.5 text-[11px] font-mono text-rose-700">
+                  Reason: {rejectionReason(selectedRequest)}
+                </p>
               ) : null}
             </div>
           ) : claimStatus ? (
-            <div className={cn("rounded-xl border p-4 text-center", claimStatusClass(claimStatus))}>
-              <p className="text-xs font-black uppercase tracking-widest">Claim Already Submitted</p>
-              <p className="mt-1 text-xs font-black uppercase">{displayStatus(claimStatus)}</p>
-              <p className="mt-1 text-xs font-semibold opacity-80">This authorization is locked against duplicate submission.</p>
+            <div className={cn("rounded-lg border p-3 text-center text-xs", claimStatusClass(claimStatus))}>
+              <p className="font-semibold">Claim Already Submitted</p>
+              <p className="mt-0.5 font-bold uppercase">{displayStatus(claimStatus)}</p>
+              <p className="mt-0.5 text-[11px] opacity-80">This authorization has already been claimed to prevent duplicates.</p>
             </div>
           ) : (
-            <Button 
-              disabled={isSubmitting} 
-              onClick={handleClaimSubmit}
-              className="w-full h-12 rounded-xl bg-slate-800 hover:bg-slate-900 text-xs font-black uppercase tracking-widest shadow-xl shadow-slate-900/10 active:scale-95 transition-all text-white"
-            >
-              {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin text-white" /> : "Confirm & Submit Claim"}
-            </Button>
+            <div className="flex items-center justify-end gap-2.5 pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsReviewing(false)}
+                className="h-9 px-4 rounded-lg border-slate-200 text-slate-700 text-xs font-medium hover:bg-slate-50"
+              >
+                Close
+              </Button>
+              <Button
+                disabled={isSubmitting}
+                onClick={handleClaimSubmit}
+                className="h-9 px-4 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-sm transition-colors"
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+                    Submitting Claim…
+                  </>
+                ) : (
+                  "Confirm & Submit Claim"
+                )}
+              </Button>
+            </div>
           )}
         </div>
       </DialogContent>

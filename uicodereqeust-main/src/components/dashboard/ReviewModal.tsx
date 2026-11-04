@@ -346,8 +346,7 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
         if (serviceLines.length > 0) {
           setEditTreatment(serviceLines.join(", "));
         }
-      })
-      .catch(() => { /* silently ignore */ });
+      }, () => { /* silently ignore */ });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, request?.id, request?.source, request?.whatsapp_message_id, request?.treatment]);
 

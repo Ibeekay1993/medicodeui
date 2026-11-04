@@ -1,4 +1,4 @@
-import { Search, Download, Loader2, Receipt, Building2 } from "lucide-react";
+import { Search, Download, Loader2, Receipt } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";

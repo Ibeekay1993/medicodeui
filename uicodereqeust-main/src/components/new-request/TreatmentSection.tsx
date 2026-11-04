@@ -1,9 +1,9 @@
-import React from "react";
+import type { Dispatch, SetStateAction, RefObject } from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Loader2, Search, Minus, Plus } from "lucide-react";
+import { Loader2, Search, Minus, Plus, Trash2, Pill } from "lucide-react";
 import Dropdown from "./Dropdown";
 import { TreatmentItem } from "@/lib/new-request-helpers";
 
@@ -15,10 +15,10 @@ interface TreatmentSectionProps {
   treatOpen: boolean;
   setTreatOpen: (open: boolean) => void;
   treatments: TreatmentItem[];
-  setTreatments: React.Dispatch<React.SetStateAction<TreatmentItem[]>>;
-  isSubmitting: boolean;
-  onSubmit: () => void;
-  treatRef: React.RefObject<HTMLDivElement>;
+  setTreatments: Dispatch<SetStateAction<TreatmentItem[]>>;
+  isSubmitting?: boolean;
+  onSubmit?: () => void;
+  treatRef: RefObject<HTMLDivElement>;
 }
 
 export default function TreatmentSection({
@@ -30,8 +30,6 @@ export default function TreatmentSection({
   setTreatOpen,
   treatments,
   setTreatments,
-  isSubmitting,
-  onSubmit,
   treatRef
 }: TreatmentSectionProps) {
   const addTreatment = (item: any) => {
@@ -40,6 +38,10 @@ export default function TreatmentSection({
     );
     setTreatSearch("");
     setTreatOpen(false);
+  };
+
+  const removeTreatment = (code: string) => {
+    setTreatments((prev) => prev.filter((t) => t.code !== code));
   };
 
   const changeQty = (code: string, d: number) =>
@@ -62,38 +64,45 @@ export default function TreatmentSection({
   };
 
   return (
-    <div className="p-6 space-y-4">
-      <div className="flex items-center justify-between">
-        <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">Treatment & Services</p>
+    <div className="p-4 sm:p-5 space-y-3.5">
+      <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+        <div>
+          <h4 className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+            <Pill className="h-3.5 w-3.5 text-emerald-600" /> Treatment & Clinical Services
+          </h4>
+          <p className="text-[11px] text-slate-500">Select drugs, investigations, or procedures from standard tariff</p>
+        </div>
         <Badge
           variant="outline"
-          className="text-xs font-black uppercase border-amber-200 text-amber-600 bg-amber-50"
+          className="text-[10px] font-semibold border-slate-200 text-slate-600 bg-slate-50"
         >
           NHIA 2025
         </Badge>
       </div>
 
-      <div className="space-y-1.5">
-        <Label htmlFor="treatment-search-input" className="text-xs font-semibold text-slate-500">Search Drug, Service or Procedure</Label>
+      <div className="space-y-1">
+        <Label htmlFor="treatment-search-input" className="text-xs font-semibold text-slate-700">
+          Search Drug, Investigation, or Procedure
+        </Label>
         <div ref={treatRef} className="relative">
           <Input
             id="treatment-search-input"
-            placeholder="e.g. Paracetamol, Ceftriaxone, Flagyl, Lipitor..."
+            placeholder="e.g. Paracetamol, Ceftriaxone, Full Blood Count..."
             value={treatSearch}
             onChange={(e) => setTreatSearch(e.target.value)}
             onFocus={() => treatResults.length > 0 && setTreatOpen(true)}
-            className="h-12 rounded-xl bg-slate-50 border border-slate-200 pr-10 text-sm placeholder:text-slate-300 placeholder:text-xs"
+            className="h-9 sm:h-10 rounded-lg bg-white border border-slate-200 pr-9 text-xs placeholder:text-slate-400"
           />
-          <div className="absolute right-3 top-3.5 pointer-events-none">
+          <div className="absolute right-3 top-2.5 pointer-events-none">
             {treatLoading ? (
-              <Loader2 className="h-4 w-4 animate-spin text-amber-500" />
+              <Loader2 className="h-4 w-4 animate-spin text-emerald-600" />
             ) : (
-              <Search className="h-4 w-4 text-slate-300" />
+              <Search className="h-4 w-4 text-slate-400" />
             )}
           </div>
         </div>
         <Dropdown anchorRef={treatRef} open={treatOpen} onClose={() => setTreatOpen(false)}>
-          <div className="divide-y divide-slate-50">
+          <div className="divide-y divide-slate-100 max-h-56 overflow-y-auto">
             {treatResults.map((item, i) => (
               <button
                 type="button"
@@ -102,17 +111,19 @@ export default function TreatmentSection({
                   e.preventDefault();
                   addTreatment(item);
                 }}
-                className="w-full text-left px-4 py-3 hover:bg-amber-50 transition-colors group flex items-center gap-3"
+                className="w-full text-left px-3 py-2.5 hover:bg-slate-50 transition-colors group flex items-center justify-between text-xs"
               >
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-bold text-slate-900 group-hover:text-amber-700 leading-tight">
+                <div className="min-w-0 pr-2">
+                  <p className="font-semibold text-slate-900 group-hover:text-emerald-700 leading-tight truncate">
                     {item.name}
                   </p>
-                  <p className="text-xs text-slate-400 uppercase tracking-widest">
-                    {item.subcategory || item.category} · {item.code}
+                  <p className="text-[11px] text-slate-400 font-mono mt-0.5">
+                    {item.code} · {item.subcategory || item.category}
                   </p>
                 </div>
-                <p className="text-sm font-black text-emerald-600 shrink-0">₦{Number(item.amount).toLocaleString()}</p>
+                <span className="font-mono font-semibold text-emerald-700 shrink-0">
+                  ₦{Number(item.amount).toLocaleString("en-NG")}
+                </span>
               </button>
             ))}
           </div>
@@ -121,51 +132,68 @@ export default function TreatmentSection({
 
       {/* Treatment list */}
       {treatments.length === 0 ? (
-        <div className="flex items-center justify-center py-6 rounded-xl bg-slate-50 border border-dashed border-slate-200">
-          <p className="text-xs font-bold text-slate-300 uppercase tracking-widest">No items added yet</p>
+        <div className="flex items-center justify-center py-6 rounded-lg bg-slate-50/60 border border-dashed border-slate-200">
+          <p className="text-xs text-slate-400">No items selected yet. Search above to add.</p>
         </div>
       ) : (
-        <div className="space-y-1.5">
+        <div className="space-y-1.5 max-h-[260px] overflow-y-auto pr-1">
           {treatments.map((t) => (
-            <div key={t.code} className="flex items-center gap-2 px-3 py-2 bg-slate-50 border border-slate-100 rounded-xl">
+            <div key={t.code} className="flex items-center justify-between gap-2 px-3 py-2 bg-slate-50/70 border border-slate-200 rounded-lg text-xs">
               <div className="flex-1 min-w-0">
-                <p className="text-xs font-black text-slate-900 leading-tight">{t.name}</p>
-                <p className="text-xs text-slate-400 uppercase tracking-widest">{t.code}</p>
+                <p className="font-semibold text-slate-900 truncate">{t.name}</p>
+                <p className="text-[11px] font-mono text-slate-500 mt-0.5">
+                  {t.code} · ₦{Number(t.amount).toLocaleString("en-NG")} each
+                </p>
               </div>
-              <div className="flex items-center gap-1 shrink-0">
-                <button
+              <div className="flex items-center gap-2 shrink-0">
+                <div className="flex items-center border border-slate-200 rounded-md bg-white">
+                  <button
+                    type="button"
+                    onClick={() => changeQty(t.code, -1)}
+                    className="h-6 w-6 rounded-l-md flex items-center justify-center text-slate-500 hover:bg-slate-100"
+                    aria-label={`Decrease quantity of ${t.name}`}
+                  >
+                    <Minus className="h-3 w-3" />
+                  </button>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    value={t.quantity}
+                    aria-label={`Quantity for ${t.name}`}
+                    onChange={(e) => setQty(t.code, e.target.value)}
+                    onFocus={(e) => e.target.select()}
+                    onBlur={(e) => {
+                      const v = Number(e.target.value);
+                      if (!Number.isFinite(v) || v < 1) setQty(t.code, "1");
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+                    }}
+                    className="h-6 w-8 text-center font-mono font-semibold text-xs p-0 outline-none tabular-nums border-x border-slate-200"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => changeQty(t.code, 1)}
+                    className="h-6 w-6 rounded-r-md flex items-center justify-center text-slate-500 hover:bg-slate-100"
+                    aria-label={`Increase quantity of ${t.name}`}
+                  >
+                    <Plus className="h-3 w-3" />
+                  </button>
+                </div>
+                <span className="w-20 text-right font-mono font-semibold text-slate-900">
+                  ₦{(t.amount * t.quantity).toLocaleString("en-NG")}
+                </span>
+                <Button
                   type="button"
-                  onClick={() => changeQty(t.code, -1)}
-                  className="h-6 w-6 rounded-md bg-white border border-slate-200 hover:border-slate-300 flex items-center justify-center"
-                  aria-label={`Decrease quantity of ${t.name}`}
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => removeTreatment(t.code)}
+                  className="h-7 w-7 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded"
+                  aria-label={`Remove ${t.name}`}
                 >
-                  <Minus className="h-2.5 w-2.5 text-slate-500" />
-                </button>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  value={t.quantity}
-                  aria-label={`Quantity for ${t.name}`}
-                  onChange={(e) => setQty(t.code, e.target.value)}
-                  onFocus={(e) => e.target.select()}
-                  onBlur={(e) => {
-                    const v = Number(e.target.value);
-                    if (!Number.isFinite(v) || v < 1) setQty(t.code, "1");
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-                  }}
-                  className="h-6 w-8 border border-slate-300 bg-white rounded text-center font-black text-xs p-0 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 cursor-text tabular-nums"
-                  style={{ MozAppearance: "textfield" }}
-                />
-                <button
-                  type="button"
-                  onClick={() => changeQty(t.code, 1)}
-                  className="h-6 w-6 rounded-md bg-white border border-slate-200 hover:border-slate-300 flex items-center justify-center"
-                >
-                  <Plus className="h-2.5 w-2.5 text-slate-500" />
-                </button>
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
               </div>
             </div>
           ))}

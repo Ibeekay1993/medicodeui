@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Calendar, Loader2 } from "lucide-react";
+import { Calendar, Loader2, X } from "lucide-react";
 
 interface ExportCSVDialogProps {
   open: boolean;
@@ -24,7 +24,6 @@ export default function ExportCSVDialog({ open, onOpenChange, onExport, isExport
       setEndDate("");
       return;
     } else if (days === 'month') {
-      // First day of current month
       start = new Date(end.getFullYear(), end.getMonth(), 1);
     } else {
       start.setDate(end.getDate() - days);
@@ -49,20 +48,33 @@ export default function ExportCSVDialog({ open, onOpenChange, onExport, isExport
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md rounded-2xl border-none p-0 overflow-hidden shadow-2xl">
-        <div className="bg-slate-800 p-6 text-white">
-          <DialogTitle className="text-sm font-black uppercase tracking-wider flex items-center gap-2">
-            <Calendar className="h-4 w-4 text-emerald-400" /> Export Authorizations
-          </DialogTitle>
-          <DialogDescription className="text-xs font-bold text-slate-200/80 uppercase tracking-widest mt-1">
-            Select a date range to download the CSV ledger
-          </DialogDescription>
+      <DialogContent className="max-w-md rounded-xl border border-slate-200 bg-white p-0 overflow-hidden shadow-xl">
+        <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50/80 px-4 py-3 sm:px-5">
+          <div>
+            <DialogTitle className="text-sm font-bold text-slate-900 flex items-center gap-2">
+              <Calendar className="h-4 w-4 text-emerald-600" /> Export Authorizations
+            </DialogTitle>
+            <DialogDescription className="text-xs text-slate-500 mt-0.5">
+              Select a date range to download the authorizations ledger CSV
+            </DialogDescription>
+          </div>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={() => onOpenChange(false)}
+            className="h-8 w-8 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 shrink-0"
+            aria-label="Close"
+          >
+            <X className="h-4 w-4" />
+          </Button>
         </div>
-        <form onSubmit={handleSubmit} className="p-6 bg-white space-y-5">
+
+        <form onSubmit={handleSubmit} className="p-4 sm:p-5 bg-white space-y-4">
           {/* Quick Presets */}
-          <div className="space-y-2">
-            <label className="text-[11px] font-black uppercase tracking-wider text-slate-400 block">
-              Quick Presets
+          <div className="space-y-1.5">
+            <label className="text-[11px] font-semibold text-slate-600 block">
+              Quick Filter Presets
             </label>
             <div className="grid grid-cols-2 gap-2">
               <Button
@@ -70,7 +82,7 @@ export default function ExportCSVDialog({ open, onOpenChange, onExport, isExport
                 variant="outline"
                 size="sm"
                 onClick={() => handlePreset(7)}
-                className="h-9 text-xs font-bold border-slate-100 hover:bg-slate-50 text-slate-700 rounded-xl"
+                className="h-8 text-xs font-medium border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg"
               >
                 Last 7 Days
               </Button>
@@ -79,7 +91,7 @@ export default function ExportCSVDialog({ open, onOpenChange, onExport, isExport
                 variant="outline"
                 size="sm"
                 onClick={() => handlePreset(30)}
-                className="h-9 text-xs font-bold border-slate-100 hover:bg-slate-50 text-slate-700 rounded-xl"
+                className="h-8 text-xs font-medium border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg"
               >
                 Last 30 Days
               </Button>
@@ -88,7 +100,7 @@ export default function ExportCSVDialog({ open, onOpenChange, onExport, isExport
                 variant="outline"
                 size="sm"
                 onClick={() => handlePreset('month')}
-                className="h-9 text-xs font-bold border-slate-100 hover:bg-slate-50 text-slate-700 rounded-xl"
+                className="h-8 text-xs font-medium border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg"
               >
                 This Month
               </Button>
@@ -97,23 +109,23 @@ export default function ExportCSVDialog({ open, onOpenChange, onExport, isExport
                 variant="outline"
                 size="sm"
                 onClick={() => handlePreset('all')}
-                className="h-9 text-xs font-bold border-slate-100 hover:bg-slate-50 text-slate-700 rounded-xl"
+                className="h-8 text-xs font-medium border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg"
               >
-                All Time (No Filter)
+                All Time
               </Button>
             </div>
           </div>
 
-          <div className="relative flex py-2 items-center">
+          <div className="relative flex py-1 items-center">
             <div className="flex-grow border-t border-slate-100"></div>
-            <span className="flex-shrink mx-4 text-[10px] font-black uppercase text-slate-300">Or Custom Range</span>
+            <span className="flex-shrink mx-3 text-[10px] font-medium text-slate-400">or custom range</span>
             <div className="flex-grow border-t border-slate-100"></div>
           </div>
 
           {/* Date Inputs */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <label htmlFor="export-start-date" className="text-[11px] font-black uppercase tracking-wider text-slate-400">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <label htmlFor="export-start-date" className="text-[11px] font-medium text-slate-600 block">
                 Start Date
               </label>
               <Input
@@ -121,11 +133,11 @@ export default function ExportCSVDialog({ open, onOpenChange, onExport, isExport
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="h-10 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 focus:bg-white"
+                className="h-9 rounded-lg bg-white border border-slate-200 text-xs font-medium text-slate-700"
               />
             </div>
-            <div className="space-y-1.5">
-              <label htmlFor="export-end-date" className="text-[11px] font-black uppercase tracking-wider text-slate-400">
+            <div className="space-y-1">
+              <label htmlFor="export-end-date" className="text-[11px] font-medium text-slate-600 block">
                 End Date
               </label>
               <Input
@@ -133,29 +145,29 @@ export default function ExportCSVDialog({ open, onOpenChange, onExport, isExport
                 type="date"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
-                className="h-10 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 focus:bg-white"
+                className="h-9 rounded-lg bg-white border border-slate-200 text-xs font-medium text-slate-700"
               />
             </div>
           </div>
 
           {/* Submit */}
-          <div className="pt-2 flex gap-3">
+          <div className="pt-2 flex items-center justify-end gap-2.5">
             <Button
               type="button"
-              variant="ghost"
+              variant="outline"
               onClick={() => onOpenChange(false)}
-              className="flex-1 h-11 text-xs font-bold text-slate-500 rounded-xl hover:bg-slate-50"
+              className="h-9 px-4 text-xs font-medium text-slate-700 rounded-lg hover:bg-slate-50 border-slate-200"
             >
               Cancel
             </Button>
             <Button
               type="submit"
               disabled={isExporting}
-              className="flex-1 h-11 text-xs font-black uppercase tracking-wider bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-lg shadow-emerald-600/10"
+              className="h-9 px-4 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg shadow-sm"
             >
               {isExporting ? (
                 <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Exporting...
+                  <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> Exporting…
                 </>
               ) : (
                 "Download CSV"
