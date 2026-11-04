@@ -18,14 +18,16 @@ import {
   canSubmitClaimFor
 } from "@/lib/authorizations-helpers";
 
-const STATUS_COLORS: Record<string, { bg: string; text: string; border: string }> = {
-  approved: { bg: "bg-emerald-50", text: "text-emerald-700", border: "border-emerald-200" },
-  partially_approved: { bg: "bg-amber-50", text: "text-amber-700", border: "border-amber-200" },
-  referral_approved: { bg: "bg-indigo-50", text: "text-indigo-700", border: "border-indigo-200" },
-  referral_accepted: { bg: "bg-blue-50", text: "text-blue-700", border: "border-blue-200" },
-  pending: { bg: "bg-amber-50", text: "text-amber-700", border: "border-amber-200" },
-  rejected: { bg: "bg-rose-50", text: "text-rose-700", border: "border-rose-200" },
+// Solid pill colours — matches Utilization Officer / RequestList badge style
+const STATUS_BADGE: Record<string, string> = {
+  approved:           "bg-emerald-600 text-white border-transparent",
+  partially_approved: "bg-sky-600    text-white border-transparent",
+  referral_approved:  "bg-indigo-600 text-white border-transparent",
+  referral_accepted:  "bg-blue-600   text-white border-transparent",
+  pending:            "bg-amber-500  text-white border-transparent",
+  rejected:           "bg-rose-600   text-white border-transparent",
 };
+const STATUS_BADGE_DEFAULT = "bg-slate-500 text-white border-transparent";
 
 interface AuthorizationsTableProps {
   paginatedRequests: any[];
@@ -228,23 +230,16 @@ export default function AuthorizationsTable({
                       </td>
                       <td className="py-2 pr-4">
                         <div className="flex flex-col items-start gap-1.5">
-                          <Badge variant="outline" className={cn("inline-flex items-center justify-center w-[124px] h-[26px] px-2 rounded-full border whitespace-nowrap text-[11px] font-semibold tracking-tight shadow-none", (() => {
-                            const s = String(r.status || "").toLowerCase();
-                            const map: Record<string, string> = {
-                              approved: `${STATUS_COLORS.approved.bg} ${STATUS_COLORS.approved.text} ${STATUS_COLORS.approved.border}`,
-                              partially_approved: `${STATUS_COLORS.partially_approved.bg} ${STATUS_COLORS.partially_approved.text} ${STATUS_COLORS.partially_approved.border}`,
-                              referral_approved: `${STATUS_COLORS.referral_approved.bg} ${STATUS_COLORS.referral_approved.text} ${STATUS_COLORS.referral_approved.border}`,
-                              pending: `${STATUS_COLORS.pending.bg} ${STATUS_COLORS.pending.text} ${STATUS_COLORS.pending.border}`,
-                              rejected: `${STATUS_COLORS.rejected.bg} ${STATUS_COLORS.rejected.text} ${STATUS_COLORS.rejected.border}`,
-                            };
-                            return map[s] || "border-slate-200 text-slate-600 bg-slate-50";
-                          })())}>
+                          <Badge className={cn(
+                            "inline-flex items-center justify-center w-[124px] h-[26px] px-2 rounded-full border whitespace-nowrap text-[11px] font-semibold tracking-tight shadow-none capitalize",
+                            STATUS_BADGE[String(r.status || "").toLowerCase()] ?? STATUS_BADGE_DEFAULT
+                          )}>
                             {(() => {
                               const st = String(r.status || "");
                               if (st === "referral_approved") return "Referral approved";
                               if (st === "partially_approved") return "Partially approved";
                               if (st === "referral_accepted") return "Referral accepted";
-                              return st.replace("_", " ");
+                              return st.replace(/_/g, " ");
                             })()}
                           </Badge>
                         </div>
@@ -316,37 +311,18 @@ export default function AuthorizationsTable({
                   {/* Row 1: Name + Status badge */}
                   <div className="flex items-start justify-between gap-3">
                     <p className="min-w-0 flex-1 break-words text-sm font-semibold normal-case leading-tight text-slate-900">{r.patient_name}</p>
-                    
-                    <div className={cn("inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide shrink-0", (() => {
-                      const s = String(r.status || "").toLowerCase();
-                      const map: Record<string, string> = {
-                        approved: "bg-emerald-50 text-emerald-600",
-                        partially_approved: "bg-amber-50 text-amber-600",
-                        referral_approved: "bg-slate-100 text-slate-600",
-                        pending: "bg-amber-50 text-amber-600",
-                        rejected: "bg-rose-50 text-rose-600",
-                      };
-                      return map[s] || "bg-slate-50 text-slate-500 border border-slate-200";
-                    })())}>
-                      <span className={cn("w-1.5 h-1.5 rounded-full", (() => {
-                        const s = String(r.status || "").toLowerCase();
-                        const map: Record<string, string> = {
-                          approved: "bg-emerald-500",
-                          partially_approved: "bg-amber-500",
-                          referral_approved: "bg-slate-400",
-                          pending: "bg-amber-500",
-                          rejected: "bg-rose-500",
-                        };
-                        return map[s] || "bg-slate-400";
-                      })())} />
+                    <Badge className={cn(
+                      "px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide border whitespace-nowrap shrink-0",
+                      STATUS_BADGE[String(r.status || "").toLowerCase()] ?? STATUS_BADGE_DEFAULT
+                    )}>
                       {(() => {
                         const st = String(r.status || "");
                         if (st === "referral_approved") return "REF APPROVED";
-                        if (st === "partially_approved") return "PARTIALLY APPROVED";
+                        if (st === "partially_approved") return "PARTIAL";
                         if (st === "referral_accepted") return "REF ACCEPTED";
-                        return st.replace("_", " ");
+                        return st.replace(/_/g, " ");
                       })()}
-                    </div>
+                    </Badge>
                   </div>
   
                   {/* Row 2: Diagnosis, Date, Actions inline */}

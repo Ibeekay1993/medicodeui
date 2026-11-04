@@ -328,7 +328,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       </aside>
 
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden h-full pb-[calc(64px+env(safe-area-inset-bottom))] md:pb-0 relative">
-        <header className="flex items-center justify-between h-[72px] sm:h-20 px-2 sm:px-4 bg-white border-b border-slate-100 sticky top-0 z-40 w-full shrink-0">
+        <header className="flex items-center justify-between h-14 sm:h-16 px-3 sm:px-5 bg-white border-b border-slate-100 sticky top-0 z-40 w-full shrink-0">
           <div className="flex items-center gap-3 min-w-0">
             <button onClick={() => navigate(basePath)} className="flex items-center gap-2 hover:opacity-80 transition-opacity shrink-0 md:hidden">
               <img

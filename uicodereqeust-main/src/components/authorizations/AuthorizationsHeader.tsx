@@ -1,4 +1,4 @@
-import { Search, Loader2, Download, ShieldCheck, Plus } from "lucide-react";
+import { Search, Loader2, Download, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -19,47 +19,37 @@ interface AuthorizationsHeaderProps {
 }
 
 export default function AuthorizationsHeader({
-  hospitalName,
   hospitalCode,
   search,
   setSearch,
   exportCSV,
   isExporting,
   loading,
-  fullName,
   statusFilter = "all",
   setStatusFilter
 }: AuthorizationsHeaderProps) {
   const navigate = useNavigate();
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-3.5 shadow-sm sm:p-4">
-      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-900 text-white shadow-sm">
-            <ShieldCheck className="h-5 w-5 text-emerald-400" />
-          </div>
-          <div>
-            <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-base font-bold text-slate-900 tracking-tight sm:text-lg">
-                Authorizations Ledger
-              </h1>
-              {hospitalCode && (
-                <Badge variant="outline" className="font-mono text-[10px] font-semibold bg-slate-50 text-slate-700 border-slate-200">
-                  {hospitalCode}
-                </Badge>
-              )}
-            </div>
-            <p className="text-xs text-slate-500">
-              {hospitalName || fullName || "Provider"} · Pre-authorizations, referrals & approved clinical care
-            </p>
-          </div>
+    <div className="rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 shadow-sm sm:px-4 sm:py-3">
+      <div className="flex flex-col gap-2.5 lg:flex-row lg:items-center lg:justify-between">
+        {/* Title + Hospital Code: Clean, compact, no oversized icon */}
+        <div className="flex items-center gap-2 min-w-0">
+          <h1 className="text-sm font-bold text-slate-900 tracking-tight whitespace-nowrap">
+            Authorizations Ledger
+          </h1>
+          {hospitalCode && (
+            <Badge variant="outline" className="font-mono text-[10px] font-semibold bg-slate-50 text-slate-600 border-slate-200 px-1.5 py-0">
+              {hospitalCode}
+            </Badge>
+          )}
         </div>
 
-        <div className="flex flex-wrap items-center justify-end gap-2.5 w-full md:w-auto">
+        {/* Action Controls: Compact, single-row on desktop */}
+        <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto justify-start lg:justify-end">
           {setStatusFilter && (
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="h-9 w-full sm:w-40 rounded-lg border-slate-200 bg-white text-xs font-medium text-slate-700">
+              <SelectTrigger className="h-8.5 w-full sm:w-36 rounded-lg border-slate-200 bg-white text-xs font-medium text-slate-700">
                 <SelectValue placeholder="All Status" />
               </SelectTrigger>
               <SelectContent className="rounded-xl border-slate-200 shadow-xl">
@@ -75,7 +65,7 @@ export default function AuthorizationsHeader({
                   { id: "pending_authorization", label: "Pending Auth" },
                   { id: "referral_declined", label: "Referral Declined" },
                 ].map(filter => (
-                  <SelectItem key={filter.id} value={filter.id} className="text-xs font-semibold">
+                  <SelectItem key={filter.id} value={filter.id} className="text-xs font-medium">
                     {filter.label}
                   </SelectItem>
                 ))}
@@ -83,13 +73,13 @@ export default function AuthorizationsHeader({
             </Select>
           )}
 
-          <div className="relative w-full sm:w-56">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" aria-hidden="true" />
+          <div className="relative flex-1 sm:w-52 sm:flex-initial">
+            <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" aria-hidden="true" />
             <Input 
-              placeholder="Search by code, patient, policy..." 
+              placeholder="Search code, patient..." 
               value={search} 
               onChange={e => setSearch(e.target.value)} 
-              className="pl-8 h-9 rounded-lg border-slate-200 text-xs font-medium w-full" 
+              className="pl-8 h-8.5 rounded-lg border-slate-200 text-xs font-medium w-full" 
               aria-label="Search authorizations ledger"
             />
           </div>
@@ -99,7 +89,7 @@ export default function AuthorizationsHeader({
             disabled={isExporting || loading} 
             size="sm"
             variant="outline"
-            className="h-9 px-3 rounded-lg border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50 w-full sm:w-auto"
+            className="h-8.5 px-3 rounded-lg border-slate-200 text-xs font-medium text-slate-700 hover:bg-slate-50 shrink-0"
           >
             {isExporting ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Download className="h-3.5 w-3.5 mr-1.5" />} 
             CSV
@@ -108,7 +98,7 @@ export default function AuthorizationsHeader({
           <Button
             onClick={() => navigate("/dashboard/new-request")}
             size="sm"
-            className="h-9 px-3.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-bold gap-1.5 w-full sm:w-auto shadow-sm"
+            className="h-8.5 px-3.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-semibold gap-1.5 shrink-0 shadow-sm"
           >
             <Plus className="h-3.5 w-3.5 text-emerald-400" />
             New Auth

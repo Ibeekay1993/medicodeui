@@ -6,6 +6,24 @@ import { cn } from "@/lib/utils";
 import { DataPagination } from "@/components/dashboard/DataPagination";
 import { ClaimDraft } from "@/lib/claims-helpers";
 
+// Solid pill colours — matches Utilization Officer / RequestList badge style
+const CLAIM_STATUS_SOLID: Record<string, string> = {
+  submitted:          "bg-amber-500   text-white border-transparent",
+  pending:            "bg-amber-500   text-white border-transparent",
+  under_review:       "bg-sky-500     text-white border-transparent",
+  approved:           "bg-emerald-600 text-white border-transparent",
+  partially_approved: "bg-sky-600     text-white border-transparent",
+  paid:               "bg-emerald-700 text-white border-transparent",
+  rejected:           "bg-rose-600    text-white border-transparent",
+  declined:           "bg-rose-600    text-white border-transparent",
+  denied:             "bg-rose-600    text-white border-transparent",
+  contested:          "bg-blue-600    text-white border-transparent",
+  under_contest:      "bg-blue-600    text-white border-transparent",
+  adjusted:           "bg-sky-600     text-white border-transparent",
+};
+const solidClaimBadge = (status?: string | null) =>
+  CLAIM_STATUS_SOLID[String(status || "").toLowerCase()] ?? "bg-slate-500 text-white border-transparent";
+
 interface HospitalClaimsTableProps {
   loading: boolean;
   filteredClaims: ClaimDraft[];
@@ -27,7 +45,6 @@ export default function HospitalClaimsTable({
   filteredClaims,
   paginatedClaims,
   onViewDetails,
-  statusClass,
   statusLabel,
   page,
   totalPages,
@@ -59,7 +76,7 @@ export default function HospitalClaimsTable({
                 <thead>
                   <tr className="border-b border-slate-200 bg-slate-50/80 text-[11px] font-bold uppercase tracking-wider text-slate-500">
                     <th className="px-4 py-3">Claim Reference</th>
-                    <th className="py-3 pr-4">Patient & Policy</th>
+                    <th className="py-3 pr-4">Patient &amp; Policy</th>
                     <th className="py-3 pr-4">Submitted Amount</th>
                     <th className="py-3 pr-4">Approved Amount</th>
                     <th className="py-3 pr-4">Audit Status</th>
@@ -90,17 +107,19 @@ export default function HospitalClaimsTable({
                         </p>
                       </td>
                       <td className="py-3 pr-4 font-mono font-bold text-slate-900 text-sm tabular-nums">
-                        ₦{Number(c.total_amount || 0).toLocaleString("en-NG")}
+                        &#8358;{Number(c.total_amount || 0).toLocaleString("en-NG")}
                       </td>
                       <td className="py-3 pr-4 font-mono font-bold text-emerald-600 text-sm tabular-nums">
                         {c.approved_amount !== null && c.approved_amount !== undefined
-                          ? `₦${Number(c.approved_amount).toLocaleString("en-NG")}`
+                          ? `\u20a6${Number(c.approved_amount).toLocaleString("en-NG")}`
                           : "—"}
                       </td>
                       <td className="py-3 pr-4">
                         <Badge
-                          variant="outline"
-                          className={cn("text-[11px] font-semibold px-2.5 py-0.5 rounded-full border shadow-none", statusClass(c.status))}
+                          className={cn(
+                            "text-[11px] font-semibold px-2.5 py-0.5 rounded-full border shadow-none capitalize",
+                            solidClaimBadge(c.status)
+                          )}
                         >
                           {statusLabel(c.status)}
                         </Badge>
@@ -143,19 +162,21 @@ export default function HospitalClaimsTable({
                       </p>
                     </div>
                     <Badge
-                      variant="outline"
-                      className={cn("text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0 border", statusClass(c.status))}
+                      className={cn(
+                        "text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0 border capitalize",
+                        solidClaimBadge(c.status)
+                      )}
                     >
                       {statusLabel(c.status)}
                     </Badge>
                   </div>
-                  
+
                   {/* Row 2: Amount, Date, Button */}
                   <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-100">
                     <div>
                       <span className="text-[10px] uppercase font-bold text-slate-400">Total Claim</span>
                       <p className="font-mono font-bold text-slate-900 text-sm tabular-nums">
-                        ₦{Number(c.total_amount || 0).toLocaleString("en-NG")}
+                        &#8358;{Number(c.total_amount || 0).toLocaleString("en-NG")}
                       </p>
                     </div>
 
