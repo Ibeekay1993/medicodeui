@@ -20,9 +20,6 @@ export class RequestsService {
     let q = supabase
       .from("authorization_requests")
       .select("*", { count: "exact" })
-      // Exclude archived/historical records from the default internal queue.
-      // Historical records are still accessible via the Reports page or direct search.
-      .eq("is_historical", false)
       .order("created_at", { ascending: false });
 
     if (role === "claims") {
