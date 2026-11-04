@@ -33,10 +33,23 @@ export default function HospitalClaimDetails({
       <div className="p-3.5 border-b border-slate-200 bg-slate-50/70 rounded-lg">
         <div className="flex items-center justify-between mb-2">
           <Badge
-            variant="outline"
             className={cn(
-              "text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5",
-              statusClass(selectedClaim.status)
+              "text-[10px] font-bold uppercase tracking-wide px-2.5 py-0.5 rounded-full border shadow-none",
+              (() => {
+                const s = String(selectedClaim.status || "").toLowerCase();
+                const map: Record<string, string> = {
+                  approved: "bg-emerald-600 text-white border-transparent",
+                  partially_approved: "bg-sky-600 text-white border-transparent",
+                  paid: "bg-emerald-700 text-white border-transparent",
+                  rejected: "bg-rose-600 text-white border-transparent",
+                  declined: "bg-rose-600 text-white border-transparent",
+                  contested: "bg-purple-600 text-white border-transparent",
+                  pending: "bg-amber-500 text-white border-transparent",
+                  submitted: "bg-amber-500 text-white border-transparent",
+                  under_review: "bg-sky-500 text-white border-transparent",
+                };
+                return map[s] || "bg-slate-600 text-white border-transparent";
+              })()
             )}
           >
             {statusLabel(selectedClaim.status)}

@@ -628,10 +628,7 @@ export default function HospitalNewRequest() {
               </p>
             </div>
           </div>
-          <span className="hidden sm:inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            Live Verification
-          </span>
+          <span className="hidden sm:inline-flex items-center gap-1.5 text-xs font-medium text-slate-600 bg-slate-50 px-2.5 py-1 rounded-full border border-slate-200"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />Registry Active</span>
         </div>
       </div>
       

@@ -278,7 +278,7 @@ export default function AuthorizationsTable({
                               : "View Items"}
                           </Button>
                           {isClaimEligible(r, hospital) && claimStatus && (
-                            <Badge variant="outline" className="h-8 px-2.5 rounded-lg border-emerald-200 text-emerald-700 bg-emerald-50 text-xs font-semibold">
+                            <Badge className="h-8 px-2.5 rounded-lg bg-emerald-600 text-white text-xs font-semibold border-transparent shadow-none">
                               Claim Submitted
                             </Badge>
                           )}

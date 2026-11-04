@@ -13,7 +13,6 @@ import {
   Banknote,
   Plus,
   AlertCircle,
-  Building2,
   RefreshCw,
   Layers,
   Receipt,
@@ -26,6 +25,23 @@ import {
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+
+// Solid pill colours matching Utilization Manager RequestList
+const STATUS_SOLID: Record<string, string> = {
+  approved:           "bg-emerald-600 text-white border-transparent",
+  partially_approved: "bg-sky-600     text-white border-transparent",
+  referral_approved:  "bg-indigo-600 text-white border-transparent",
+  referral_accepted:  "bg-blue-600   text-white border-transparent",
+  paid:               "bg-emerald-700 text-white border-transparent",
+  pending:            "bg-amber-500   text-white border-transparent",
+  submitted:          "bg-amber-500   text-white border-transparent",
+  under_review:       "bg-sky-500     text-white border-transparent",
+  rejected:           "bg-rose-600    text-white border-transparent",
+  declined:           "bg-rose-600    text-white border-transparent",
+  contested:          "bg-purple-600  text-white border-transparent",
+};
+const solidBadgeClass = (status?: string | null) =>
+  STATUS_SOLID[String(status || "").toLowerCase()] ?? "bg-slate-500 text-white border-transparent";
 
 export default function HospitalPortalPage() {
   const { user, fullName, hospitalId } = useAuth();
@@ -73,7 +89,7 @@ export default function HospitalPortalPage() {
       setIsRefreshing(true);
       try {
         await refreshDashboard();
-        toast({ title: "Metrics Updated", description: "Real-time ledger synchronized." });
+        toast({ title: "Metrics Updated", description: "Ledger data synchronized." });
       } finally {
         setIsRefreshing(false);
       }
@@ -85,44 +101,25 @@ export default function HospitalPortalPage() {
   const handleCopyCode = (code: string) => {
     navigator.clipboard.writeText(code);
     setCopiedCode(code);
-    toast({ title: "Copied", description: `Auth code ${code} copied to clipboard.` });
+    toast({ title: "Copied", description: `Auth code ${code} copied.` });
     setTimeout(() => setCopiedCode(null), 2000);
-  };
-
-  const statusPillClass = (status: string) => {
-    const s = String(status || "").toLowerCase();
-    if (s === "approved" || s === "paid") return "bg-emerald-50 text-emerald-700 border-emerald-200";
-    if (s === "partially_approved") return "bg-amber-50 text-amber-700 border-amber-200";
-    if (s === "pending" || s === "submitted" || s === "under_review" || s.includes("pending")) return "bg-sky-50 text-sky-700 border-sky-200";
-    if (s === "rejected" || s === "declined") return "bg-rose-50 text-rose-700 border-rose-200";
-    if (s === "contested") return "bg-purple-50 text-purple-700 border-purple-200";
-    return "bg-slate-50 text-slate-600 border-slate-200";
   };
 
   return (
     <div className="space-y-3.5 max-w-full overflow-x-hidden pb-10 animate-in fade-in duration-200">
       
-      {/* 1. Compact Header Strip (No redundant Authorizations button) */}
-      <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm sm:px-4 sm:py-3">
+      {/* 1. Sleek Action Bar (Non-redundant, no bulky icon box) */}
+      <div className="rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 shadow-sm sm:px-4 sm:py-3">
         <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-900 text-white font-mono text-xs font-bold shadow-sm">
-              <Building2 className="h-4 w-4 text-emerald-400" />
-            </span>
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2">
-                <h1 className="truncate text-sm sm:text-base font-bold text-slate-900 tracking-tight">
-                  {hospital?.name || fullName || "Facility Provider"}
-                </h1>
-                <Badge variant="outline" className="font-mono text-[10px] font-semibold bg-slate-50 text-slate-700 border-slate-200 px-1.5 py-0">
-                  {hospital?.code || "HOSP"}
-                </Badge>
-                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0 text-[10px] font-semibold text-emerald-700 border border-emerald-200">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  Active Facility
-                </span>
-              </div>
-            </div>
+          <div className="flex items-center gap-2 min-w-0">
+            <h1 className="text-sm font-bold text-slate-900 tracking-tight whitespace-nowrap">
+              Facility Dashboard
+            </h1>
+            {hospital?.code && (
+              <Badge variant="outline" className="font-mono text-[10px] font-semibold bg-slate-50 text-slate-600 border-slate-200 px-1.5 py-0">
+                {hospital.code}
+              </Badge>
+            )}
           </div>
 
           <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
@@ -131,14 +128,15 @@ export default function HospitalPortalPage() {
               size="sm"
               onClick={() => void refresh()}
               disabled={isRefreshing || pageLoading}
-              className="h-8 px-2.5 rounded-lg border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+              className="h-8.5 px-3 rounded-lg border-slate-200 text-xs font-medium text-slate-700 hover:bg-slate-50 shadow-none"
             >
-              <RefreshCw className={cn("mr-1 h-3.5 w-3.5", isRefreshing && "animate-spin text-emerald-600")} />
+              <RefreshCw className={cn("mr-1.5 h-3.5 w-3.5", isRefreshing && "animate-spin text-emerald-600")} />
               Sync
             </Button>
             <Button
               onClick={() => navigate("/dashboard/new-request")}
-              className="h-8 px-3.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold gap-1.5 shadow-sm"
+              size="sm"
+              className="h-8.5 px-3.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold gap-1.5 shadow-sm"
             >
               <Plus className="h-3.5 w-3.5 text-emerald-400" />
               New Pre-Auth
@@ -147,17 +145,17 @@ export default function HospitalPortalPage() {
         </div>
       </div>
 
-      {/* 2. Active Announcements Ticker (High-Density Top Pill) */}
+      {/* 2. Active Announcements Ticker (Clean Banner) */}
       {announcements.length > 0 && (
-        <div className="rounded-xl border border-slate-200 bg-slate-50/90 px-3 py-2 shadow-sm flex items-center justify-between gap-3 text-xs">
+        <div className="rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 shadow-sm flex items-center justify-between gap-3 text-xs">
           <div className="flex items-center gap-2 min-w-0">
             <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-amber-100 text-amber-800">
               <Megaphone className="h-3 w-3" />
             </span>
-            <span className="font-bold text-slate-900 truncate">
+            <span className="font-semibold text-slate-900 truncate">
               {announcements[currentAnnouncementIndex].title}:
             </span>
-            <span className="text-slate-600 truncate">
+            <span className="text-slate-600 truncate font-normal">
               {announcements[currentAnnouncementIndex].content}
             </span>
           </div>
@@ -182,7 +180,7 @@ export default function HospitalPortalPage() {
 
       {/* 3. Approaching Contest Deadline Alert */}
       {approachingDeadlineClaims.length > 0 && (
-        <div className="rounded-xl border border-amber-200 bg-amber-50/90 p-3 shadow-sm animate-in slide-in-from-top duration-200">
+        <div className="rounded-xl border border-amber-200 bg-amber-50/80 p-3 shadow-sm">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-start gap-2.5">
               <AlertCircle className="h-4 w-4 text-amber-700 shrink-0 mt-0.5" />
@@ -191,14 +189,14 @@ export default function HospitalPortalPage() {
                   {approachingDeadlineClaims.length} Partially Approved {approachingDeadlineClaims.length === 1 ? "Claim Requires" : "Claims Require"} Review
                 </p>
                 <p className="text-[11px] text-amber-800 mt-0.5">
-                  Contestation deadlines expire within 5 days. Undisputed deductions lock automatically for payment.
+                  Contest window closes in 5 days. Undisputed deductions lock automatically for payout.
                 </p>
               </div>
             </div>
             <Button
               size="sm"
               onClick={() => navigate("/dashboard/claims")}
-              className="h-7 text-xs font-semibold rounded-lg bg-amber-700 hover:bg-amber-800 text-white shrink-0 px-3"
+              className="h-7.5 text-xs font-semibold rounded-lg bg-amber-700 hover:bg-amber-800 text-white shrink-0 px-3"
             >
               Review Deductions <ChevronRight className="ml-1 h-3 w-3" />
             </Button>
@@ -206,123 +204,123 @@ export default function HospitalPortalPage() {
         </div>
       )}
 
-      {/* 4. Compact KPI Grid (Values auto-scale and never truncate) */}
+      {/* 4. Professional KPI Grid (Clean, High Density, No Micro-Copy Slop) */}
       <section aria-labelledby="kpi-heading" className="space-y-1.5">
         <div className="flex items-center justify-between px-0.5">
           <h2 id="kpi-heading" className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
-            Authorization & Financial Ledger
+            Authorization &amp; Financial Ledger
           </h2>
           <span className="text-[10px] font-medium text-slate-400">
             Real-time Aggregation
           </span>
         </div>
         
-        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-2.5">
+        <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-2.5">
           
           {/* 1. Authorized Care Value */}
-          <Card className="rounded-xl border border-slate-200 bg-white p-2.5 sm:p-3 shadow-sm flex flex-col justify-between min-h-[72px]">
-            <div className="flex items-center justify-between text-slate-500 mb-0.5">
+          <Card className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm flex flex-col justify-between min-h-[80px]">
+            <div className="flex items-center justify-between text-slate-500 mb-1">
               <span className="text-[11px] font-medium text-slate-500">Authorized Care</span>
               <TrendingUp className="h-3.5 w-3.5 text-emerald-600" />
             </div>
             <div>
               <p 
-                className="font-mono text-sm min-[420px]:text-base xl:text-sm 2xl:text-base font-bold text-slate-900 tabular-nums leading-tight truncate"
+                className="font-mono text-sm sm:text-base font-bold text-slate-900 tabular-nums leading-tight truncate"
                 title={`₦${Number(metrics.totalValue || 0).toLocaleString("en-NG")}`}
               >
                 ₦{Number(metrics.totalValue || 0).toLocaleString("en-NG")}
               </p>
               <p className="text-[10px] font-medium text-emerald-700 truncate mt-0.5">
-                {metrics.approvedCount.toLocaleString()} approved auths
+                {metrics.approvedCount.toLocaleString()} approved
               </p>
             </div>
           </Card>
 
           {/* 2. Awaiting Payout */}
-          <Card className="rounded-xl border border-slate-200 bg-white p-2.5 sm:p-3 shadow-sm flex flex-col justify-between min-h-[72px]">
-            <div className="flex items-center justify-between text-slate-500 mb-0.5">
+          <Card className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm flex flex-col justify-between min-h-[80px]">
+            <div className="flex items-center justify-between text-slate-500 mb-1">
               <span className="text-[11px] font-medium text-slate-500">Awaiting Payout</span>
               <Banknote className="h-3.5 w-3.5 text-amber-600" />
             </div>
             <div>
               <p 
-                className="font-mono text-sm min-[420px]:text-base xl:text-sm 2xl:text-base font-bold text-amber-700 tabular-nums leading-tight truncate"
+                className="font-mono text-sm sm:text-base font-bold text-amber-700 tabular-nums leading-tight truncate"
                 title={`₦${Number(metrics.pendingPayout || 0).toLocaleString("en-NG")}`}
               >
                 ₦{Number(metrics.pendingPayout || 0).toLocaleString("en-NG")}
               </p>
               <p className="text-[10px] font-medium text-slate-500 truncate mt-0.5">
-                {metrics.awaitingPaymentCount || 0} claims in pay queue
+                {metrics.awaitingPaymentCount || 0} in queue
               </p>
             </div>
           </Card>
 
-          {/* 3. Settled Cash Funds */}
-          <Card className="rounded-xl border border-slate-200 bg-white p-2.5 sm:p-3 shadow-sm flex flex-col justify-between min-h-[72px]">
-            <div className="flex items-center justify-between text-slate-500 mb-0.5">
+          {/* 3. Settled Funds */}
+          <Card className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm flex flex-col justify-between min-h-[80px]">
+            <div className="flex items-center justify-between text-slate-500 mb-1">
               <span className="text-[11px] font-medium text-slate-500">Settled Funds</span>
               <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
             </div>
             <div>
               <p 
-                className="font-mono text-sm min-[420px]:text-base xl:text-sm 2xl:text-base font-bold text-slate-900 tabular-nums leading-tight truncate"
+                className="font-mono text-sm sm:text-base font-bold text-slate-900 tabular-nums leading-tight truncate"
                 title={`₦${Number(metrics.paidClaims || 0).toLocaleString("en-NG")}`}
               >
                 ₦{Number(metrics.paidClaims || 0).toLocaleString("en-NG")}
               </p>
               <p className="text-[10px] font-medium text-slate-500 truncate mt-0.5">
-                {metrics.paidCount || 0} claims disbursed
+                {metrics.paidCount || 0} disbursed
               </p>
             </div>
           </Card>
 
           {/* 4. In Claims Audit */}
-          <Card className="rounded-xl border border-slate-200 bg-white p-2.5 sm:p-3 shadow-sm flex flex-col justify-between min-h-[72px]">
-            <div className="flex items-center justify-between text-slate-500 mb-0.5">
+          <Card className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm flex flex-col justify-between min-h-[80px]">
+            <div className="flex items-center justify-between text-slate-500 mb-1">
               <span className="text-[11px] font-medium text-slate-500">In Claims Audit</span>
               <Clock className="h-3.5 w-3.5 text-sky-600" />
             </div>
             <div>
               <p 
-                className="font-mono text-sm min-[420px]:text-base xl:text-sm 2xl:text-base font-bold text-slate-900 tabular-nums leading-tight truncate"
+                className="font-mono text-sm sm:text-base font-bold text-slate-900 tabular-nums leading-tight truncate"
                 title={`₦${Number(metrics.inAuditValue || 0).toLocaleString("en-NG")}`}
               >
                 ₦{Number(metrics.inAuditValue || 0).toLocaleString("en-NG")}
               </p>
               <p className="text-[10px] font-medium text-sky-700 truncate mt-0.5">
-                {metrics.inAuditCount || 0} under examiner audit
+                {metrics.inAuditCount || 0} under review
               </p>
             </div>
           </Card>
 
-          {/* 5. Pending Pre-Auths */}
-          <Card className="rounded-xl border border-slate-200 bg-white p-2.5 sm:p-3 shadow-sm flex flex-col justify-between min-h-[72px]">
-            <div className="flex items-center justify-between text-slate-500 mb-0.5">
+          {/* 5. Pending Review */}
+          <Card className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm flex flex-col justify-between min-h-[80px]">
+            <div className="flex items-center justify-between text-slate-500 mb-1">
               <span className="text-[11px] font-medium text-slate-500">Pending Review</span>
               <Clock className="h-3.5 w-3.5 text-amber-500" />
             </div>
             <div>
-              <p className="font-mono text-sm min-[420px]:text-base xl:text-sm 2xl:text-base font-bold text-slate-900 tabular-nums leading-tight">
+              <p className="font-mono text-sm sm:text-base font-bold text-slate-900 tabular-nums leading-tight">
                 {metrics.pendingCount.toLocaleString()}
               </p>
               <p className="text-[10px] font-medium text-slate-500 truncate mt-0.5">
-                Awaiting HMO decision
+                Awaiting decision
               </p>
             </div>
           </Card>
 
           {/* 6. Declined Auths */}
-          <Card className="rounded-xl border border-slate-200 bg-white p-2.5 sm:p-3 shadow-sm flex flex-col justify-between min-h-[72px]">
-            <div className="flex items-center justify-between text-slate-500 mb-0.5">
+          <Card className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm flex flex-col justify-between min-h-[80px]">
+            <div className="flex items-center justify-between text-slate-500 mb-1">
               <span className="text-[11px] font-medium text-slate-500">Declined Auths</span>
               <XCircle className="h-3.5 w-3.5 text-rose-600" />
             </div>
             <div>
-              <p className="font-mono text-sm min-[420px]:text-base xl:text-sm 2xl:text-base font-bold text-slate-900 tabular-nums leading-tight">
+              <p className="font-mono text-sm sm:text-base font-bold text-slate-900 tabular-nums leading-tight">
                 {metrics.deniedCount.toLocaleString()}
               </p>
               <p className="text-[10px] font-medium text-rose-600 truncate mt-0.5">
-                Ineligible care requests
+                Declined requests
               </p>
             </div>
           </Card>
@@ -330,7 +328,7 @@ export default function HospitalPortalPage() {
         </div>
       </section>
 
-      {/* 5. Live Data Ledgers (Non-Repetitive, Direct Utility) */}
+      {/* 5. Live Data Ledgers (Solid Badges, Compact Tables) */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-3.5">
         
         {/* Recent Authorizations Ledger */}
@@ -339,7 +337,7 @@ export default function HospitalPortalPage() {
             <div className="flex items-center gap-2">
               <Layers className="h-4 w-4 text-emerald-600" />
               <CardTitle className="text-xs font-bold uppercase tracking-wider text-slate-800">
-                Authorizations Ledger
+                Recent Authorizations
               </CardTitle>
             </div>
             <Button
@@ -416,8 +414,10 @@ export default function HospitalPortalPage() {
                       </td>
                       <td className="py-2 pr-3.5 text-right">
                         <Badge
-                          variant="outline"
-                          className={cn("text-[10px] font-semibold px-2 py-0.5 rounded-full border shadow-none", statusPillClass(r.status))}
+                          className={cn(
+                            "text-[10px] font-semibold px-2 py-0.5 rounded-full border shadow-none capitalize",
+                            solidBadgeClass(r.status)
+                          )}
                         >
                           {String(r.status || "").replace(/_/g, " ")}
                         </Badge>
@@ -434,9 +434,9 @@ export default function HospitalPortalPage() {
         <Card className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden flex flex-col">
           <CardHeader className="py-2.5 px-3.5 border-b border-slate-100 flex flex-row items-center justify-between">
             <div className="flex items-center gap-2">
-              <Receipt className="h-4 w-4 text-purple-600" />
+              <Receipt className="h-4 w-4 text-slate-700" />
               <CardTitle className="text-xs font-bold uppercase tracking-wider text-slate-800">
-                Claims & Settlements Queue
+                Claims &amp; Settlements
               </CardTitle>
             </div>
             <Button
@@ -456,7 +456,7 @@ export default function HospitalPortalPage() {
                   <th className="py-2 pr-3">Patient</th>
                   <th className="py-2 pr-3">Claimed</th>
                   <th className="py-2 pr-3">Approved</th>
-                  <th className="py-2 pr-3.5 text-right">Payout Status</th>
+                  <th className="py-2 pr-3.5 text-right">Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -494,8 +494,10 @@ export default function HospitalPortalPage() {
                       </td>
                       <td className="py-2 pr-3.5 text-right">
                         <Badge
-                          variant="outline"
-                          className={cn("text-[10px] font-semibold px-2 py-0.5 rounded-full border shadow-none", statusPillClass(c.status))}
+                          className={cn(
+                            "text-[10px] font-semibold px-2 py-0.5 rounded-full border shadow-none capitalize",
+                            solidBadgeClass(c.status)
+                          )}
                         >
                           {String(c.status || "").replace(/_/g, " ")}
                         </Badge>
@@ -509,16 +511,6 @@ export default function HospitalPortalPage() {
         </Card>
 
       </div>
-
-      {/* Floating Action Button (Mobile Only) */}
-      <button 
-        onClick={() => navigate("/dashboard/new-request")}
-        className="md:hidden fixed bottom-[calc(72px+env(safe-area-inset-bottom))] right-4 w-12 h-12 rounded-full bg-slate-900 text-white flex items-center justify-center shadow-xl z-40 active:scale-95 transition-transform" 
-        aria-label="New Authorization Request"
-      >
-        <Plus className="h-5 w-5 text-emerald-400" strokeWidth={2.5} />
-      </button>
-
     </div>
   );
 }

@@ -60,10 +60,21 @@ export default function ClaimReviewDialog({
               </h2>
               {selectedRequest?.status && (
                 <Badge
-                  variant="outline"
                   className={cn(
-                    "text-[10px] font-semibold px-2 py-0.5 rounded-full capitalize shrink-0",
-                    claimStatusClass(selectedRequest.status)
+                    "text-[10px] font-bold px-2.5 py-0.5 rounded-full capitalize shrink-0 border border-transparent shadow-none",
+                    (() => {
+                      const s = String(selectedRequest.status || "").toLowerCase();
+                      const map: Record<string, string> = {
+                        approved: "bg-emerald-600 text-white",
+                        partially_approved: "bg-sky-600 text-white",
+                        referral_approved: "bg-indigo-600 text-white",
+                        referral_accepted: "bg-blue-600 text-white",
+                        rejected: "bg-rose-600 text-white",
+                        declined: "bg-rose-600 text-white",
+                        pending: "bg-amber-500 text-white",
+                      };
+                      return map[s] || "bg-slate-600 text-white";
+                    })()
                   )}
                 >
                   {displayStatus(selectedRequest.status)}
