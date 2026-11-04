@@ -107,15 +107,15 @@ export default function PatientSection({
 
       {/* Selected patient display */}
       {selectedPatient ? (
-        <div className="flex items-center justify-between bg-slate-50/80 border border-slate-200 rounded-lg p-3">
+        <div className="flex items-center justify-between bg-slate-50 border border-slate-300 rounded-lg p-3 shadow-xs">
           <div className="flex items-center gap-2.5 min-w-0">
             <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
             <div className="min-w-0">
               <p className="text-xs font-bold text-slate-900 truncate">{selectedPatient.full_name}</p>
-              <p className="text-[11px] font-mono text-slate-600 mt-0.5">
+              <p className="text-[11px] font-mono text-slate-800 font-semibold mt-0.5">
                 Policy: {selectedPatient.policy_number}
                 {selectedPatient.beneficiary_number && selectedPatient.beneficiary_number !== selectedPatient.policy_number && (
-                  <span className="ml-1 text-slate-500">· ID: {selectedPatient.beneficiary_number}</span>
+                  <span className="ml-1 text-slate-600 font-medium">· ID: {selectedPatient.beneficiary_number}</span>
                 )}
               </p>
             </div>
@@ -123,15 +123,15 @@ export default function PatientSection({
           <button
             type="button"
             onClick={() => setSelectedPatient(null)}
-            className="text-slate-400 hover:text-rose-600 transition-colors ml-2 shrink-0 p-1"
+            className="text-slate-500 hover:text-rose-600 transition-colors ml-2 shrink-0 p-1"
             aria-label={`Deselect patient ${selectedPatient.full_name}`}
           >
             <X className="h-3.5 w-3.5" />
           </button>
         </div>
       ) : (
-        <div className="h-9 flex items-center px-3 rounded-lg bg-slate-50/60 border border-dashed border-slate-200">
-          <p className="text-xs text-slate-400 italic">No enrollee selected yet</p>
+        <div className="h-9 flex items-center px-3 rounded-lg bg-slate-50 border border-dashed border-slate-300">
+          <p className="text-xs text-slate-600 font-medium">No enrollee selected yet</p>
         </div>
       )}
 
@@ -192,12 +192,12 @@ export default function PatientSection({
               aria-describedby="email-input-description"
               className="h-9 sm:h-10 rounded-lg bg-white border border-slate-200 text-xs placeholder:text-slate-400"
             />
-            <p id="email-input-description" className="text-[11px] text-slate-500">
+            <p id="email-input-description" className="text-xs font-medium text-slate-600">
               Arrival and Treatment PIN will be emailed directly to this address.
             </p>
           </>
         ) : (
-          <div className="h-9 flex items-center px-3 rounded-lg bg-emerald-50/60 border border-slate-200 text-emerald-800 text-[11px]">
+          <div className="h-9 flex items-center px-3 rounded-lg bg-emerald-50 border border-emerald-300 text-emerald-950 font-medium text-xs">
             No email provided. The verification PIN will be sent via WhatsApp to the phone number.
           </div>
         )}

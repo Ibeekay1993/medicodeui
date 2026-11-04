@@ -1,4 +1,4 @@
-import { FileText, Loader2, CheckCircle2, EyeOff } from "lucide-react";
+import { FileText, Loader2, CheckCircle2, EyeOff, Lock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
@@ -26,6 +26,7 @@ interface ClaimReviewDialogProps {
   claimStatusFor: (request: any) => string | undefined;
   isSubmitting: boolean;
   handleClaimSubmit: () => void;
+  otpVerifiedStatus?: Record<string, boolean>;
 }
 
 export default function ClaimReviewDialog({
@@ -35,7 +36,8 @@ export default function ClaimReviewDialog({
   hospital,
   claimStatusFor,
   isSubmitting,
-  handleClaimSubmit
+  handleClaimSubmit,
+  otpVerifiedStatus = {}
 }: ClaimReviewDialogProps) {
   const claimStatus = selectedRequest ? claimStatusFor(selectedRequest) : undefined;
   const isReferred = selectedRequest ? isReferralFor(selectedRequest) : false;
@@ -45,6 +47,10 @@ export default function ClaimReviewDialog({
   const isFrozen = selectedRequest ? isFrozenAuthorization(selectedRequest) : false;
   const isEligible = (selectedRequest && hospital) ? isClaimEligible(selectedRequest, hospital) : false;
   const isClaimRejected = selectedRequest ? isRejected(selectedRequest) : false;
+
+  const reqStatus = String(selectedRequest?.status || "").toLowerCase();
+  const isApprovedReq = reqStatus.includes("approved") || reqStatus.includes("accepted");
+  const isCodeLocked = isApprovedReq && !selectedRequest?.is_unlocked && !otpVerifiedStatus[selectedRequest?.id];
 
   const approvedItems = selectedRequest ? getApprovedItems(selectedRequest) : [];
 
@@ -138,11 +144,15 @@ export default function ClaimReviewDialog({
                   "text-xs font-mono font-bold mt-1 truncate",
                   selectedRequest?.deletion_status === "awaiting_admin_approval"
                     ? "text-rose-600"
+                    : isCodeLocked
+                    ? "text-amber-800"
                     : "text-slate-900"
                 )}
               >
                 {selectedRequest?.deletion_status === "awaiting_admin_approval"
                   ? "WITHDRAWN (Pending Delete)"
+                  : isCodeLocked
+                  ? "🔒 Locked (Requires OTP Unlock)"
                   : selectedRequest?.authorization_code || "PENDING"}
               </p>
             </div>
@@ -306,6 +316,15 @@ export default function ClaimReviewDialog({
               <p className="font-semibold text-slate-900">Claim Restricted</p>
               <p className="mt-0.5 text-slate-500 text-[11px]">
                 Only {claimOwnerNameFor(selectedRequest) || "the treating hospital"} can submit this claim for settlement.
+              </p>
+            </div>
+          ) : isCodeLocked ? (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-center text-amber-950 text-xs">
+              <p className="font-bold flex items-center justify-center gap-1.5 text-amber-900">
+                <Lock className="h-3.5 w-3.5 text-amber-700" /> Authorization Code Locked
+              </p>
+              <p className="mt-1 text-slate-700 text-xs">
+                This authorization code is locked. Please unlock it with the patient's arrival PIN in the Authorizations ledger before claiming.
               </p>
             </div>
           ) : isLocked ? (

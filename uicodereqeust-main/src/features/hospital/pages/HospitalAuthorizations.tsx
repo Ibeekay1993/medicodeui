@@ -78,6 +78,12 @@ export default function HospitalAuthorizations() {
   useTabVisibilityRefresh(() => { void refetch(); }, Boolean(hospital));
 
   const handleCopyAuth = (r: any) => {
+    const s = String(r?.status || "").toLowerCase();
+    const isApp = s.includes("approved") || s.includes("accepted");
+    if (isApp && !r?.is_unlocked && !otpVerifiedStatus[r?.id]) {
+      toast({ variant: "destructive", title: "Code Locked", description: "This code is locked. Please unlock it with the patient OTP first." });
+      return;
+    }
     if (!r.authorization_code) {
       toast({ variant: "destructive", title: "Missing Code", description: "This request does not have an authorization code." });
       return;
@@ -88,6 +94,17 @@ export default function HospitalAuthorizations() {
 
   const handleClaimSubmit = async () => {
     if (!selectedRequest || !hospital || !user) return;
+
+    const reqStatus = String(selectedRequest.status || "").toLowerCase();
+    const isApprovedReq = reqStatus.includes("approved") || reqStatus.includes("accepted");
+    if (isApprovedReq && !selectedRequest.is_unlocked && !otpVerifiedStatus[selectedRequest.id]) {
+      toast({
+        variant: "destructive",
+        title: "Code Locked",
+        description: "Please unlock the authorization code with the patient OTP before submitting a claim.",
+      });
+      return;
+    }
     
     if (!isClaimEligible(selectedRequest, hospital)) {
       toast({
@@ -301,16 +318,22 @@ export default function HospitalAuthorizations() {
       };
 
       const headers = ["Date", "Patient Name", "Diagnosis", "Treatment", "Policy Number", "Auth Code", "Status", "Clinical Notes"];
-      const rows = exportableRequests.map((r: any) => [
-        new Date(r.created_at).toLocaleDateString("en-GB"),
-        r.patient_name || "",
-        r.diagnosis || "",
-        r.treatment || "",
-        r.policy_number || "",
-        r.authorization_code || "",
-        r.status || "",
-        r.clinical_notes || ""
-      ]);
+      const rows = exportableRequests.map((r: any) => {
+        const s = String(r?.status || "").toLowerCase();
+        const isApp = s.includes("approved") || s.includes("accepted");
+        const isLocked = isApp && !r?.is_unlocked && !otpVerifiedStatus[r?.id];
+        const displayCode = isLocked ? "LOCKED (Requires OTP Unlock)" : (r.authorization_code || "");
+        return [
+          new Date(r.created_at).toLocaleDateString("en-GB"),
+          r.patient_name || "",
+          r.diagnosis || "",
+          r.treatment || "",
+          r.policy_number || "",
+          displayCode,
+          r.status || "",
+          r.clinical_notes || ""
+        ];
+      });
 
       const csvContent = [headers.join(","), ...rows.map((e: any) => e.map(sanitizeCsvCell).join(","))].join("\n");
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -402,6 +425,7 @@ export default function HospitalAuthorizations() {
         claimStatusFor={claimStatusFor}
         isSubmitting={isSubmitting}
         handleClaimSubmit={handleClaimSubmit}
+        otpVerifiedStatus={otpVerifiedStatus}
       />
 
       <ReferralProcessDialog

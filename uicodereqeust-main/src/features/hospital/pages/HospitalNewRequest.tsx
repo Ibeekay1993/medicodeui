@@ -648,15 +648,15 @@ export default function HospitalNewRequest() {
                   step === num
                     ? "bg-slate-900 text-white shadow-sm ring-2 ring-emerald-500 ring-offset-2"
                     : step > num
-                    ? "bg-emerald-100 text-emerald-700"
-                    : "bg-slate-100 text-slate-400"
+                    ? "bg-emerald-600 text-white shadow-xs"
+                    : "bg-slate-100 text-slate-600 border border-slate-200"
                 }`}
               >
                 {step > num ? <CheckCircle2 className="h-4 w-4" /> : num}
               </div>
               <span
                 className={`mt-1 text-[10px] sm:text-[11px] font-semibold truncate ${
-                  step === num ? "text-slate-900 font-bold" : step > num ? "text-emerald-700" : "text-slate-400"
+                  step === num ? "text-slate-900 font-bold" : step > num ? "text-emerald-800 font-bold" : "text-slate-600 font-medium"
                 }`}
               >
                 {label}
@@ -750,55 +750,55 @@ export default function HospitalNewRequest() {
                   <p className="text-[11px] text-slate-500">Verify enrollee details, clinical diagnoses, and tariff items before submitting</p>
                 </div>
                 
-                <div className="bg-slate-50/70 p-3.5 rounded-lg border border-slate-200 space-y-2.5 text-xs">
+                <div className="bg-slate-50 p-4 rounded-xl border border-slate-300 space-y-3 text-xs">
                   <div className="flex justify-between items-start gap-2">
-                    <span className="text-slate-500">Patient:</span>
+                    <span className="text-slate-700 font-semibold">Patient:</span>
                     <span className="font-bold text-slate-900 text-right">{selectedPatient?.full_name} ({selectedPatient?.policy_number})</span>
                   </div>
                   <div className="flex justify-between items-start gap-2">
-                    <span className="text-slate-500">Contact:</span>
-                    <span className="font-semibold text-slate-900 text-right">
+                    <span className="text-slate-700 font-semibold">Contact:</span>
+                    <span className="font-bold text-slate-900 text-right">
                       {phone} {(!noEmail && patientEmail && patientEmail !== "no-email@medicode.com") ? `· ${patientEmail}` : ""}
                     </span>
                   </div>
                   <div className="flex justify-between items-start gap-2">
-                    <span className="text-slate-500">Diagnoses:</span>
-                    <span className="font-semibold text-slate-900 text-right">{diagnoses.join(", ")}</span>
+                    <span className="text-slate-700 font-semibold">Diagnoses:</span>
+                    <span className="font-bold text-slate-900 text-right">{diagnoses.join(", ")}</span>
                   </div>
                   <div className="flex justify-between items-center gap-2">
-                    <span className="text-slate-500">Urgency:</span>
-                    <span className="font-semibold capitalize text-slate-900">{urgency}</span>
+                    <span className="text-slate-700 font-semibold">Urgency:</span>
+                    <span className="font-bold capitalize text-slate-900">{urgency}</span>
                   </div>
                   <div className="flex justify-between items-center gap-2">
-                    <span className="text-slate-500">Doctor Report:</span>
-                    <span className="font-medium text-slate-900 flex items-center gap-1.5">
+                    <span className="text-slate-700 font-semibold">Doctor Report:</span>
+                    <span className="font-bold text-slate-900 flex items-center gap-1.5">
                       <FileText className="h-3.5 w-3.5 text-emerald-600" />
                       {doctorReportName || "None attached"}
                     </span>
                   </div>
 
                   {treatments.length > 0 && (
-                    <div className="pt-2 border-t border-slate-200">
-                      <div className="flex items-center justify-between mb-1.5">
-                        <span className="text-[11px] font-semibold text-slate-600">Selected Tariff Items ({treatments.length})</span>
+                    <div className="pt-2.5 border-t border-slate-200">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-bold text-slate-900">Selected Tariff Items ({treatments.length})</span>
                       </div>
                       <div className="space-y-1.5 max-h-[200px] overflow-y-auto pr-1">
                         {treatments.map((t, idx) => {
                           const isRef = Boolean(referralHospitalId || (referralHospitalName && referralHospitalName.trim().length > 0));
                           return (
-                            <div key={idx} className="flex justify-between items-center text-xs border border-slate-200/80 rounded-md p-2 bg-white">
+                            <div key={idx} className="flex justify-between items-center text-xs border border-slate-200 rounded-lg p-2.5 bg-white shadow-xs">
                               <div className="flex-1 min-w-0 pr-2">
-                                <p className="font-semibold text-slate-900 truncate">{t.name}</p>
-                                <p className="text-[11px] text-slate-500 font-mono">{t.code} · {t.category || "Service"}</p>
+                                <p className="font-bold text-slate-900 truncate">{t.name}</p>
+                                <p className="text-[11px] text-slate-700 font-mono font-medium">{t.code} · {t.category || "Service"}</p>
                               </div>
                               <div className="text-right whitespace-nowrap shrink-0">
                                 {!isRef ? (
                                   <div>
-                                    <p className="text-[11px] text-slate-500">{t.quantity} × ₦{Number(t.amount).toLocaleString("en-NG")}</p>
-                                    <p className="font-mono font-bold text-slate-900">₦{(t.quantity * t.amount).toLocaleString("en-NG")}</p>
+                                    <p className="text-[11px] text-slate-700 font-medium">{t.quantity} × ₦{Number(t.amount).toLocaleString("en-NG")}</p>
+                                    <p className="font-mono font-bold text-slate-900 text-xs">₦{(t.quantity * t.amount).toLocaleString("en-NG")}</p>
                                   </div>
                                 ) : (
-                                  <p className="font-semibold text-slate-900">Qty: {t.quantity}</p>
+                                  <p className="font-bold text-slate-900">Qty: {t.quantity}</p>
                                 )}
                               </div>
                             </div>
@@ -809,9 +809,9 @@ export default function HospitalNewRequest() {
                   )}
 
                   {!(referralHospitalId || (referralHospitalName && referralHospitalName.trim().length > 0)) && (
-                    <div className="flex justify-between border-t border-slate-200 pt-2.5 mt-2">
-                      <span className="font-bold text-slate-900">Total Requested Amount:</span>
-                      <span className="font-mono font-bold text-emerald-700 text-sm">₦{total.toLocaleString("en-NG")}</span>
+                    <div className="flex justify-between items-center border-t border-slate-300 pt-3 mt-2">
+                      <span className="font-bold text-slate-900 text-sm">Total Requested Amount:</span>
+                      <span className="font-mono font-black text-emerald-700 text-base">₦{total.toLocaleString("en-NG")}</span>
                     </div>
                   )}
                 </div>

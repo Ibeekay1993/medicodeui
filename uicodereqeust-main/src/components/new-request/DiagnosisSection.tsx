@@ -119,22 +119,22 @@ export default function DiagnosisSection({
             <Badge
               key={`${d}-${index}`}
               variant="outline"
-              className="rounded-md border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-800 hover:bg-rose-50 hover:border-rose-200 hover:text-rose-700 transition-colors cursor-pointer"
+              className="rounded-full border-slate-300 bg-slate-100 px-3 py-1 text-xs font-bold text-slate-900 hover:bg-rose-50 hover:border-rose-300 hover:text-rose-700 transition-colors cursor-pointer shadow-xs flex items-center gap-1.5"
               onClick={() => removeDiagnosis(index)}
               title="Click to remove"
             >
               {d}
-              <X className="ml-1.5 h-3 w-3" />
+              <X className="h-3 w-3 text-slate-500 hover:text-rose-600" />
             </Badge>
           ))}
         </div>
       ) : (
-        <div className="flex items-center justify-center py-3 rounded-lg bg-slate-50/60 border border-dashed border-slate-200">
-          <p className="text-xs text-slate-400">No diagnoses added yet. Type and press enter.</p>
+        <div className="flex items-center justify-center py-3.5 rounded-lg bg-slate-50 border border-dashed border-slate-300">
+          <p className="text-xs font-medium text-slate-600">No diagnoses added yet. Type and press enter.</p>
         </div>
       )}
 
-      {diagnoses.length > 0 && <p className="text-[11px] text-slate-400 italic">Click any diagnosis pill to remove it.</p>}
+      {diagnoses.length > 0 && <p className="text-xs font-medium text-slate-600">Click any diagnosis pill to remove it.</p>}
     </div>
   );
 }

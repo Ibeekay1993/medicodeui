@@ -16,7 +16,7 @@ export default function PrioritySection({
         <h4 id="priority-group-label" className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
           <AlertCircle className="h-3.5 w-3.5 text-emerald-600" /> Clinical Urgency
         </h4>
-        <span className="text-[11px] text-slate-500 capitalize">Current: {urgency}</span>
+        <span className="text-xs font-semibold text-slate-700 capitalize">Current: {urgency}</span>
       </div>
       <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-labelledby="priority-group-label">
         {(["routine", "urgent", "emergency"] as const).map((u) => {
@@ -29,14 +29,14 @@ export default function PrioritySection({
               aria-checked={isSelected}
               onClick={() => setUrgency(u)}
               className={cn(
-                "h-8 sm:h-9 rounded-lg text-xs font-semibold capitalize border transition-colors",
+                "h-9 sm:h-10 rounded-lg text-xs font-bold capitalize border transition-all shadow-xs",
                 isSelected
                   ? u === "emergency"
-                    ? "bg-rose-50 text-rose-800 border-rose-300 ring-1 ring-rose-400"
+                    ? "bg-rose-600 text-white border-rose-600 shadow-sm"
                     : u === "urgent"
-                    ? "bg-amber-50 text-amber-800 border-amber-300 ring-1 ring-amber-400"
-                    : "bg-emerald-50 text-emerald-800 border-emerald-300 ring-1 ring-emerald-400"
-                  : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50 hover:border-slate-300"
+                    ? "bg-amber-500 text-white border-amber-500 shadow-sm"
+                    : "bg-emerald-600 text-white border-emerald-600 shadow-sm"
+                  : "bg-white text-slate-700 border-slate-300 hover:bg-slate-50 hover:border-slate-400 font-semibold"
               )}
             >
               {u}

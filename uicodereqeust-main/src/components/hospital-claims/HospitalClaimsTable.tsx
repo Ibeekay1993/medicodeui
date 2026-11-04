@@ -64,9 +64,9 @@ export default function HospitalClaimsTable({
           </div>
         ) : filteredClaims.length === 0 ? (
           <div className="flex items-center justify-center py-20 flex-col gap-2">
-            <Banknote className="h-10 w-10 text-slate-300" />
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">No Claims Found</p>
-            <p className="text-[11px] text-slate-400">Claims submitted from approved authorizations will appear here.</p>
+            <Banknote className="h-10 w-10 text-slate-400" />
+            <p className="text-xs font-bold text-slate-700 uppercase tracking-wider">No Claims Found</p>
+            <p className="text-xs font-medium text-slate-600">Claims submitted from approved authorizations will appear here.</p>
           </div>
         ) : (
           <>
@@ -94,7 +94,7 @@ export default function HospitalClaimsTable({
                         <span className="group-hover:text-emerald-700 transition-colors">
                           {c.claim_number}
                         </span>
-                        <div className="text-[10px] font-sans font-medium text-slate-400 mt-0.5">
+                        <div className="text-[10px] font-sans font-medium text-slate-600 mt-0.5">
                           {c.created_at ? new Date(c.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "—"}
                         </div>
                       </td>
@@ -102,7 +102,7 @@ export default function HospitalClaimsTable({
                         <p className="text-sm font-semibold text-slate-900 leading-tight">
                           {c.patient_name}
                         </p>
-                        <p className="text-[11px] font-mono text-slate-500 mt-0.5">
+                        <p className="text-[11px] font-mono font-medium text-slate-700 mt-0.5">
                           {c.policy_number || "—"} {c.auth_code ? `· Auth: ${c.auth_code}` : ""}
                         </p>
                       </td>
@@ -157,7 +157,7 @@ export default function HospitalClaimsTable({
                       <p className="text-sm font-bold text-slate-900 leading-tight truncate">
                         {c.patient_name}
                       </p>
-                      <p className="font-mono text-[11px] text-slate-500 mt-0.5">
+                      <p className="font-mono text-[11px] font-semibold text-slate-700 mt-0.5">
                         {c.claim_number}
                       </p>
                     </div>
@@ -174,7 +174,7 @@ export default function HospitalClaimsTable({
                   {/* Row 2: Amount, Date, Button */}
                   <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-100">
                     <div>
-                      <span className="text-[10px] uppercase font-bold text-slate-400">Total Claim</span>
+                      <span className="text-[10px] uppercase font-bold text-slate-600">Total Claim</span>
                       <p className="font-mono font-bold text-slate-900 text-sm tabular-nums">
                         &#8358;{Number(c.total_amount || 0).toLocaleString("en-NG")}
                       </p>

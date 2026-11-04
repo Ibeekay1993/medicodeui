@@ -20,7 +20,8 @@ import {
   ChevronRight,
   ArrowUpRight,
   Megaphone,
-  Check
+  Check,
+  Lock
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
@@ -219,8 +220,8 @@ export default function HospitalPortalPage() {
           
           {/* 1. Authorized Care Value */}
           <Card className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm flex flex-col justify-between min-h-[80px]">
-            <div className="flex items-center justify-between text-slate-500 mb-1">
-              <span className="text-[11px] font-medium text-slate-500">Authorized Care</span>
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-xs font-bold text-slate-700">Authorized Care</span>
               <TrendingUp className="h-3.5 w-3.5 text-emerald-600" />
             </div>
             <div>
@@ -230,7 +231,7 @@ export default function HospitalPortalPage() {
               >
                 ₦{Number(metrics.totalValue || 0).toLocaleString("en-NG")}
               </p>
-              <p className="text-[10px] font-medium text-emerald-700 truncate mt-0.5">
+              <p className="text-[11px] font-bold text-emerald-700 truncate mt-0.5">
                 {metrics.approvedCount.toLocaleString()} approved
               </p>
             </div>
@@ -238,8 +239,8 @@ export default function HospitalPortalPage() {
 
           {/* 2. Awaiting Payout */}
           <Card className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm flex flex-col justify-between min-h-[80px]">
-            <div className="flex items-center justify-between text-slate-500 mb-1">
-              <span className="text-[11px] font-medium text-slate-500">Awaiting Payout</span>
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-xs font-bold text-slate-700">Awaiting Payout</span>
               <Banknote className="h-3.5 w-3.5 text-amber-600" />
             </div>
             <div>
@@ -249,7 +250,7 @@ export default function HospitalPortalPage() {
               >
                 ₦{Number(metrics.pendingPayout || 0).toLocaleString("en-NG")}
               </p>
-              <p className="text-[10px] font-medium text-slate-500 truncate mt-0.5">
+              <p className="text-[11px] font-semibold text-slate-600 truncate mt-0.5">
                 {metrics.awaitingPaymentCount || 0} in queue
               </p>
             </div>
@@ -257,8 +258,8 @@ export default function HospitalPortalPage() {
 
           {/* 3. Settled Funds */}
           <Card className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm flex flex-col justify-between min-h-[80px]">
-            <div className="flex items-center justify-between text-slate-500 mb-1">
-              <span className="text-[11px] font-medium text-slate-500">Settled Funds</span>
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-xs font-bold text-slate-700">Settled Funds</span>
               <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
             </div>
             <div>
@@ -268,7 +269,7 @@ export default function HospitalPortalPage() {
               >
                 ₦{Number(metrics.paidClaims || 0).toLocaleString("en-NG")}
               </p>
-              <p className="text-[10px] font-medium text-slate-500 truncate mt-0.5">
+              <p className="text-[11px] font-semibold text-slate-600 truncate mt-0.5">
                 {metrics.paidCount || 0} disbursed
               </p>
             </div>
@@ -276,8 +277,8 @@ export default function HospitalPortalPage() {
 
           {/* 4. In Claims Audit */}
           <Card className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm flex flex-col justify-between min-h-[80px]">
-            <div className="flex items-center justify-between text-slate-500 mb-1">
-              <span className="text-[11px] font-medium text-slate-500">In Claims Audit</span>
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-xs font-bold text-slate-700">In Claims Audit</span>
               <Clock className="h-3.5 w-3.5 text-sky-600" />
             </div>
             <div>
@@ -287,7 +288,7 @@ export default function HospitalPortalPage() {
               >
                 ₦{Number(metrics.inAuditValue || 0).toLocaleString("en-NG")}
               </p>
-              <p className="text-[10px] font-medium text-sky-700 truncate mt-0.5">
+              <p className="text-[11px] font-bold text-sky-700 truncate mt-0.5">
                 {metrics.inAuditCount || 0} under review
               </p>
             </div>
@@ -295,15 +296,15 @@ export default function HospitalPortalPage() {
 
           {/* 5. Pending Review */}
           <Card className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm flex flex-col justify-between min-h-[80px]">
-            <div className="flex items-center justify-between text-slate-500 mb-1">
-              <span className="text-[11px] font-medium text-slate-500">Pending Review</span>
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-xs font-bold text-slate-700">Pending Review</span>
               <Clock className="h-3.5 w-3.5 text-amber-500" />
             </div>
             <div>
               <p className="font-mono text-sm sm:text-base font-bold text-slate-900 tabular-nums leading-tight">
                 {metrics.pendingCount.toLocaleString()}
               </p>
-              <p className="text-[10px] font-medium text-slate-500 truncate mt-0.5">
+              <p className="text-[11px] font-semibold text-slate-600 truncate mt-0.5">
                 Awaiting decision
               </p>
             </div>
@@ -311,15 +312,15 @@ export default function HospitalPortalPage() {
 
           {/* 6. Declined Auths */}
           <Card className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm flex flex-col justify-between min-h-[80px]">
-            <div className="flex items-center justify-between text-slate-500 mb-1">
-              <span className="text-[11px] font-medium text-slate-500">Declined Auths</span>
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-xs font-bold text-slate-700">Declined Auths</span>
               <XCircle className="h-3.5 w-3.5 text-rose-600" />
             </div>
             <div>
               <p className="font-mono text-sm sm:text-base font-bold text-slate-900 tabular-nums leading-tight">
                 {metrics.deniedCount.toLocaleString()}
               </p>
-              <p className="text-[10px] font-medium text-rose-600 truncate mt-0.5">
+              <p className="text-[11px] font-bold text-rose-600 truncate mt-0.5">
                 Declined requests
               </p>
             </div>
@@ -386,28 +387,51 @@ export default function HospitalPortalPage() {
                         </p>
                       </td>
                       <td className="py-2 pr-3">
-                        {r.authorization_code ? (
-                          <div className="flex items-center gap-1 font-mono text-[11px] font-bold text-slate-800">
-                            <span>{r.authorization_code}</span>
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleCopyCode(r.authorization_code);
-                              }}
-                              className="text-slate-400 hover:text-slate-700 p-0.5 rounded"
-                              title="Copy authorization code"
-                            >
-                              {copiedCode === r.authorization_code ? (
-                                <Check className="h-3 w-3 text-emerald-600" />
-                              ) : (
-                                <Copy className="h-3 w-3" />
-                              )}
-                            </button>
-                          </div>
-                        ) : (
-                          <span className="text-[10px] font-mono text-slate-400">—</span>
-                        )}
+                        {(() => {
+                          const s = String(r.status || "").toLowerCase();
+                          const isApprovedReq = s.includes("approved") || s.includes("accepted");
+                          const isLocked = isApprovedReq && !r.is_unlocked;
+
+                          if (isLocked) {
+                            return (
+                              <span
+                                className="inline-flex items-center gap-1 font-sans text-[10px] font-bold text-amber-800 bg-amber-50 border border-amber-300 px-2 py-0.5 rounded-full cursor-pointer hover:bg-amber-100 transition-colors"
+                                title="Authorization code locked. Click to view and unlock in Authorizations."
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigate("/dashboard/authorizations");
+                                }}
+                              >
+                                <Lock className="h-2.5 w-2.5 text-amber-700" /> Locked
+                              </span>
+                            );
+                          }
+
+                          if (!r.authorization_code) {
+                            return <span className="text-[10px] font-mono text-slate-400">—</span>;
+                          }
+
+                          return (
+                            <div className="flex items-center gap-1 font-mono text-[11px] font-bold text-slate-800">
+                              <span>{r.authorization_code}</span>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleCopyCode(r.authorization_code);
+                                }}
+                                className="text-slate-400 hover:text-slate-700 p-0.5 rounded"
+                                title="Copy authorization code"
+                              >
+                                {copiedCode === r.authorization_code ? (
+                                  <Check className="h-3 w-3 text-emerald-600" />
+                                ) : (
+                                  <Copy className="h-3 w-3" />
+                                )}
+                              </button>
+                            </div>
+                          );
+                        })()}
                       </td>
                       <td className="py-2 pr-3 font-mono font-bold text-slate-900 tabular-nums">
                         ₦{Number(r.total_amount || 0).toLocaleString("en-NG")}

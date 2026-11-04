@@ -133,7 +133,7 @@ export default function AuthorizationsTable({
             <tbody className="divide-y divide-slate-50">
               {paginatedRequests.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="py-12 text-center text-xs font-black uppercase tracking-widest text-slate-400">
+                  <td colSpan={5} className="py-12 text-center text-xs font-bold uppercase tracking-widest text-slate-700">
                     No authorization requests found.
                   </td>
                 </tr>

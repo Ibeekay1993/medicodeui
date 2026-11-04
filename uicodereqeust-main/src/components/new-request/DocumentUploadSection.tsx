@@ -117,7 +117,7 @@ export default function DocumentUploadSection({
         <div
           className={cn(
             "relative rounded-lg border-2 border-dashed p-6 transition-all text-center",
-            isDragging ? "border-emerald-400 bg-emerald-50/40" : "border-slate-200 bg-slate-50/60"
+            isDragging ? "border-emerald-500 bg-emerald-50/60" : "border-slate-300 bg-slate-50"
           )}
           onDragOver={e => { e.preventDefault(); setIsDragging(true); }}
           onDragLeave={e => { e.preventDefault(); setIsDragging(false); }}
@@ -129,18 +129,18 @@ export default function DocumentUploadSection({
               <div className="w-full max-w-xs bg-slate-200 rounded-full h-1.5 overflow-hidden">
                 <div className="bg-emerald-600 h-full transition-all" style={{ width: `${uploadProgress}%` }} />
               </div>
-              <span className="text-xs text-slate-500 font-medium">Uploading document…</span>
+              <span className="text-xs text-slate-600 font-semibold">Uploading document…</span>
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center text-center">
-              <Upload className="mx-auto h-7 w-7 mb-2 text-slate-400" />
-              <p className="text-xs font-semibold text-slate-800">{isDragging ? "Drop document here" : "Drag & drop clinical report"}</p>
-              <p className="text-[11px] text-slate-500 mt-0.5">PDF, JPG, or PNG (up to 5MB)</p>
+              <Upload className="mx-auto h-7 w-7 mb-2 text-slate-500" />
+              <p className="text-xs font-bold text-slate-900">{isDragging ? "Drop document here" : "Drag & drop clinical report"}</p>
+              <p className="text-[11px] text-slate-700 font-medium mt-0.5">PDF, JPG, or PNG (up to 5MB)</p>
               <label
                 htmlFor="doctor-report-upload"
-                className="cursor-pointer inline-flex items-center justify-center mt-3 h-8 px-3 rounded-lg bg-white border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50 shadow-xs"
+                className="cursor-pointer inline-flex items-center justify-center mt-3 h-8 px-3 rounded-lg bg-white border border-slate-300 text-xs font-bold text-slate-800 hover:bg-slate-100 shadow-xs"
               >
-                <FileText className="mr-1.5 h-3.5 w-3.5 text-slate-500" />
+                <FileText className="mr-1.5 h-3.5 w-3.5 text-slate-600" />
                 Select File
               </label>
             </div>

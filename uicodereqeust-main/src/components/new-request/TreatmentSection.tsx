@@ -132,25 +132,25 @@ export default function TreatmentSection({
 
       {/* Treatment list */}
       {treatments.length === 0 ? (
-        <div className="flex items-center justify-center py-6 rounded-lg bg-slate-50/60 border border-dashed border-slate-200">
-          <p className="text-xs text-slate-400">No items selected yet. Search above to add.</p>
+        <div className="flex items-center justify-center py-6 rounded-lg bg-slate-50 border border-dashed border-slate-300">
+          <p className="text-xs font-medium text-slate-600">No items selected yet. Search above to add.</p>
         </div>
       ) : (
         <div className="space-y-1.5 max-h-[260px] overflow-y-auto pr-1">
           {treatments.map((t) => (
-            <div key={t.code} className="flex items-center justify-between gap-2 px-3 py-2 bg-slate-50/70 border border-slate-200 rounded-lg text-xs">
+            <div key={t.code} className="flex items-center justify-between gap-2 px-3 py-2.5 bg-white border border-slate-300 rounded-lg text-xs shadow-xs">
               <div className="flex-1 min-w-0">
-                <p className="font-semibold text-slate-900 truncate">{t.name}</p>
-                <p className="text-[11px] font-mono text-slate-500 mt-0.5">
+                <p className="font-bold text-slate-900 truncate">{t.name}</p>
+                <p className="text-[11px] font-mono font-medium text-slate-700 mt-0.5">
                   {t.code} · ₦{Number(t.amount).toLocaleString("en-NG")} each
                 </p>
               </div>
               <div className="flex items-center gap-2 shrink-0">
-                <div className="flex items-center border border-slate-200 rounded-md bg-white">
+                <div className="flex items-center border border-slate-300 rounded-md bg-white">
                   <button
                     type="button"
                     onClick={() => changeQty(t.code, -1)}
-                    className="h-6 w-6 rounded-l-md flex items-center justify-center text-slate-500 hover:bg-slate-100"
+                    className="h-6 w-6 rounded-l-md flex items-center justify-center text-slate-700 hover:bg-slate-100 font-bold"
                     aria-label={`Decrease quantity of ${t.name}`}
                   >
                     <Minus className="h-3 w-3" />
@@ -170,18 +170,18 @@ export default function TreatmentSection({
                     onKeyDown={(e) => {
                       if (e.key === "Enter") (e.target as HTMLInputElement).blur();
                     }}
-                    className="h-6 w-8 text-center font-mono font-semibold text-xs p-0 outline-none tabular-nums border-x border-slate-200"
+                    className="h-6 w-8 text-center font-mono font-bold text-slate-900 text-xs p-0 outline-none tabular-nums border-x border-slate-300"
                   />
                   <button
                     type="button"
                     onClick={() => changeQty(t.code, 1)}
-                    className="h-6 w-6 rounded-r-md flex items-center justify-center text-slate-500 hover:bg-slate-100"
+                    className="h-6 w-6 rounded-r-md flex items-center justify-center text-slate-700 hover:bg-slate-100 font-bold"
                     aria-label={`Increase quantity of ${t.name}`}
                   >
                     <Plus className="h-3 w-3" />
                   </button>
                 </div>
-                <span className="w-20 text-right font-mono font-semibold text-slate-900">
+                <span className="w-20 text-right font-mono font-bold text-slate-900">
                   ₦{(t.amount * t.quantity).toLocaleString("en-NG")}
                 </span>
                 <Button
@@ -189,7 +189,7 @@ export default function TreatmentSection({
                   variant="ghost"
                   size="icon"
                   onClick={() => removeTreatment(t.code)}
-                  className="h-7 w-7 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded"
+                  className="h-7 w-7 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded"
                   aria-label={`Remove ${t.name}`}
                 >
                   <Trash2 className="h-3.5 w-3.5" />
