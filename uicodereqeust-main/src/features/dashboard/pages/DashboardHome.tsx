@@ -46,7 +46,7 @@ const money = (value: number) =>
 
 export default function DashboardHome() {
   const { role } = useAuth();
-  const [stats, setStats] = useState<any>({ total: 0, approved: 0, rejected: 0, pending: 0, hospitals: 0, users: 0 });
+  const [stats, setStats] = useState<any>({ total: 0, approved: 0, rejected: 0, pending: 0, hospitals: 0, users: 0, authorizedAmount: 0 });
   const [claimStats, setClaimStats] = useState<any>({ submitted: 0, approved: 0, partiallyApproved: 0, rejected: 0, contested: 0, paid: 0, claimedValue: 0, approvedValue: 0, declinedValue: 0 });
   const [financeStats, setFinanceStats] = useState<any>({
     awaitingCount: 0,
@@ -179,6 +179,7 @@ export default function DashboardHome() {
             pending: rpcData.claims?.pending || 0,
             hospitals: rpcData.hospitals || 0,
             users: rpcData.users || 0,
+            authorizedAmount: Number(rpcData.auth?.approved_amount || 0),
           });
 
           if (rpcData.admin_claims) {
@@ -215,6 +216,7 @@ export default function DashboardHome() {
             pending: rpcData.auth?.pending || 0,
             hospitals: rpcData.hospitals || 0,
             users: rpcData.users || 0,
+            authorizedAmount: Number(rpcData.auth?.approved_amount || 0),
           });
 
           const [chartRes, claimChartRes] = await Promise.all([
@@ -277,6 +279,7 @@ export default function DashboardHome() {
             pending: pendingClaims.count || 0,
             hospitals: hospitalsRes.count || 0,
             users: usersRes.count || 0,
+            authorizedAmount: 0,
           });
 
           const { data: claimChart } = await supabase.rpc("dashboard_claims_activity_7d" as any);
@@ -310,6 +313,7 @@ export default function DashboardHome() {
             pending: pendingRes.count || 0,
             hospitals: hospitalsRes.count || 0,
             users: usersRes.count || 0,
+            authorizedAmount: 0,
           });
           setChartData(
             authChartRes.data?.length
@@ -427,7 +431,7 @@ export default function DashboardHome() {
           <section aria-labelledby="authorization-metrics-heading" className="space-y-2">
             <h2 id="authorization-metrics-heading" className="text-sm font-semibold text-slate-900">Clinical authorizations</h2>
             <DashboardMetricGrid loading={loading} items={[
-              { label: "User roles", value: stats.users, icon: Users },
+              { label: "Authorized amount", value: money(stats.authorizedAmount), icon: Banknote },
               { label: "Total requests", value: stats.total, icon: FileText },
               { label: "Approved", value: stats.approved, icon: CheckCircle2, color: "text-emerald-700" },
               { label: "Rejected", value: stats.rejected, icon: XCircle, color: "text-rose-700" },
