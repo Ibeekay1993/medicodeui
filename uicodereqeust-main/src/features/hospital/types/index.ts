@@ -14,8 +14,21 @@ export type HospitalDashboardMetrics = {
   pendingCount: number;
   deniedCount: number;
   totalValue: number;
+  inAuditCount?: number;
+  inAuditValue?: number;
+  awaitingPaymentCount?: number;
   pendingPayout: number;
+  paidCount?: number;
   paidClaims: number;
+  totalClaimsCount?: number;
+  totalClaimedValue?: number;
+};
+
+export type HospitalDashboardData = {
+  metrics: HospitalDashboardMetrics;
+  approachingDeadlineClaims: any[];
+  recentAuthorizations?: any[];
+  recentClaims?: any[];
 };
 
 export type AuthorizationRequest = {

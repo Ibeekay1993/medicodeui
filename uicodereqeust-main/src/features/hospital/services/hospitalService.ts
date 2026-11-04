@@ -61,7 +61,7 @@ export class HospitalService {
       };
     }
 
-    // 1. Attempt high-performance database-side aggregation RPC first
+    // 1. High-precision database-side aggregation RPC (Elon Musk standard: exact, zero slop)
     try {
       const { data: rpcMetrics, error: rpcError } = await (supabase.rpc as any)(
         'get_hospital_dashboard_metrics',
@@ -74,19 +74,31 @@ export class HospitalService {
             pendingCount: Number(rpcMetrics.pendingCount || 0),
             deniedCount: Number(rpcMetrics.deniedCount || 0),
             totalValue: Number(rpcMetrics.totalValue || 0),
+            inAuditCount: Number(rpcMetrics.inAuditCount || 0),
+            inAuditValue: Number(rpcMetrics.inAuditValue || 0),
+            awaitingPaymentCount: Number(rpcMetrics.awaitingPaymentCount || 0),
             pendingPayout: Number(rpcMetrics.pendingPayout || 0),
+            paidCount: Number(rpcMetrics.paidCount || 0),
             paidClaims: Number(rpcMetrics.paidClaims || 0),
+            totalClaimsCount: Number(rpcMetrics.totalClaimsCount || 0),
+            totalClaimedValue: Number(rpcMetrics.totalClaimedValue || 0),
           },
           approachingDeadlineClaims: Array.isArray(rpcMetrics.approachingDeadlineClaims)
             ? rpcMetrics.approachingDeadlineClaims
             : [],
+          recentAuthorizations: Array.isArray(rpcMetrics.recentAuthorizations)
+            ? rpcMetrics.recentAuthorizations
+            : [],
+          recentClaims: Array.isArray(rpcMetrics.recentClaims)
+            ? rpcMetrics.recentClaims
+            : [],
         };
       }
     } catch {
-      // Fallback to strict client-side query below if RPC not yet deployed
+      // Fallback below
     }
 
-    // 2. Strict multi-tenant isolation fallback (NEVER search by fuzzy substring name)
+    // 2. Mathematically precise client-side fallback query
     const authQuery = [
       `hospital_id.eq.${hosp.id}`,
       `requesting_hospital_id.eq.${hosp.id}`,
@@ -103,14 +115,14 @@ export class HospitalService {
     const [authRes, claimsRes] = await Promise.all([
       supabase
         .from('authorization_requests')
-        .select('id, status, total_amount, referred_hospital_id, hospital_id')
+        .select('id, request_id, patient_name, policy_number, diagnosis, authorization_code, status, total_amount, referred_hospital_id, hospital_id, claimed, claim_status, is_unlocked, created_at, deletion_status')
         .or(authQuery.join(','))
         .eq('is_historical', false)
         .order('created_at', { ascending: false })
         .limit(1000),
       supabase
         .from('hospital_claims' as any)
-        .select('id, status, approved_amount, total_amount, contest_deadline, claim_number, patient_name')
+        .select('id, claim_number, auth_code, patient_name, policy_number, status, payment_status, approved_amount, total_amount, declined_amount, contest_deadline, created_at')
         .or(claimQuery.join(','))
         .order('created_at', { ascending: false })
         .limit(1000),
@@ -119,24 +131,53 @@ export class HospitalService {
     if (authRes.error) throw authRes.error;
     if (claimsRes.error) throw claimsRes.error;
 
-    const auths = authRes.data || [];
+    // Filter out deleted or awaiting delete records
+    const auths = (authRes.data || []).filter((d: any) => 
+      d.deletion_status !== 'awaiting_admin_approval' && 
+      !['deleted', 'awaiting_delete', 'withdrawn'].includes(String(d.status || '').toLowerCase())
+    );
     const claims = claimsRes.data || [];
 
+    const approvedList = auths.filter((d: any) => 
+      ['approved', 'authorization_approved', 'partially_approved'].includes(String(d.status || '').toLowerCase())
+    );
+    const pendingList = auths.filter((d: any) => [
+      'pending', 'pending_referral', 'referral_approved', 'referral_accepted', 'pending_authorization', 'info_provided'
+    ].includes(String(d.status || '').toLowerCase()));
+    const deniedList = auths.filter((d: any) => 
+      ['rejected', 'referral_declined', 'referral_expired'].includes(String(d.status || '').toLowerCase())
+    );
+
+    // Sum ONLY approved care amounts for treating facility
+    const totalApprovedValue = approvedList
+      .filter((d: any) => !(d.referred_hospital_id && d.hospital_id === hosp.id && d.referred_hospital_id !== hosp.id))
+      .reduce((sum: number, d: any) => sum + (Number(d.total_amount) || 0), 0);
+
+    const inAuditClaims = claims.filter((c: any) => 
+      ['submitted', 'under_review', 'pending'].includes(String(c.status || '').toLowerCase())
+    );
+    const awaitingPayClaims = claims.filter((c: any) => 
+      ['approved', 'partially_approved'].includes(String(c.status || '').toLowerCase()) &&
+      String(c.payment_status || '').toLowerCase() !== 'paid'
+    );
+    const paidList = claims.filter((c: any) => 
+      String(c.status || '').toLowerCase() === 'paid' || 
+      String(c.payment_status || '').toLowerCase() === 'paid'
+    );
+
     const metrics = {
-      approvedCount: auths.filter((d: any) => ['approved', 'authorization_approved'].includes(String(d.status).toLowerCase())).length,
-      pendingCount: auths.filter((d: any) => [
-        'pending', 'pending_referral', 'referral_approved', 'referral_accepted', 'pending_authorization'
-      ].includes(String(d.status).toLowerCase())).length,
-      deniedCount: auths.filter((d: any) => ['rejected', 'referral_declined', 'referral_expired'].includes(String(d.status).toLowerCase())).length,
-      totalValue: auths
-        .filter((d: any) => !(d.referred_hospital_id && d.hospital_id === hosp.id))
-        .reduce((sum: number, d: any) => sum + (Number(d.total_amount) || 0), 0),
-      pendingPayout: claims
-        .filter((c: any) => ['approved', 'partially_approved'].includes(String(c.status).toLowerCase()))
-        .reduce((sum: number, c: any) => sum + (Number(c.approved_amount || c.total_amount) || 0), 0),
-      paidClaims: claims
-        .filter((c: any) => String(c.status).toLowerCase() === 'paid')
-        .reduce((sum: number, c: any) => sum + (Number(c.approved_amount || c.total_amount) || 0), 0),
+      approvedCount: approvedList.length,
+      pendingCount: pendingList.length,
+      deniedCount: deniedList.length,
+      totalValue: totalApprovedValue,
+      inAuditCount: inAuditClaims.length,
+      inAuditValue: inAuditClaims.reduce((sum: number, c: any) => sum + (Number(c.total_amount) || 0), 0),
+      awaitingPaymentCount: awaitingPayClaims.length,
+      pendingPayout: awaitingPayClaims.reduce((sum: number, c: any) => sum + (Number(c.approved_amount || c.total_amount) || 0), 0),
+      paidCount: paidList.length,
+      paidClaims: paidList.reduce((sum: number, c: any) => sum + (Number(c.approved_amount || c.total_amount) || 0), 0),
+      totalClaimsCount: claims.length,
+      totalClaimedValue: claims.reduce((sum: number, c: any) => sum + (Number(c.total_amount) || 0), 0),
     };
 
     const now = new Date();
@@ -153,6 +194,8 @@ export class HospitalService {
     return {
       metrics,
       approachingDeadlineClaims,
+      recentAuthorizations: auths.slice(0, 6),
+      recentClaims: claims.slice(0, 6),
     };
   }
 

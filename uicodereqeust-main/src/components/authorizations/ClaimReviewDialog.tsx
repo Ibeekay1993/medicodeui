@@ -115,10 +115,10 @@ export default function ClaimReviewDialog({
                   <div className="space-y-1.5 max-h-[200px] overflow-y-auto pr-1">
                     {getApprovedItems(selectedRequest).length > 0 ? (
                       getApprovedItems(selectedRequest).map((item: any, idx: number) => {
-                        const isDeclined = !!item.declined;
-                        const qty = Number(item.quantity || item.qty || 1);
-                        const unitPrice = Number(item.unit_price || item.price || item.unitPrice || 0);
-                        const total = isDeclined ? 0 : Number(item.total || qty * unitPrice || 0);
+                        const isDeclined = !!item.declined || item.status === "rejected";
+                        const qty = Math.max(1, Number(item.quantity || item.qty || 1));
+                        const unitPrice = Number(item.unit_price || item.price || item.unitPrice || (item.amount ? Number(item.amount) / qty : 0));
+                        const total = isDeclined ? 0 : Number(item.amount || item.total || qty * unitPrice || 0);
                         return (
                           <div 
                             key={`${item.code || item.name || idx}`} 

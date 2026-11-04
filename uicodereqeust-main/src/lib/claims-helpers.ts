@@ -202,8 +202,8 @@ export const contestedAmount = (claim: ClaimDraft | null) => {
 export const calculateHospitalClaimStats = (claims: ClaimDraft[]) => {
   return {
     pending: claims.filter(c => ["pending", "submitted", "under_review"].includes(String(c.status).toLowerCase())).length,
-    approved: claims.filter(c => ["approved", "partially_approved"].includes(String(c.status).toLowerCase())).length,
-    paid: claims.filter(c => String(c.status).toLowerCase() === "paid").length,
+    approved: claims.filter(c => ["approved", "partially_approved"].includes(String(c.status).toLowerCase()) && String(c.payment_status || '').toLowerCase() !== 'paid').length,
+    paid: claims.filter(c => String(c.status).toLowerCase() === "paid" || String(c.payment_status || '').toLowerCase() === 'paid').length,
     totalValue: claims.reduce((sum, c) => sum + Number(c.total_amount || 0), 0)
   };
 };

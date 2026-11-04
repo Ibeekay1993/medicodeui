@@ -133,7 +133,7 @@ export const isFrozenAuthorization = (request: any) => {
 export const isClaimEligible = (request: any, hospital: any) => {
   const status = String(request?.status || "").toLowerCase();
   const code = String(request?.authorization_code || "");
-  const isApproved = ["approved", "authorization_approved"].includes(status);
+  const isApproved = ["approved", "authorization_approved", "partially_approved"].includes(status);
   const isReferralCode = code.startsWith("REF/");
   return isApproved && 
     !isReferralCode &&

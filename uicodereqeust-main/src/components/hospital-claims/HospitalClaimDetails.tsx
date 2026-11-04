@@ -87,11 +87,29 @@ export default function HospitalClaimDetails({
                 </div>
               );
             })}
-            <div className="pt-2 mt-2 border-t border-slate-200 flex justify-between items-center">
-              <span className="text-xs font-black uppercase tracking-widest text-slate-900">Total Claim</span>
-              <span className="font-mono font-bold text-emerald-600 text-sm">
-                ₦{Number(selectedClaim.total_amount).toLocaleString()}
-              </span>
+            <div className="pt-2.5 mt-2.5 border-t border-slate-200 space-y-1.5">
+              <div className="flex justify-between items-center text-xs">
+                <span className="font-semibold text-slate-500">Submitted Total:</span>
+                <span className="font-mono font-bold text-slate-900">
+                  ₦{Number(selectedClaim.total_amount || 0).toLocaleString("en-NG")}
+                </span>
+              </div>
+              {selectedClaim.approved_amount !== null && selectedClaim.approved_amount !== undefined && (
+                <div className="flex justify-between items-center text-xs">
+                  <span className="font-semibold text-emerald-700">Audited Approved:</span>
+                  <span className="font-mono font-bold text-emerald-600">
+                    ₦{Number(selectedClaim.approved_amount).toLocaleString("en-NG")}
+                  </span>
+                </div>
+              )}
+              {Number(selectedClaim.declined_amount || 0) > 0 && (
+                <div className="flex justify-between items-center text-xs">
+                  <span className="font-semibold text-rose-700">Audited Deductions:</span>
+                  <span className="font-mono font-bold text-rose-600">
+                    -₦{Number(selectedClaim.declined_amount).toLocaleString("en-NG")}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
         </div>
