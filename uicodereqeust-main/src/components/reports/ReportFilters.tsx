@@ -154,18 +154,56 @@ export default function ReportFilters({
               <SelectValue placeholder="All Status" />
             </div>
           </SelectTrigger>
-          <SelectContent className="rounded-lg border-slate-200 shadow-lg">
-            <SelectItem value="all" className="text-xs font-bold cursor-pointer rounded-lg">All Status</SelectItem>
-            <SelectItem value="pending" className="text-xs font-bold cursor-pointer rounded-lg">Pending</SelectItem>
-            <SelectItem value="pending_referral" className="text-xs font-bold cursor-pointer rounded-lg">Pending Referral</SelectItem>
-            <SelectItem value="referral_approved" className="text-xs font-bold cursor-pointer rounded-lg">Referral Approved</SelectItem>
-            <SelectItem value="referral_accepted" className="text-xs font-bold cursor-pointer rounded-lg">Referral Accepted</SelectItem>
-            <SelectItem value="pending_authorization" className="text-xs font-bold cursor-pointer rounded-lg">Pending Authorization</SelectItem>
-            <SelectItem value="approved" className="text-xs font-bold cursor-pointer rounded-lg text-emerald-600">Approved</SelectItem>
-            <SelectItem value="partially_approved" className="text-xs font-bold cursor-pointer rounded-lg text-amber-600">Partially Approved</SelectItem>
-            <SelectItem value="rejected" className="text-xs font-bold cursor-pointer rounded-lg text-rose-600">Rejected</SelectItem>
-            <SelectItem value="referral_declined" className="text-xs font-bold cursor-pointer rounded-lg text-rose-600">Referral Declined</SelectItem>
-            <SelectItem value="referral_expired" className="text-xs font-bold cursor-pointer rounded-lg text-rose-600">Referral Expired</SelectItem>
+          <SelectContent className="rounded-xl border-slate-200 shadow-xl">
+            <SelectItem value="all" className="text-xs font-medium cursor-pointer">All Status</SelectItem>
+            <SelectItem value="pending" className="text-xs font-medium cursor-pointer">
+              <span className="flex items-center gap-2">
+                <span className="h-1.5 w-1.5 rounded-full bg-amber-500 shrink-0" />
+                Pending Review
+              </span>
+            </SelectItem>
+            <SelectItem value="pending_referral" className="text-xs font-medium cursor-pointer">
+              <span className="flex items-center gap-2">
+                <span className="h-1.5 w-1.5 rounded-full bg-amber-500 shrink-0" />
+                Pending Referral
+              </span>
+            </SelectItem>
+            <SelectItem value="referral_approved" className="text-xs font-medium cursor-pointer">
+              <span className="flex items-center gap-2">
+                <span className="h-1.5 w-1.5 rounded-full bg-indigo-600 shrink-0" />
+                Referral Approved
+              </span>
+            </SelectItem>
+            <SelectItem value="referral_accepted" className="text-xs font-medium cursor-pointer">
+              <span className="flex items-center gap-2">
+                <span className="h-1.5 w-1.5 rounded-full bg-blue-600 shrink-0" />
+                Referral Accepted
+              </span>
+            </SelectItem>
+            <SelectItem value="pending_authorization" className="text-xs font-medium cursor-pointer">
+              <span className="flex items-center gap-2">
+                <span className="h-1.5 w-1.5 rounded-full bg-amber-500 shrink-0" />
+                Pending Auth
+              </span>
+            </SelectItem>
+            <SelectItem value="approved" className="text-xs font-medium cursor-pointer">
+              <span className="flex items-center gap-2">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-600 shrink-0" />
+                Approved
+              </span>
+            </SelectItem>
+            <SelectItem value="partially_approved" className="text-xs font-medium cursor-pointer">
+              <span className="flex items-center gap-2">
+                <span className="h-1.5 w-1.5 rounded-full bg-sky-600 shrink-0" />
+                Partially Approved
+              </span>
+            </SelectItem>
+            <SelectItem value="rejected" className="text-xs font-medium cursor-pointer">
+              <span className="flex items-center gap-2">
+                <span className="h-1.5 w-1.5 rounded-full bg-rose-600 shrink-0" />
+                Rejected
+              </span>
+            </SelectItem>
           </SelectContent>
         </Select>
 

@@ -50,12 +50,42 @@ export default function HospitalClaimsHeader({
               </SelectTrigger>
               <SelectContent className="rounded-xl border-slate-200 shadow-xl">
                 <SelectItem value="all" className="text-xs font-medium">All Status</SelectItem>
-                <SelectItem value="submitted" className="text-xs font-medium">Submitted / Under Review</SelectItem>
-                <SelectItem value="approved" className="text-xs font-medium text-emerald-600">Approved</SelectItem>
-                <SelectItem value="partially_approved" className="text-xs font-medium text-amber-600">Partially Approved</SelectItem>
-                <SelectItem value="paid" className="text-xs font-medium text-emerald-700">Paid / Settled</SelectItem>
-                <SelectItem value="contested" className="text-xs font-medium text-purple-600">Contested</SelectItem>
-                <SelectItem value="rejected" className="text-xs font-medium text-rose-600">Rejected</SelectItem>
+                <SelectItem value="submitted" className="text-xs font-medium">
+                  <span className="flex items-center gap-2">
+                    <span className="h-1.5 w-1.5 rounded-full bg-amber-500 shrink-0" />
+                    Submitted / Under Review
+                  </span>
+                </SelectItem>
+                <SelectItem value="approved" className="text-xs font-medium">
+                  <span className="flex items-center gap-2">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-600 shrink-0" />
+                    Approved
+                  </span>
+                </SelectItem>
+                <SelectItem value="partially_approved" className="text-xs font-medium">
+                  <span className="flex items-center gap-2">
+                    <span className="h-1.5 w-1.5 rounded-full bg-sky-600 shrink-0" />
+                    Partially Approved
+                  </span>
+                </SelectItem>
+                <SelectItem value="paid" className="text-xs font-medium">
+                  <span className="flex items-center gap-2">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-700 shrink-0" />
+                    Paid / Settled
+                  </span>
+                </SelectItem>
+                <SelectItem value="contested" className="text-xs font-medium">
+                  <span className="flex items-center gap-2">
+                    <span className="h-1.5 w-1.5 rounded-full bg-blue-600 shrink-0" />
+                    Contested
+                  </span>
+                </SelectItem>
+                <SelectItem value="rejected" className="text-xs font-medium">
+                  <span className="flex items-center gap-2">
+                    <span className="h-1.5 w-1.5 rounded-full bg-rose-600 shrink-0" />
+                    Rejected
+                  </span>
+                </SelectItem>
               </SelectContent>
             </Select>
           )}

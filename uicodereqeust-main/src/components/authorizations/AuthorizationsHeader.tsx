@@ -55,18 +55,20 @@ export default function AuthorizationsHeader({
               <SelectContent className="rounded-xl border-slate-200 shadow-xl">
                 {[
                   { id: "all", label: "All Status" },
-                  { id: "approved", label: "Approved" },
-                  { id: "pending", label: "Pending Review" },
-                  { id: "partially_approved", label: "Partially Approved" },
-                  { id: "rejected", label: "Rejected" },
-                  { id: "pending_referral", label: "Pending Referral" },
-                  { id: "referral_approved", label: "Referral Approved" },
-                  { id: "referral_accepted", label: "Referral Accepted" },
-                  { id: "pending_authorization", label: "Pending Auth" },
-                  { id: "referral_declined", label: "Referral Declined" },
+                  { id: "pending", label: "Pending Review", dot: "bg-amber-500" },
+                  { id: "pending_referral", label: "Pending Referral", dot: "bg-amber-500" },
+                  { id: "referral_approved", label: "Referral Approved", dot: "bg-indigo-600" },
+                  { id: "referral_accepted", label: "Referral Accepted", dot: "bg-blue-600" },
+                  { id: "pending_authorization", label: "Pending Auth", dot: "bg-amber-500" },
+                  { id: "approved", label: "Approved", dot: "bg-emerald-600" },
+                  { id: "partially_approved", label: "Partially Approved", dot: "bg-sky-600" },
+                  { id: "rejected", label: "Rejected", dot: "bg-rose-600" },
                 ].map(filter => (
                   <SelectItem key={filter.id} value={filter.id} className="text-xs font-medium">
-                    {filter.label}
+                    <span className="flex items-center gap-2">
+                      {filter.dot && <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${filter.dot}`} />}
+                      {filter.label}
+                    </span>
                   </SelectItem>
                 ))}
               </SelectContent>

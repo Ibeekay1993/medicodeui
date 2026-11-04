@@ -45,14 +45,49 @@ export default function ClaimsFilterHeader({
               <SelectValue placeholder="Filter Status" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all" className="text-xs font-semibold">All Status</SelectItem>
-              <SelectItem value="submitted" className="text-xs font-semibold text-blue-600">Submitted</SelectItem>
-              <SelectItem value="under_review" className="text-xs font-semibold text-amber-600">Under Review</SelectItem>
-              <SelectItem value="approved" className="text-xs font-semibold text-emerald-600">Fully Approved</SelectItem>
-              <SelectItem value="partially_approved" className="text-xs font-semibold text-emerald-700">Partially Approved</SelectItem>
-              <SelectItem value="paid" className="text-xs font-semibold text-purple-600">Paid</SelectItem>
-              <SelectItem value="contested" className="text-xs font-semibold text-orange-600">Contested</SelectItem>
-              <SelectItem value="rejected" className="text-xs font-semibold text-rose-600">Rejected</SelectItem>
+              <SelectItem value="all" className="text-xs font-medium">All Status</SelectItem>
+              <SelectItem value="submitted" className="text-xs font-medium">
+                <span className="flex items-center gap-2">
+                  <span className="h-1.5 w-1.5 rounded-full bg-amber-500 shrink-0" />
+                  Submitted
+                </span>
+              </SelectItem>
+              <SelectItem value="under_review" className="text-xs font-medium">
+                <span className="flex items-center gap-2">
+                  <span className="h-1.5 w-1.5 rounded-full bg-sky-500 shrink-0" />
+                  Under Review
+                </span>
+              </SelectItem>
+              <SelectItem value="approved" className="text-xs font-medium">
+                <span className="flex items-center gap-2">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-600 shrink-0" />
+                  Approved
+                </span>
+              </SelectItem>
+              <SelectItem value="partially_approved" className="text-xs font-medium">
+                <span className="flex items-center gap-2">
+                  <span className="h-1.5 w-1.5 rounded-full bg-sky-600 shrink-0" />
+                  Partially Approved
+                </span>
+              </SelectItem>
+              <SelectItem value="paid" className="text-xs font-medium">
+                <span className="flex items-center gap-2">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-700 shrink-0" />
+                  Paid
+                </span>
+              </SelectItem>
+              <SelectItem value="contested" className="text-xs font-medium">
+                <span className="flex items-center gap-2">
+                  <span className="h-1.5 w-1.5 rounded-full bg-blue-600 shrink-0" />
+                  Contested
+                </span>
+              </SelectItem>
+              <SelectItem value="rejected" className="text-xs font-medium">
+                <span className="flex items-center gap-2">
+                  <span className="h-1.5 w-1.5 rounded-full bg-rose-600 shrink-0" />
+                  Rejected
+                </span>
+              </SelectItem>
             </SelectContent>
           </Select>
         </div>
