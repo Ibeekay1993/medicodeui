@@ -72,9 +72,10 @@ serve(async (req) => {
 
     // Check if triggered manually with a JSON payload (e.g. force: true)
     let forceSend = false
+    let payload: any = null
     if (req.method === "POST") {
       try {
-        const payload = await req.json()
+        payload = await req.json()
         if (payload && payload.force === true) {
           forceSend = true
         }
@@ -104,6 +105,11 @@ serve(async (req) => {
       if (policyData.value.enabled !== undefined) {
         isEnabled = !!policyData.value.enabled
       }
+    }
+
+    // Allow payload override for test triggers or custom targets
+    if (payload && (payload.email || payload.recipient_email)) {
+      recipientEmail = String(payload.email || payload.recipient_email).trim()
     }
 
     // If daily report is disabled and not forced, skip execution
