@@ -18,7 +18,7 @@ const DEFAULT_CONFIG: EmailTemplateConfig = {
   headerGradient: "linear-gradient(135deg,#0F6E56 0%,#0a5242 100%)",
   headerColor: "#0F6E56",
   accentColor: "#93c34b",
-  logoUrl: "https://medicodeui.web.app/ronsberger-logo.png",
+  logoUrl: "https://app.ronsbergerhmo.io/ronsberger-logo.png",
   companyName: "Ronsberger ",
   companyAccentName: "HMO",
   companyAccentColor: "#93c34b",

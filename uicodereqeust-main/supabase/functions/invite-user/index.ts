@@ -139,7 +139,7 @@ serve(async (req) => {
     }
 
     // 2. Generate the invite link via Supabase Admin API
-    const configuredSiteUrl = (Deno.env.get("SITE_URL") || "https://medicodeui.web.app").replace(/\/+$/, "");
+    const configuredSiteUrl = (Deno.env.get("SITE_URL") || "https://app.ronsbergerhmo.io").replace(/\/+$/, "");
     const redirectTo = `${configuredSiteUrl.replace(/\/login$/, "")}/register`;
     const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
       type: "invite",
@@ -199,7 +199,7 @@ serve(async (req) => {
         <tr>
           <td style="background:linear-gradient(135deg,#0F6E56 0%,#0a5242 100%);padding:28px 32px;text-align:center;">
             <div style="margin-bottom:14px;">
-              <img src="https://medicodeui.web.app/ronsberger-logo.png" alt="Ronsberger HMO Logo" width="52" height="52" style="display:inline-block;border-radius:10px;background:rgba(255,255,255,0.15);padding:6px;object-fit:contain;" />
+              <img src="https://app.ronsbergerhmo.io/ronsberger-logo.png" alt="Ronsberger HMO Logo" width="52" height="52" style="display:inline-block;border-radius:10px;background:rgba(255,255,255,0.15);padding:6px;object-fit:contain;" />
             </div>
             <div style="margin-bottom:12px;">
               <span style="color:#ffffff;font-size:16px;font-weight:800;letter-spacing:2px;text-transform:uppercase;">Ronsberger </span><span style="color:#93c34b;font-size:16px;font-weight:800;letter-spacing:2px;text-transform:uppercase;">HMO</span>

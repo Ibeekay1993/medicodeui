@@ -1991,6 +1991,32 @@ async function processNotifications(
           if (hospitalError) throw hospitalError;
           recipient = normalizePhoneNumber(String(hospital?.phone || ""));
         }
+
+        if (!recipient) {
+          const hospitalName = String(
+            auth.requesting_hospital_name || auth.hospital_name || auth.claiming_hospital_name || ""
+          ).trim();
+          if (hospitalName) {
+            const { data: matchedHosp } = await supabase
+              .from("hospitals")
+              .select("id, phone")
+              .ilike("name", hospitalName)
+              .maybeSingle();
+            if (matchedHosp?.id) {
+              const { data: contact } = await supabase
+                .from("hospital_whatsapp_contacts")
+                .select("phone_number")
+                .eq("hospital_id", matchedHosp.id)
+                .eq("status", "active")
+                .order("updated_at", { ascending: false })
+                .limit(1)
+                .maybeSingle();
+              recipient = normalizePhoneNumber(String(contact?.phone_number || matchedHosp.phone || ""));
+            } else if (matchedHosp?.phone) {
+              recipient = normalizePhoneNumber(String(matchedHosp.phone));
+            }
+          }
+        }
       }
 
       if (!recipient) {

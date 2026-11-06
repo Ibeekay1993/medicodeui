@@ -419,7 +419,7 @@ serve(async (req) => {
     }
     const sendPasswordResetEmail = async (targetEmail: string) => {
       if (!supabase) return;
-      const redirectUrl = Deno.env.get("SITE_URL") || Deno.env.get("PUBLIC_SITE_URL") || "https://medicodeui.web.app";
+      const redirectUrl = Deno.env.get("SITE_URL") || Deno.env.get("PUBLIC_SITE_URL") || "https://app.ronsbergerhmo.io";
       const { data, error } = await supabase.auth.admin.generateLink({
         type: "recovery",
         email: targetEmail,
@@ -447,7 +447,7 @@ serve(async (req) => {
               <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.08);">
                 <div style="background: linear-gradient(135deg,#0F6E56 0%,#0a5242 100%); padding: 28px 32px; text-align: center;">
                   <div style="margin-bottom: 14px;">
-                    <img src="https://medicodeui.web.app/ronsberger-logo.png" alt="Ronsberger HMO Logo" width="52" height="52" style="display:inline-block;border-radius:10px;background:rgba(255,255,255,0.15);padding:6px;object-fit:contain;" />
+                    <img src="https://app.ronsbergerhmo.io/ronsberger-logo.png" alt="Ronsberger HMO Logo" width="52" height="52" style="display:inline-block;border-radius:10px;background:rgba(255,255,255,0.15);padding:6px;object-fit:contain;" />
                   </div>
                   <div style="margin-bottom: 10px;">
                     <span style="color:#ffffff;font-size:16px;font-weight:800;letter-spacing:2px;text-transform:uppercase;">Ronsberger </span><span style="color:#93c34b;font-size:16px;font-weight:800;letter-spacing:2px;text-transform:uppercase;">HMO</span>

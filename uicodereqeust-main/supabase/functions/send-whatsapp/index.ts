@@ -42,7 +42,7 @@ const EVOLUTION_INSTANCE_NAME = Deno.env.get("EVOLUTION_INSTANCE_NAME") || "medi
 const INTERNAL_API_KEY = Deno.env.get("INTERNAL_API_KEY") || "";
 const WHATSAPP_WORKER_SECRET = Deno.env.get("WHATSAPP_WORKER_SECRET") || "";
 // Keep staff-initiated sends fail-closed until outbound is explicitly resumed.
-const WHATSAPP_OUTBOUND_PAUSED = Deno.env.get("WHATSAPP_OUTBOUND_PAUSED") !== "false";
+const WHATSAPP_OUTBOUND_PAUSED = Deno.env.get("WHATSAPP_OUTBOUND_PAUSED") === "true";
 // Hard cap on outbound text size. WhatsApp itself truncates around 65k chars.
 const MAX_MESSAGE_CHARS = 4000;
 
