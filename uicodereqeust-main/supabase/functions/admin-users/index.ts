@@ -430,7 +430,7 @@ serve(async (req) => {
       const brevoApiKey = Deno.env.get("BREVO_API_KEY");
       if (brevoApiKey) {
         const resetLink = (data as { properties?: { action_link?: string } })?.properties?.action_link || "";
-        const senderRaw = Deno.env.get("BREVO_FROM_EMAIL") || "Ronsberger HMO <noreply@ronsbergerhmo.com>";
+        const senderRaw = Deno.env.get("BREVO_FROM_EMAIL") || "Ronsberger HMO <uironsberger@gmail.com>";
         const senderMatch = senderRaw.match(/^(.+?)\s*<([^>]+)>$/);
         const brevoSender = senderMatch
           ? { name: senderMatch[1].trim(), email: senderMatch[2].trim() }

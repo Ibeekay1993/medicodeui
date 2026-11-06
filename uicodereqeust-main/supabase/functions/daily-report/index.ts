@@ -60,7 +60,7 @@ serve(async (req) => {
     }
 
     const brevoApiKey = Deno.env.get("BREVO_API_KEY");
-    const brevoFromRaw = Deno.env.get("BREVO_FROM_EMAIL") || "Ronsberger HMO Reports <noreply@ronsbergerhmo.com>";
+    const brevoFromRaw = Deno.env.get("BREVO_FROM_EMAIL") || "Ronsberger HMO Reports <uironsberger@gmail.com>";
 
     if (!brevoApiKey) {
       console.warn("⚠️ BREVO_API_KEY is not set - daily report will not be sent");

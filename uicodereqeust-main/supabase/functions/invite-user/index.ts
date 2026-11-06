@@ -160,7 +160,7 @@ serve(async (req) => {
 
     // 3. Send the styled invitation email via Brevo
     const brevoApiKey = Deno.env.get("BREVO_API_KEY");
-    const brevoFromRaw = Deno.env.get("BREVO_FROM_EMAIL") || "Ronsberger HMO <noreply@ronsbergerhmo.com>";
+    const brevoFromRaw = Deno.env.get("BREVO_FROM_EMAIL") || "Ronsberger HMO <uironsberger@gmail.com>";
 
     if (!brevoApiKey) {
       throw new Error("SMTP service (Brevo) is not configured on the server.");
