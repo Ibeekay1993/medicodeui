@@ -105,12 +105,12 @@ try {
   process.exit(1);
 }
 
-// 6. Deploy to Firebase
-console.log("🌐 Deploying to Firebase Hosting...");
+// 6. Deploy to Coolify VPS
+console.log("🌐 Deploying to Coolify VPS (2.24.58.189)...");
 try {
-  execSync("npx firebase deploy --only hosting --project medicodeui --non-interactive", { stdio: "inherit" });
-  console.log("\n🎉 [Deploy Guard] Successfully deployed to Firebase Hosting!\n");
+  execSync("python scripts/deploy-vps.py", { stdio: "inherit", cwd: ROOT });
+  console.log("\n🎉 [Deploy Guard] Successfully deployed to Coolify VPS (app.ronsbergerhmo.io)!\n");
 } catch (err) {
-  console.error("\n❌ [Deploy Guard] Firebase deployment failed!");
+  console.error("\n❌ [Deploy Guard] VPS deployment failed!");
   process.exit(1);
 }
