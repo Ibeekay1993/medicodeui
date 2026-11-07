@@ -2,15 +2,15 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type * as ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
 import {
-  BadgeCheck,
-  CalendarDays,
-  ClipboardList,
+  AlertCircle,
+  CheckCircle2,
   Download,
   Filter,
   RefreshCw,
   RotateCcw,
   Search,
-  TrendingDown,
+  Wallet,
+  XCircle,
 } from "lucide-react";
 import { ClaimsService } from "../services/claimsService";
 import { Button } from "@/components/ui/button";
@@ -27,12 +27,35 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-import { ClaimsAnalysisView } from "../components/ClaimsAnalysisView";
 import { useDataPagination } from "@/hooks/use-data-pagination";
 import { DataPagination } from "@/components/dashboard/DataPagination";
 
 const money = (value: unknown) => `₦${Number(value || 0).toLocaleString()}`;
 const csvCell = (value: unknown) => `"${String(value ?? "").replace(/"/g, '""')}"`;
+
+function normalizeStatus(status?: string | null) {
+  return String(status || "pending").toLowerCase().replace(/\s+/g, "_");
+}
+
+function statusBucket(status?: string | null): "pending" | "approved" | "rejected" | "contested" | "other" {
+  const normalized = normalizeStatus(status);
+  if (["submitted", "pending", "under_investigation", "under_review", "pending_audit", "audit"].includes(normalized)) return "pending";
+  if (["approved", "partially_approved"].includes(normalized)) return "approved";
+  if (["contested", "under_contest", "paid"].includes(normalized)) return "contested";
+  if (["rejected", "declined", "denied"].includes(normalized)) return "rejected";
+  return "other";
+}
+
+function matchesStatusFilter(rowStatus: string | null | undefined, filter: string): boolean {
+  if (!filter || filter === "all") return true;
+  const normalized = normalizeStatus(rowStatus);
+  if (normalized === filter) return true;
+  if (filter === "pending" && statusBucket(rowStatus) === "pending") return true;
+  if (filter === "approved" && (normalized === "approved" || normalized === "partially_approved")) return true;
+  if (filter === "contested" && statusBucket(rowStatus) === "contested") return true;
+  if (filter === "rejected" && statusBucket(rowStatus) === "rejected") return true;
+  return false;
+}
 
 const STATUS_PILL_STYLES: Record<string, string> = {
   approved: "bg-emerald-50 text-emerald-700 border-emerald-200",
@@ -59,14 +82,44 @@ export default function ClaimsReportsPage() {
   const [search, setSearch] = useState("");
   const [reconRows, setReconRows] = useState<any[]>([]);
 
-  const filtered = useMemo(() => {
+  const statusMetrics = useMemo(() => {
     const term = search.toLowerCase();
-    return rows.filter((row) =>
+    const rowsForMetrics = rows.filter((row) =>
+      !term ||
       `${row.claim_number || ""} ${row.patient_name || ""} ${row.policy_number || ""} ${row.auth_code || ""} ${row.hospital_name || ""}`
         .toLowerCase()
         .includes(term)
     );
+
+    const metrics = {
+      pending: { count: 0, amount: 0 },
+      approved: { count: 0, amount: 0 },
+      rejected: { count: 0, amount: 0 },
+      contested: { count: 0, amount: 0 },
+    };
+
+    for (const row of rowsForMetrics) {
+      const bucket = statusBucket(row.status);
+      const amt = Number(row.approved_amount || row.total_amount || row.original_amount || 0);
+      if (bucket in metrics) {
+        metrics[bucket as keyof typeof metrics].count += 1;
+        metrics[bucket as keyof typeof metrics].amount += amt;
+      }
+    }
+    return metrics;
   }, [rows, search]);
+
+  const filtered = useMemo(() => {
+    const term = search.toLowerCase();
+    return rows.filter((row) => {
+      const matchesSearch = !term ||
+        `${row.claim_number || ""} ${row.patient_name || ""} ${row.policy_number || ""} ${row.auth_code || ""} ${row.hospital_name || ""}`
+          .toLowerCase()
+          .includes(term);
+      const matchesStatus = matchesStatusFilter(row.status, status);
+      return matchesSearch && matchesStatus;
+    });
+  }, [rows, search, status]);
 
   const totals = useMemo(() => ({
     count: filtered.length,
@@ -118,7 +171,7 @@ export default function ClaimsReportsPage() {
       const end = endDate ? new Date(endDate) : null;
       if (end) end.setHours(23, 59, 59, 999);
       const data = await ClaimsService.generateClaimsReportExport({
-        _status: status,
+        _status: "all",
         _hospital_id: hospitalId === "all" ? null : hospitalId,
         _from: startDate ? new Date(startDate).toISOString() : null,
         _to: end ? end.toISOString() : null,
@@ -130,7 +183,7 @@ export default function ClaimsReportsPage() {
     } finally {
       setLoading(false);
     }
-  }, [endDate, hospitalId, startDate, status, toast]);
+  }, [endDate, hospitalId, startDate, toast]);
 
   const setPresetRange = (preset: "month" | "quarter" | "year") => {
     const now = new Date();
@@ -482,7 +535,7 @@ export default function ClaimsReportsPage() {
       {/* ── Executive Header ────────────────────────────────────────── */}
       <div className="flex flex-col items-start justify-between gap-4 rounded-xl border border-slate-200 bg-white p-4 sm:flex-row sm:items-center shadow-sm">
         <div>
-          <h2 className="text-lg font-bold text-slate-900 tracking-tight">Claims Intelligence & Ledger</h2>
+          <h2 className="text-lg font-bold text-slate-900 tracking-tight">Claims Report & Ledger</h2>
           <p className="mt-0.5 text-xs text-slate-500">
             Real-time portfolio telemetry, hospital network utilization, and operational claims register.
           </p>
@@ -521,23 +574,34 @@ export default function ClaimsReportsPage() {
         </div>
       </div>
 
-      {/* ── Section 1: Portfolio Intelligence & Network Telemetry ───── */}
-      <section aria-label="Portfolio Intelligence">
-        <ClaimsAnalysisView />
-      </section>
-
-      {/* ── Section 2: Operational Filter Toolbar ──────────────────── */}
+      {/* ── Unified Filter Toolbar ────────────────────────────────── */}
       <Card className="rounded-xl border-slate-200 bg-white shadow-sm">
         <CardContent className="space-y-4 p-4">
-          <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-700">
-              <Filter className="h-4 w-4" />
+          <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-2">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-700">
+                <Filter className="h-4 w-4" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-slate-900">Claims Report Filter</h3>
+                <p className="text-xs text-slate-500">
+                  Select a partner provider or view all network facilities, and search claims.
+                </p>
+              </div>
             </div>
-            <div>
-              <h3 className="text-sm font-bold text-slate-900">Claims Registry Filter</h3>
-              <p className="text-xs text-slate-500">Filter and search individual claims in the portfolio ledger below.</p>
-            </div>
+            {hasActiveFilters && (
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={resetFilters}
+                className="h-8 gap-1.5 self-start rounded-lg px-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-900 sm:self-auto"
+              >
+                <RotateCcw className="h-3.5 w-3.5 text-slate-400" />
+                Reset filters
+              </Button>
+            )}
           </div>
+
           <div className="grid min-w-0 grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-12">
             <div className="relative min-w-0 md:col-span-2 xl:col-span-4">
               <Search className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
@@ -555,9 +619,18 @@ export default function ClaimsReportsPage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {["all", "submitted", "under_review", "approved", "partially_approved", "paid", "rejected", "contested"].map((item) => (
-                    <SelectItem key={item} value={item} className="capitalize">
-                      {item.replace(/_/g, " ")}
+                  {[
+                    { label: "All Statuses", value: "all" },
+                    { label: "Submitted", value: "submitted" },
+                    { label: "Under Review", value: "under_review" },
+                    { label: "Approved", value: "approved" },
+                    { label: "Partially Approved", value: "partially_approved" },
+                    { label: "Paid", value: "paid" },
+                    { label: "Rejected", value: "rejected" },
+                    { label: "Contested", value: "contested" },
+                  ].map((item) => (
+                    <SelectItem key={item.value} value={item.value}>
+                      {item.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -599,48 +672,80 @@ export default function ClaimsReportsPage() {
               <Button type="button" variant="outline" onClick={() => setPresetRange("year")} className="h-8 rounded-lg border-slate-200 text-xs font-medium">
                 Year
               </Button>
-              {hasActiveFilters && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={resetFilters}
-                  className="h-8 gap-1.5 rounded-lg px-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-                >
-                  <RotateCcw className="h-3.5 w-3.5 text-slate-400" />
-                  Reset filters
-                </Button>
-              )}
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* ── Filtered Totals Strip ─────────────────────────────────── */}
-      {!loading && (
-        <section aria-labelledby="claims-summary-heading" className="space-y-3">
-          <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-            {[
-              { label: "Matching Claims", value: totals.count.toLocaleString(), detail: "Records in filter view", Icon: ClipboardList, tone: "text-slate-600" },
-              { label: "Original Value", value: money(totals.original), detail: "Submitted amount", Icon: CalendarDays, tone: "text-blue-600" },
-              { label: "Approved Value", value: money(totals.approved), detail: "Payable amount", Icon: BadgeCheck, tone: "text-emerald-600" },
-              { label: "Declined / Savings", value: money(totals.declined), detail: "Adjustments & deductions", Icon: TrendingDown, tone: "text-amber-600" },
-            ].map(({ label, value, detail, Icon, tone }) => (
-              <Card key={label} className="rounded-xl border-slate-200 bg-white shadow-sm transition-all hover:border-slate-300">
-                <CardContent className="p-3.5 sm:p-4">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-xs font-medium text-slate-600">{label}</p>
-                    <div className="rounded-lg bg-slate-50 p-1.5 border border-slate-100">
-                      <Icon className={`h-4 w-4 ${tone}`} aria-hidden="true" />
-                    </div>
-                  </div>
-                  <p className="mt-2 truncate text-base sm:text-xl font-bold tracking-tight text-slate-900 font-mono">{value}</p>
-                  <p className="mt-0.5 text-[11px] text-slate-400">{detail}</p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </section>
-      )}
+      {/* ── Status Metrics Cards ──────────────────────────────────── */}
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {[
+          {
+            key: "pending",
+            label: "Pending Audits",
+            count: statusMetrics.pending.count,
+            amount: statusMetrics.pending.amount,
+            Icon: AlertCircle,
+            iconBg: "bg-amber-50 text-amber-600 border border-amber-200",
+            activeBorder: "ring-2 ring-amber-500",
+          },
+          {
+            key: "approved",
+            label: "Approved",
+            count: statusMetrics.approved.count,
+            amount: statusMetrics.approved.amount,
+            Icon: CheckCircle2,
+            iconBg: "bg-emerald-50 text-emerald-600 border border-emerald-200",
+            activeBorder: "ring-2 ring-emerald-500",
+          },
+          {
+            key: "rejected",
+            label: "Rejected",
+            count: statusMetrics.rejected.count,
+            amount: statusMetrics.rejected.amount,
+            Icon: XCircle,
+            iconBg: "bg-rose-50 text-rose-600 border border-rose-200",
+            activeBorder: "ring-2 ring-rose-500",
+          },
+          {
+            key: "contested",
+            label: "Contested",
+            count: statusMetrics.contested.count,
+            amount: statusMetrics.contested.amount,
+            Icon: Wallet,
+            iconBg: "bg-blue-50 text-blue-600 border border-blue-200",
+            activeBorder: "ring-2 ring-blue-500",
+          },
+        ].map(({ key, label, count, amount, Icon, iconBg, activeBorder }) => {
+          const isSelected = status === key;
+          return (
+            <div
+              key={label}
+              onClick={() => setStatus((prev) => (prev === key ? "all" : key))}
+              role="button"
+              tabIndex={0}
+              className={cn(
+                "flex min-w-0 cursor-pointer items-center gap-3 overflow-hidden rounded-xl border border-slate-200 bg-white p-3 sm:p-4 shadow-sm transition-all hover:border-slate-300 hover:shadow",
+                isSelected && activeBorder
+              )}
+              title={`Click to filter by ${label}`}
+            >
+              <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-lg sm:h-11 sm:w-11", iconBg)}>
+                <Icon className="h-5 w-5 sm:h-6 sm:w-6" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-xs font-medium text-slate-600">{label}</p>
+                <p className="mt-1 text-base sm:text-lg font-bold tracking-tight text-slate-900 leading-none">
+                  {count}{" "}
+                  <span className="text-xs sm:text-sm text-slate-500 font-normal ml-1">
+                    {money(amount)}
+                  </span>
+                </p>
+              </div>
+            </div>
+          );
+        })}
+      </div>
 
       {/* ── Operational Claims Ledger Table ───────────────────────── */}
       <Card className="rounded-xl border-slate-200 bg-white shadow-sm overflow-hidden">
@@ -651,8 +756,8 @@ export default function ClaimsReportsPage() {
               Detailed line registry for auditing, payment validation, and dispute analysis.
             </p>
           </div>
-          <span className="text-xs font-medium text-slate-500">
-            {filtered.length} total entries
+          <span className="text-xs font-semibold text-slate-600">
+            {filtered.length} matching claims · {money(totals.original)} original value
           </span>
         </div>
         <div className="overflow-x-auto">
