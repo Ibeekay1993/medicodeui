@@ -1,4 +1,4 @@
-project_id = "optistuvyeiojlgmkdks"
+project_id = "medcode-self-hosted"
 
 [functions.daily-report]
 enabled = true
