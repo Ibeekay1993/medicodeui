@@ -429,7 +429,7 @@ export default function DashboardHome() {
       {isAdmin && (
         <div className="space-y-4">
           <section aria-labelledby="authorization-metrics-heading" className="space-y-1 sm:space-y-1.5">
-            <h2 id="authorization-metrics-heading" className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-slate-500">Clinical Authorizations</h2>
+            <div id="authorization-metrics-heading" role="heading" aria-level={2} className="text-[10.5px] sm:text-xs font-bold uppercase tracking-wider text-slate-500">Clinical Authorizations</div>
             <DashboardMetricGrid loading={loading} items={[
               { label: "Authorized amount", value: money(stats.authorizedAmount), icon: Banknote },
               { label: "Total requests", value: stats.total, icon: FileText },
@@ -439,7 +439,7 @@ export default function DashboardHome() {
           </section>
 
           <section aria-labelledby="claims-metrics-heading" className="space-y-1 sm:space-y-1.5">
-            <h2 id="claims-metrics-heading" className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-slate-500">Claims</h2>
+            <div id="claims-metrics-heading" role="heading" aria-level={2} className="text-[10.5px] sm:text-xs font-bold uppercase tracking-wider text-slate-500">Claims</div>
             <DashboardMetricGrid loading={loading} items={[
               { label: "Submitted", value: claimStats.submitted, icon: FileText },
               { label: "Paid", value: claimStats.paid, icon: CheckCircle2, color: "text-emerald-700" },
@@ -449,7 +449,7 @@ export default function DashboardHome() {
           </section>
 
           <section aria-labelledby="payments-metrics-heading" className="space-y-1 sm:space-y-1.5">
-            <h2 id="payments-metrics-heading" className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-slate-500">Payments</h2>
+            <div id="payments-metrics-heading" role="heading" aria-level={2} className="text-[10.5px] sm:text-xs font-bold uppercase tracking-wider text-slate-500">Payments</div>
             <DashboardMetricGrid loading={loading} items={[
               { label: "Awaiting payment", value: money(financeStats.awaitingValue), icon: Clock, color: "text-amber-700" },
               { label: "Paid value", value: money(financeStats.paidValue), icon: Banknote },
@@ -462,7 +462,7 @@ export default function DashboardHome() {
 
       {isFinance && (
         <section aria-labelledby="finance-summary-heading" className="space-y-1 sm:space-y-1.5">
-          <h2 id="finance-summary-heading" className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-slate-500">Payment Summary</h2>
+          <div id="finance-summary-heading" role="heading" aria-level={2} className="text-[10.5px] sm:text-xs font-bold uppercase tracking-wider text-slate-500">Payment Summary</div>
           <DashboardMetricGrid loading={loading} items={[
           { label: "Awaiting payment", value: money(financeStats.awaitingValue), icon: Clock, color: "text-amber-700" },
           { label: "Paid value", value: money(financeStats.paidValue), icon: Banknote },
@@ -474,7 +474,7 @@ export default function DashboardHome() {
 
       {isUtilizationManager && (
         <section aria-labelledby="manager-summary-heading" className="space-y-1 sm:space-y-1.5">
-          <h2 id="manager-summary-heading" className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-slate-500">Authorization Workload</h2>
+          <div id="manager-summary-heading" role="heading" aria-level={2} className="text-[10.5px] sm:text-xs font-bold uppercase tracking-wider text-slate-500">Authorization Workload</div>
           <DashboardMetricGrid loading={loading} columns="grid-cols-2" items={[
             { label: "Total requests", value: stats.total, icon: FileText },
             { label: "Action needed", value: stats.pending, icon: Clock, color: "text-amber-700" },
@@ -486,7 +486,7 @@ export default function DashboardHome() {
 
       {isNurseOrOther && !isUtilizationManager && (
         <section aria-labelledby="requests-summary-heading" className="space-y-1 sm:space-y-1.5">
-          <h2 id="requests-summary-heading" className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-slate-500">Request Summary</h2>
+          <div id="requests-summary-heading" role="heading" aria-level={2} className="text-[10.5px] sm:text-xs font-bold uppercase tracking-wider text-slate-500">Request Summary</div>
           <DashboardMetricGrid loading={loading} items={[
             { label: "Total requests", value: stats.total, icon: FileText },
             { label: "Facilities", value: stats.hospitals, icon: Building2 },
@@ -498,7 +498,7 @@ export default function DashboardHome() {
 
       {isClaims && (
         <section aria-labelledby="claims-summary-heading" className="space-y-1 sm:space-y-1.5">
-          <h2 id="claims-summary-heading" className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-slate-500">Claims Overview</h2>
+          <div id="claims-summary-heading" role="heading" aria-level={2} className="text-[10.5px] sm:text-xs font-bold uppercase tracking-wider text-slate-500">Claims Overview</div>
           <DashboardMetricGrid loading={loading} items={[
           { label: "Submitted", value: claimStats.submitted, icon: FileText },
           { label: "Approved", value: claimStats.approved, icon: CheckCircle2, color: "text-emerald-700" },
