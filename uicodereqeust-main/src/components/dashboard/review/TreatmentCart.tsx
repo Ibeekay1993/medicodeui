@@ -24,7 +24,6 @@ import {
 import {
   TariffOption,
   formatNaira,
-  itemUnitPrice,
   itemTotal,
 } from "@/lib/clinicalUtils";
 import { FloatingPanel } from "@/components/ui/floating-panel";
@@ -68,8 +67,6 @@ export const TreatmentCart = React.memo(function TreatmentCart({
   parseStatus,
   parseTreatmentText,
   approvedItems,
-  approvedTotal,
-  totalApprovedAmount,
   editingQuantities,
   updateApprovedItemQuantity,
   commitQuantity,

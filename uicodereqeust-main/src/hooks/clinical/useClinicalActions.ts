@@ -11,11 +11,10 @@ import {
   itemTotal,
   itemUnitPrice,
   getInitials,
-  formatNaira,
   cleanPatientName,
   parseReferralTreatment,
 } from "@/lib/clinicalUtils";
-import { normalizeHospitalName, areHospitalNamesMatching } from "@/lib/authorizations-helpers";
+import { areHospitalNamesMatching } from "@/lib/authorizations-helpers";
 
 /**
  * Extracts a human-readable string from a clinical_notes or decision_reason value.
@@ -650,7 +649,7 @@ export function useClinicalActions({
             requestId: request.id,
             patientName: request.patient_name,
             decision: targetStatus,
-            authorizationCode: authCode || request.authorization_code,
+            authorizationCode: currentCode || request.authorization_code,
           });
         }
 

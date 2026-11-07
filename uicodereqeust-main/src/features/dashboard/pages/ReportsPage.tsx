@@ -165,7 +165,7 @@ function addPaymentAdviceWorksheets(
   filters: FilterState,
   hospitalLabel: string,
   currencyFormat: string,
-  headerFont: ExcelJS.Font,
+  headerFont: Partial<ExcelJS.Font>,
 ) {
   const titleFill: ExcelJS.FillPattern = {
     type: "pattern",
@@ -565,7 +565,7 @@ export default function ReportsPage() {
         fgColor: { argb: theme.primary },
       };
 
-      const headerFont: ExcelJS.Font = {
+      const headerFont: Partial<ExcelJS.Font> = {
         color: { argb: "FFFFFFFF" },
         bold: true,
         size: 12,
@@ -574,8 +574,6 @@ export default function ReportsPage() {
       const currencyFormat = '"₦"#,##0.00';
       const percentFormat = '0.0"%"';
       workbook.calcProperties.fullCalcOnLoad = true;
-      workbook.calcProperties.forceFullCalc = true;
-      workbook.calcProperties.calcMode = "auto";
       let paymentAdviceRowCount = 0;
 
       const approvedAdviceRecords = mode === "full" || mode === "payment_advice"
@@ -700,7 +698,7 @@ export default function ReportsPage() {
           {
             type: 'dataBar',
             cfvo: [{ type: 'min' }, { type: 'max' }],
-            color: { argb: theme.success },
+            priority: 1,
             gradient: true,
           }
         ]
@@ -747,6 +745,7 @@ export default function ReportsPage() {
           {
             type: 'colorScale',
             cfvo: [{ type: 'num', value: 0 }, { type: 'num', value: 50 }, { type: 'num', value: 100 }],
+            priority: 1,
             color: [{ argb: theme.danger }, { argb: theme.warning }, { argb: theme.success }]
           }
         ]
@@ -790,7 +789,7 @@ export default function ReportsPage() {
             {
               type: 'dataBar',
               cfvo: [{ type: 'min' }, { type: 'max' }],
-              color: { argb: theme.primary },
+              priority: 1,
               gradient: true,
             }
           ]

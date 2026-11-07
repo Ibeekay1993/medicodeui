@@ -4,7 +4,6 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 
 const DashboardHome = lazy(() => import("@/features/dashboard/pages/DashboardHome"));
-const ClaimsAnalysisPage = lazy(() => import("@/pages/claims/ClaimsAnalysisPage"));
 const ClaimsPortalPage = lazy(() => import("@/pages/claims/ClaimsPortalPage"));
 const ClaimsReportsPage = lazy(() => import("@/pages/claims/ClaimsReportsPage"));
 const PaymentsLayout = lazy(() => import("@/features/payments/components/PaymentsLayout"));

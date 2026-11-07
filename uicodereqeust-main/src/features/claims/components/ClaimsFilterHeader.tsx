@@ -1,4 +1,4 @@
-import { Building, Search, ListFilter } from "lucide-react";
+import { Search, ListFilter } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";

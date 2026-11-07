@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { 
   Loader2, 
   Copy, 
@@ -13,8 +13,6 @@ import {
   Check,
   AlertTriangle,
   FileText,
-  Clock,
-  ArrowRight
 } from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
@@ -103,6 +101,14 @@ export default function ClaimAuditDrawer({
   const itemKey = (item: any, index?: number) => String(item.code || item.name || index || "item");
   const itemUnit = (item: any) => Number(item.unit_price ?? item.price ?? 0);
   const itemQty = (item: any) => Math.max(1, Number(item.quantity ?? 1));
+  const claimAuditSummary: unknown = selectedClaim.audit_summary;
+  const auditSummaryRecord = claimAuditSummary && typeof claimAuditSummary === "object" && !Array.isArray(claimAuditSummary)
+    ? claimAuditSummary as Record<string, unknown>
+    : null;
+  const contestSummary = auditSummaryRecord?.contest;
+  const contestRecord = contestSummary && typeof contestSummary === "object" && !Array.isArray(contestSummary)
+    ? contestSummary as Record<string, unknown>
+    : null;
 
   const isAuditable = 
     (role === "claims" || role === "claims_lead" || role === "admin") &&
@@ -129,12 +135,12 @@ export default function ClaimAuditDrawer({
     setIsUnlocking(true);
     try {
       const { error } = await supabase
-        .from("claims")
+        .from("hospital_claims")
         .update({
           status: "submitted",
           payment_status: null,
           audit_note: `[CLAIM UNLOCKED BY CLAIMS LEAD]\nUnlocked by: ${fullName || "Claims Lead"}\nDate: ${new Date().toLocaleString()}\nPrevious status: ${selectedClaim.status}\n\n${selectedClaim.audit_note || ""}`
-        } as any)
+        })
         .eq("id", selectedClaim.id);
 
       if (error) throw error;
@@ -447,10 +453,10 @@ export default function ClaimAuditDrawer({
                 <div className="space-y-2.5 rounded-xl border border-amber-200 bg-amber-50/50 p-4">
                   <span className="text-xs font-bold text-amber-800 block">Contest Awaiting Re-Audit</span>
                   <p className="text-xs text-slate-800 leading-relaxed">
-                    <span className="font-semibold text-amber-900">Hospital Rebuttal:</span> {selectedClaim.contest_note || selectedClaim.audit_summary?.contest?.hospital_note || "No rebuttal note provided."}
+                    <span className="font-semibold text-amber-900">Hospital Rebuttal:</span> {selectedClaim.contest_note || (typeof contestRecord?.hospital_note === "string" ? contestRecord.hospital_note : "No rebuttal note provided.")}
                   </p>
                   <p className="text-xs font-bold text-amber-900 font-mono">
-                    Amount Under Contest: {money(Number(selectedClaim.under_contest_amount || selectedClaim.audit_summary?.contest?.amount_under_contest || 0))}
+                    Amount Under Contest: {money(Number(selectedClaim.under_contest_amount || contestRecord?.amount_under_contest || 0))}
                   </p>
                   {Array.isArray(selectedClaim.contest_documents) && selectedClaim.contest_documents.length > 0 && (
                     <div className="space-y-1.5 border-t border-amber-200 pt-2.5">

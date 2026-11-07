@@ -840,7 +840,7 @@ export default function ClaimsReportsPage() {
               end={end}
               total={total}
               pageSize={pageSize}
-              setPage={setPage}
+              onPageChange={setPage}
             />
           </div>
         )}

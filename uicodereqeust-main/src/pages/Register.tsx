@@ -13,11 +13,9 @@ import {
   Lock,
   Building2,
   ShieldAlert,
-  CheckCircle2,
   Eye,
   EyeOff,
   RefreshCw,
-  Mail,
   ArrowRight,
   Info,
 } from "lucide-react";

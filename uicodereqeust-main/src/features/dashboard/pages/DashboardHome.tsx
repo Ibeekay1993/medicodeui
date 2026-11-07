@@ -551,7 +551,7 @@ export default function DashboardHome() {
                     />
                     <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fontWeight: 500, fill: "#64748B" }} allowDecimals={false} />
                     <RechartsTooltip 
-                      labelFormatter={(_, p) => p?.[0]?.payload?.name ?? ""}
+                      labelFormatter={(label) => chartData.find((item) => item.dateStr === String(label))?.name ?? ""}
                       formatter={(value: number, name: string) => [value.toLocaleString(), name === "volume" ? "Total Requests" : "Approved"]}
                       contentStyle={{ borderRadius: "8px", border: "1px solid #E2E8F0", boxShadow: "0 10px 30px rgb(15 23 42 / 0.08)", fontSize: "12px", padding: "8px 12px" }} 
                     />
@@ -600,7 +600,7 @@ export default function DashboardHome() {
                     />
                     <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fontWeight: 500, fill: "#64748B" }} allowDecimals={false} />
                     <RechartsTooltip 
-                      labelFormatter={(_, p) => p?.[0]?.payload?.name ?? ""}
+                      labelFormatter={(label) => claimChartData.find((item) => item.dateStr === String(label))?.name ?? ""}
                       formatter={(value: number, name: string) => [value.toLocaleString(), name === "volume" ? "Total Claims" : "Approved"]}
                       contentStyle={{ borderRadius: "8px", border: "1px solid #E2E8F0", boxShadow: "0 10px 30px rgb(15 23 42 / 0.08)", fontSize: "12px", padding: "8px 12px" }} 
                     />

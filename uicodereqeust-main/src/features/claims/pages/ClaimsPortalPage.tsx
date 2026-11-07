@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTabVisibilityRefresh } from "@/hooks/use-tab-visibility-refresh";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDebounce } from "@/hooks/use-debounce";
@@ -12,7 +12,6 @@ import { writeClipboardText } from "@/lib/clipboard";
 import { useClaimsQuery, useHospitalsQuery, useVerifyClaimQuery, useUpdateClaimMutation } from "../hooks/useClaims";
 
 import { 
-  ClaimDraft, 
   AuditDecision, 
   money, 
   hospitalNameCanReceiveReferral,

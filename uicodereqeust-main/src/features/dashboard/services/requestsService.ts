@@ -50,7 +50,7 @@ export class RequestsService {
   }
 
   static async getDeleteQueue() {
-    const { data, error } = await (supabase as any)
+    const { data, error } = await supabase
       .from("authorization_requests")
       .select("*")
       .eq("deletion_status", "awaiting_admin_approval")
@@ -60,11 +60,10 @@ export class RequestsService {
   }
 
   static async getDeleteArchive() {
-    const { data, error } = await (supabase as any)
-      .from("authorization_requests")
+    const { data, error } = await supabase
+      .from("archived_deleted_authorizations")
       .select("*")
-      .in("deletion_status", ["approved", "rejected"])
-      .order("deletion_requested_at", { ascending: false });
+      .order("deleted_at", { ascending: false });
     if (error) throw error;
     return data || [];
   }

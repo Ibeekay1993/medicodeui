@@ -38,6 +38,8 @@ export function HospitalList({
   onLink,
   onToggleActive,
   onDelete,
+  onStartOnboarding,
+  onResetOnboarding,
   linkedUserFor,
   usersLinkedCount
 }: HospitalListProps) {
@@ -163,7 +165,6 @@ export function HospitalList({
       <div className="block lg:hidden divide-y divide-slate-100">
         {hospitals.map((hospital) => {
           const active = hospital.is_active !== false;
-          const usersLinked = usersLinkedCount(hospital);
           return (
             <div key={hospital.id} className="relative p-4 hover:bg-slate-50/50 transition-colors">
               <div className="pr-28 space-y-1.5">

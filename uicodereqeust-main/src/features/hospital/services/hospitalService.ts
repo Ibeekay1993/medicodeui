@@ -298,7 +298,7 @@ export class HospitalService {
     const from = (page - 1) * pageSize;
     const to = from + pageSize - 1;
 
-    const { data, count, error } = await query
+    const { data, error } = await query
       .order("created_at", { ascending: false })
       .range(from, to);
 

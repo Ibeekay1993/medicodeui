@@ -12,7 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Loader2, Shield, Eye, EyeOff, AlertTriangle, ArrowLeft, Mail, CheckCircle2 } from "lucide-react";
+import { Loader2, Shield, Eye, EyeOff, AlertTriangle, Mail, CheckCircle2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { accessStatus } from "@/lib/user-helpers";

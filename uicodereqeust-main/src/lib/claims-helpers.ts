@@ -1,29 +1,7 @@
-export type ClaimDraft = { 
-  id: string; 
-  hospital_id: string; 
-  hospital_name: string; 
-  claim_number: string; 
-  auth_code: string; 
-  patient_name: string; 
-  policy_number: string; 
-  status: string; 
-  total_amount: number; 
-  approved_amount?: number;
-  paid_at?: string | null;
-  notes: string; 
-  line_items: any[]; 
-  audit_items?: any[];
-  audit_summary?: any;
-  under_contest_amount?: number;
-  contest_note?: string;
-  contest_documents?: any[];
-  diagnosis?: string | null;
-  approved_for?: string | null;
-  created_at: string;
-  contest_deadline?: string | null;
-  payment_batch_id?: string | null;
-  payment_status?: string | null;
-  declined_amount?: number;
+import type { Database } from "@/integrations/supabase/types";
+
+export type ClaimDraft = Omit<Database["public"]["Tables"]["hospital_claims"]["Row"], "line_items"> & {
+  line_items: any[];
 };
 
 export type AuditDecision = {

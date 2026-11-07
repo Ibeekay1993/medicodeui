@@ -1,7 +1,6 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
 import {
   Upload,
-  FileSpreadsheet,
   CheckCircle2,
   AlertTriangle,
   Loader2,
@@ -10,8 +9,6 @@ import {
   RefreshCw,
   Info,
   ShieldCheck,
-  Building2,
-  FileCheck2,
   Plus,
   Trash2,
   Save,

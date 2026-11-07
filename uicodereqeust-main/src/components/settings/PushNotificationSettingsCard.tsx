@@ -18,7 +18,7 @@ import {
   subscribeToPushNotifications,
   unsubscribeFromPushNotifications,
   getRegisteredPushSubscription,
-  getPushServiceWorkerRegistration,
+
   sendPushTestNotification,
 } from "@/lib/pushNotifications";
 

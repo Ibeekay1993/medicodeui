@@ -133,7 +133,6 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
 
   // 1. Determine request metadata
   const isHospitalDirected = ["hospital_portal", "hospital", "portal"].includes(request?.source);
-  const isParsedRequest = ["whatsapp_parser", "whatsapp"].includes(request?.source);
   const requestPatientName = cleanPatientName(request?.patient_name || "");
   const requestPolicyNumber = String(request?.policy_number || "").trim();
 

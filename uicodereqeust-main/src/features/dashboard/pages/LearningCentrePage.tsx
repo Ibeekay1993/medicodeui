@@ -38,8 +38,8 @@ export default function LearningCentrePage() {
   const loadCandidates = async () => {
     setLoading(true);
     const { data, error } = await supabase
-      .from("knowledge_candidates" as any)
-      .select("id,title,summary,category,status,evidence_count,confidence,first_observed_at,last_observed_at,review_note")
+      .from("knowledge_candidates")
+      .select("*")
       .order("last_observed_at", { ascending: false });
     if (error) {
       toast({ variant: "destructive", title: "Learning Centre unavailable", description: error.message });
@@ -55,10 +55,10 @@ export default function LearningCentrePage() {
 
   const review = async (candidate: Candidate, status: string) => {
     setSavingId(candidate.id);
-    const { error } = await supabase.rpc("review_knowledge_candidate" as any, {
+    const { error } = await supabase.rpc("review_knowledge_candidate", {
       _candidate_id: candidate.id,
       _status: status,
-      _review_note: notes[candidate.id] || null,
+      _review_note: notes[candidate.id] || "",
     });
     if (error) {
       toast({ variant: "destructive", title: "Review was not saved", description: error.message });

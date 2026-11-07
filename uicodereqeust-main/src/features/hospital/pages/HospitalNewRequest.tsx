@@ -14,16 +14,12 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Form } from "@/components/ui/form";
 import { useHospitalProfile } from "../hooks/useHospitalDashboard";
-import { useSubmitHospitalRequest } from "../hooks/useHospitalRequests";
 import { useDebounce } from "@/hooks/use-debounce";
 
 import {
-  TreatmentItem,
   HospitalRequestDraft,
   BRAND_TO_GENERIC,
   DIAGNOSES,
-  isValidNigerianPhone,
-  isValidPolicyNumber,
   isValidEmail,
   hospitalRequestSchema,
   HospitalRequestFormValues
@@ -72,8 +68,7 @@ export default function HospitalNewRequest() {
   const [doctorReportPath, setDoctorReportPath] = useState<string | null>(null);
   const [doctorReportName, setDoctorReportName] = useState<string | null>(null);
   
-  const { data: hospital } = useHospitalProfile(hospitalId, user?.id, user?.email);
-  const submitRequestMutation = useSubmitHospitalRequest();
+  const { data: hospital } = useHospitalProfile(hospitalId ?? undefined, user?.id, user?.email);
 
   useEffect(() => {
     if (step === 5) {
@@ -119,6 +114,11 @@ export default function HospitalNewRequest() {
   const referralHospitalId = watch("referralHospitalId");
   const referralHospitalName = watch("referralHospitalName") || "";
   const treatments = watch("treatments");
+  const normalizedTreatments = treatments.map(({ category, subcategory, ...item }) => ({
+    ...item,
+    ...(category ? { category } : {}),
+    ...(subcategory ? { subcategory } : {}),
+  }));
   const treatSearch = watch("treatSearch") || "";
 
   // Local UI state for comboboxes
@@ -173,10 +173,10 @@ export default function HospitalNewRequest() {
       diagnoses,
       diagnosisSearch,
       treatSearch,
-      treatments,
+      treatments: normalizedTreatments,
       phone,
       urgency,
-      referralHospitalId,
+      referralHospitalId: referralHospitalId ?? null,
       referralHospitalName,
       doctorReportPath,
       doctorReportName,
@@ -706,10 +706,10 @@ export default function HospitalNewRequest() {
                   setUrgency={(val) => setValue("urgency", val as any, { shouldValidate: true })}
                 />
                  <ReferralSection
-                   hospitalName={hospital?.name}
+                   hospitalName={hospital?.name ?? ""}
                    hospitalId={hospital?.id}
                    referralHospitalName={referralHospitalName}
-                   referralHospitalId={referralHospitalId}
+                   referralHospitalId={referralHospitalId ?? null}
                    setReferralHospitalId={(val) => setValue("referralHospitalId", val)}
                    setReferralHospitalName={(val) => setValue("referralHospitalName", val)}
                  />
@@ -724,8 +724,8 @@ export default function HospitalNewRequest() {
                 treatResults={treatResults}
                 treatOpen={treatOpen}
                 setTreatOpen={setTreatOpen}
-                treatments={treatments}
-                setTreatments={(val) => setValue("treatments", typeof val === 'function' ? val(treatments) : val, { shouldValidate: true })}
+                treatments={normalizedTreatments}
+                setTreatments={(val) => setValue("treatments", typeof val === 'function' ? val(normalizedTreatments) : val, { shouldValidate: true })}
                 isSubmitting={isSubmitting}
                 onSubmit={handleNextStep}
                 treatRef={treatRef}

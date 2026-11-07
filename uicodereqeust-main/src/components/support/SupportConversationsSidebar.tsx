@@ -141,10 +141,6 @@ export function SupportConversationsSidebar({
           filteredConversations.map((item) => {
             const name = item.hospitals?.name || "HMO Admin Board";
             const isSelected = selected?.id === item.id;
-            const previewMessage =
-              !isInternal && String(item.last_message || "").includes("Internal note")
-                ? "Awaiting internal review..."
-                : item.last_message;
 
             return (
               <button

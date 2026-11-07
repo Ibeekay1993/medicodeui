@@ -20,7 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Edit3, Search, UserCog, ShieldCheck, ArrowRight, CheckCircle2, ShieldAlert, X } from "lucide-react";
+import { Loader2, Edit3, Search, UserCog, ShieldCheck, ArrowRight, CheckCircle2, X } from "lucide-react";
 import { availableRoles, filterHospitals, prettyDateTime, roleLabel } from "@/lib/user-helpers";
 
 const ROLE_METADATA: Record<string, { summary: string; permissions: string[]; badgeClass: string }> = {

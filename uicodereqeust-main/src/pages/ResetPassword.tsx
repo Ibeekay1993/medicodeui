@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, ShieldCheck, ShieldAlert, Lock, Mail, ArrowLeft, CheckCircle2, Eye, EyeOff } from "lucide-react";
+import { Loader2, ShieldAlert, Mail, ArrowLeft, CheckCircle2, Eye, EyeOff } from "lucide-react";
 
 // ---------------------------------------------------------------------------
 // JWT helpers

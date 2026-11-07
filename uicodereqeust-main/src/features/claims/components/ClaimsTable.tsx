@@ -1,4 +1,4 @@
-import React from "react";
+
 import { FolderOpen, Eye } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card";
 import { DataPagination } from "@/components/dashboard/DataPagination";
 import { cn } from "@/lib/utils";
 import { ClaimDraft, money } from "@/lib/claims-helpers";
-import { formatNigeriaDate, formatNigeriaTime } from "@/lib/authorizationTime";
+import { formatNigeriaDate } from "@/lib/authorizationTime";
 
 interface ClaimsTableProps {
   paginatedClaims: ClaimDraft[];

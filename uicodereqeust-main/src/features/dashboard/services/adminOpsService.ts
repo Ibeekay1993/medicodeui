@@ -36,10 +36,4 @@ export class AdminOpsService {
     if (error) throw error;
     return (data || []) as any[];
   }
-
-  static async parseWhatsAppMessage(message: string) {
-     const lines = message.split('\n');
-     // ... logic can be added if needed, or keeping it local in the component
-     return { parsed: true };
-  }
 }

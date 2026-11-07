@@ -1,4 +1,4 @@
-import React from "react";
+
 import { cn } from "@/lib/utils";
 import { Bot, Settings2, Lock, CheckCheck, Paperclip } from "lucide-react";
 

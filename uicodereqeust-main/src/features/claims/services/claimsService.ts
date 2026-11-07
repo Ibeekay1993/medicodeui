@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
-import { ClaimDraft, ClaimsAnalysisSummary } from "../types";
+import type { ClaimDraft } from "@/lib/claims-helpers";
+import type { ClaimsAnalysisSummary } from "../types";
 
 export class ClaimsService {
   /**
@@ -27,8 +28,8 @@ export class ClaimsService {
     page: number;
     pageSize: number;
   }): Promise<{ claims: ClaimDraft[]; total: number }> {
-    let query: any = supabase
-      .from("hospital_claims" as any)
+    let query = supabase
+      .from("hospital_claims")
       .select("*", { count: "exact" });
 
     if (hospitalId !== "all") {
@@ -63,7 +64,11 @@ export class ClaimsService {
       throw error;
     }
     
-    return { claims: (data || []) as ClaimDraft[], total: count || 0 };
+    const claims: ClaimDraft[] = (data || []).map((claim) => ({
+      ...claim,
+      line_items: Array.isArray(claim.line_items) ? claim.line_items : [],
+    }));
+    return { claims, total: count || 0 };
   }
 
   /**

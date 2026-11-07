@@ -16,7 +16,14 @@ export function useHospitalClaims({
   return useQuery({
     queryKey: ["hospital-claims", hospital?.id, debouncedSearch, page, pageSize],
     queryFn: async () => {
-      if (!hospital) return { claims: [], total: 0, statsData: [] };
+      if (!hospital) {
+        return {
+          claims: [],
+          total: 0,
+          statsData: [],
+          stats: { pending: 0, approved: 0, paid: 0, totalValue: 0 },
+        };
+      }
       return HospitalService.getHospitalClaims({
         hospital,
         searchTerm: debouncedSearch,

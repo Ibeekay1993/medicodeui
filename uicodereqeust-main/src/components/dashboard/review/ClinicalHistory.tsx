@@ -1,4 +1,4 @@
-﻿import React, { useState } from "react";
+import { useState } from "react";
 import { format } from "date-fns";
 import { normalizePatientNameForMatch, normalizePolicyNumber, normalizePolicyRoot } from "@/lib/clinicalUtils";
 import { ChevronDown, ChevronUp, Clock3, Loader2 } from "lucide-react";
@@ -129,8 +129,6 @@ const HistoryCard = ({ record }: { record: any }) => {
 export function ClinicalHistory({
   request,
   visibleHistory,
-  historyPage,
-  setHistoryPage,
   requestPatientName,
   requestPolicyNumber,
   requestBeneficiaryNumber,

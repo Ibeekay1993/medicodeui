@@ -200,13 +200,13 @@ export default function DeleteRequestsPage() {
                     <tr key={row.id} className="transition-colors hover:bg-slate-50/70">
                       <td className="px-3 py-2 font-mono text-[11px] text-slate-800">{row.request_id || row.id}</td>
                       <td className="px-3 py-2 font-semibold text-slate-900">{row.patient_name || "Unknown patient"}</td>
-                      <td className="px-3 py-2 text-slate-600">{row.deletion_requested_by_name || row.hospital_name || "Unknown"}</td>
+                      <td className="px-3 py-2 text-slate-600">{row.hospital_name || "Unknown"}</td>
                       <td className="px-3 py-2 text-slate-500 whitespace-nowrap">
                         {row.deletion_requested_at 
                           ? new Date(row.deletion_requested_at).toLocaleDateString("en-GB") 
                           : row.created_at ? new Date(row.created_at).toLocaleDateString("en-GB") : "Recently"}
                       </td>
-                      <td className="max-w-[240px] truncate px-3 py-2 text-slate-600" title={row.deletion_reason}>
+                      <td className="max-w-[240px] truncate px-3 py-2 text-slate-600" title={row.deletion_reason || undefined}>
                         {row.deletion_reason || "No reason specified"}
                       </td>
                       <td className="px-3 py-2 whitespace-nowrap">
@@ -289,7 +289,7 @@ export default function DeleteRequestsPage() {
                       <Calendar className="mr-1 inline h-3 w-3 text-slate-400" /> 
                       {archive.deleted_at ? new Date(archive.deleted_at).toLocaleDateString("en-GB") : "Recently"}
                     </td>
-                    <td className="max-w-[300px] truncate px-3 py-2 text-slate-600" title={archive.deletion_reason}>{archive.deletion_reason || "No reason specified"}</td>
+                    <td className="max-w-[300px] truncate px-3 py-2 text-slate-600" title={archive.deletion_reason || undefined}>{archive.deletion_reason || "No reason specified"}</td>
                     <td className="px-3 py-2 font-mono">{archive.deleted_claims_count || 0}</td>
                   </tr>
                 ))}

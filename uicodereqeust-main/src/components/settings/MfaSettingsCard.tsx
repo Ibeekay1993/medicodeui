@@ -6,8 +6,8 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { QRCodeSVG } from "qrcode.react";
-import { ShieldCheck, ShieldAlert, QrCode, Loader2, CheckCircle2, Lock } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { ShieldCheck, ShieldAlert, QrCode, Loader2, CheckCircle2 } from "lucide-react";
+
 
 interface MfaSettingsCardProps {
   user: any;

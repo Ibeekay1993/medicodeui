@@ -1,27 +1,15 @@
 import { useMemo, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useHospitalsPaged, useHospitalUsers, useCreateHospital, useUpdateHospital, useToggleHospitalActive, useToggleHospitalsActive, useDeleteHospital, useLinkUserToHospital, useStartHospitalOnboarding, useResetHospitalOnboarding } from "../hooks/useHospitalsAdmin";
-import type { Database } from "@/integrations/supabase/types";
-
-type HospitalRow = Database["public"]["Tables"]["hospitals"]["Row"];
-type UserRoleRow = Database["public"]["Tables"]["user_roles"]["Row"];
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Building2, Download, Edit3, Link2, Loader2, MoreVertical, Plus, Power, Save, Search, Trash2 } from "lucide-react";
+import { Download, Plus, Save, Search } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { cn } from "@/lib/utils";
-import { getErrorMessage } from "@/lib/errors";
 import { useDataPagination } from "@/hooks/use-data-pagination";
 import { DataPagination } from "@/components/dashboard/DataPagination";
 import { HospitalList } from "@/components/dashboard/hospitals/HospitalList";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useTabVisibilityRefresh } from "@/hooks/use-tab-visibility-refresh";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -50,10 +38,6 @@ const NIGERIAN_STATES = [
 ];
 
 const emptyHospital = { name: "", code: "", email: "", address: "", phone: "", state: "" };
-const statusPill = (active: boolean) => active
-  ? "border-emerald-400 bg-emerald-50 text-lime-500"
-  : "border-red-300 bg-red-50 text-red-700";
-
 const HospitalForm = ({ value, onChange }: { value: any; onChange: (next: any) => void }) => (
   <div className="grid gap-4 py-3">
     <Input value={value.name || ""} onChange={(e) => onChange({ ...value, name: e.target.value })} placeholder="Hospital name" className="h-10 rounded-lg" />

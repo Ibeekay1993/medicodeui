@@ -1358,6 +1358,7 @@ export type Database = {
           id: string
           is_active: boolean | null
           name: string
+          onboarding_started_at: string | null
           phone: string | null
           state: string | null
           updated_at: string
@@ -1372,6 +1373,7 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           name: string
+          onboarding_started_at?: string | null
           phone?: string | null
           state?: string | null
           updated_at?: string
@@ -1386,6 +1388,7 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           name?: string
+          onboarding_started_at?: string | null
           phone?: string | null
           state?: string | null
           updated_at?: string
@@ -2921,11 +2924,11 @@ export type Database = {
       log_hospital_whatsapp_audit_event: {
         Args: {
           _action: string
-          _contact_id: string
+          _contact_id: string | null
           _details?: Json
           _hospital_id: string
-          _new_status?: string
-          _old_status?: string
+          _new_status?: string | null
+          _old_status?: string | null
           _phone_number: string
         }
         Returns: string

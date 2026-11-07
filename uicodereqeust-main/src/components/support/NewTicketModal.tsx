@@ -37,7 +37,6 @@ export function NewTicketModal({
   onOpenChange,
   conversations,
   authRequests,
-  claims,
   onSuccess,
 }: NewTicketModalProps) {
   const { user, role } = useAuth();

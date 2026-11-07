@@ -1,8 +1,7 @@
 import { useMemo, useState, useEffect, useCallback } from "react";
-import { Upload, FileSpreadsheet, Loader2, CheckCircle2, AlertTriangle, RefreshCw, Trash2, ChevronLeft, ChevronRight, Info } from "lucide-react";
+import { Upload, FileSpreadsheet, Loader2, CheckCircle2, Trash2, ChevronLeft, ChevronRight, Info } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useImportHistoricalCodes } from "../hooks/useAdminOps";
-import { ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -217,7 +216,7 @@ export default function HistoricalCodeImportPage() {
 
   const { mutateAsync: importHistoricalCodes } = useImportHistoricalCodes();
 
-  const runImport = async (mode: ImportMode = importMode) => {
+  const runImport = async () => {
     if (mappedRows.length === 0) return;
     setImporting(true);
     try {
@@ -544,13 +543,11 @@ export default function HistoricalCodeImportPage() {
             <AlertDialogTitle>
               {importMode === "wipe" ? "Confirm COMPLETE DATABASE WIPE" :
                importMode === "replace" ? "Confirm historical replacement" :
-               importMode === "merge" ? "Confirm missing field merge" :
                "Confirm adding new codes"}
             </AlertDialogTitle>
             <AlertDialogDescription>
               {importMode === "wipe" ? "DANGER: Wipe mode will instantly delete ALL existing historical codes before importing. Type WIPE to confirm." :
                importMode === "replace" ? "Replace mode will overwrite existing historical code fields when the uploaded file contains a new non-empty value. Type REPLACE to continue." :
-               importMode === "merge" ? "Merge mode will only fill in blank fields for existing codes, and will not overwrite existing data. Type MERGE to continue." :
                "Add mode will skip any codes that already exist in the database, only inserting brand new ones. Type ADD to continue."}
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -568,7 +565,7 @@ export default function HistoricalCodeImportPage() {
               disabled={replaceConfirmation !== importMode.toUpperCase() || importing}
               onClick={(event) => {
                 event.preventDefault();
-                void runImport(importMode as ImportMode);
+                void runImport();
               }}
               className={importMode === "wipe" ? "bg-rose-600 text-white hover:bg-rose-700" : "bg-emerald-800 text-white hover:bg-emerald-900"}
             >

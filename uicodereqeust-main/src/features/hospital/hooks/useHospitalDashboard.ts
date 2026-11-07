@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { HospitalService } from "../services/hospitalService";
-import { HospitalDashboardMetrics } from "../types";
+
 
 export function useHospitalProfile(hospitalId?: string, userId?: string, email?: string) {
   return useQuery({

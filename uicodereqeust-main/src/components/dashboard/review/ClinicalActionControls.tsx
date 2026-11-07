@@ -1,7 +1,7 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { Loader2, CheckCircle, CheckCircle2, XCircle, Trash2 } from "lucide-react";
-import { cn } from "@/lib/utils";
+
 import { Textarea } from "@/components/ui/textarea";
 
 interface ClinicalActionControlsProps {

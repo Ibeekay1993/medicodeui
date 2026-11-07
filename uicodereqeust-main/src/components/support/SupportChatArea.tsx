@@ -16,18 +16,13 @@ import {
   ArrowLeft,
   ChevronLeft,
   ChevronRight,
-  Clock,
   Send,
   Loader2,
   Paperclip,
-  Plus,
   X,
   FileText,
   Sparkles,
   Lock,
-  ShieldAlert,
-  AlertCircle,
-  CheckCheck,
   MessageSquare,
 } from "lucide-react";
 import {
@@ -80,7 +75,6 @@ export function SupportChatArea({
   updateConversation,
   claimTicket,
   matchedRequest,
-  onNewTicketClick,
 }: SupportChatAreaProps) {
   const { toast } = useToast();
   const [replyText, setReplyText] = useState("");
