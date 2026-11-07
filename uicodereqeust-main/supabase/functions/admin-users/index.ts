@@ -552,8 +552,27 @@ serve(async (req) => {
       if (access_status !== undefined) updates.access_status = access_status;
 
       if (Object.keys(updates).length > 0) {
-        const { error } = await supabase.from("user_roles").update(updates).eq("user_id", user_id);
-        if (error) throw error;
+        let updateRes;
+        if (id) {
+          updateRes = await supabase.from("user_roles").update(updates).eq("id", id);
+        } else {
+          updateRes = await supabase.from("user_roles").update(updates).eq("user_id", user_id);
+        }
+        if (updateRes.error) throw updateRes.error;
+
+        // Ensure user has at least one role row if they were an auth-only user
+        const { data: existingRole } = await supabase.from("user_roles").select("id").eq("user_id", user_id).maybeSingle();
+        if (!existingRole && user_id) {
+          await supabase.from("user_roles").insert({
+            user_id,
+            role: role || "utilization_manager",
+            full_name: full_name || null,
+            email: email || null,
+            phone: phone || null,
+            hospital_id: hospital_id || null,
+            access_status: access_status || "active",
+          });
+        }
       }
 
       if (role !== undefined) {

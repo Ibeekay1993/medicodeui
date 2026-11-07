@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type * as ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
-import { BadgeCheck, CalendarDays, ClipboardList, Download, Filter, RefreshCw, RotateCcw, Search, TrendingDown } from "lucide-react";
+import { BadgeCheck, CalendarDays, ClipboardList, Download, Filter, RefreshCw, RotateCcw, Search, TrendingDown, BarChart3, FileSpreadsheet } from "lucide-react";
 import { ClaimsService } from "../services/claimsService";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -464,12 +464,14 @@ export default function ClaimsReportsPage() {
 
   return (
     <Tabs value={activeTab} onValueChange={handleTabChange} className="max-w-full space-y-5 overflow-x-hidden pb-10">
-      <TabsList className="h-9 sm:h-10 rounded-lg bg-slate-100 p-1 gap-1 border border-slate-200">
-        <TabsTrigger value="analysis" className="h-full rounded-md px-4 text-xs font-bold transition-colors data-[state=active]:bg-slate-900 data-[state=active]:text-white data-[state=active]:shadow-none data-[state=inactive]:bg-transparent data-[state=inactive]:text-slate-600 data-[state=inactive]:hover:bg-slate-200/70">
-          Claims Analysis
+      <TabsList className="h-10 rounded-xl bg-slate-100 p-1 gap-1 border border-slate-200">
+        <TabsTrigger value="analysis" className="h-full rounded-lg px-4 text-xs font-bold transition-all flex items-center gap-2 data-[state=active]:bg-[#0F6E56] data-[state=active]:text-white data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-slate-600 data-[state=inactive]:hover:bg-slate-200/70">
+          <BarChart3 className="h-3.5 w-3.5" />
+          Intelligence & Analytics
         </TabsTrigger>
-        <TabsTrigger value="reports" className="h-full rounded-md px-4 text-xs font-bold transition-colors data-[state=active]:bg-slate-900 data-[state=active]:text-white data-[state=active]:shadow-none data-[state=inactive]:bg-transparent data-[state=inactive]:text-slate-600 data-[state=inactive]:hover:bg-slate-200/70">
-          Claims Reports
+        <TabsTrigger value="reports" className="h-full rounded-lg px-4 text-xs font-bold transition-all flex items-center gap-2 data-[state=active]:bg-[#0F6E56] data-[state=active]:text-white data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-slate-600 data-[state=inactive]:hover:bg-slate-200/70">
+          <FileSpreadsheet className="h-3.5 w-3.5" />
+          Claims Register & Exports
         </TabsTrigger>
       </TabsList>
 

@@ -143,12 +143,24 @@ export default function AwaitingPaymentPage() {
     setSelectedClaims(current => toggleVisibleClaimSelection(current, filteredClaims.map(c => c.id)));
   };
 
+  const getPayableAmount = (c: any): number => {
+    if (c.approved_amount !== null && c.approved_amount !== undefined) {
+      const val = Number(c.approved_amount);
+      return isNaN(val) ? 0 : Math.max(0, val);
+    }
+    if (c.status === "approved" && c.total_amount !== null && c.total_amount !== undefined) {
+      const val = Number(c.total_amount);
+      return isNaN(val) ? 0 : Math.max(0, val);
+    }
+    return 0;
+  };
+
   const selectedClaimsList = useMemo(() => {
     return getSelectedVisibleClaims(filteredClaims, selectedClaims);
   }, [filteredClaims, selectedClaims]);
 
   const totalAmountSelected = useMemo(() => {
-    return selectedClaimsList.reduce((sum, c) => sum + Number(c.approved_amount || c.total_amount || 0), 0);
+    return selectedClaimsList.reduce((sum, c) => sum + getPayableAmount(c), 0);
   }, [selectedClaimsList]);
 
   const handleHospitalChange = (val: string) => {
@@ -376,82 +388,83 @@ export default function AwaitingPaymentPage() {
           </div>
         )}
 
-       {/* Table view */}
-      <Card className="rounded-xl border-slate-100 bg-white shadow-sm overflow-hidden">
-        <div className="overflow-x-auto p-3">
-          <table className="w-full text-left border-separate border-spacing-y-2 table-fixed min-w-[700px]">
+       {/* Compact Table view */}
+      <Card className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left divide-y divide-slate-200 table-fixed min-w-[720px]">
             <colgroup>
               {!isViewOnly && selectedHospitalId !== "all" && <col className="w-[4%]" />}
-              <col className="w-[12%]" />
+              <col className="w-[14%]" />
+              <col className="w-[24%]" />
               <col className="w-[20%]" />
-              <col className="w-[20%]" />
-              <col className="w-[18%]" />
-              <col className="w-[13%]" />
-              <col className="w-[13%]" />
+              <col className="w-[14%]" />
+              <col className="w-[14%]" />
+              <col className="w-[10%]" />
             </colgroup>
-            <thead className="table-heading">
+            <thead className="bg-slate-50/80 text-[11px] font-black uppercase tracking-wider text-slate-500 border-b border-slate-200">
               <tr>
-                {!isViewOnly && selectedHospitalId !== "all" && <th className="px-3 py-1"></th>}
-                <th className="px-3 py-1">Claim No.</th>
-                <th className="px-3 py-1">Patient & Policy</th>
-                <th className="px-3 py-1">Facility</th>
-                <th className="px-3 py-1">Approved Date</th>
-                <th className="px-3 py-1 text-right">Approved Amount</th>
-                <th className="px-3 py-1 text-center">Status</th>
+                {!isViewOnly && selectedHospitalId !== "all" && <th className="px-3 py-2"></th>}
+                <th className="px-3 py-2">Claim No.</th>
+                <th className="px-3 py-2">Patient & Policy</th>
+                <th className="px-3 py-2">Facility</th>
+                <th className="px-3 py-2">Approved Date</th>
+                <th className="px-3 py-2 text-right">Approved Amount</th>
+                <th className="px-3 py-2 text-center">Status</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-slate-100 bg-white">
               {filteredClaims.map(c => {
                 const daysWaiting = Math.floor((Date.now() - new Date(c.approved_at || c.created_at).getTime()) / (1000 * 60 * 60 * 24));
-                const amt = Number(c.approved_amount || c.total_amount || 0);
+                const amt = getPayableAmount(c);
+                const isSelected = selectedClaims.has(c.id);
 
                 return (
                   <tr 
                     key={c.id} 
                     onClick={() => !isViewOnly && selectedHospitalId !== "all" && toggleClaim(c.id)}
-                    className={`group text-xs transition-all ${
+                    className={`group text-xs transition-colors hover:bg-slate-50/80 ${
+                      isSelected ? "bg-emerald-50/40" : ""
+                    } ${
                       !isViewOnly && selectedHospitalId !== "all" ? "cursor-pointer" : ""
                     }`}
                   >
                     {!isViewOnly && selectedHospitalId !== "all" && (
-                      <td className="rounded-l-xl border-y border-l border-slate-100 bg-white px-3 py-3 shadow-sm group-hover:bg-slate-50/50">
+                      <td className="px-3 py-2">
                         <Checkbox 
-                          checked={selectedClaims.has(c.id)}
+                          checked={isSelected}
                           onCheckedChange={() => toggleClaim(c.id)}
-                          onClick={(e) => e.stopPropagation()} // Prevent double trigger
+                          onClick={(e) => e.stopPropagation()}
                           className="border-slate-300 text-brand-700 focus:ring-brand-700"
                         />
                       </td>
                     )}
-                    <td className={`border-y border-slate-100 bg-white px-3 py-3 font-mono font-bold text-slate-500 shadow-sm group-hover:bg-slate-50/50 truncate ${
-                      isViewOnly || selectedHospitalId === "all" ? "rounded-l-xl border-l" : ""
-                    }`}>
+                    <td className="px-3 py-2 font-mono font-bold text-slate-700 truncate">
                       {c.claim_number}
                     </td>
-                    <td className="border-y border-slate-100 bg-white px-3 py-3 shadow-sm group-hover:bg-slate-50/50">
-                      <div className="text-sm font-black text-slate-950 uppercase truncate leading-snug">{c.patient_name}</div>
-                      <div className="text-xs font-bold text-slate-400 tracking-wider font-mono mt-0.5">{c.policy_number}</div>
+                    <td className="px-3 py-2">
+                      <div className="text-xs font-black text-slate-900 uppercase truncate leading-tight">{c.patient_name}</div>
+                      <div className="text-[11px] font-bold text-slate-400 font-mono tracking-wider mt-0.5">{c.policy_number}</div>
                     </td>
-                    <td className="border-y border-slate-100 bg-white px-3 py-3 shadow-sm group-hover:bg-slate-50/50">
-                      <div className="font-semibold text-slate-700 truncate">{c.hospital_name}</div>
+                    <td className="px-3 py-2">
+                      <div className="text-xs font-semibold text-slate-700 truncate">{c.hospital_name}</div>
                     </td>
-                    <td className="border-y border-slate-100 bg-white px-3 py-3 shadow-sm group-hover:bg-slate-50/50">
-                      <div className="font-mono text-sm font-bold text-slate-500">
+                    <td className="px-3 py-2">
+                      <div className="font-mono text-xs font-bold text-slate-600">
                         {c.approved_at ? new Date(c.approved_at).toLocaleDateString("en-GB") : new Date(c.created_at).toLocaleDateString("en-GB")}
                       </div>
-                      <div className="text-xs font-black text-rose-500 uppercase tracking-tight mt-0.5">
-                        {daysWaiting === 0 ? "Approved Today" : `${daysWaiting} Day(s) Waiting`}
+                      <div className="text-[10px] font-bold text-rose-500 uppercase tracking-tight">
+                        {daysWaiting === 0 ? "Today" : `${daysWaiting}d waiting`}
                       </div>
                     </td>
-                    <td className="border-y border-slate-100 bg-white px-3 py-3 font-black font-mono text-slate-950 text-right shadow-sm group-hover:bg-slate-50/50">
+                    <td className="px-3 py-2 font-mono font-black text-slate-950 text-right text-xs">
                       {money(amt)}
                     </td>
-                    <td className="rounded-r-xl border-y border-r border-slate-100 bg-white px-3 py-3 text-center shadow-sm group-hover:bg-slate-50/50">
+                    <td className="px-3 py-2 text-center">
                       <Badge 
-                        className={`border-none text-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
+                        className={`border text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
                           c.status === "approved" 
-                            ? "bg-emerald-500/10 text-emerald-600" 
-                            : "bg-slate-100 text-slate-600"
+                            ? "bg-emerald-50 text-emerald-700 border-emerald-200" 
+                            : "bg-amber-50 text-amber-700 border-amber-200"
                         }`}
                       >
                         {c.status.replace("_", " ")}

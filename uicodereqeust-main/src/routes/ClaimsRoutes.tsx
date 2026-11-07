@@ -30,7 +30,7 @@ export function ClaimsRoutes() {
       }
     >
       <Route index element={<DashboardHome />} />
-      <Route path="analysis" element={<ClaimsAnalysisPage />} />
+      <Route path="analysis" element={<Navigate to="/backoffice/claims/reports?tab=analysis" replace />} />
       <Route path="all" element={<ClaimsPortalPage />} />
       <Route path="requests" element={<Navigate to="/backoffice/claims/all" replace />} />
       <Route path="payments" element={<PaymentsLayout />}>

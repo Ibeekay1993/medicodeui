@@ -126,65 +126,72 @@ export async function validateUser(req: Request, allowedRoles: string[]) {
 
   const service = getServiceClient();
 
-  const { data: userProfile, error: profileError } = await service
+  // 1. Direct query against canonical user_roles table
+  const { data: roleRow, error: roleError } = await service
+    .from("user_roles")
+    .select("role, access_status, hospital_id, full_name")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (!roleError && roleRow?.role) {
+    if (String(roleRow.access_status || "active").toLowerCase() !== "active") {
+      throw new Error("Account deactivated");
+    }
+    if (!allowedRoles.includes(roleRow.role)) {
+      throw new Error("Role not permitted");
+    }
+
+    let hospitalId = roleRow.hospital_id;
+    let hospitalName = roleRow.full_name;
+
+    if (roleRow.role === "hospital") {
+      const { data: hospital } = await service
+        .from("hospitals")
+        .select("id, name, is_active")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (hospital?.is_active === false) {
+        throw new Error("Account deactivated");
+      }
+      hospitalId = hospitalId ?? hospital?.id ?? null;
+      hospitalName = hospital?.name ?? hospitalName;
+    }
+
+    return {
+      user,
+      assuranceLevel,
+      profile: {
+        role: roleRow.role,
+        hospital_id: hospitalId,
+        name: hospitalName || user.email || "User",
+        is_active: true,
+      },
+    };
+  }
+
+  // 2. Fallback to public.users view
+  const { data: userProfile } = await service
     .from("users")
     .select("role, hospital_id, is_active, name")
     .eq("id", user.id)
     .maybeSingle();
-  if (profileError) throw profileError;
 
   if (userProfile?.role) {
     if (userProfile.is_active === false) throw new Error("Account deactivated");
     if (!allowedRoles.includes(userProfile.role)) throw new Error("Role not permitted");
-    let hospitalId = userProfile.hospital_id;
-    if (userProfile.role === "hospital") {
-      const { data: hospitalRole, error: hospitalRoleError } = await service
-        .from("user_roles")
-        .select("hospital_id")
-        .eq("user_id", user.id)
-        .eq("role", "hospital")
-        .maybeSingle();
-      if (hospitalRoleError) throw hospitalRoleError;
-      hospitalId = hospitalRole?.hospital_id ?? hospitalId;
-    }
     return {
       user,
       assuranceLevel,
-      profile: { ...userProfile, hospital_id: hospitalId },
+      profile: {
+        role: userProfile.role,
+        hospital_id: userProfile.hospital_id,
+        name: userProfile.name || user.email || "User",
+        is_active: true,
+      },
     };
   }
 
-  const { data: roleRow, error: roleError } = await service
-    .from("user_roles")
-    .select("role, access_status, hospital_id")
-    .eq("user_id", user.id)
-    .maybeSingle();
-  if (roleError) throw roleError;
-
-  if (!roleRow?.role || !allowedRoles.includes(roleRow.role)) throw new Error("Role not permitted");
-  if (String(roleRow.access_status || "active").toLowerCase() !== "active") throw new Error("Account deactivated");
-
-  const { data: hospital, error: hospitalError } = await service
-    .from("hospitals")
-    .select("id, name, is_active")
-    .eq("user_id", user.id)
-    .maybeSingle();
-  if (hospitalError) throw hospitalError;
-
-  if (roleRow.role === "hospital" && hospital?.is_active === false) {
-    throw new Error("Account deactivated");
-  }
-
-  return {
-    user,
-    assuranceLevel,
-    profile: {
-      role: roleRow.role,
-      hospital_id: roleRow.hospital_id ?? hospital?.id ?? null,
-      name: hospital?.name ?? user.email ?? "User",
-      is_active: true,
-    },
-  };
+  throw new Error("Role not permitted");
 }
 
 export function sanitizeString(value: unknown, maxLen = 500) {

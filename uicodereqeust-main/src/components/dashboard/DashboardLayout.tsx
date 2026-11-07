@@ -58,9 +58,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       return [
         { name: "Dashboard", href: basePath, icon: Activity },
         { name: "Claims Queue", href: `${basePath}/all`, icon: Banknote },
-        { name: "Claims Analysis", href: `${basePath}/analysis`, icon: LayoutDashboard },
         { name: "Payments", href: `${basePath}/payments/awaiting`, icon: Banknote },
-        { name: "Claims Reports", href: `${basePath}/reports`, icon: FileSpreadsheet },
+        { name: "Claims & Intelligence", href: `${basePath}/reports`, icon: FileSpreadsheet },
         { name: "Messages", href: `${basePath}/messages`, icon: MessageSquare, badge: actionableMessages },
         { name: "Settings", href: `${basePath}/settings`, icon: Settings }
       ];
@@ -83,7 +82,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       { name: "Payments", href: `/backoffice/admin/payments/awaiting`, icon: Banknote, hidden: r !== "admin" },
       { name: "Messages", href: `${basePath}/messages`, icon: MessageSquare, badge: actionableMessages },
       
-      { name: "Claims Reports", href: `${basePath}/claims-reports`, icon: FileSpreadsheet, hidden: r !== "admin" },
+      { name: "Claims & Intelligence", href: `${basePath}/claims-reports`, icon: FileSpreadsheet, hidden: r !== "admin" },
       { name: "Payment Reports", href: `${basePath}/payment-reports`, icon: FileSpreadsheet, hidden: r !== "admin" },
       { name: "Pre-Auth Report", href: `${basePath}/reports`, icon: LayoutDashboard, hidden: r === "hospital" || r === "claims" || r === "finance" },
       
