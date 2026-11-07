@@ -83,15 +83,15 @@ export default function HospitalClaims() {
     setIsExporting(true);
     try {
       const { data: hosp } = hospitalId
-        ? await supabase.from("hospitals").select("id, name, code").eq("id", hospitalId).maybeSingle()
-        : await supabase.from("hospitals").select("id, name, code").eq("user_id", user.id).maybeSingle();
+        ? await supabase.from("hospitals").select("id, name, code, onboarding_started_at").eq("id", hospitalId).maybeSingle()
+        : await supabase.from("hospitals").select("id, name, code, onboarding_started_at").eq("user_id", user.id).maybeSingle();
       
-      if (!hosp) {
+      if (!hosp || !hosp.onboarding_started_at) {
         toast({ title: "No claims to export" });
         return;
       }
 
-            const claimIdsFilter = [
+      const claimIdsFilter = [
         `hospital_id.eq.${hosp.id}`,
         `claiming_hospital_id.eq.${hosp.id}`,
       ];
@@ -99,6 +99,7 @@ export default function HospitalClaims() {
       const { data: allClaimsData, error } = await (supabase
         .from("hospital_claims" as any)
         .select("created_at, claim_number, patient_name, policy_number, auth_code, total_amount, approved_amount, declined_amount, contest_note, status, notes, line_items, paid_at, contest_submitted_at")
+        .gte("created_at", hosp.onboarding_started_at)
         .or(claimIdsFilter.join(","))
         .order("created_at", { ascending: false }) as any);
 

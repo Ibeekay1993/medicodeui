@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { useHospitalsPaged, useHospitalUsers, useCreateHospital, useUpdateHospital, useToggleHospitalActive, useToggleHospitalsActive, useDeleteHospital, useLinkUserToHospital } from "../hooks/useHospitalsAdmin";
+import { useHospitalsPaged, useHospitalUsers, useCreateHospital, useUpdateHospital, useToggleHospitalActive, useToggleHospitalsActive, useDeleteHospital, useLinkUserToHospital, useStartHospitalOnboarding, useResetHospitalOnboarding } from "../hooks/useHospitalsAdmin";
 import type { Database } from "@/integrations/supabase/types";
 
 type HospitalRow = Database["public"]["Tables"]["hospitals"]["Row"];
@@ -91,6 +91,8 @@ export default function HospitalsPage() {
   const { mutateAsync: toggleHospitalsActive } = useToggleHospitalsActive();
   const { mutateAsync: deleteHospitalAction } = useDeleteHospital();
   const { mutateAsync: linkUser } = useLinkUserToHospital();
+  const { mutateAsync: startOnboarding } = useStartHospitalOnboarding();
+  const { mutateAsync: resetOnboarding } = useResetHospitalOnboarding();
 
   useTabVisibilityRefresh(() => fetchHospitals());
 
@@ -275,6 +277,8 @@ export default function HospitalsPage() {
           onLink={setLinking}
           onToggleActive={(hospital, active) => setHospitalActive([hospital.id], active)}
           onDelete={deleteHospital}
+          onStartOnboarding={(hospital) => startOnboarding(hospital.id)}
+          onResetOnboarding={(hospital) => resetOnboarding(hospital.id)}
           linkedUserFor={linkedUserFor}
           usersLinkedCount={usersLinkedCount}
         />

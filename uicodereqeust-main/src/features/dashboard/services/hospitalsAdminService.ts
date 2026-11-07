@@ -71,6 +71,22 @@ export class HospitalsAdminService {
     if (error) throw error;
   }
 
+  static async startHospitalOnboarding(id: string) {
+    const { error } = await supabase
+      .from("hospitals")
+      .update({ onboarding_started_at: new Date().toISOString() })
+      .eq("id", id);
+    if (error) throw error;
+  }
+
+  static async resetHospitalOnboarding(id: string) {
+    const { error } = await supabase
+      .from("hospitals")
+      .update({ onboarding_started_at: null })
+      .eq("id", id);
+    if (error) throw error;
+  }
+
   static async exportHospitalsCSV(hospitals: any[]) {
     const headers = ["Name", "Code", "State", "Email", "Phone", "Address", "Active"];
     const rows = hospitals.map((h) => [

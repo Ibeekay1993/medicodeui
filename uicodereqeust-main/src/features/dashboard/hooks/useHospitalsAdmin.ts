@@ -96,3 +96,29 @@ export function useLinkUserToHospital() {
     onError: (err: Error) => toast({ variant: "destructive", title: "Error", description: err.message }),
   });
 }
+
+export function useStartHospitalOnboarding() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: (id: string) => HospitalsAdminService.startHospitalOnboarding(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["hospitals-admin"] });
+      toast({ title: "Onboarding Started", description: "Hospital portal access is now active. They will only see requests created from this moment forward." });
+    },
+    onError: (err: Error) => toast({ variant: "destructive", title: "Error", description: err.message }),
+  });
+}
+
+export function useResetHospitalOnboarding() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: (id: string) => HospitalsAdminService.resetHospitalOnboarding(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["hospitals-admin"] });
+      toast({ title: "Onboarding Reset", description: "Hospital portal history is hidden (clean slate)." });
+    },
+    onError: (err: Error) => toast({ variant: "destructive", title: "Error", description: err.message }),
+  });
+}

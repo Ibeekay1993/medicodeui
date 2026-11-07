@@ -97,6 +97,19 @@ export default function HospitalAuthorizations() {
   const handleClaimSubmit = async () => {
     if (!selectedRequest || !hospital || !user) return;
 
+    if (
+      !hospital.onboarding_started_at ||
+      (selectedRequest.created_at &&
+        new Date(selectedRequest.created_at).getTime() < new Date(hospital.onboarding_started_at).getTime())
+    ) {
+      toast({
+        variant: "destructive",
+        title: "Pre-onboarding Record",
+        description: "This authorization was created prior to portal onboarding and is not eligible for portal claims.",
+      });
+      return;
+    }
+
     const reqStatus = String(selectedRequest.status || "").toLowerCase();
     const isApprovedReq = reqStatus.includes("approved") || reqStatus.includes("accepted");
     if (isApprovedReq && !selectedRequest.is_unlocked && !otpVerifiedStatus[selectedRequest.id]) {
@@ -278,7 +291,10 @@ export default function HospitalAuthorizations() {
   };
 
   const exportCSV = async (startDate?: string, endDate?: string) => {
-    if (!hospital) return;
+    if (!hospital || !hospital.onboarding_started_at) {
+      toast({ title: "No authorizations to export" });
+      return;
+    }
     setIsExporting(true);
     try {
       const idQuery = [
@@ -292,6 +308,8 @@ export default function HospitalAuthorizations() {
       let query = supabase
         .from("authorization_requests" as any)
         .select("created_at, patient_name, diagnosis, treatment, policy_number, authorization_code, status, clinical_notes, deletion_status")
+        .eq("is_historical", false)
+        .gte("created_at", hospital.onboarding_started_at)
         .or(idQuery.join(","));
 
       if (startDate) {

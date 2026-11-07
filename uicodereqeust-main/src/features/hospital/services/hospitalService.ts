@@ -2,6 +2,26 @@ import { supabase } from "@/integrations/supabase/client";
 import { notifyPendingAuthorizationRequest } from "@/lib/pushNotifications";
 import { Hospital } from "../types";
 
+function isHospitalRequestVisible(record: any, hospital?: Hospital | null): boolean {
+  if (!record) return false;
+
+  if (record.is_historical === true) return false;
+  if (record.source === "sheet_history" || record.source === "historical") return false;
+
+  // Onboarding gate: No hospital sees history requests unless onboarding has officially started for them.
+  const hospitalStart = hospital?.onboarding_started_at;
+  if (!hospitalStart || !record.created_at) return false;
+
+  const recordTime = new Date(record.created_at).getTime();
+  const hospitalStartTime = new Date(hospitalStart).getTime();
+
+  if (Number.isNaN(recordTime) || Number.isNaN(hospitalStartTime)) {
+    return false;
+  }
+
+  return recordTime >= hospitalStartTime;
+}
+
 export class HospitalService {
   /**
    * Resolves the hospital profile linked to the user.
@@ -47,17 +67,25 @@ export class HospitalService {
    * Fetches data for the hospital portal dashboard with high-performance aggregation.
    */
   static async getDashboardData(hosp: Hospital) {
-    if (!hosp?.id) {
+    if (!hosp?.id || !hosp?.onboarding_started_at) {
       return {
         metrics: {
           approvedCount: 0,
           pendingCount: 0,
           deniedCount: 0,
           totalValue: 0,
+          inAuditCount: 0,
+          inAuditValue: 0,
+          awaitingPaymentCount: 0,
           pendingPayout: 0,
+          paidCount: 0,
           paidClaims: 0,
+          totalClaimsCount: 0,
+          totalClaimedValue: 0,
         },
         approachingDeadlineClaims: [],
+        recentAuthorizations: [],
+        recentClaims: [],
       };
     }
 
@@ -68,6 +96,13 @@ export class HospitalService {
         { p_hospital_id: hosp.id }
       );
       if (!rpcError && rpcMetrics) {
+        const recentAuthorizations = Array.isArray(rpcMetrics.recentAuthorizations)
+          ? rpcMetrics.recentAuthorizations.filter((item: any) => isHospitalRequestVisible(item, hosp))
+          : [];
+        const recentClaims = Array.isArray(rpcMetrics.recentClaims)
+          ? rpcMetrics.recentClaims.filter((item: any) => isHospitalRequestVisible(item, hosp))
+          : [];
+
         return {
           metrics: {
             approvedCount: Number(rpcMetrics.approvedCount || 0),
@@ -84,14 +119,10 @@ export class HospitalService {
             totalClaimedValue: Number(rpcMetrics.totalClaimedValue || 0),
           },
           approachingDeadlineClaims: Array.isArray(rpcMetrics.approachingDeadlineClaims)
-            ? rpcMetrics.approachingDeadlineClaims
+            ? rpcMetrics.approachingDeadlineClaims.filter((item: any) => isHospitalRequestVisible(item, hosp))
             : [],
-          recentAuthorizations: Array.isArray(rpcMetrics.recentAuthorizations)
-            ? rpcMetrics.recentAuthorizations
-            : [],
-          recentClaims: Array.isArray(rpcMetrics.recentClaims)
-            ? rpcMetrics.recentClaims
-            : [],
+          recentAuthorizations,
+          recentClaims,
         };
       }
     } catch {
@@ -115,9 +146,8 @@ export class HospitalService {
     const [authRes, claimsRes] = await Promise.all([
       supabase
         .from('authorization_requests')
-        .select('id, request_id, patient_name, policy_number, diagnosis, authorization_code, status, total_amount, referred_hospital_id, hospital_id, claimed, claim_status, is_unlocked, created_at, deletion_status')
+        .select('id, request_id, patient_name, policy_number, diagnosis, authorization_code, status, total_amount, referred_hospital_id, hospital_id, claimed, claim_status, is_unlocked, created_at, deletion_status, is_historical, source')
         .or(authQuery.join(','))
-        .eq('is_historical', false)
         .order('created_at', { ascending: false })
         .limit(1000),
       supabase
@@ -131,12 +161,13 @@ export class HospitalService {
     if (authRes.error) throw authRes.error;
     if (claimsRes.error) throw claimsRes.error;
 
-    // Filter out deleted or awaiting delete records
+    // Filter out deleted or awaiting delete records and keep newly onboarded portals on a clean slate.
     const auths = (authRes.data || []).filter((d: any) => 
-      d.deletion_status !== 'awaiting_admin_approval' && 
-      !['deleted', 'awaiting_delete', 'withdrawn'].includes(String(d.status || '').toLowerCase())
+      d.deletion_status !== 'awaiting_admin_approval' &&
+      !['deleted', 'awaiting_delete', 'withdrawn'].includes(String(d.status || '').toLowerCase()) &&
+      isHospitalRequestVisible(d, hosp)
     );
-    const claims = claimsRes.data || [];
+    const claims = (claimsRes.data || []).filter((c: any) => isHospitalRequestVisible(c, hosp));
 
     const approvedList = auths.filter((d: any) => 
       ['approved', 'authorization_approved', 'partially_approved'].includes(String(d.status || '').toLowerCase())
@@ -228,10 +259,15 @@ export class HospitalService {
     page: number;
     pageSize: number;
   }) {
+    if (!hospital?.id || !hospital?.onboarding_started_at) {
+      return { requests: [], total: 0, claimStatusMap: new Map<string, string>() };
+    }
+
     let query = supabase
       .from("authorization_requests")
       .select("*", { count: "exact" })
-      .eq("is_historical", false);
+      .eq("is_historical", false)
+      .gte("created_at", hospital.onboarding_started_at);
 
     if (scope === "originated") {
       query = query.or(`hospital_id.eq.${hospital.id},requesting_hospital_id.eq.${hospital.id}`);
@@ -268,9 +304,10 @@ export class HospitalService {
 
     if (error) throw error;
 
+    const visibleData = (data || []).filter((request: any) => isHospitalRequestVisible(request, hospital));
     const claimStatusMap = new Map<string, string>();
-    if (data && data.length > 0) {
-      const pageRequestIds = data.map((r: any) => r.id);
+    if (visibleData.length > 0) {
+      const pageRequestIds = visibleData.map((r: any) => r.id);
       const { data: claimsData } = await supabase
         .from("hospital_claims" as any)
         .select("request_id,status")
@@ -284,7 +321,7 @@ export class HospitalService {
       }
     }
 
-    return { requests: data || [], total: count || 0, claimStatusMap };
+    return { requests: visibleData, total: visibleData.length, claimStatusMap };
   }
 
   /**
@@ -301,7 +338,7 @@ export class HospitalService {
     page: number;
     pageSize: number;
   }) {
-    if (!hospital?.id) {
+    if (!hospital?.id || !hospital?.onboarding_started_at) {
       return {
         claims: [],
         total: 0,
@@ -319,6 +356,7 @@ export class HospitalService {
     let query: any = supabase
       .from('hospital_claims' as any)
       .select('*', { count: 'exact' })
+      .gte('created_at', hospital.onboarding_started_at)
       .or(orQuery.join(','));
 
     if (searchTerm.trim()) {

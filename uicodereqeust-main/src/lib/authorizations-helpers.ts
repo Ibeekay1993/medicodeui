@@ -131,6 +131,13 @@ export const isFrozenAuthorization = (request: any) => {
 };
 
 export const isClaimEligible = (request: any, hospital: any) => {
+  if (!request || !hospital) return false;
+  if (request.is_historical === true) return false;
+  if (!hospital.onboarding_started_at) return false;
+  if (request.created_at && new Date(request.created_at).getTime() < new Date(hospital.onboarding_started_at).getTime()) {
+    return false;
+  }
+
   const status = String(request?.status || "").toLowerCase();
   const code = String(request?.authorization_code || "");
   const isApproved = ["approved", "authorization_approved", "partially_approved"].includes(status);

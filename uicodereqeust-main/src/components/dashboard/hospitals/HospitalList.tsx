@@ -1,4 +1,4 @@
-import { Loader2, Building2, Edit3, Link2, MoreVertical, Power, Trash2 } from "lucide-react";
+import { Loader2, Building2, Edit3, Link2, MoreVertical, Power, Trash2, Rocket, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
@@ -17,6 +17,8 @@ interface HospitalListProps {
   onLink: (hospital: HospitalRow) => void;
   onToggleActive: (hospital: HospitalRow, newActiveState: boolean) => void;
   onDelete: (hospital: HospitalRow) => void;
+  onStartOnboarding?: (hospital: HospitalRow) => void;
+  onResetOnboarding?: (hospital: HospitalRow) => void;
   linkedUserFor: (hospital: HospitalRow) => string | undefined;
   usersLinkedCount: (hospital: HospitalRow) => number;
 }
@@ -105,7 +107,14 @@ export function HospitalList({
                     {hospital.phone && <div className="text-slate-400 text-xs mt-0.5">{hospital.phone}</div>}
                   </td>
                   <td className="px-4 py-2.5 leading-tight">
-                    <div><span className={cn("med-status-pill text-xs py-0.5 px-2", statusPill(active))}>{active ? "ACTIVE" : "INACTIVE"}</span></div>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className={cn("med-status-pill text-xs py-0.5 px-2", statusPill(active))}>{active ? "ACTIVE" : "INACTIVE"}</span>
+                      {(hospital as any).onboarding_started_at ? (
+                        <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded">Portal Live</span>
+                      ) : (
+                        <span className="text-[10px] font-medium text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded" title="Hospital portal history hidden until onboarding starts">Clean Slate (Pre-Onboard)</span>
+                      )}
+                    </div>
                     <div className="text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded-md inline-block mt-2">
                       Users: {usersLinked} ({linkedUserFor(hospital) || "Unlinked"})
                     </div>
@@ -117,13 +126,23 @@ export function HospitalList({
                           <MoreVertical className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-40">
+                      <DropdownMenuContent align="end" className="w-48">
                         <DropdownMenuItem onClick={() => onEdit(hospital)} className="cursor-pointer text-slate-700">
                           <Edit3 className="mr-2 h-3.5 w-3.5" /> Edit Hospital
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => onLink(hospital)} className="cursor-pointer text-slate-700">
                           <Link2 className="mr-2 h-3.5 w-3.5" /> Link Login
                         </DropdownMenuItem>
+                        {onStartOnboarding && !(hospital as any).onboarding_started_at && (
+                          <DropdownMenuItem onClick={() => onStartOnboarding(hospital)} className="cursor-pointer text-emerald-700 focus:text-emerald-800 focus:bg-emerald-50">
+                            <Rocket className="mr-2 h-3.5 w-3.5 text-emerald-600" /> Start Onboarding
+                          </DropdownMenuItem>
+                        )}
+                        {onResetOnboarding && (hospital as any).onboarding_started_at && (
+                          <DropdownMenuItem onClick={() => onResetOnboarding(hospital)} className="cursor-pointer text-amber-700 focus:text-amber-800 focus:bg-amber-50">
+                            <RotateCcw className="mr-2 h-3.5 w-3.5 text-amber-600" /> Reset Onboarding
+                          </DropdownMenuItem>
+                        )}
                         <DropdownMenuItem onClick={() => onToggleActive(hospital, !active)} className="cursor-pointer text-slate-700">
                           <Power className="mr-2 h-3.5 w-3.5 text-amber-600" /> {active ? "Deactivate" : "Activate"}
                         </DropdownMenuItem>
@@ -170,19 +189,34 @@ export function HospitalList({
               
               <div className="absolute top-4 right-4 flex items-center gap-1.5 shrink-0">
                 <span className={cn("med-status-pill text-xs py-0.5 px-2 font-bold", statusPill(active))}>{active ? "ACTIVE" : "INACTIVE"}</span>
+                {(hospital as any).onboarding_started_at ? (
+                  <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded">Live</span>
+                ) : (
+                  <span className="text-[10px] font-medium text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded">Pre-Onboard</span>
+                )}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" size="icon" className="h-10 w-10 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg flex items-center justify-center">
                       <MoreVertical className="h-4 w-4" />
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-40">
+                  <DropdownMenuContent align="end" className="w-48">
                     <DropdownMenuItem onClick={() => onEdit(hospital)} className="cursor-pointer text-slate-700">
                       <Edit3 className="mr-2 h-3.5 w-3.5" /> Edit Hospital
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => onLink(hospital)} className="cursor-pointer text-slate-700">
                       <Link2 className="mr-2 h-3.5 w-3.5" /> Link Login
                     </DropdownMenuItem>
+                    {onStartOnboarding && !(hospital as any).onboarding_started_at && (
+                      <DropdownMenuItem onClick={() => onStartOnboarding(hospital)} className="cursor-pointer text-emerald-700 focus:text-emerald-800 focus:bg-emerald-50">
+                        <Rocket className="mr-2 h-3.5 w-3.5 text-emerald-600" /> Start Onboarding
+                      </DropdownMenuItem>
+                    )}
+                    {onResetOnboarding && (hospital as any).onboarding_started_at && (
+                      <DropdownMenuItem onClick={() => onResetOnboarding(hospital)} className="cursor-pointer text-amber-700 focus:text-amber-800 focus:bg-amber-50">
+                        <RotateCcw className="mr-2 h-3.5 w-3.5 text-amber-600" /> Reset Onboarding
+                      </DropdownMenuItem>
+                    )}
                     <DropdownMenuItem onClick={() => onToggleActive(hospital, !active)} className="cursor-pointer text-slate-700">
                       <Power className="mr-2 h-3.5 w-3.5 text-amber-600" /> {active ? "Deactivate" : "Activate"}
                     </DropdownMenuItem>
