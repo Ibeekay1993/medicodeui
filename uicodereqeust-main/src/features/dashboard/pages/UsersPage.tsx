@@ -236,10 +236,22 @@ export default function UsersPage() {
           role: targetUser.role,
           phone: targetUser.phone || null,
           hospital_id: targetUser.hospital_id || null,
+          is_team_lead: Boolean(targetUser.is_team_lead),
         },
       });
 
-      if (error) throw error;
+      if (error) {
+        let msg = error.message;
+        try {
+          if ((error as any).context && typeof (error as any).context.json === "function") {
+            const body = await (error as any).context.json();
+            if (body?.message) msg = body.message;
+          }
+        } catch {
+          // ignore
+        }
+        throw new Error(msg || "Failed to resend invitation.");
+      }
       if (data?.error) throw new Error(data.message || "Failed to resend invitation.");
 
       toast({

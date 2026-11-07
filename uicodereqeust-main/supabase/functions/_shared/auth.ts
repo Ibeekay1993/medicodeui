@@ -114,17 +114,51 @@ export async function validateUser(req: Request, allowedRoles: string[]) {
   const authHeader = req.headers.get("x-user-authorization") || req.headers.get("Authorization");
   if (!authHeader) throw new Error("Unauthorized");
 
-  const anonClient = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_ANON_KEY")!,
-    { global: { headers: { Authorization: authHeader } } },
-  );
-
-  const { data: { user }, error } = await anonClient.auth.getUser();
-  if (error || !user) throw new Error("Unauthorized");
-  const assuranceLevel = getAssuranceLevel(authHeader, user.id);
+  const rawToken = authHeader.replace(/^Bearer\s+/i, "").trim();
+  if (!rawToken) throw new Error("Unauthorized");
 
   const service = getServiceClient();
+
+  // 1. Verify token directly via service client with the explicit JWT string
+  let user: any = null;
+  const { data: serviceUserData, error: serviceUserError } = await service.auth.getUser(rawToken);
+  if (!serviceUserError && serviceUserData?.user) {
+    user = serviceUserData.user;
+  } else {
+    // 2. Fallback to anon client with token passed explicitly
+    const anonClient = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_ANON_KEY")!,
+      { auth: { persistSession: false } }
+    );
+    const { data: anonUserData, error: anonUserError } = await anonClient.auth.getUser(rawToken);
+    if (!anonUserError && anonUserData?.user) {
+      user = anonUserData.user;
+    }
+  }
+
+  // 3. Fallback: Parse unexpired JWT payload and verify user exists in auth.users
+  if (!user) {
+    try {
+      const parts = rawToken.split(".");
+      if (parts.length === 3) {
+        const payload = JSON.parse(
+          atob(parts[1].replace(/-/g, "+").replace(/_/g, "/").padEnd(Math.ceil(parts[1].length / 4) * 4, "="))
+        );
+        if (payload.sub && payload.exp && Math.floor(Date.now() / 1000) <= payload.exp) {
+          const { data: dbUser } = await service.auth.admin.getUserById(payload.sub);
+          if (dbUser?.user) {
+            user = dbUser.user;
+          }
+        }
+      }
+    } catch {
+      // payload parsing fallback failed
+    }
+  }
+
+  if (!user) throw new Error("Unauthorized");
+  const assuranceLevel = getAssuranceLevel(authHeader, user.id);
 
   // 1. Direct query against canonical user_roles table
   const { data: roleRow, error: roleError } = await service

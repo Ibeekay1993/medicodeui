@@ -88,6 +88,22 @@ export default function Register() {
       const hash = window.location.hash || "";
       const hashParams = new URLSearchParams(hash.startsWith("#") ? hash.slice(1) : hash);
 
+      // 0. Check for GoTrue error redirect in query params or hash
+      const urlErrorDesc = searchParams.get("error_description") || hashParams.get("error_description");
+      const urlErrorCode = searchParams.get("error_code") || hashParams.get("error_code");
+      const urlError = searchParams.get("error") || hashParams.get("error");
+      if (urlErrorDesc || urlError) {
+        const fullErr = decodeURIComponent(urlErrorDesc || urlError || "");
+        const isExpired = fullErr.toLowerCase().includes("expired") || fullErr.toLowerCase().includes("invalid") || urlErrorCode === "otp_expired";
+        setInviteError(
+          isExpired
+            ? "This invitation link was already used or has expired. Invitation links are single-use and valid for 24 hours. Please contact your administrator to click 'Resend Invite' from the User Management directory."
+            : fullErr
+        );
+        setSessionResolving(false);
+        return;
+      }
+
       let accessToken = hashParams.get("access_token") || searchParams.get("access_token") || "";
       let refreshToken = hashParams.get("refresh_token") || searchParams.get("refresh_token") || "";
 
