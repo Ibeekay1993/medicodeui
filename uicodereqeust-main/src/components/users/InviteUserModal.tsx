@@ -104,18 +104,31 @@ export function InviteUserModal({
         },
       });
       if (error) throw error;
-      if (data.error) throw new Error(data.message || "Invitation failed.");
-      toast({
-        title: "Invitation Sent",
-        description: `A secure registration link has been sent to ${email}.`,
-      });
+      if (data?.error) throw new Error(data.message || "Invitation failed.");
+
+      if (data?.action_link && data?.email_sent === false) {
+        toast({
+          title: "User Account Created",
+          description: "User registered. The activation link has been copied to your clipboard.",
+        });
+        try {
+          await navigator.clipboard.writeText(data.action_link);
+        } catch {
+          // ignore clipboard errors
+        }
+      } else {
+        toast({
+          title: "Invitation Sent",
+          description: `A secure registration link has been sent to ${email}.`,
+        });
+      }
       onOpenChange(false);
       onSuccess();
     } catch (error: any) {
       toast({
         variant: "destructive",
-        title: "Invitation Failed",
-        description: error.message,
+        title: "Invitation Not Sent",
+        description: error.message || "Failed to process invitation.",
       });
     } finally {
       setIsInviting(false);

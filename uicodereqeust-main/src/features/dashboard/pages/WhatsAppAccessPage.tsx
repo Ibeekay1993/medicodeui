@@ -371,7 +371,7 @@ export default function WhatsAppAccessPage() {
               variant={activeTab === "contacts" ? "default" : "outline"}
               onClick={() => setActiveTab("contacts")}
               aria-label="Access list"
-              className="h-10 gap-1.5 px-2 text-sm sm:px-3"
+              className="h-8 gap-1.5 px-2.5 text-xs sm:px-3"
             >
               <Building2 className="h-4 w-4 shrink-0" /> <span>Access</span>
             </Button>
@@ -379,27 +379,27 @@ export default function WhatsAppAccessPage() {
               variant={activeTab === "audit" ? "default" : "outline"}
               onClick={() => setActiveTab("audit")}
               aria-label="Audit history"
-              className="h-10 gap-1.5 px-2 text-sm sm:px-3"
+              className="h-8 gap-1.5 px-2.5 text-xs sm:px-3"
             >
               <History className="h-4 w-4 shrink-0" /> <span>Audit</span>
             </Button>
-            <Button onClick={openCreate} aria-label="Add WhatsApp number" className="med-button-primary h-10 gap-1.5 px-2 text-sm sm:px-3">
+            <Button onClick={openCreate} aria-label="Add WhatsApp number" className="med-button-primary h-8 gap-1.5 px-2.5 text-xs sm:px-3">
               <Plus className="h-4 w-4 shrink-0" /> <span>Add</span>
             </Button>
         </div>
-        <div className="mt-3 rounded-lg border border-emerald-100 bg-emerald-50/60 px-3 py-2 text-sm leading-5 text-emerald-800">
+        <div className="mt-2 rounded-lg border border-emerald-100 bg-emerald-50/60 px-2.5 py-1.5 text-xs leading-4 text-emerald-800">
           Only active registered numbers are authorized. Message text grants no access.
         </div>
       </div>
 
       {activeTab === "contacts" ? (
         <>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
+          <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4 sm:gap-2">
             {(["active", "pending", "disabled", "revoked"] as const).map((st) => (
-              <div key={st} className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm sm:block sm:p-3">
-                <div className="text-xs font-medium uppercase tracking-wide text-slate-500">{st}</div>
-                <div className="text-xl font-semibold text-slate-900 sm:mt-0.5 sm:text-2xl">
-                  {contacts.filter((c) => c.status === st).length}
+              <div key={st} className="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-xs sm:block sm:p-2.5">
+                <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">{st}</div>
+                <div className="text-lg font-bold text-slate-900 sm:mt-0.5">
+                  {loading ? "-" : contacts.filter((c) => c.status === st).length}
                 </div>
               </div>
             ))}
@@ -414,11 +414,11 @@ export default function WhatsAppAccessPage() {
                   onChange={(e) => setSearch(e.target.value)}
                   aria-label="Search WhatsApp access"
                   placeholder="Search hospital, number, contact"
-                  className="pl-9"
+                  className="pl-9 h-9 text-xs"
                 />
               </div>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-full sm:w-44">
+                <SelectTrigger className="w-full sm:w-40 h-9 text-xs">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -441,29 +441,29 @@ export default function WhatsAppAccessPage() {
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[760px] text-sm">
                   <thead>
-                    <tr className="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-400">
-                      <th className="px-3 py-3">Hospital</th>
-                      <th className="px-3 py-3">WhatsApp Number</th>
-                      <th className="px-3 py-3">Contact Person</th>
-                      <th className="px-3 py-3">Status</th>
+                    <tr className="border-b border-slate-200 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500 bg-slate-50/70">
+                      <th className="px-3 py-2">Hospital</th>
+                      <th className="px-3 py-2">WhatsApp Number</th>
+                      <th className="px-3 py-2">Contact Person</th>
+                      <th className="px-3 py-2">Status</th>
                       <th className="px-3 py-3 text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {filtered.map((contact) => (
                       <tr key={contact.id} className="border-b border-slate-100 last:border-0">
-                        <td className="px-3 py-3">
+                        <td className="px-3 py-2">
                           <div className="flex items-center gap-2 font-medium text-slate-800">
                             <Building2 className="h-4 w-4 text-slate-400" />
                             {contact.hospital?.name || "Unknown hospital"}
                           </div>
                         </td>
                         <td className="px-3 py-3 font-mono text-slate-700">+{contact.phone_number}</td>
-                        <td className="px-3 py-3">
+                        <td className="px-3 py-2">
                           <div>{contact.contact_name || "—"}</div>
                           <div className="text-xs text-slate-400">{contact.contact_role || "—"}</div>
                         </td>
-                        <td className="px-3 py-3">
+                        <td className="px-3 py-2">
                           <Badge
                             variant="outline"
                             className={cn(
@@ -477,7 +477,7 @@ export default function WhatsAppAccessPage() {
                             {contact.status}
                           </Badge>
                         </td>
-                        <td className="px-3 py-3">
+                        <td className="px-3 py-2">
                           <div className="flex justify-end gap-1">
                             <Button variant="ghost" size="icon" onClick={() => openEdit(contact)} title="Edit">
                               <Pencil className="h-4 w-4 text-slate-600" />
@@ -547,12 +547,12 @@ export default function WhatsAppAccessPage() {
             <div className="overflow-x-auto">
               <table className="w-full min-w-[700px] text-sm">
                 <thead>
-                  <tr className="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-400">
-                    <th className="px-3 py-3">Timestamp</th>
-                    <th className="px-3 py-3">Action</th>
-                    <th className="px-3 py-3">Hospital</th>
-                    <th className="px-3 py-3">WhatsApp Number</th>
-                    <th className="px-3 py-3">State Transition</th>
+                  <tr className="border-b border-slate-200 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500 bg-slate-50/70">
+                    <th className="px-3 py-2">Timestamp</th>
+                    <th className="px-3 py-2">Action</th>
+                    <th className="px-3 py-2">Hospital</th>
+                    <th className="px-3 py-2">WhatsApp Number</th>
+                    <th className="px-3 py-2">State Transition</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -561,7 +561,7 @@ export default function WhatsAppAccessPage() {
                       <td className="px-3 py-3 text-slate-500 whitespace-nowrap">
                         {new Date(log.created_at).toLocaleString()}
                       </td>
-                      <td className="px-3 py-3">
+                      <td className="px-3 py-2">
                         <Badge
                           variant="outline"
                           className={cn(

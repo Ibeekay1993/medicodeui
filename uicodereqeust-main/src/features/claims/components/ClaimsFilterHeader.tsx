@@ -25,22 +25,21 @@ export default function ClaimsFilterHeader({
   uniqueHospitals
 }: ClaimsFilterHeaderProps) {
   return (
-    <div className="relative z-10 mb-2 flex flex-col items-stretch justify-between gap-4 rounded-xl border border-slate-200 bg-white p-4 md:flex-row md:items-center">
-      <div className="flex w-full flex-col items-stretch gap-3 sm:w-auto sm:flex-row sm:items-center sm:gap-4">
-        <h2 className="text-lg font-black text-slate-900 tracking-tight">Claims Ledger</h2>
+    <div className="relative z-10 mb-2 flex flex-col items-stretch justify-between gap-2.5 rounded-xl border border-slate-200 bg-white p-2.5 sm:p-3 md:flex-row md:items-center">
+      <div className="flex w-full flex-col items-stretch gap-2 sm:w-auto sm:flex-row sm:items-center">
         <Tabs value={statusTab === 'pending' ? 'pending' : 'all'} onValueChange={(val: any) => setStatusTab(val)} className="w-full sm:w-auto">
-          <TabsList className="h-9 sm:h-10 w-full bg-slate-100 rounded-lg p-1 gap-1 sm:w-auto">
-            <TabsTrigger value="pending" className="h-full min-h-0 min-w-0 flex-1 whitespace-nowrap rounded-md px-2 py-0 text-xs font-bold text-slate-600 transition-colors data-[state=active]:bg-slate-900 data-[state=active]:text-white data-[state=active]:shadow-none data-[state=inactive]:bg-transparent data-[state=inactive]:text-slate-600 data-[state=inactive]:hover:bg-slate-200/70 active:bg-slate-200 sm:flex-none sm:px-4">Action Needed</TabsTrigger>
-            <TabsTrigger value="all" className="h-full min-h-0 min-w-0 flex-1 whitespace-nowrap rounded-md px-2 py-0 text-xs font-bold text-slate-600 transition-colors data-[state=active]:bg-slate-900 data-[state=active]:text-white data-[state=active]:shadow-none data-[state=inactive]:bg-transparent data-[state=inactive]:text-slate-600 data-[state=inactive]:hover:bg-slate-200/70 active:bg-slate-200 sm:flex-none sm:px-4">All Claims</TabsTrigger>
+          <TabsList className="h-8 sm:h-9 w-full bg-slate-100 rounded-lg p-0.5 gap-1 sm:w-auto">
+            <TabsTrigger value="pending" className="h-full min-h-0 min-w-0 flex-1 whitespace-nowrap rounded-md px-2.5 py-0 text-xs font-bold text-slate-600 transition-colors data-[state=active]:bg-slate-900 data-[state=active]:text-white data-[state=active]:shadow-none data-[state=inactive]:bg-transparent data-[state=inactive]:text-slate-600 data-[state=inactive]:hover:bg-slate-200/70 active:bg-slate-200 sm:flex-none sm:px-3.5">Action Needed</TabsTrigger>
+            <TabsTrigger value="all" className="h-full min-h-0 min-w-0 flex-1 whitespace-nowrap rounded-md px-2.5 py-0 text-xs font-bold text-slate-600 transition-colors data-[state=active]:bg-slate-900 data-[state=active]:text-white data-[state=active]:shadow-none data-[state=inactive]:bg-transparent data-[state=inactive]:text-slate-600 data-[state=inactive]:hover:bg-slate-200/70 active:bg-slate-200 sm:flex-none sm:px-3.5">All Submissions</TabsTrigger>
           </TabsList>
         </Tabs>
       </div>
-      <div className="flex flex-wrap items-center justify-end gap-3 w-full md:w-auto">
+      <div className="flex flex-wrap items-center justify-end gap-2 w-full md:w-auto">
         {/* Status Filter Dropdown */}
         {statusTab !== 'pending' && (
-        <div className="w-full sm:w-44">
+        <div className="w-full sm:w-40">
           <Select value={statusTab} onValueChange={(v: any) => setStatusTab(v)}>
-            <SelectTrigger className="h-10 w-full rounded-lg border-slate-200 bg-white text-sm font-medium">
+            <SelectTrigger className="h-9 w-full rounded-lg border-slate-200 bg-white text-xs font-medium">
               <ListFilter className="h-3 w-3 text-slate-400 mr-1.5 shrink-0" />
               <SelectValue placeholder="Filter Status" />
             </SelectTrigger>
@@ -108,7 +107,7 @@ export default function ClaimsFilterHeader({
             placeholder="Search patient, policy, code..." 
             value={searchTerm} 
             onChange={e => setSearchTerm(e.target.value)} 
-            className="h-10 w-full rounded-lg border-slate-200 bg-white pl-9 text-sm font-medium focus-visible:ring-1 focus-visible:ring-slate-300"
+            className="h-9 w-full rounded-lg border-slate-200 bg-white pl-9 text-xs font-medium focus-visible:ring-1 focus-visible:ring-slate-300"
             aria-label="Search patient, policy or code"
           />
         </div>

@@ -80,12 +80,12 @@ export default function ClaimsTable({
             <table className="w-full min-w-[880px] border-collapse text-left">
               <thead className="table-heading">
                 <tr>
-                  <th className="w-[170px] min-w-[170px] px-4 py-3">Date & Ref</th>
-                  <th className="px-4 py-3 min-w-[220px]">Patient & Facility</th>
-                  <th className="px-4 py-3 min-w-[200px]">Diagnosis & Auth</th>
-                  <th className="px-4 py-3 w-[130px] text-right">Amount</th>
-                  <th className="px-4 py-3 w-[140px] text-center">Status</th>
-                  <th className="px-4 py-3 w-[90px] text-right">Action</th>
+                  <th className="w-[160px] min-w-[160px] px-3 py-2.5">Date & Ref</th>
+                  <th className="px-3 py-2.5 min-w-[200px]">Patient & Facility</th>
+                  <th className="px-3 py-2.5 min-w-[180px]">Diagnosis & Auth</th>
+                  <th className="px-3 py-2.5 w-[120px] text-right">Amount</th>
+                  <th className="px-3 py-2.5 w-[130px] text-center">Status</th>
+                  <th className="px-3 py-2.5 w-[80px] text-right">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -109,7 +109,7 @@ export default function ClaimsTable({
                       )}
                     >
                       {/* Date & Ref */}
-                      <td className="px-4 py-3 font-mono">
+                      <td className="px-3 py-2 font-mono">
                         <div className="flex min-w-[138px] flex-col">
                           <span className="whitespace-nowrap tabular-nums text-xs font-semibold text-slate-700">
                             {formatNigeriaDate(c.created_at)}
@@ -121,7 +121,7 @@ export default function ClaimsTable({
                       </td>
 
                       {/* Patient & Facility */}
-                      <td className="px-4 py-3">
+                      <td className="px-3 py-2">
                         <div className="flex flex-col min-w-0 max-w-[260px]">
                           <span className="text-sm font-semibold normal-case leading-snug text-slate-950 truncate" title={c.patient_name}>
                             {c.patient_name}
@@ -135,7 +135,7 @@ export default function ClaimsTable({
                       </td>
 
                       {/* Diagnosis & Auth */}
-                      <td className="px-4 py-3">
+                      <td className="px-3 py-2">
                         <div className="flex flex-col min-w-0 max-w-[230px]">
                           <span className="text-xs font-semibold text-slate-800 leading-snug truncate" title={c.diagnosis || "General Consultation"}>
                             {c.diagnosis || "General Consultation"}
@@ -147,7 +147,7 @@ export default function ClaimsTable({
                       </td>
 
                       {/* Amount */}
-                      <td className="px-4 py-3 text-right">
+                      <td className="px-3 py-2 text-right">
                         <div className="flex flex-col items-end">
                           <span className="font-mono text-sm font-bold text-slate-900 tabular-nums">
                             {money(c.total_amount)}
@@ -161,12 +161,12 @@ export default function ClaimsTable({
                       </td>
 
                       {/* Status */}
-                      <td className="px-4 py-3 text-center">
+                      <td className="px-3 py-2 text-center">
                         {getStatusBadge(c.status)}
                       </td>
 
                       {/* Action */}
-                      <td className="px-4 py-3 text-right">
+                      <td className="px-3 py-2 text-right">
                         <Button
                           variant="ghost"
                           size="sm"
@@ -253,7 +253,7 @@ export default function ClaimsTable({
           </div>
 
           {filteredClaimsLength === 0 && (
-            <div className="p-12 text-center flex flex-col items-center justify-center gap-2">
+            <div className="py-8 px-4 text-center flex flex-col items-center justify-center gap-2">
               <FolderOpen className="h-8 w-8 text-slate-300" />
               <p className="text-xs font-semibold text-slate-400 tracking-wider">
                 No claims match the search query

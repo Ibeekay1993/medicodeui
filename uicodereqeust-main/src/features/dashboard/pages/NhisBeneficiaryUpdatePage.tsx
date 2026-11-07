@@ -460,15 +460,15 @@ export default function NhisBeneficiaryUpdatePage() {
               selectFile(event.dataTransfer.files?.[0]);
             }}
             className={cn(
-              "flex min-h-44 flex-col items-center justify-center rounded-2xl border border-dashed p-6 text-center transition-colors",
+              "flex min-h-28 flex-col items-center justify-center rounded-xl border border-dashed p-4 text-center transition-colors",
               file ? "border-emerald-200 bg-emerald-50/40" : "border-slate-200 bg-slate-50/70 hover:border-emerald-200",
             )}
           >
-            <UploadCloud className="mb-3 h-10 w-10 text-emerald-600" />
-            <p className="text-sm font-black text-slate-900">
+            <UploadCloud className="mb-1.5 h-7 w-7 text-emerald-600" />
+            <p className="text-sm font-bold text-slate-900">
               {file ? file.name : sourceFileName ? `${sourceFileName} (restored)` : "Drop monthly NHIS PDF here"}
             </p>
-            <p className="mt-1 text-xs font-bold uppercase tracking-widest text-slate-400">Upload, extract, preview, then replace the live beneficiary list</p>
+            <p className="mt-0.5 text-xs text-slate-500 font-medium">Extract, preview, and activate verified monthly beneficiary lists</p>
             <input
               id="nhis-pdf-upload"
               type="file"
@@ -476,7 +476,7 @@ export default function NhisBeneficiaryUpdatePage() {
               className="hidden"
               onChange={(event) => selectFile(event.target.files?.[0])}
             />
-            <div className="mt-5 flex flex-wrap justify-center gap-2">
+            <div className="mt-3 flex flex-wrap justify-center gap-2">
               <Button asChild variant="outline" className="h-9 rounded-xl text-xs font-black uppercase tracking-widest">
                 <label htmlFor="nhis-pdf-upload" className="cursor-pointer">
                   <FileText className="mr-2 inline h-4 w-4" /> Select PDF
@@ -651,8 +651,8 @@ export default function NhisBeneficiaryUpdatePage() {
                 </div>
               </>
             ) : (
-              <p className="rounded-xl bg-slate-50 p-6 text-center text-xs font-black uppercase tracking-widest text-slate-400">
-                Upload and extract a PDF to see quality checks.
+              <p className="rounded-xl bg-slate-50 p-4 text-center text-xs font-semibold text-slate-400">
+                Upload and extract a PDF to view validation checks.
               </p>
             )}
           </div>

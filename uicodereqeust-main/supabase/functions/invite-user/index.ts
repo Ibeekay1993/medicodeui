@@ -10,27 +10,45 @@ interface InvitePayload {
   is_team_lead?: boolean;
 }
 
+const toMessage = (err: unknown): string => {
+  if (!err) return "Invitation failed";
+  if (typeof err === "string") return err;
+  const e = err as Record<string, unknown>;
+  const msg = String(e?.message || e?.error_description || e?.msg || e?.details || e?.hint || "");
+  if (msg.includes("user_roles_one_lead_per_team_idx") || (msg.includes("duplicate key") && msg.includes("utilization_manager_lead"))) {
+    return "A Utilization Manager Lead is already active in the system. Reassign or change their role first before inviting a new lead.";
+  }
+  if (msg.includes("user_roles_one_lead_per_team_idx")) {
+    return "Only one lead can be assigned to this department. Please update the existing lead first.";
+  }
+  return msg || "Invitation failed";
+};
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   let payload: InvitePayload = {};
   let adminUser: { id?: string; email?: string } | null = null;
   const safeAudit = async (supabase: ReturnType<typeof getServiceClient>, action: string, details: Record<string, unknown>, severity = "info") => {
-    await supabase.from("audit_logs").insert({
-      action,
-      action_type: action,
-      user_id: adminUser?.id ?? null,
-      actor_user_id: adminUser?.id ?? null,
-      actor_name: adminUser?.email ?? "Unknown admin",
-      actor_role: "admin",
-      entity_type: "admin_user_management",
-      entity_id: String(details.email || "invite-user"),
-      new_values: details,
-      details,
-      severity,
-      device_info: req.headers.get("user-agent"),
-      ip_address: null,
-    });
+    try {
+      await supabase.from("audit_logs").insert({
+        action,
+        action_type: action,
+        user_id: adminUser?.id ?? null,
+        actor_user_id: adminUser?.id ?? null,
+        actor_name: adminUser?.email ?? "Unknown admin",
+        actor_role: "admin",
+        entity_type: "admin_user_management",
+        entity_id: String(details.email || "invite-user"),
+        new_values: details,
+        details,
+        severity,
+        device_info: req.headers.get("user-agent"),
+        ip_address: null,
+      });
+    } catch {
+      // audit write failure should never block operation
+    }
   };
 
   try {
@@ -57,19 +75,39 @@ serve(async (req) => {
     }
 
     const supabase = getServiceClient();
+
+    // Check if Utilization Manager Lead already exists
+    if (role === "utilization_manager_lead") {
+      const { data: currentLead } = await supabase
+        .from("user_roles")
+        .select("id, full_name, email")
+        .eq("role", "utilization_manager_lead")
+        .maybeSingle();
+
+      if (currentLead && String(currentLead.email || "").toLowerCase() !== normalizedEmail) {
+        const leadName = currentLead.full_name || currentLead.email || "Current Lead";
+        throw new Error(
+          `A Utilization Manager Lead is already assigned (${leadName}). Only one active lead is permitted. Please update or change the existing lead first before inviting another.`
+        );
+      }
+    }
+
     if (is_team_lead) {
       const { data: currentLead, error: leadLookupError } = await supabase
         .from("user_roles")
-        .select("id")
+        .select("id, full_name, email")
         .eq("role", role)
         .eq("is_team_lead", true)
         .maybeSingle();
       if (leadLookupError) throw leadLookupError;
-      if (currentLead) throw new Error("A lead is already assigned to this team. Update the current lead first.");
+      if (currentLead && String(currentLead.email || "").toLowerCase() !== normalizedEmail) {
+        const leadName = currentLead.full_name || currentLead.email || "Current Lead";
+        throw new Error(`A team lead is already assigned to this department (${leadName}). Update the current lead first.`);
+      }
     }
 
-    // ── Rate Limiting: max 2 invites per email within 15 minutes ────────
-    const RATE_LIMIT_MAX = 2;
+    // Rate Limiting: max 4 invites per email within 15 minutes
+    const RATE_LIMIT_MAX = 4;
     const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000;
     const windowStart = new Date(Date.now() - RATE_LIMIT_WINDOW_MS).toISOString();
 
@@ -86,10 +124,10 @@ serve(async (req) => {
         email: normalizedEmail,
         attempts_in_window: recentAttempts,
       }, "warning");
-      throw new Error(`Rate limit exceeded: Please wait before sending another invitation to this email.`);
+      throw new Error("Rate limit reached: Please wait a few moments before resending an invitation to this email.");
     }
-    // ──────────────────────────────────────────────────────────────────────
 
+    // Check for existing role or existing auth user
     const { data: existingRole } = await supabase
       .from("user_roles")
       .select("id, user_id, last_sign_in")
@@ -98,34 +136,15 @@ serve(async (req) => {
 
     if (existingRole) {
       if (existingRole.last_sign_in) {
-        throw new Error("A user with this email already exists and is already active.");
+        throw new Error("A user with this email already exists and has active sign-in history.");
       } else {
-        console.log(`Resending invite: Deleting old auth user ${existingRole.user_id} for ${normalizedEmail}...`);
         if (existingRole.user_id) {
-          await supabase.auth.admin.deleteUser(existingRole.user_id).catch((err) => {
-            console.warn("Resending invite: deleteUser failed or user did not exist in auth:", err);
-          });
+          await supabase.auth.admin.deleteUser(existingRole.user_id).catch(() => {});
         }
       }
     }
 
-    try {
-      const { data: existingAuthUsers, error: listError } = await supabase.auth.admin.listUsers({ page: 1, perPage: 1000 });
-      if (listError) throw listError;
-      if ((existingAuthUsers?.users || []).some((u: { email?: string }) => String(u.email || "").toLowerCase() === normalizedEmail)) {
-        throw new Error("A user with this email already exists.");
-      }
-    } catch (duplicateCheckError) {
-      if (duplicateCheckError instanceof Error && duplicateCheckError.message.includes("already exists")) throw duplicateCheckError;
-      await safeAudit(supabase, "ADMIN_INVITE_DUPLICATE_CHECK_WARNING", {
-        function_name: "invite-user",
-        email: normalizedEmail,
-        error_message: duplicateCheckError instanceof Error ? duplicateCheckError.message : "Auth duplicate check unavailable",
-        timestamp: new Date().toISOString(),
-      }, "warning");
-    }
-
-    // 1. Resolve hospital name if hospital_id is present
+    // Resolve hospital name if hospital_id is present
     let hospitalName = "";
     if (hospital_id) {
       const { data: hospitalData } = await supabase
@@ -138,7 +157,7 @@ serve(async (req) => {
       }
     }
 
-    // 2. Generate the invite link via Supabase Admin API
+    // Generate the invite link via Supabase Admin API
     const configuredSiteUrl = (Deno.env.get("SITE_URL") || "https://app.ronsbergerhmo.io").replace(/\/+$/, "");
     const redirectTo = `${configuredSiteUrl.replace(/\/login$/, "")}/register`;
     const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
@@ -151,45 +170,58 @@ serve(async (req) => {
     });
 
     if (linkError) throw linkError;
-    if (!linkData?.properties?.action_link || !linkData?.user) {
-      throw new Error("Failed to generate invitation link.");
+    const actionLink = (linkData as any)?.properties?.action_link || (linkData as any)?.action_link;
+    const targetUser = (linkData as any)?.user || linkData;
+    if (!actionLink || !targetUser?.id) {
+      throw new Error("Failed to generate secure invitation token.");
     }
 
-    const actionLink = linkData.properties.action_link;
-    const inviteData = { user: linkData.user };
+    // Set the role in user_roles IMMEDIATELY so the record is guaranteed
+    const { error: roleError } = await supabase.from("user_roles").upsert([{
+      user_id: targetUser.id,
+      role: role,
+      is_team_lead: Boolean(is_team_lead),
+      full_name: fullName,
+      email: normalizedEmail,
+      phone,
+      hospital_id,
+      access_status: "active",
+      invite_status: "pending",
+    }], { onConflict: "user_id" });
 
-    // 3. Send the styled invitation email via Brevo
+    if (roleError) throw roleError;
+
+    // Send the styled invitation email via Brevo with graceful fallback
     const brevoApiKey = Deno.env.get("BREVO_API_KEY");
     const brevoFromRaw = Deno.env.get("BREVO_FROM_EMAIL") || "Ronsberger HMO <uironsberger@gmail.com>";
+    let emailSent = false;
+    let emailErrorMessage = "";
 
-    if (!brevoApiKey) {
-      throw new Error("SMTP service (Brevo) is not configured on the server.");
-    }
+    if (brevoApiKey) {
+      try {
+        const roleDisplayNames = new Map<string, string>([
+          ["admin", "Administrator"],
+          ["hospital", "Hospital Representative"],
+          ["nurse", "Utilization Manager"],
+          ["utilization_manager", "Utilization Manager"],
+          ["utilization_manager_lead", "Utilization Manager Lead"],
+          ["claims", "Claims Officer"],
+          ["finance", "Finance Officer"],
+        ]);
+        const displayRole = roleDisplayNames.get(role) || role;
+        const brevoSender = parseBrevoSender(brevoFromRaw);
 
-    const roleDisplayNames = new Map<string, string>([
-      ["admin", "Administrator"],
-      ["hospital", "Hospital Representative"],
-      ["nurse", "Utilization Manager"],
-      ["utilization_manager", "Utilization Manager"],
-      ["claims", "Claims Officer"],
-      ["finance", "Finance Officer"],
-    ]);
-    const displayRole = roleDisplayNames.get(role) || role;
-
-    const brevoSender = parseBrevoSender(brevoFromRaw);
-    console.log(`📧 Sending invitation email to ${normalizedEmail} from ${brevoSender.name} <${brevoSender.email}>`);
-
-    const brevoResponse = await fetch("https://api.brevo.com/v3/smtp/email", {
-      method: "POST",
-      headers: {
-        "api-key": brevoApiKey,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        sender: brevoSender,
-        to: [{ email: normalizedEmail }],
-        subject: `Ronsberger HMO - You have been invited`,
-        htmlContent: `<!DOCTYPE html>
+        const brevoResponse = await fetch("https://api.brevo.com/v3/smtp/email", {
+          method: "POST",
+          headers: {
+            "api-key": brevoApiKey,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            sender: brevoSender,
+            to: [{ email: normalizedEmail }],
+            subject: "Ronsberger HMO - You have been invited",
+            htmlContent: `<!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
 <body style="margin:0;padding:0;background:#f0f4f3;font-family:'Segoe UI',Arial,Helvetica,sans-serif;">
@@ -214,7 +246,6 @@ serve(async (req) => {
             <p style="color:#475569;font-size:14px;line-height:1.6;margin:0 0 20px;">
               You have been invited as a <strong>${displayRole}</strong> to the Ronsberger HMO Administrative System.
             </p>
-
             <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:20px;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;">
               <tr>
                 <td style="background:#f8fafc;padding:12px 16px;border-bottom:1px solid #e2e8f0;">
@@ -229,11 +260,9 @@ serve(async (req) => {
                 </table>
               </td></tr>
             </table>
-
             <p style="color:#475569;font-size:14px;line-height:1.6;margin:0 0 20px;">
               Click the button below to set up your account, choose your password, and get started:
             </p>
-
             <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
               <tr>
                 <td align="center">
@@ -241,7 +270,6 @@ serve(async (req) => {
                 </td>
               </tr>
             </table>
-
             <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:16px;">
               <tr>
                 <td style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:12px 16px;">
@@ -249,7 +277,6 @@ serve(async (req) => {
                 </td>
               </tr>
             </table>
-
             <p style="color:#94a3b8;font-size:12px;line-height:1.5;margin:0;">If you did not expect this invitation, you can safely ignore this email.</p>
           </td>
         </tr>
@@ -264,28 +291,20 @@ serve(async (req) => {
     </td></tr>
   </table>
 </body>
-</html>`
-      })
-    });
+</html>`,
+          }),
+        });
 
-    const brevoData = await brevoResponse.json();
-    if (!brevoResponse.ok) {
-      throw new Error(brevoData.message || brevoData.error || `HTTP ${brevoResponse.status}`);
+        if (brevoResponse.ok) {
+          emailSent = true;
+        } else {
+          const brevoData = await brevoResponse.json().catch(() => ({}));
+          emailErrorMessage = brevoData.message || `Brevo HTTP ${brevoResponse.status}`;
+        }
+      } catch (err: any) {
+        emailErrorMessage = err?.message || "Email dispatch failed";
+      }
     }
-
-    // 4. Set the role in user_roles
-    const { error: roleError } = await supabase.from("user_roles").upsert([{
-      user_id: inviteData.user.id,
-      role: role,
-      is_team_lead,
-      full_name: fullName,
-      email: normalizedEmail,
-      phone,
-      hospital_id,
-      access_status: "active",
-    }], { onConflict: "user_id" });
-
-    if (roleError) throw roleError;
 
     await safeAudit(supabase, "ADMIN_USER_INVITED", {
       function_name: "invite-user",
@@ -294,32 +313,38 @@ serve(async (req) => {
       role,
       phone,
       hospital_id,
-      invited_user_id: inviteData.user.id,
+      invited_user_id: targetUser.id,
+      email_sent: emailSent,
       timestamp: new Date().toISOString(),
     });
 
     return new Response(JSON.stringify({ 
       success: true, 
-      message: `Invitation sent to ${normalizedEmail}`,
-      user: inviteData.user 
+      email_sent: emailSent,
+      action_link: actionLink,
+      message: emailSent 
+        ? `Invitation sent successfully to ${normalizedEmail}`
+        : `User account created. Share this activation link: ${actionLink}`,
+      user: targetUser,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
 
   } catch (err) {
+    const errorMsg = toMessage(err);
     try {
       const supabase = getServiceClient();
       await safeAudit(supabase, "ADMIN_USERS_EDGE_FUNCTION_ERROR", {
         function_name: "invite-user",
         input_payload: { email: payload?.email, fullName: payload?.fullName, role: payload?.role },
         user_performing_action: adminUser?.id ?? null,
-        error_message: err instanceof Error ? err.message : "Invitation failed",
+        error_message: errorMsg,
         timestamp: new Date().toISOString(),
       }, "critical");
     } catch {
-      // Ignore audit write failures so the original error is returned.
+      // Ignore audit write failures
     }
-    return new Response(JSON.stringify({ error: true, message: err instanceof Error ? err.message : "Invitation failed" }), {
+    return new Response(JSON.stringify({ error: true, message: errorMsg }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }

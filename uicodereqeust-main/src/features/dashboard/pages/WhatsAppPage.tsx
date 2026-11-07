@@ -365,22 +365,24 @@ export default function WhatsAppPage() {
   return (
     <div className="space-y-3 max-w-full overflow-x-hidden pb-10 animate-in fade-in duration-500">
 
-      <div className="grid gap-2 md:grid-cols-3">
-        {whatsappSamples.map((sample) => (
-          <button
-            key={sample.title}
-            type="button"
-            onClick={() => {
-              setRawText(sample.body);
-              setParsedData(null);
-              toast({ title: "Sample loaded", description: "Select Extract request details to parse this message." });
-            }}
-            className="rounded-xl border border-emerald-100 bg-white p-3 text-left shadow-sm transition hover:border-emerald-300 hover:bg-emerald-50"
-          >
-            <p className="text-sm font-semibold normal-case text-emerald-800">{sample.title}</p>
-            <p className="mt-1 line-clamp-2 text-sm leading-5 text-slate-600">{sample.body}</p>
-          </button>
-        ))}
+      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-xs">
+        <span className="text-xs font-semibold text-slate-500">Quick Samples:</span>
+        <div className="flex flex-wrap items-center gap-1.5">
+          {whatsappSamples.map((sample) => (
+            <button
+              key={sample.title}
+              type="button"
+              onClick={() => {
+                setRawText(sample.body);
+                setParsedData(null);
+                toast({ title: `${sample.title} loaded`, description: "Click Extract details to parse." });
+              }}
+              className="inline-flex items-center rounded-lg border border-emerald-200 bg-emerald-50/70 px-2.5 py-1 text-xs font-semibold text-emerald-800 transition hover:bg-emerald-100 active:scale-95"
+            >
+              {sample.title}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className="grid lg:grid-cols-2 gap-4">

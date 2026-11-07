@@ -12,6 +12,9 @@ import {
   ShieldAlert,
   Trash2,
   XCircle,
+  Clock,
+  AlertTriangle,
+  Banknote,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -33,9 +36,9 @@ const money = (value: number) =>
 
 const statusPill = (status?: string | null) => {
   const normalized = String(status || "pending").toLowerCase();
-  if (["approved", "complete"].includes(normalized)) return "border-emerald-400 bg-emerald-50 text-lime-500";
-  if (["rejected", "failed"].includes(normalized)) return "border-red-300 bg-red-50 text-red-700";
-  return "border-amber-500 bg-amber-50 text-amber-800";
+  if (["approved", "complete"].includes(normalized)) return "border-emerald-300 bg-emerald-50 text-emerald-700 font-semibold";
+  if (["rejected", "failed"].includes(normalized)) return "border-rose-300 bg-rose-50 text-rose-700 font-semibold";
+  return "border-amber-300 bg-amber-50 text-amber-800 font-semibold";
 };
 
 export default function DeleteRequestsPage() {
@@ -43,7 +46,7 @@ export default function DeleteRequestsPage() {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<"queue" | "archive">("queue");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [visibleCount, setVisibleCount] = useState(10);
+  const [visibleCount, setVisibleCount] = useState(15);
   const [actioningId, setActioningId] = useState<string | null>(null);
   const [confirmDeleteTarget, setConfirmDeleteTarget] = useState<any | null>(null);
   const { data: rows = [], isLoading: loading, refetch: refreshQueue } = useDeleteQueue();
@@ -57,6 +60,9 @@ export default function DeleteRequestsPage() {
     try {
       await resolveDelete({ id: row.id, action: "approved" });
       setConfirmDeleteTarget(null);
+      toast({ title: "Deletion Approved", description: "The authorization record has been pruned." });
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Action Failed", description: err.message || "Failed to approve deletion." });
     } finally {
       setActioningId(null);
     }
@@ -66,6 +72,9 @@ export default function DeleteRequestsPage() {
     setActioningId(row.id);
     try {
       await resolveDelete({ id: row.id, action: "rejected" });
+      toast({ title: "Deletion Rejected", description: "The request has been rejected." });
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Action Failed", description: err.message || "Failed to reject deletion." });
     } finally {
       setActioningId(null);
     }
@@ -86,87 +95,144 @@ export default function DeleteRequestsPage() {
 
   if (role !== "admin" && role !== "utilization_manager_lead") {
     return (
-      <div className="flex h-[400px] flex-col items-center justify-center space-y-4">
-        <ShieldAlert className="h-12 w-12 text-rose-500" />
-        <h2 className="text-xl font-bold text-slate-800">Access Denied</h2>
-        <p className="text-sm text-slate-500">You do not have permission to view deletion requests.</p>
+      <div className="flex h-[360px] flex-col items-center justify-center space-y-3">
+        <ShieldAlert className="h-10 w-10 text-rose-500" />
+        <h2 className="text-lg font-bold text-slate-800">Access Denied</h2>
+        <p className="text-xs text-slate-500">Only Admins and the Utilization Manager Lead can review deletion requests.</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-4 pb-12 animate-in fade-in duration-500">
-      <div className="pb-3 border-b border-slate-200">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
-          <div className="inline-flex h-9 items-center gap-1 rounded-lg bg-slate-100 p-1">
-            <button onClick={() => setActiveTab("queue")} className={cn("rounded-md px-3 py-1 text-xs font-semibold transition-all", activeTab === "queue" ? "bg-slate-900 text-white shadow-sm" : "text-slate-600 hover:bg-slate-200/70")}>
-              Queue {loading ? (
-                <Loader2 className="inline-block h-3 w-3 animate-spin ml-1 text-current" />
-              ) : (
-                `(${rows.length})`
-              )}
-            </button>
-            <button onClick={() => setActiveTab("archive")} className={cn("inline-flex items-center gap-1.5 rounded-md px-3 py-1 text-xs font-semibold transition-all", activeTab === "archive" ? "bg-slate-900 text-white shadow-sm" : "text-slate-600 hover:bg-slate-200/70")}><Archive className="h-3.5 w-3.5" /> Archive</button>
+    <div className="space-y-3 pb-8 animate-in fade-in duration-300">
+      {/* Top Header Strip: Compact Metrics + Queue/Archive Switch */}
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between rounded-xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm">
+        <div className="flex flex-wrap items-center gap-2 text-xs">
+          <div className="flex items-center gap-1.5 rounded-lg bg-slate-50 border border-slate-200/80 px-2.5 py-1">
+            <Clock className="h-3.5 w-3.5 text-slate-500" />
+            <span className="text-slate-500 font-medium">Pending:</span>
+            <span className="font-bold text-slate-900">{stats.totalCount}</span>
           </div>
+          <div className="flex items-center gap-1.5 rounded-lg bg-amber-50 border border-amber-200/80 px-2.5 py-1">
+            <AlertTriangle className="h-3.5 w-3.5 text-amber-600" />
+            <span className="text-amber-700 font-medium">Urgent:</span>
+            <span className="font-bold text-amber-900">{stats.urgentCount}</span>
+          </div>
+          <div className="flex items-center gap-1.5 rounded-lg bg-emerald-50 border border-emerald-200/80 px-2.5 py-1">
+            <Banknote className="h-3.5 w-3.5 text-emerald-600" />
+            <span className="text-emerald-700 font-medium">Ledger Risk:</span>
+            <span className="font-bold font-mono text-emerald-900">{money(stats.valueAtRisk)}</span>
+          </div>
+        </div>
+
+        <div className="inline-flex h-8 items-center gap-1 rounded-lg bg-slate-100 p-0.5 self-end sm:self-auto">
+          <button 
+            onClick={() => setActiveTab("queue")} 
+            className={cn("rounded-md px-3 py-1 text-xs font-bold transition-all", activeTab === "queue" ? "bg-slate-900 text-white shadow-sm" : "text-slate-600 hover:bg-slate-200/70")}
+          >
+            Queue ({rows.length})
+          </button>
+          <button 
+            onClick={() => setActiveTab("archive")} 
+            className={cn("inline-flex items-center gap-1 rounded-md px-3 py-1 text-xs font-bold transition-all", activeTab === "archive" ? "bg-slate-900 text-white shadow-sm" : "text-slate-600 hover:bg-slate-200/70")}
+          >
+            <Archive className="h-3 w-3" /> Archive
+          </button>
         </div>
       </div>
 
       {activeTab === "queue" && (
         <>
-          <div className="grid grid-cols-3 gap-1.5 sm:gap-3">
-            {([
-              ["Pending Purges", stats.totalCount],
-              ["High Urgency", stats.urgentCount],
-              ["Claims Ledger Risk", money(stats.valueAtRisk)],
-            ] as [string, any][]).map(([label, value]) => (
-              <div key={label} className="flex min-w-0 flex-col justify-center rounded-lg border border-slate-200 bg-white p-2 text-left sm:p-4" title={label}>
-                <p className="mb-1 text-[11px] font-medium leading-tight text-slate-600 sm:text-xs">{label as string}</p>
-                <p className="text-sm sm:text-lg font-extrabold tabular-nums leading-none truncate text-slate-900 mt-0.5">
-                  {value as any}
-                </p>
-              </div>
-            ))}
-          </div>
-
-          <div className="med-card p-3">
-            <div className="flex flex-wrap gap-2">
+          {/* Status Filter Toolbar */}
+          <div className="flex items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm">
+            <div className="flex flex-wrap items-center gap-1.5">
               {["all", "pending", "approved", "rejected"].map((filter) => (
-                <button key={filter} onClick={() => setStatusFilter(filter)} className={cn("rounded-lg px-3 py-1.5 text-sm font-medium capitalize transition", statusFilter === filter ? "bg-lime-500 text-white" : "bg-slate-50 text-slate-600 hover:bg-slate-100")}>{filter}</button>
+                <button
+                  key={filter}
+                  onClick={() => setStatusFilter(filter)}
+                  className={cn(
+                    "rounded-md px-2.5 py-1 text-xs font-semibold capitalize transition-colors",
+                    statusFilter === filter
+                      ? "bg-slate-900 text-white shadow-xs"
+                      : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                  )}
+                >
+                  {filter}
+                </button>
               ))}
+            </div>
+            <div className="text-[11px] font-medium text-slate-400">
+              Showing {visibleRows.length} of {filteredRows.length} requests
             </div>
           </div>
 
-          <div className="med-card overflow-hidden">
+          {/* Compact Table */}
+          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[980px] text-left">
-                <thead className="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
+              <table className="w-full min-w-[860px] text-left text-xs">
+                <thead className="bg-slate-50 text-[11px] font-bold uppercase tracking-wider text-slate-500 border-b border-slate-200">
                   <tr>
-                    <th className="px-4 py-3">Request ID</th>
-                    <th className="px-4 py-3">Patient</th>
-                    <th className="px-4 py-3">Requested By</th>
-                    <th className="px-4 py-3">Date</th>
-                    <th className="px-4 py-3">Reason</th>
-                    <th className="px-4 py-3">Status</th>
-                    <th className="px-4 py-3 text-right">Actions</th>
+                    <th className="px-3 py-2.5">Request ID</th>
+                    <th className="px-3 py-2.5">Patient</th>
+                    <th className="px-3 py-2.5">Requested By</th>
+                    <th className="px-3 py-2.5">Date</th>
+                    <th className="px-3 py-2.5">Reason</th>
+                    <th className="px-3 py-2.5">Status</th>
+                    <th className="px-3 py-2.5 text-right">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-200 text-sm">
+                <tbody className="divide-y divide-slate-100 text-slate-700">
                   {loading ? (
-                    <tr><td colSpan={7} className="px-4 py-12 text-center text-slate-500"><Loader2 className="mx-auto mb-3 h-6 w-6 animate-spin text-red-500" /> Loading delete requests...</td></tr>
+                    <tr>
+                      <td colSpan={7} className="px-3 py-10 text-center text-slate-500">
+                        <Loader2 className="mx-auto mb-2 h-5 w-5 animate-spin text-slate-400" />
+                        <span className="text-xs font-medium">Loading deletion requests...</span>
+                      </td>
+                    </tr>
                   ) : visibleRows.length === 0 ? (
-                    <tr><td colSpan={7} className="px-4 py-12 text-center text-slate-500"><FileCheck className="mx-auto mb-3 h-7 w-7 text-slate-300" /> No pending deletion requests.</td></tr>
+                    <tr>
+                      <td colSpan={7} className="px-3 py-10 text-center text-slate-400">
+                        <FileCheck className="mx-auto mb-2 h-6 w-6 text-slate-300" />
+                        <span className="text-xs font-medium">No pending deletion requests.</span>
+                      </td>
+                    </tr>
                   ) : visibleRows.map((row) => (
-                    <tr key={row.id} className="h-12 transition hover:bg-slate-50">
-                      <td className="px-4 py-3 font-mono text-xs text-slate-700">{row.request_id || row.id}</td>
-                      <td className="px-4 py-3 font-medium text-slate-800">{row.patient_name || "Unknown patient"}</td>
-                      <td className="px-4 py-3 text-slate-600">{row.deletion_requested_by_name || row.hospital_name || "Unknown"}</td>
-                      <td className="px-4 py-3 text-slate-600">{row.deletion_requested_at ? new Date(row.deletion_requested_at).toLocaleDateString("en-GB") : row.created_at ? new Date(row.created_at).toLocaleDateString("en-GB") : "Recently"}</td>
-                      <td className="max-w-[260px] truncate px-4 py-3 text-slate-600">{row.deletion_reason || "No reason specified"}</td>
-                      <td className="px-4 py-3"><span className={cn("med-status-pill", statusPill(row.deletion_status || row.status))}>{row.deletion_status || row.status || "pending"}</span></td>
-                      <td className="px-4 py-3">
-                        <div className="flex justify-end gap-2">
-                          <Button onClick={() => rejectDelete(row)} disabled={actioningId === row.id} variant="outline" className="h-8 rounded-lg px-3 text-sm">{actioningId === row.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4" />} Reject</Button>
-                          <Button onClick={() => setConfirmDeleteTarget(row)} disabled={actioningId === row.id} className="h-8 rounded-lg bg-red-500 px-3 text-sm text-white hover:bg-red-700"><Trash2 className="h-4 w-4" /> Approve</Button>
+                    <tr key={row.id} className="transition-colors hover:bg-slate-50/70">
+                      <td className="px-3 py-2 font-mono text-[11px] text-slate-800">{row.request_id || row.id}</td>
+                      <td className="px-3 py-2 font-semibold text-slate-900">{row.patient_name || "Unknown patient"}</td>
+                      <td className="px-3 py-2 text-slate-600">{row.deletion_requested_by_name || row.hospital_name || "Unknown"}</td>
+                      <td className="px-3 py-2 text-slate-500 whitespace-nowrap">
+                        {row.deletion_requested_at 
+                          ? new Date(row.deletion_requested_at).toLocaleDateString("en-GB") 
+                          : row.created_at ? new Date(row.created_at).toLocaleDateString("en-GB") : "Recently"}
+                      </td>
+                      <td className="max-w-[240px] truncate px-3 py-2 text-slate-600" title={row.deletion_reason}>
+                        {row.deletion_reason || "No reason specified"}
+                      </td>
+                      <td className="px-3 py-2 whitespace-nowrap">
+                        <span className={cn("inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-wide", statusPill(row.deletion_status || row.status))}>
+                          {row.deletion_status || row.status || "pending"}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2 text-right whitespace-nowrap">
+                        <div className="flex justify-end gap-1.5">
+                          <Button 
+                            onClick={() => rejectDelete(row)} 
+                            disabled={actioningId === row.id} 
+                            variant="outline" 
+                            size="sm"
+                            className="h-7 rounded-md px-2 text-xs"
+                          >
+                            {actioningId === row.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <XCircle className="h-3 w-3 mr-1 text-rose-500" />} Reject
+                          </Button>
+                          <Button 
+                            onClick={() => setConfirmDeleteTarget(row)} 
+                            disabled={actioningId === row.id} 
+                            size="sm"
+                            className="h-7 rounded-md bg-rose-600 px-2 text-xs text-white hover:bg-rose-700"
+                          >
+                            <Trash2 className="h-3 w-3 mr-1" /> Approve
+                          </Button>
                         </div>
                       </td>
                     </tr>
@@ -177,40 +243,54 @@ export default function DeleteRequestsPage() {
           </div>
 
           {filteredRows.length > visibleRows.length && (
-            <div className="flex justify-center">
-              <Button variant="outline" onClick={() => setVisibleCount((current) => current + 10)} className="rounded-lg">Load More</Button>
+            <div className="flex justify-center pt-1">
+              <Button variant="outline" size="sm" onClick={() => setVisibleCount((current) => current + 15)} className="h-8 rounded-lg text-xs font-semibold">
+                Load More Requests
+              </Button>
             </div>
           )}
         </>
       )}
 
       {activeTab === "archive" && (
-        <div className="med-card overflow-hidden">
+        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[760px] text-left">
-              <thead className="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
+            <table className="w-full min-w-[720px] text-left text-xs">
+              <thead className="bg-slate-50 text-[11px] font-bold uppercase tracking-wider text-slate-500 border-b border-slate-200">
                 <tr>
-                  <th className="px-4 py-3">Original ID</th>
-                  <th className="px-4 py-3">Patient</th>
-                  <th className="px-4 py-3">Hospital</th>
-                  <th className="px-4 py-3">Pruned On</th>
-                  <th className="px-4 py-3">Reason</th>
-                  <th className="px-4 py-3">Claims</th>
+                  <th className="px-3 py-2.5">Original ID</th>
+                  <th className="px-3 py-2.5">Patient</th>
+                  <th className="px-3 py-2.5">Hospital</th>
+                  <th className="px-3 py-2.5">Pruned On</th>
+                  <th className="px-3 py-2.5">Reason</th>
+                  <th className="px-3 py-2.5">Claims</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-200 text-sm">
+              <tbody className="divide-y divide-slate-100 text-slate-700">
                 {loadingArchive ? (
-                  <tr><td colSpan={6} className="px-4 py-12 text-center text-slate-500"><Loader2 className="mx-auto mb-3 h-6 w-6 animate-spin" /> Loading archive...</td></tr>
+                  <tr>
+                    <td colSpan={6} className="px-3 py-10 text-center text-slate-500">
+                      <Loader2 className="mx-auto mb-2 h-5 w-5 animate-spin text-slate-400" />
+                      <span className="text-xs font-medium">Loading archive...</span>
+                    </td>
+                  </tr>
                 ) : archiveRows.length === 0 ? (
-                  <tr><td colSpan={6} className="px-4 py-12 text-center text-slate-500">No authorization requests have been deleted yet.</td></tr>
+                  <tr>
+                    <td colSpan={6} className="px-3 py-10 text-center text-slate-400">
+                      No authorization requests have been deleted yet.
+                    </td>
+                  </tr>
                 ) : archiveRows.map((archive) => (
-                  <tr key={archive.id} className="h-12">
-                    <td className="px-4 py-3 font-mono text-xs">{archive.original_request_id || archive.authorization_code || archive.id}</td>
-                    <td className="px-4 py-3 font-medium text-slate-500 line-through">{archive.patient_name}</td>
-                    <td className="px-4 py-3">{archive.hospital_name || "Unknown"}</td>
-                    <td className="px-4 py-3"><Calendar className="mr-1 inline h-4 w-4 text-slate-400" /> {archive.deleted_at ? new Date(archive.deleted_at).toLocaleDateString("en-GB") : "Recently"}</td>
-                    <td className="max-w-[320px] truncate px-4 py-3 text-slate-600">{archive.deletion_reason || "No reason specified"}</td>
-                    <td className="px-4 py-3">{archive.deleted_claims_count || 0}</td>
+                  <tr key={archive.id} className="transition-colors hover:bg-slate-50/70">
+                    <td className="px-3 py-2 font-mono text-[11px] text-slate-800">{archive.original_request_id || archive.authorization_code || archive.id}</td>
+                    <td className="px-3 py-2 font-medium text-slate-500 line-through">{archive.patient_name}</td>
+                    <td className="px-3 py-2">{archive.hospital_name || "Unknown"}</td>
+                    <td className="px-3 py-2 whitespace-nowrap">
+                      <Calendar className="mr-1 inline h-3 w-3 text-slate-400" /> 
+                      {archive.deleted_at ? new Date(archive.deleted_at).toLocaleDateString("en-GB") : "Recently"}
+                    </td>
+                    <td className="max-w-[300px] truncate px-3 py-2 text-slate-600" title={archive.deletion_reason}>{archive.deletion_reason || "No reason specified"}</td>
+                    <td className="px-3 py-2 font-mono">{archive.deleted_claims_count || 0}</td>
                   </tr>
                 ))}
               </tbody>
@@ -220,22 +300,26 @@ export default function DeleteRequestsPage() {
       )}
 
       <Dialog open={confirmDeleteTarget !== null} onOpenChange={(open) => !open && setConfirmDeleteTarget(null)}>
-        <DialogContent className="max-w-md rounded-xl bg-white p-6 shadow-2xl">
+        <DialogContent className="max-w-md rounded-xl bg-white p-5 shadow-2xl">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-lg font-semibold text-red-700"><ShieldAlert className="h-5 w-5" /> Ledger Deletion Authorization</DialogTitle>
-            <DialogDescription>This permanently removes the active clinical record and related claims from operational ledgers.</DialogDescription>
+            <DialogTitle className="flex items-center gap-2 text-base font-bold text-rose-700">
+              <ShieldAlert className="h-5 w-5 shrink-0" /> Ledger Deletion Authorization
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              This permanently removes the active clinical record and related claims from operational ledgers.
+            </DialogDescription>
           </DialogHeader>
           {confirmDeleteTarget && (
-            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm">
-              <div className="flex justify-between gap-3"><span className="text-slate-500">Patient</span><span className="font-semibold">{confirmDeleteTarget.patient_name}</span></div>
-              <div className="mt-2 flex justify-between gap-3"><span className="text-slate-500">Auth Code</span><span className="font-mono font-semibold">{confirmDeleteTarget.authorization_code || confirmDeleteTarget.request_id}</span></div>
-              <div className="mt-2 flex justify-between gap-3"><span className="text-slate-500">Approved Value</span><span className="font-semibold text-lime-500">{money(confirmDeleteTarget.total_amount || 0)}</span></div>
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs space-y-1.5">
+              <div className="flex justify-between gap-2"><span className="text-slate-500">Patient:</span><span className="font-semibold text-slate-900">{confirmDeleteTarget.patient_name}</span></div>
+              <div className="flex justify-between gap-2"><span className="text-slate-500">Auth Code:</span><span className="font-mono font-semibold text-slate-800">{confirmDeleteTarget.authorization_code || confirmDeleteTarget.request_id}</span></div>
+              <div className="flex justify-between gap-2"><span className="text-slate-500">Approved Value:</span><span className="font-semibold font-mono text-emerald-700">{money(confirmDeleteTarget.total_amount || 0)}</span></div>
             </div>
           )}
-          <DialogFooter className="gap-2">
-            <Button onClick={() => setConfirmDeleteTarget(null)} variant="outline" className="rounded-lg">Cancel</Button>
-            <Button onClick={() => approveDelete(confirmDeleteTarget)} disabled={actioningId !== null} className="rounded-lg bg-red-500 text-white hover:bg-red-700">
-              {actioningId !== null ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+          <DialogFooter className="gap-2 pt-2">
+            <Button onClick={() => setConfirmDeleteTarget(null)} variant="outline" size="sm" className="h-8 rounded-lg text-xs">Cancel</Button>
+            <Button onClick={() => approveDelete(confirmDeleteTarget)} disabled={actioningId !== null} size="sm" className="h-8 rounded-lg bg-rose-600 text-white hover:bg-rose-700 text-xs font-semibold">
+              {actioningId !== null ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <CheckCircle2 className="h-3.5 w-3.5 mr-1" />}
               Authorize Deletion
             </Button>
           </DialogFooter>
