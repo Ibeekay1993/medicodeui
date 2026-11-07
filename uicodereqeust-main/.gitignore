@@ -52,6 +52,8 @@ lint_output.txt
 # Clean & Secure
 *.txt
 !.github/**/*.txt
+!docs/archive/legacy-meta-firebase/*.txt
+!docs/archive/legacy-maintenance/*.txt
 tsc_*.txt
 ts_errors*.txt
 scratch_*.sql

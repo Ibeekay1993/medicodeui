@@ -8,6 +8,7 @@ const SUPABASE_URL = process.env.SUPABASE_URL?.trim();
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
 const DEMO_USER_PASSWORD = process.env.DEMO_USER_PASSWORD;
 const ALLOW_DEMO_USER_SETUP = process.env.ALLOW_DEMO_USER_SETUP === "true";
+const SUPABASE_ENVIRONMENT = process.env.SUPABASE_ENVIRONMENT?.trim().toLowerCase();
 
 if (!ALLOW_DEMO_USER_SETUP) {
   throw new Error("Refusing to create demo accounts. Set ALLOW_DEMO_USER_SETUP=true only for an isolated non-production environment.");
@@ -15,8 +16,25 @@ if (!ALLOW_DEMO_USER_SETUP) {
 if (!SUPABASE_URL || !SERVICE_ROLE_KEY || !DEMO_USER_PASSWORD || DEMO_USER_PASSWORD.length < 16) {
   throw new Error("Set SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY and a DEMO_USER_PASSWORD of at least 16 characters.");
 }
-if (!/^https:\/\//i.test(SUPABASE_URL)) {
-  throw new Error("SUPABASE_URL must use HTTPS.");
+if (!["development", "test", "staging"].includes(SUPABASE_ENVIRONMENT || "")) {
+  throw new Error("Set SUPABASE_ENVIRONMENT to development, test or staging before creating demo users.");
+}
+
+let targetUrl;
+try {
+  targetUrl = new URL(SUPABASE_URL);
+} catch {
+  throw new Error("SUPABASE_URL must be a valid HTTPS URL.");
+}
+const isLocalTarget = ["localhost", "127.0.0.1", "[::1]"].includes(targetUrl.hostname);
+if (targetUrl.protocol !== "https:" && !(isLocalTarget && targetUrl.protocol === "http:")) {
+  throw new Error("SUPABASE_URL must use HTTPS except for a local development instance.");
+}
+if (
+  targetUrl.hostname === "api.ronsbergerhmo.io" ||
+  targetUrl.hostname.endsWith(".supabase.co")
+) {
+  throw new Error("Refusing to create demo users on a production or retired managed Supabase endpoint.");
 }
 
 const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {

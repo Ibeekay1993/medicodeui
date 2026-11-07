@@ -14,6 +14,7 @@
 // today. It is server-side only. Callers authenticate with either:
 //   - `X-Api-Key: $INTERNAL_API_KEY`     (recommended for service-to-service)
 //   - `X-Worker-Secret: $WHATSAPP_WORKER_SECRET`  (legacy)
+//   - `Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY` (trusted Edge Functions)
 //
 // Body:
 //   {
@@ -41,6 +42,7 @@ const EVOLUTION_API_KEY = Deno.env.get("EVOLUTION_API_KEY") || "";
 const EVOLUTION_INSTANCE_NAME = Deno.env.get("EVOLUTION_INSTANCE_NAME") || "medicode-test";
 const INTERNAL_API_KEY = Deno.env.get("INTERNAL_API_KEY") || "";
 const WHATSAPP_WORKER_SECRET = Deno.env.get("WHATSAPP_WORKER_SECRET") || "";
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
 // Keep staff-initiated sends fail-closed until outbound is explicitly resumed.
 const WHATSAPP_OUTBOUND_PAUSED = Deno.env.get("WHATSAPP_OUTBOUND_PAUSED") === "true";
 // Hard cap on outbound text size. WhatsApp itself truncates around 65k chars.
@@ -71,18 +73,20 @@ function constantTimeEqual(a: string, b: string): boolean {
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return bad(405, "method_not_allowed");
-  if (WHATSAPP_OUTBOUND_PAUSED) return bad(503, "whatsapp_outbound_paused");
   // ── 1) Authenticate ────────────────────────────────────────────────────
   // Authenticate by:
-  // A) Server-to-server credentials (X-Api-Key / X-Worker-Secret)
+  // A) Server-to-server credentials (X-Api-Key / X-Worker-Secret / service role)
   // B) Authenticated HMO staff JWT (utilization_manager, admin, doctor, claims)
   const apiKey = req.headers.get("x-api-key") || "";
   const workerSecret = req.headers.get("x-worker-secret") || "";
+  const bearerToken = (req.headers.get("authorization") || "").replace(/^Bearer\s+/i, "");
 
   const authedByApiKey = !!INTERNAL_API_KEY && constantTimeEqual(apiKey, INTERNAL_API_KEY);
   const authedByWorkerSecret = !!WHATSAPP_WORKER_SECRET && constantTimeEqual(workerSecret, WHATSAPP_WORKER_SECRET);
+  const authedByServiceRole = !!SUPABASE_SERVICE_ROLE_KEY && constantTimeEqual(bearerToken, SUPABASE_SERVICE_ROLE_KEY);
 
-  let isAuthorized = authedByApiKey || authedByWorkerSecret;
+  const isServerAuthenticated = authedByApiKey || authedByWorkerSecret || authedByServiceRole;
+  let isAuthorized = isServerAuthenticated;
   if (!isAuthorized && req.headers.get("Authorization")) {
     try {
       await validateUser(req, ["utilization_manager", "utilization_manager_lead", "admin", "claims", "doctor", "nurse", "medical_officer"]);
@@ -95,6 +99,9 @@ serve(async (req) => {
   if (!isAuthorized) {
     return bad(401, "unauthorized");
   }
+  // Keep staff-started sends paused while allowing trusted internal notices
+  // (such as the approval Arrival PIN) to use the same Evolution transport.
+  if (WHATSAPP_OUTBOUND_PAUSED && !isServerAuthenticated) return bad(503, "whatsapp_outbound_paused");
 
   // ── 2) Validate body ───────────────────────────────────────────────────
   let body: any;

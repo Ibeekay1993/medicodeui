@@ -1,13 +1,22 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { buildArrivalOtpPayload } from "../_shared/arrival-otp-message.ts";
 
-export const corsHeaders = {
+const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const WASENDER_API_URL = Deno.env.get("WASENDER_API_URL") || "https://wasenderapi.com/api/send-message";
-const WASENDER_API_KEY = Deno.env.get("WASENDER_API_KEY") || "";
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+const SEND_TIMEOUT_MS = 12_000;
+
+function jsonResponse(body: Record<string, unknown>, status: number): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
 
 function constantTimeEqual(a: string, b: string): boolean {
   let difference = a.length ^ b.length;
@@ -18,133 +27,73 @@ function constantTimeEqual(a: string, b: string): boolean {
 }
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
-  }
+  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  if (req.method !== "POST") return jsonResponse({ error: "Method not allowed" }, 405);
 
-  if (req.method !== "POST") {
-    return new Response(JSON.stringify({ error: "Method not allowed" }), {
-      status: 405,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  }
-
-  // This endpoint sends a patient PIN and is only called from the trusted
-  // send-approval-email Edge Function using its service-role client. Requiring
-  // that credential prevents any signed-in user from messaging arbitrary
-  // phone numbers or choosing an OTP themselves.
-  const expectedServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+  // This function is called by send-approval-email with its service-role
+  // client. Do not allow a signed-in user to choose arbitrary recipients or PINs.
+  const expectedKey = SUPABASE_SERVICE_ROLE_KEY;
   const bearerToken = (req.headers.get("authorization") || "").replace(/^Bearer\s+/i, "");
-  if (!expectedServiceKey || !constantTimeEqual(bearerToken, expectedServiceKey)) {
-    return new Response(JSON.stringify({ error: "Unauthorized" }), {
-      status: 401,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+  if (!expectedKey || !constantTimeEqual(bearerToken, expectedKey)) {
+    return jsonResponse({ error: "Unauthorized" }, 401);
   }
 
+  if (!SUPABASE_URL) return jsonResponse({ error: "WhatsApp sender is not configured" }, 503);
+
+  let body: Record<string, unknown>;
   try {
-    const { phone_number, otp_code, hospital_name, patient_name, diagnosis, items } = await req.json();
-
-    if (!phone_number || !otp_code) {
-      return new Response(JSON.stringify({ error: "Missing required parameters" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    const parsed: unknown = await req.json();
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return jsonResponse({ error: "Invalid request body" }, 400);
     }
+    body = parsed as Record<string, unknown>;
+  } catch {
+    return jsonResponse({ error: "Invalid JSON" }, 400);
+  }
 
-    if (!WASENDER_API_KEY) {
-      console.warn("WASender API key not configured. Skipping WhatsApp send.");
-      return new Response(JSON.stringify({ success: false, message: "WhatsApp credentials missing" }), {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" }
-      });
-    }
+  const payload = buildArrivalOtpPayload(body);
+  if (!payload) return jsonResponse({ error: "Invalid phone number, PIN, or message size" }, 400);
 
-    // Format phone number to WhatsApp international format (with + symbol for WASender)
-    const cleanNumber = phone_number.replace(/\D/g, "");
-    let formattedNumber = cleanNumber;
-    
-    // If it's a Nigerian 11-digit number starting with 0 (e.g. 080...), replace 0 with 234
-    if (cleanNumber.length === 11 && cleanNumber.startsWith("0")) {
-      formattedNumber = "+234" + cleanNumber.substring(1);
-    } 
-    // If it's 10 digits (missing the leading 0), prepend +234
-    else if (cleanNumber.length === 10) {
-      formattedNumber = "+234" + cleanNumber;
-    } else {
-      // WASender usually prefers a + at the start
-      formattedNumber = "+" + cleanNumber;
-    }
-
-    console.log(`Sending WASender WhatsApp message to ${formattedNumber}...`);
-
-    const pName = patient_name ? patient_name.trim() : "Patient";
-    const hName = hospital_name || "the hospital";
-    const diag = diagnosis ? `\n*Diagnosis:* ${diagnosis}` : "";
-    
-    let itemsText = "";
-    if (items && Array.isArray(items) && items.length > 0) {
-      itemsText = "\n\n*Requested Services:*\n" + items.map((item: Record<string, unknown>) => {
-        const qty = item.quantity || 1;
-        const name = item.name || "Service";
-        if (item.declined) {
-          return `~${qty}x ${name}~ (Rejected)`;
-        }
-        return `✅ ${qty}x ${name}`;
-      }).join("\n");
-    }
-
-    const messageText = `Hello ${pName}!\n\nA new authorization request has been approved for you at ${hName}.${diag}${itemsText}\n\nYour Arrival PIN is: *${otp_code}*\n\nThank you,\n*Ronsberger HMO*`;
-
-    const wasenderPayload = {
-      to: formattedNumber,
-      text: messageText
-    };
-
-    const response = await fetch(WASENDER_API_URL, {
+  const senderUrl = `${SUPABASE_URL.replace(/\/$/, "")}/functions/v1/send-whatsapp`;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), SEND_TIMEOUT_MS);
+  try {
+    const response = await fetch(senderUrl, {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${WASENDER_API_KEY}`,
+        Authorization: `Bearer ${expectedKey}`,
+        apikey: expectedKey,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(wasenderPayload),
+      body: JSON.stringify(payload),
+      signal: controller.signal,
     });
 
-    // WASender might not return standard JSON, so we handle safely
-    const responseText = await response.text();
-    let result;
+    let senderResult: Record<string, unknown> = {};
     try {
-      result = JSON.parse(responseText);
+      const result: unknown = await response.json();
+      if (result && typeof result === "object" && !Array.isArray(result)) {
+        senderResult = result as Record<string, unknown>;
+      }
     } catch {
-      result = { raw: responseText };
+      // The sender's status code remains authoritative if its response is not JSON.
     }
 
-    if (!response.ok) {
-      console.error("WASender API Error:", result);
-      return new Response(
-        JSON.stringify({
-          error: "Failed to send WhatsApp message via WASender API",
-          details: result,
-        }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    if (!response.ok || senderResult.success !== true) {
+      console.error("Arrival PIN WhatsApp send failed", { status: response.status });
+      return jsonResponse({ error: "WhatsApp send failed" }, 502);
     }
 
-    console.log("WASender WhatsApp message sent successfully.");
-
-    return new Response(
-      JSON.stringify({
-        success: true,
-        message: "WhatsApp message delivered via WASender API",
-        method: "whatsapp"
-      }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
-  } catch (error: unknown) {
-    console.error("Internal Function Error:", error);
-    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : String(error) }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return jsonResponse({
+      success: true,
+      method: "whatsapp",
+      message_id: typeof senderResult.message_id === "string" ? senderResult.message_id : null,
+    }, 200);
+  } catch (error) {
+    const timedOut = error instanceof DOMException && error.name === "AbortError";
+    console.error("Arrival PIN WhatsApp sender unavailable", { timed_out: timedOut });
+    return jsonResponse({ error: timedOut ? "WhatsApp send timed out" : "WhatsApp sender unavailable" }, 502);
+  } finally {
+    clearTimeout(timeout);
   }
 });
