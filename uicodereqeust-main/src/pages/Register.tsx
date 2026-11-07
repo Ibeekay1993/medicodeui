@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { createClient } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
@@ -7,7 +7,20 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, User, Lock, Building2, ShieldAlert, CheckCircle2, Eye, EyeOff } from "lucide-react";
+import {
+  Loader2,
+  User,
+  Lock,
+  Building2,
+  ShieldAlert,
+  CheckCircle2,
+  Eye,
+  EyeOff,
+  RefreshCw,
+  Mail,
+  ArrowRight,
+  Info,
+} from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 
 // ---------------------------------------------------------------------------
@@ -64,98 +77,145 @@ export default function Register() {
   const navigate = useNavigate();
 
   // ---------------------------------------------------------------------------
-  // On mount: validate token, clear old session, verify invitation status.
+  // Validate token from all entry points (query params, hash, PKCE, OTP, active session)
   // ---------------------------------------------------------------------------
-  useEffect(() => {
-    const hash = window.location.hash || "";
-    const params = new URLSearchParams(hash.startsWith("#") ? hash.slice(1) : hash);
-    const accessToken = params.get("access_token") || "";
-    const refreshToken = params.get("refresh_token") || "";
+  const validateAndPrepare = useCallback(async () => {
+    setSessionResolving(true);
+    setInviteError(null);
 
-    if (!accessToken || !refreshToken) {
-      setInviteError(
-        "Registration session expired or link is missing. Please reopen your invitation email and click the invitation link again."
-      );
-      setSessionResolving(false);
-      return;
-    }
+    try {
+      const searchParams = new URLSearchParams(window.location.search);
+      const hash = window.location.hash || "";
+      const hashParams = new URLSearchParams(hash.startsWith("#") ? hash.slice(1) : hash);
 
-    // Immediately clear URL hash to prevent token leakage/reuse on refresh
-    window.history.replaceState(null, "", window.location.pathname);
+      let accessToken = hashParams.get("access_token") || searchParams.get("access_token") || "";
+      let refreshToken = hashParams.get("refresh_token") || searchParams.get("refresh_token") || "";
 
-    const validateAndPrepare = async () => {
-      try {
-        await supabase.auth.signOut({ scope: "local" }).catch(() => {});
-
-        if (isJwtExpired(accessToken)) {
-          setInviteError(
-            "This invitation link has expired. Please contact your administrator to resend the invitation."
-          );
-          setSessionResolving(false);
-          return;
-        }
-
-        const { data: userData, error: userError } = await supabase.auth.getUser(accessToken);
-        if (userError || !userData?.user) {
-          setInviteError(
-            "This invitation link is invalid or has expired. Please contact your administrator for a new invitation."
-          );
-          setSessionResolving(false);
-          return;
-        }
-
-        const userId = userData.user.id;
-        const userEmail = userData.user.email || null;
-
-        const inviteClient = createClient(
-          import.meta.env.VITE_SUPABASE_URL,
-          import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-          {
-            auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
-            global: { headers: { Authorization: `Bearer ${accessToken}` } },
+      // 1. Check for PKCE authorization code (?code=...)
+      const code = searchParams.get("code");
+      if (!accessToken && code) {
+        try {
+          const { data: codeData, error: codeError } = await supabase.auth.exchangeCodeForSession(code);
+          if (!codeError && codeData?.session) {
+            accessToken = codeData.session.access_token;
+            refreshToken = codeData.session.refresh_token;
           }
-        );
-        const { data: inviteStatusData, error: statusError } = await (inviteClient as any).rpc("check_invite_status", {
-          p_user_id: userId,
-        });
-
-        const inviteRows = inviteStatusData as any[] | null;
-
-        if (statusError || !inviteRows || inviteRows.length === 0) {
-          setInviteError(
-            "This invitation link is invalid or has expired. Please contact your administrator for a new invitation."
-          );
-          setSessionResolving(false);
-          return;
+        } catch (err) {
+          console.warn("PKCE code exchange error:", err);
         }
-
-        const statusRow = inviteRows[0];
-        if (statusRow.invite_status !== "pending" || statusRow.onboarding_completed === true) {
-          setInviteError(
-            "This invitation has already been used. Please log in using your email and password."
-          );
-          setSessionResolving(false);
-          return;
-        }
-
-        setTokenRole(statusRow.role || null);
-        setTokenHospitalId(statusRow.hospital_id || null);
-        setTokenEmail(userEmail);
-        setPendingTokens({ accessToken, refreshToken });
-
-        const metadata = (userData.user.user_metadata as Record<string, any>) || {};
-        if (metadata.full_name) {
-          setFullName(metadata.full_name);
-        }
-      } catch (e: any) {
-        setInviteError("An error occurred while validating your invitation. Please try again.");
-      } finally {
-        setSessionResolving(false);
       }
-    };
 
-    validateAndPrepare();
+      // 2. Check for token_hash or token (?token_hash=... or ?token=...)
+      const tokenHash = searchParams.get("token_hash") || searchParams.get("token");
+      const otpType = (searchParams.get("type") as any) || "invite";
+      if (!accessToken && tokenHash) {
+        try {
+          const { data: otpData, error: otpError } = await supabase.auth.verifyOtp({
+            token_hash: tokenHash,
+            type: otpType === "signup" ? "signup" : "invite",
+          });
+          if (!otpError && otpData?.session) {
+            accessToken = otpData.session.access_token;
+            refreshToken = otpData.session.refresh_token;
+          }
+        } catch (err) {
+          console.warn("verifyOtp error:", err);
+        }
+      }
+
+      // 3. Check for existing active session if not in URL
+      if (!accessToken) {
+        const { data: sessionData } = await supabase.auth.getSession().catch(() => ({ data: { session: null } }));
+        if (sessionData?.session?.access_token) {
+          accessToken = sessionData.session.access_token;
+          refreshToken = sessionData.session.refresh_token || "";
+        }
+      }
+
+      // Clear tokens from URL bar to prevent leakage/reuse
+      if (window.location.hash || window.location.search) {
+        window.history.replaceState(null, "", window.location.pathname);
+      }
+
+      if (!accessToken) {
+        setInviteError(
+          "Registration session expired or link is missing. Please reopen your invitation email and click the invitation link again."
+        );
+        setSessionResolving(false);
+        return;
+      }
+
+      if (isJwtExpired(accessToken)) {
+        setInviteError(
+          "This invitation link has expired (invitation links are valid for 24 hours). Please contact your administrator to resend the invitation."
+        );
+        setSessionResolving(false);
+        return;
+      }
+
+      const { data: userData, error: userError } = await supabase.auth.getUser(accessToken);
+      if (userError || !userData?.user) {
+        setInviteError(
+          "This invitation link is invalid or has expired. Please contact your administrator for a new invitation."
+        );
+        setSessionResolving(false);
+        return;
+      }
+
+      const userId = userData.user.id;
+      const userEmail = userData.user.email || null;
+
+      const inviteClient = createClient(
+        import.meta.env.VITE_SUPABASE_URL,
+        import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+        {
+          auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+          global: { headers: { Authorization: `Bearer ${accessToken}` } },
+        }
+      );
+      const { data: inviteStatusData, error: statusError } = await (inviteClient as any).rpc("check_invite_status", {
+        p_user_id: userId,
+      });
+
+      const inviteRows = inviteStatusData as any[] | null;
+
+      if (statusError || !inviteRows || inviteRows.length === 0) {
+        setInviteError(
+          "This invitation record could not be verified. Please contact your administrator for a new invitation."
+        );
+        setSessionResolving(false);
+        return;
+      }
+
+      const statusRow = inviteRows[0];
+      if (statusRow.invite_status !== "pending" || statusRow.onboarding_completed === true) {
+        setInviteError(
+          "This invitation has already been completed. Please log in using your email and password."
+        );
+        setSessionResolving(false);
+        return;
+      }
+
+      setTokenRole(statusRow.role || null);
+      setTokenHospitalId(statusRow.hospital_id || null);
+      setTokenEmail(userEmail);
+      setPendingTokens({ accessToken, refreshToken: refreshToken || accessToken });
+
+      const metadata = (userData.user.user_metadata as Record<string, any>) || {};
+      if (metadata.full_name) {
+        setFullName(metadata.full_name);
+      }
+    } catch (e: any) {
+      console.error("Invite validation error:", e);
+      setInviteError("An error occurred while validating your invitation. Please reopen your invitation email or contact support.");
+    } finally {
+      setSessionResolving(false);
+    }
   }, []);
+
+  useEffect(() => {
+    void validateAndPrepare();
+  }, [validateAndPrepare]);
 
   // ---------------------------------------------------------------------------
   // Complete Account Setup
@@ -336,31 +396,75 @@ export default function Register() {
   if (inviteError) {
     return (
       <main className="min-h-screen bg-slate-50 flex items-center justify-center p-4 sm:p-6 font-sans">
-        <div className="w-full max-w-[420px] animate-in fade-in duration-300">
+        <div className="w-full max-w-[440px] animate-in fade-in duration-300">
           <Card className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <CardContent className="p-8 text-center space-y-5">
-              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-amber-200 bg-amber-50">
-                <ShieldAlert className="h-7 w-7 text-amber-600" />
+            <CardContent className="p-6 sm:p-8 text-center space-y-5">
+              {/* Brand Header */}
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-xl border border-slate-200 bg-white p-2 shadow-xs">
+                <img
+                  src="/ronsberger-logo.png"
+                  alt="Ronsberger HMO Logo"
+                  className="h-full w-full object-contain"
+                  onError={(e) => {
+                    const target = e.currentTarget;
+                    if (target.src.endsWith(".png")) target.src = "/ronsberger-logo.webp";
+                  }}
+                />
               </div>
+
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl border border-amber-200 bg-amber-50">
+                <ShieldAlert className="h-6 w-6 text-amber-600" />
+              </div>
+
               <div>
-                <h1 className="text-xl font-bold tracking-tight text-slate-900">
-                  Invitation Issue
+                <h1 className="text-lg sm:text-xl font-bold tracking-tight text-slate-900">
+                  Invitation Verification
                 </h1>
                 <p className="mt-1 text-xs text-slate-500">
-                  Could not verify invitation token
+                  Could not verify your invitation link or session
                 </p>
               </div>
-              <p className="text-xs text-slate-600 leading-relaxed font-medium">
-                {inviteError}
-              </p>
-              <div className="pt-2">
+
+              <div className="rounded-xl border border-amber-100 bg-amber-50/60 p-3.5 text-left">
+                <p className="text-xs text-amber-900 leading-relaxed font-medium">
+                  {inviteError}
+                </p>
+              </div>
+
+              <div className="rounded-xl border border-slate-100 bg-slate-50/70 p-3 text-left space-y-1.5 text-[11px] text-slate-500">
+                <p className="font-semibold text-slate-700 flex items-center gap-1.5">
+                  <Info className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                  Helpful troubleshooting tips:
+                </p>
+                <ul className="list-disc pl-4 space-y-1 text-slate-600">
+                  <li>Invitation links are single-use and expire after 24 hours.</li>
+                  <li>If opening from an email app, try opening the link directly in Chrome or Safari.</li>
+                  <li>If your password was already set up, you can proceed directly to login.</li>
+                </ul>
+              </div>
+
+              <div className="space-y-2 pt-1">
                 <Button
                   onClick={() => navigate("/login")}
-                  className="h-11 w-full rounded-xl bg-[#0F6E56] hover:bg-[#0a5240] text-sm font-semibold text-white shadow-xs"
+                  className="h-10 w-full rounded-xl bg-[#0F6E56] hover:bg-[#0a5240] text-xs font-semibold text-white shadow-xs"
                 >
-                  Go to Login
+                  Go to Login <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => void validateAndPrepare()}
+                  className="h-10 w-full rounded-xl border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                >
+                  <RefreshCw className="mr-1.5 h-3.5 w-3.5 text-slate-400" /> Retry Verification
                 </Button>
               </div>
+
+              <p className="text-[11px] text-slate-400">
+                Need a new invitation? Contact your organization administrator or email{" "}
+                <a href="mailto:operations@ronsbergerhmo.io" className="text-[#0F6E56] font-medium hover:underline">
+                  operations@ronsbergerhmo.io
+                </a>
+              </p>
             </CardContent>
           </Card>
         </div>

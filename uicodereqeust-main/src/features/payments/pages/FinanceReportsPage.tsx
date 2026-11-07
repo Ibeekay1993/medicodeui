@@ -2,7 +2,18 @@ import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { RefreshCw, FileSpreadsheet, FileText, CheckCircle2, Clock, FileBox, Coins } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import {
+  RefreshCw,
+  FileSpreadsheet,
+  FileText,
+  CheckCircle2,
+  Clock,
+  FileBox,
+  Coins,
+  Layers,
+  ArrowRight,
+} from "lucide-react";
 import { useFinanceReports } from "../hooks/usePayments";
 import type * as ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
@@ -21,44 +32,110 @@ export default function FinanceReportsPage() {
     }).format(value || 0);
 
   const stats = useMemo(() => {
-    if (!data) return { awaitingCount: 0, awaitingValue: 0, paidCount: 0, paidValue: 0, draftBatches: 0, readyBatches: 0, paidBatches: 0, totalBatchesValue: 0, awaitingList: [], paidList: [], batchesList: [] };
+    if (!data)
+      return {
+        awaitingCount: 0,
+        awaitingValue: 0,
+        paidCount: 0,
+        paidValue: 0,
+        draftBatches: 0,
+        readyBatches: 0,
+        paidBatches: 0,
+        totalBatchesValue: 0,
+        awaitingList: [],
+        paidList: [],
+        batchesList: [],
+      };
 
     const { paidClaims, awaitingClaims, batches } = data;
     const currentDate = new Date();
 
-    const awaitingList = (awaitingClaims as any[]).filter((c: any) =>
-      c.status === "approved" ||
-      (c.status === "partially_approved" && (
-        c.payment_status === "awaiting_payment" ||
-        (c.contest_deadline && new Date(c.contest_deadline) < currentDate)
-      ))
+    const awaitingList = (awaitingClaims as any[]).filter(
+      (c: any) =>
+        c.status === "approved" ||
+        (c.status === "partially_approved" &&
+          (c.payment_status === "awaiting_payment" ||
+            (c.contest_deadline && new Date(c.contest_deadline) < currentDate)))
     );
 
     return {
       awaitingCount: awaitingList.length,
-      awaitingValue: awaitingList.reduce((sum: number, c: any) => sum + Number(c.approved_amount || c.total_amount || 0), 0),
+      awaitingValue: awaitingList.reduce(
+        (sum: number, c: any) => sum + Number(c.approved_amount || c.total_amount || 0),
+        0
+      ),
       paidCount: (paidClaims as any[]).length,
-      paidValue: (paidClaims as any[]).reduce((sum: number, c: any) => sum + Number(c.approved_amount || 0), 0),
+      paidValue: (paidClaims as any[]).reduce(
+        (sum: number, c: any) => sum + Number(c.approved_amount || 0),
+        0
+      ),
       draftBatches: (batches as any[]).filter((b: any) => b.status === "draft").length,
       readyBatches: (batches as any[]).filter((b: any) => b.status === "ready").length,
       paidBatches: (batches as any[]).filter((b: any) => b.status === "paid").length,
-      totalBatchesValue: (batches as any[]).reduce((sum: number, b: any) => sum + Number(b.total_amount || 0), 0),
+      totalBatchesValue: (batches as any[]).reduce(
+        (sum: number, b: any) => sum + Number(b.total_amount || 0),
+        0
+      ),
       awaitingList,
       paidList: paidClaims,
       batchesList: batches,
     };
   }, [data]);
 
+  const totalBatchesCount = stats.draftBatches + stats.readyBatches + stats.paidBatches;
+
   const cards = useMemo(
     () => [
-      { label: "Awaiting Payments", value: stats.awaitingValue, count: stats.awaitingCount, icon: <Clock className="h-6 w-6 text-orange-500" />, border: "border-orange-200" },
-      { label: "Paid Claims", value: stats.paidValue, count: stats.paidCount, icon: <CheckCircle2 className="h-6 w-6 text-slate-500" />, border: "border-slate-200" },
-      { label: "Draft Batches", value: stats.draftBatches, count: stats.draftBatches, icon: <FileBox className="h-6 w-6 text-slate-500" />, border: "border-slate-200" },
-      { label: "Ready for Payout", value: stats.readyBatches, count: stats.readyBatches, icon: <FileBox className="h-6 w-6 text-slate-500" />, border: "border-slate-200" },
-      { label: "Settled Batches", value: stats.paidBatches, count: stats.paidBatches, icon: <CheckCircle2 className="h-6 w-6 text-emerald-500" />, border: "border-emerald-200" },
-      { label: "Total Batches Value", value: stats.totalBatchesValue, count: stats.totalBatchesValue, icon: <Coins className="h-6 w-6 text-slate-600" />, border: "border-slate-200" },
+      {
+        label: "Awaiting Payments",
+        value: formatMoney(stats.awaitingValue),
+        detail: `${stats.awaitingCount.toLocaleString()} claims pending`,
+        icon: Clock,
+        iconTone: "text-amber-600",
+        iconBg: "bg-amber-50 border border-amber-200",
+      },
+      {
+        label: "Paid Claims",
+        value: formatMoney(stats.paidValue),
+        detail: `${stats.paidCount.toLocaleString()} claims settled`,
+        icon: CheckCircle2,
+        iconTone: "text-emerald-600",
+        iconBg: "bg-emerald-50 border border-emerald-200",
+      },
+      {
+        label: "Total Batches Value",
+        value: formatMoney(stats.totalBatchesValue),
+        detail: `${totalBatchesCount.toLocaleString()} batches created`,
+        icon: Coins,
+        iconTone: "text-blue-600",
+        iconBg: "bg-blue-50 border border-blue-200",
+      },
+      {
+        label: "Draft Batches",
+        value: stats.draftBatches.toLocaleString(),
+        detail: "In preparation",
+        icon: FileBox,
+        iconTone: "text-slate-600",
+        iconBg: "bg-slate-100 border border-slate-200",
+      },
+      {
+        label: "Ready for Payout",
+        value: stats.readyBatches.toLocaleString(),
+        detail: "Approved batches",
+        icon: Layers,
+        iconTone: "text-indigo-600",
+        iconBg: "bg-indigo-50 border border-indigo-200",
+      },
+      {
+        label: "Settled Batches",
+        value: stats.paidBatches.toLocaleString(),
+        detail: "Disbursed & closed",
+        icon: CheckCircle2,
+        iconTone: "text-emerald-600",
+        iconBg: "bg-emerald-50 border border-emerald-200",
+      },
     ],
-    [stats]
+    [stats, totalBatchesCount]
   );
 
   const exportExcel = async () => {
@@ -69,7 +146,7 @@ export default function FinanceReportsPage() {
 
       const ExcelJS = await import("exceljs");
       const workbook = new ExcelJS.Workbook();
-      workbook.creator = "Medicode System";
+      workbook.creator = "Ronsberger HMO Clinical System";
       workbook.created = new Date();
 
       const theme = {
@@ -259,12 +336,12 @@ export default function FinanceReportsPage() {
       c.paid_at ? new Date(c.paid_at).toLocaleString() : ""
     ]);
 
-    const csvStr = [headers, ...body].map(row => row.map(escapeCsv).join(",")).join("\n");
+    const csvStr = [headers, ...body].map((row) => row.map(escapeCsv).join(",")).join("\n");
     const blob = new Blob([csvStr], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `Finance_Claims_${new Date().toISOString().split("T")[0]}.csv`;
+    link.download = `RonsbergerHMO_Finance_Report_${new Date().toISOString().split("T")[0]}.csv`;
     link.click();
     URL.revokeObjectURL(url);
     toast({ title: "Export Complete", description: "Your finance CSV has been downloaded." });
@@ -275,12 +352,13 @@ export default function FinanceReportsPage() {
   }
 
   return (
-    <div className="max-w-full space-y-5 overflow-x-hidden pb-10">
-      <div className="flex flex-col items-start justify-between gap-4 rounded-xl border border-slate-200 bg-white p-4 sm:flex-row sm:items-center">
+    <div className="max-w-full space-y-4 overflow-x-hidden pb-10">
+      {/* ── Executive Header ── */}
+      <div className="flex flex-col items-start justify-between gap-3 rounded-xl border border-slate-200 bg-white p-3.5 sm:flex-row sm:items-center shadow-xs">
         <div>
-          <h2 className="text-base font-semibold tracking-tight text-slate-900">Finance overview</h2>
-          <p className="max-w-xl text-sm text-slate-600">
-            Review payment and settlement activity, batch status, and financial reports.
+          <h2 className="text-base font-bold tracking-tight text-slate-900">Payment Reports</h2>
+          <p className="mt-0.5 text-xs text-slate-500">
+            Review claim payment settlements, batch cycles, and financial ledger data.
           </p>
         </div>
 
@@ -288,88 +366,161 @@ export default function FinanceReportsPage() {
           <Button
             variant="outline"
             size="sm"
-            className="h-10 min-w-0 flex-1 border-slate-300 bg-white px-3 text-sm text-slate-700 hover:bg-slate-50 sm:flex-none"
+            className="h-9 min-w-0 flex-1 border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50 sm:flex-none"
             onClick={exportCSV}
           >
-            <FileText className="mr-1.5 h-3.5 w-3.5" />
+            <FileText className="mr-1.5 h-3.5 w-3.5 text-slate-500" />
             CSV Export
           </Button>
           <Button
             size="sm"
-            className="h-10 min-w-0 flex-1 border-0 bg-primary px-3 text-sm text-primary-foreground hover:bg-primary/90 sm:flex-none"
+            className="h-9 min-w-0 flex-1 border-0 bg-slate-900 px-3 text-xs font-semibold text-white hover:bg-slate-800 sm:flex-none"
             onClick={exportExcel}
           >
-            <FileSpreadsheet className="mr-1.5 h-3.5 w-3.5" />
+            <FileSpreadsheet className="mr-1.5 h-3.5 w-3.5 text-emerald-400" />
             Excel Report
           </Button>
           <Button
-            variant="ghost"
+            variant="outline"
             size="sm"
             aria-label="Refresh finance report"
-            className="h-10 w-10 shrink-0 text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+            className="h-9 w-9 shrink-0 border-slate-300 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900"
             onClick={() => void refetch()}
             title="Refresh report"
             disabled={isLoading}
           >
-            <RefreshCw className={cn("h-4 w-4", isLoading && "animate-spin text-primary")} />
+            <RefreshCw className={cn("h-3.5 w-3.5", isLoading && "animate-spin text-primary")} />
           </Button>
         </div>
       </div>
 
+      {/* ── Quick Navigation Pills ── */}
       <div className="flex flex-wrap items-center gap-2">
         <Link
           to="../payments/awaiting"
-          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 shadow-sm transition-colors hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 shadow-xs transition-colors hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900"
         >
           <Clock className="h-3.5 w-3.5 text-amber-500" />
           <span>Awaiting claims ({stats.awaitingCount.toLocaleString()})</span>
         </Link>
         <Link
           to="../payments/batches"
-          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 shadow-sm transition-colors hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 shadow-xs transition-colors hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900"
         >
           <FileBox className="h-3.5 w-3.5 text-blue-500" />
-          <span>Payment batches ({(stats.draftBatches + stats.readyBatches + stats.paidBatches).toLocaleString()})</span>
+          <span>Payment batches ({totalBatchesCount.toLocaleString()})</span>
         </Link>
         <Link
           to="../payments/paid"
-          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 shadow-sm transition-colors hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 shadow-xs transition-colors hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900"
         >
           <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
           <span>Settled claims ({stats.paidCount.toLocaleString()})</span>
         </Link>
       </div>
 
-      <section aria-labelledby="finance-summary-heading" className="space-y-3">
-        <div>
-          <h3 id="finance-summary-heading" className="text-base font-semibold text-slate-900">Payment &amp; settlement summary</h3>
-          <p className="text-xs text-slate-500">Current claim payment and batch totals.</p>
+      {/* ── Compact Settlement Summary Cards ── */}
+      <section aria-labelledby="finance-summary-heading" className="space-y-2.5">
+        <div className="flex items-center justify-between">
+          <h3 id="finance-summary-heading" className="text-xs font-bold uppercase tracking-wider text-slate-500">
+            Payment &amp; Settlement Summary
+          </h3>
+          <span className="text-xs font-semibold text-slate-600">
+            Total Cycle Value: <span className="font-mono text-slate-900">{formatMoney(stats.totalBatchesValue)}</span>
+          </span>
         </div>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-        {cards.map((c) => {
-          const isBatchCount = c.label.includes("Batches") && !c.label.includes("Value");
-          return (
-            <Card key={c.label} className={cn("relative overflow-hidden rounded-xl border bg-white shadow-sm transition-all hover:border-slate-300", c.border)}>
-              <div className="relative z-10 p-4">
-                <div className="mb-2 flex items-center justify-between gap-3">
-                  <p className="text-sm font-medium text-slate-600">{c.label}</p>
-                  <div className="rounded-lg bg-slate-50 p-2">
-                    {c.icon}
-                  </div>
+
+        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 xl:grid-cols-6">
+          {cards.map((c) => {
+            const Icon = c.icon;
+            return (
+              <div
+                key={c.label}
+                className="flex min-w-0 items-center gap-2.5 rounded-xl border border-slate-200 bg-white p-2.5 sm:p-3 shadow-xs transition-all hover:border-slate-300"
+              >
+                <div className={cn("flex h-8 w-8 sm:h-9 sm:w-9 shrink-0 items-center justify-center rounded-lg", c.iconBg)}>
+                  <Icon className={cn("h-4 w-4 sm:h-4.5 sm:w-4.5", c.iconTone)} />
                 </div>
-                <p className="truncate text-xl font-semibold tracking-tight text-slate-900">
-                  {isBatchCount ? c.count.toLocaleString() : formatMoney(c.value)}
-                </p>
-                <div className="mt-2 flex w-fit items-center rounded-md bg-slate-50 px-2 py-1 text-xs font-medium text-slate-600">
-                  {isBatchCount ? "Batch count: " : "Claim count: "}
-                  <span className="ml-1 font-bold text-slate-900">{c.count.toLocaleString()}</span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[11px] font-medium text-slate-500 leading-tight">{c.label}</p>
+                  <p className="mt-0.5 truncate text-sm sm:text-base font-bold tracking-tight text-slate-900 font-mono leading-none">
+                    {c.value}
+                  </p>
+                  <p className="mt-1 truncate text-[10px] text-slate-500 font-medium leading-none">{c.detail}</p>
                 </div>
               </div>
-            </Card>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
       </section>
+
+      {/* ── Payment Batches Breakdown Ledger ── */}
+      <Card className="rounded-xl border border-slate-200 bg-white shadow-xs overflow-hidden">
+        <div className="flex flex-col gap-1 border-b border-slate-100 p-3.5 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h3 className="text-sm font-bold text-slate-900">Payment Batches Ledger</h3>
+            <p className="text-xs text-slate-500">Summary of all payment batches, disbursement cycles, and settled totals.</p>
+          </div>
+          <Link
+            to="../payments/batches"
+            className="inline-flex items-center gap-1 text-xs font-semibold text-[#0F6E56] hover:underline"
+          >
+            Manage batches <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left">
+            <thead className="bg-slate-50 text-[11px] font-bold uppercase tracking-wider text-slate-500 border-b border-slate-100">
+              <tr>
+                <th scope="col" className="p-3 pl-4">Month / Cycle</th>
+                <th scope="col" className="p-3">Batch Status</th>
+                <th scope="col" className="p-3 text-right">Batch Value</th>
+                <th scope="col" className="p-3 pr-4 text-right">Action</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 text-xs">
+              {(stats.batchesList as any[]).map((b, idx) => (
+                <tr key={b.id || idx} className="hover:bg-slate-50/70 transition-colors">
+                  <td className="p-3 pl-4 font-semibold text-slate-900">
+                    {b.month || "Current Cycle"}
+                  </td>
+                  <td className="p-3">
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        "text-[10px] font-bold px-2 py-0.5 capitalize",
+                        b.status === "paid" ? "bg-emerald-50 text-emerald-700 border-emerald-200" :
+                        b.status === "ready" ? "bg-blue-50 text-blue-700 border-blue-200" :
+                        "bg-slate-100 text-slate-700 border-slate-200"
+                      )}
+                    >
+                      {b.status || "draft"}
+                    </Badge>
+                  </td>
+                  <td className="p-3 text-right font-mono font-bold text-slate-900">
+                    {formatMoney(Number(b.total_amount || 0))}
+                  </td>
+                  <td className="p-3 pr-4 text-right">
+                    <Link
+                      to="../payments/batches"
+                      className="text-xs font-semibold text-[#0F6E56] hover:underline"
+                    >
+                      View &rarr;
+                    </Link>
+                  </td>
+                </tr>
+              ))}
+              {(stats.batchesList as any[]).length === 0 && (
+                <tr>
+                  <td colSpan={4} className="py-8 text-center text-xs text-slate-400">
+                    No payment batches created yet.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </Card>
     </div>
   );
 }
