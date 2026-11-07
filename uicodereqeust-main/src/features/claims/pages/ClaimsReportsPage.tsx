@@ -1,32 +1,53 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type * as ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
-import { BadgeCheck, CalendarDays, ClipboardList, Download, Filter, RefreshCw, RotateCcw, Search, TrendingDown, BarChart3, FileSpreadsheet } from "lucide-react";
+import {
+  BadgeCheck,
+  CalendarDays,
+  ClipboardList,
+  Download,
+  Filter,
+  RefreshCw,
+  RotateCcw,
+  Search,
+  TrendingDown,
+} from "lucide-react";
 import { ClaimsService } from "../services/claimsService";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { HospitalSearchSelect } from "@/components/ui/HospitalSearchSelect";
 import { useToast } from "@/hooks/use-toast";
-import { useSearchParams } from "react-router-dom";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { ClaimsAnalysisView } from "../components/ClaimsAnalysisView";
+import { useDataPagination } from "@/hooks/use-data-pagination";
+import { DataPagination } from "@/components/dashboard/DataPagination";
 
-const money = (value: unknown) => `NGN ${Number(value || 0).toLocaleString()}`;
+const money = (value: unknown) => `₦${Number(value || 0).toLocaleString()}`;
 const csvCell = (value: unknown) => `"${String(value ?? "").replace(/"/g, '""')}"`;
+
+const STATUS_PILL_STYLES: Record<string, string> = {
+  approved: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  partially_approved: "bg-sky-50 text-sky-700 border-sky-200",
+  paid: "bg-purple-50 text-purple-700 border-purple-200",
+  rejected: "bg-rose-50 text-rose-700 border-rose-200",
+  contested: "bg-amber-50 text-amber-700 border-amber-200",
+  under_contest: "bg-amber-50 text-amber-700 border-amber-200",
+  submitted: "bg-slate-100 text-slate-700 border-slate-200",
+  pending: "bg-slate-100 text-slate-700 border-slate-200",
+  under_review: "bg-blue-50 text-blue-700 border-blue-200",
+};
 
 export default function ClaimsReportsPage() {
   const { toast } = useToast();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const activeTab = searchParams.get("tab") === "analysis" ? "analysis" : "reports";
   const [rows, setRows] = useState<any[]>([]);
   const [hospitals, setHospitals] = useState<any[]>([]);
   const [loadingHospitals, setLoadingHospitals] = useState(false);
@@ -54,6 +75,17 @@ export default function ClaimsReportsPage() {
     declined: filtered.reduce((sum, row) => sum + Number(row.declined_amount || 0), 0),
   }), [filtered]);
 
+  const {
+    page,
+    setPage,
+    pageSize,
+    totalPages,
+    pageItems: paginatedRows,
+    start,
+    end,
+    total,
+  } = useDataPagination(filtered, 12);
+
   const hasActiveFilters = status !== "all" || hospitalId !== "all" || Boolean(startDate) || Boolean(endDate) || Boolean(search);
 
   const resetFilters = () => {
@@ -64,11 +96,9 @@ export default function ClaimsReportsPage() {
     setSearch("");
   };
 
-  const handleTabChange = (value: string) => {
-    const nextSearchParams = new URLSearchParams(searchParams);
-    nextSearchParams.set("tab", value);
-    setSearchParams(nextSearchParams, { replace: true });
-  };
+  useEffect(() => {
+    setPage(1);
+  }, [status, hospitalId, startDate, endDate, search, setPage]);
 
   const loadHospitals = useCallback(async () => {
     setLoadingHospitals(true);
@@ -130,11 +160,12 @@ export default function ClaimsReportsPage() {
   };
 
   useEffect(() => {
-    if (activeTab === "reports") void loadHospitals();
-  }, [activeTab, loadHospitals]);
+    void loadHospitals();
+  }, [loadHospitals]);
+
   useEffect(() => {
-    if (activeTab === "reports") void loadReport();
-  }, [activeTab, loadReport]);
+    void loadReport();
+  }, [loadReport]);
 
   const exportCSV = () => {
     if (filtered.length === 0) {
@@ -196,16 +227,16 @@ export default function ClaimsReportsPage() {
 
       const ExcelJS = await import("exceljs");
       const workbook = new ExcelJS.Workbook();
-      workbook.creator = "Medicode System";
+      workbook.creator = "Ronsberger HMO Clinical System";
       workbook.created = new Date();
 
       const theme = {
-        primary: "FF1E3A8A", // Blue
-        success: "FF10B981", // Green
-        danger: "FFEF4444",  // Red
-        warning: "FFF59E0B", // Amber
-        bg: "FFF8FAFC",      // Light Gray
-        text: "FF374151",    // Dark Gray
+        primary: "FF1E3A8A",
+        success: "FF10B981",
+        danger: "FFEF4444",
+        warning: "FFF59E0B",
+        bg: "FFF8FAFC",
+        text: "FF374151",
       };
 
       const headerFill: ExcelJS.FillPattern = {
@@ -282,7 +313,6 @@ export default function ClaimsReportsPage() {
       ws2.getRow(1).font = headerFont;
       ws2.getRow(1).fill = headerFill;
 
-      // Group by hospital for analysis
       const hospData: Record<string, { total: number; approved: number; declined: number }> = {};
       for (const row of filtered) {
         const h = row.hospital_name || "Unknown";
@@ -305,19 +335,6 @@ export default function ClaimsReportsPage() {
       ws2.getColumn('total').numFmt = currencyFormat;
       ws2.getColumn('approved').numFmt = currencyFormat;
       ws2.getColumn('declined').numFmt = currencyFormat;
-
-      ws2.addConditionalFormatting({
-        ref: `B2:B${Math.max(2, hospArr.length + 1)}`,
-        rules: [{ type: 'dataBar', priority: 1, cfvo: [{ type: 'min' }, { type: 'max' }], style: { fill: { type: "pattern", pattern: "solid", fgColor: { argb: theme.primary } } }, gradient: true }]
-      });
-      ws2.addConditionalFormatting({
-        ref: `C2:C${Math.max(2, hospArr.length + 1)}`,
-        rules: [{ type: 'dataBar', priority: 2, cfvo: [{ type: 'min' }, { type: 'max' }], style: { fill: { type: "pattern", pattern: "solid", fgColor: { argb: theme.success } } }, gradient: true }]
-      });
-      ws2.addConditionalFormatting({
-        ref: `D2:D${Math.max(2, hospArr.length + 1)}`,
-        rules: [{ type: 'dataBar', priority: 3, cfvo: [{ type: 'min' }, { type: 'max' }], style: { fill: { type: "pattern", pattern: "solid", fgColor: { argb: theme.danger } } }, gradient: true }]
-      });
 
       // ── SHEET 3: Detailed Data ───────────────────────────────────────────
       const ws3 = workbook.addWorksheet("Detailed Data", {
@@ -398,7 +415,7 @@ export default function ClaimsReportsPage() {
       toast({ title: "Preparing Export", description: "Generating reconciliation report..." });
       const ExcelJS = await import("exceljs");
       const workbook = new ExcelJS.Workbook();
-      workbook.creator = "Medicode System";
+      workbook.creator = "Ronsberger HMO Clinical System";
       
       const theme = { primary: "FF1E3A8A", success: "FF10B981", danger: "FFEF4444", bg: "FFF8FAFC" };
       const headerFill: ExcelJS.FillPattern = { type: "pattern", pattern: "solid", fgColor: { argb: theme.primary } };
@@ -460,158 +477,269 @@ export default function ClaimsReportsPage() {
     }
   };
 
-
-
   return (
-    <Tabs value={activeTab} onValueChange={handleTabChange} className="max-w-full space-y-5 overflow-x-hidden pb-10">
-      <TabsList className="h-10 rounded-xl bg-slate-100 p-1 gap-1 border border-slate-200">
-        <TabsTrigger value="analysis" className="h-full rounded-lg px-4 text-xs font-bold transition-all flex items-center gap-2 data-[state=active]:bg-[#0F6E56] data-[state=active]:text-white data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-slate-600 data-[state=inactive]:hover:bg-slate-200/70">
-          <BarChart3 className="h-3.5 w-3.5" />
-          Intelligence & Analytics
-        </TabsTrigger>
-        <TabsTrigger value="reports" className="h-full rounded-lg px-4 text-xs font-bold transition-all flex items-center gap-2 data-[state=active]:bg-[#0F6E56] data-[state=active]:text-white data-[state=active]:shadow-sm data-[state=inactive]:bg-transparent data-[state=inactive]:text-slate-600 data-[state=inactive]:hover:bg-slate-200/70">
-          <FileSpreadsheet className="h-3.5 w-3.5" />
-          Claims Register & Exports
-        </TabsTrigger>
-      </TabsList>
-
-      {/* ── Tab 1: Analysis ─────────────────────────────────────── */}
-      <TabsContent value="analysis" className="mt-0 space-y-5">
-        <ClaimsAnalysisView />
-      </TabsContent>
-
-      {/* ── Tab 2: Reports ──────────────────────────────────────── */}
-      <TabsContent value="reports" className="mt-0 space-y-5">
-        <div className="flex flex-col items-start justify-between gap-4 rounded-xl border border-slate-200 bg-white p-4 sm:flex-row sm:items-center">
-          <div>
-            <h2 className="text-base font-semibold text-slate-900">Claims overview</h2>
-            <p className="mt-1 text-sm text-slate-600">Review claim activity and export detailed or reconciliation reports.</p>
-          </div>
-          <div className="flex w-full items-center gap-2 sm:w-auto">
-            <Button
-              variant="outline"
-              size="sm"
-              aria-label="Refresh claims report"
-              className="h-10 w-10 shrink-0 border-slate-300 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900"
-              onClick={() => void loadReport()}
-              title="Refresh report"
-              disabled={loading}
-            >
-              <RefreshCw className={cn("h-4 w-4", loading && "animate-spin text-primary")} />
-            </Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button className="h-10 flex-1 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-sm hover:bg-primary/90 sm:flex-none">
-                  <Download className="mr-2 h-4 w-4" /> Export reports
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="z-50 w-60 rounded-xl border border-slate-200 bg-white p-1 shadow-lg">
-                <DropdownMenuItem onClick={exportCSV} className="cursor-pointer rounded-lg py-2.5 text-sm font-medium">
-                  Download CSV (Claims)
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={exportXLSX} className="cursor-pointer rounded-lg py-2.5 text-sm font-medium">
-                  Download Excel (Claims)
-                </DropdownMenuItem>
-                <div className="my-1 h-px bg-slate-100" />
-                <DropdownMenuItem onClick={exportReconciliationXLSX} className="cursor-pointer rounded-lg py-2.5 text-sm font-medium">
-                  Reconciliation Report (Excel)
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+    <div className="max-w-full space-y-6 overflow-x-hidden pb-12">
+      {/* ── Executive Header ────────────────────────────────────────── */}
+      <div className="flex flex-col items-start justify-between gap-4 rounded-xl border border-slate-200 bg-white p-4 sm:flex-row sm:items-center shadow-sm">
+        <div>
+          <h2 className="text-lg font-bold text-slate-900 tracking-tight">Claims Intelligence & Ledger</h2>
+          <p className="mt-0.5 text-xs text-slate-500">
+            Real-time portfolio telemetry, hospital network utilization, and operational claims register.
+          </p>
         </div>
+        <div className="flex w-full items-center gap-2 sm:w-auto">
+          <Button
+            variant="outline"
+            size="sm"
+            aria-label="Refresh claims data"
+            className="h-10 w-10 shrink-0 border-slate-300 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+            onClick={() => void loadReport()}
+            title="Refresh report"
+            disabled={loading}
+          >
+            <RefreshCw className={cn("h-4 w-4", loading && "animate-spin text-primary")} />
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button className="h-10 flex-1 rounded-lg bg-slate-900 px-4 text-sm font-semibold text-white shadow-sm hover:bg-slate-800 sm:flex-none">
+                <Download className="mr-2 h-4 w-4" /> Export Reports
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="z-50 w-64 rounded-xl border border-slate-200 bg-white p-1.5 shadow-lg">
+              <DropdownMenuItem onClick={exportCSV} className="cursor-pointer rounded-lg py-2 text-xs font-semibold">
+                Download CSV (Claims Ledger)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={exportXLSX} className="cursor-pointer rounded-lg py-2 text-xs font-semibold">
+                Download Excel (Executive Summary & Data)
+              </DropdownMenuItem>
+              <div className="my-1 h-px bg-slate-100" />
+              <DropdownMenuItem onClick={exportReconciliationXLSX} className="cursor-pointer rounded-lg py-2 text-xs font-semibold">
+                Reconciliation Report (Excel)
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </div>
 
-        <Card className="relative z-10 rounded-xl border-slate-200 bg-white shadow-sm">
-          <CardContent className="space-y-4 p-4">
-            <div className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-50">
-                <Filter className="h-4 w-4 text-slate-600" />
-              </div>
-              <div>
-                <h3 className="text-sm font-semibold text-slate-800">Report filters</h3>
-                <p className="text-xs text-slate-500">Narrow the claims included in the summary and exported reports.</p>
-              </div>
-            </div>
-            <div className="grid min-w-0 grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-12">
-              <div className="relative min-w-0 md:col-span-2 xl:col-span-4">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
-                <Input aria-label="Search claims for reports" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search claim, patient, policy, auth code..." className="h-10 rounded-lg border-slate-200 bg-white pl-10 text-sm" />
-              </div>
-              <div className="min-w-0 xl:col-span-2">
-                <Select value={status} onValueChange={setStatus}>
-                  <SelectTrigger aria-label="Filter claims by status" className="h-10 w-full rounded-lg border-slate-200 bg-white text-sm"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {["all", "submitted", "under_review", "approved", "partially_approved", "paid", "rejected", "contested"].map((item) => (
-                      <SelectItem key={item} value={item}>{item.replace(/_/g, " ")}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="min-w-0 xl:col-span-3">
-                <HospitalSearchSelect
-                  uniqueHospitals={hospitals}
-                  selectedHospitalId={hospitalId}
-                  onHospitalChange={setHospitalId}
-                  placeholder={loadingHospitals ? "Loading hospitals..." : "Hospital"}
-                  className="h-10 w-full min-w-0 rounded-lg border-slate-200 bg-white text-sm"
-                />
-              </div>
-              <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 md:col-span-2 xl:col-span-3">
-                <Input aria-label="Start date" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="h-10 w-full min-w-0 rounded-lg border-slate-200 bg-white text-xs" />
-                <Input aria-label="End date" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="h-10 w-full min-w-0 rounded-lg border-slate-200 bg-white text-xs" />
-              </div>
-              <div className="flex min-w-0 flex-wrap items-center gap-2 md:col-span-2 xl:col-span-12">
-                <span className="mr-1 text-xs font-medium text-slate-500">Date presets</span>
-                <Button type="button" variant="outline" onClick={() => setPresetRange("month")} className="h-9 rounded-lg border-slate-200 text-xs font-medium">This Month</Button>
-                <Button type="button" variant="outline" onClick={() => setPresetRange("quarter")} className="h-9 rounded-lg border-slate-200 text-xs font-medium">Quarter</Button>
-                <Button type="button" variant="outline" onClick={() => setPresetRange("year")} className="h-9 rounded-lg border-slate-200 text-xs font-medium">Year</Button>
-                {hasActiveFilters && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    onClick={resetFilters}
-                    className="h-9 gap-1.5 rounded-lg px-2.5 text-xs font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-                  >
-                    <RotateCcw className="h-3.5 w-3.5 text-slate-400" />
-                    Reset filters
-                  </Button>
-                )}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+      {/* ── Section 1: Portfolio Intelligence & Network Telemetry ───── */}
+      <section aria-label="Portfolio Intelligence">
+        <ClaimsAnalysisView />
+      </section>
 
-        {!loading && (
-          <section aria-labelledby="claims-summary-heading" className="space-y-3">
-          <div>
-            <h3 id="claims-summary-heading" className="text-base font-semibold text-slate-900">Claims summary</h3>
-            <p className="text-xs text-slate-500">Totals reflect the selected filters and search.</p>
+      {/* ── Section 2: Operational Filter Toolbar ──────────────────── */}
+      <Card className="rounded-xl border-slate-200 bg-white shadow-sm">
+        <CardContent className="space-y-4 p-4">
+          <div className="flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-700">
+              <Filter className="h-4 w-4" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-slate-900">Claims Registry Filter</h3>
+              <p className="text-xs text-slate-500">Filter and search individual claims in the portfolio ledger below.</p>
+            </div>
           </div>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid min-w-0 grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-12">
+            <div className="relative min-w-0 md:col-span-2 xl:col-span-4">
+              <Search className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+              <Input
+                aria-label="Search claims for reports"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search claim, patient, policy, auth code..."
+                className="h-10 rounded-lg border-slate-200 bg-white pl-10 text-sm"
+              />
+            </div>
+            <div className="min-w-0 xl:col-span-2">
+              <Select value={status} onValueChange={setStatus}>
+                <SelectTrigger aria-label="Filter claims by status" className="h-10 w-full rounded-lg border-slate-200 bg-white text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {["all", "submitted", "under_review", "approved", "partially_approved", "paid", "rejected", "contested"].map((item) => (
+                    <SelectItem key={item} value={item} className="capitalize">
+                      {item.replace(/_/g, " ")}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="min-w-0 xl:col-span-3">
+              <HospitalSearchSelect
+                uniqueHospitals={hospitals}
+                selectedHospitalId={hospitalId}
+                onHospitalChange={setHospitalId}
+                placeholder={loadingHospitals ? "Loading hospitals..." : "All Network Hospitals"}
+                className="h-10 w-full min-w-0 rounded-lg border-slate-200 bg-white text-sm"
+              />
+            </div>
+            <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 md:col-span-2 xl:col-span-3">
+              <Input
+                aria-label="Start date"
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="h-10 w-full min-w-0 rounded-lg border-slate-200 bg-white text-xs"
+              />
+              <Input
+                aria-label="End date"
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="h-10 w-full min-w-0 rounded-lg border-slate-200 bg-white text-xs"
+              />
+            </div>
+            <div className="flex min-w-0 flex-wrap items-center gap-2 md:col-span-2 xl:col-span-12">
+              <span className="mr-1 text-xs font-semibold text-slate-500">Date presets:</span>
+              <Button type="button" variant="outline" onClick={() => setPresetRange("month")} className="h-8 rounded-lg border-slate-200 text-xs font-medium">
+                This Month
+              </Button>
+              <Button type="button" variant="outline" onClick={() => setPresetRange("quarter")} className="h-8 rounded-lg border-slate-200 text-xs font-medium">
+                Quarter
+              </Button>
+              <Button type="button" variant="outline" onClick={() => setPresetRange("year")} className="h-8 rounded-lg border-slate-200 text-xs font-medium">
+                Year
+              </Button>
+              {hasActiveFilters && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={resetFilters}
+                  className="h-8 gap-1.5 rounded-lg px-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                >
+                  <RotateCcw className="h-3.5 w-3.5 text-slate-400" />
+                  Reset filters
+                </Button>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* ── Filtered Totals Strip ─────────────────────────────────── */}
+      {!loading && (
+        <section aria-labelledby="claims-summary-heading" className="space-y-3">
+          <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
             {[
-              { label: "Claims", value: totals.count.toLocaleString(), detail: "Matching claims", Icon: ClipboardList, tone: "text-slate-600" },
-              { label: "Original value", value: money(totals.original), detail: "Submitted amount", Icon: CalendarDays, tone: "text-blue-600" },
-              { label: "Approved value", value: money(totals.approved), detail: "Approved amount", Icon: BadgeCheck, tone: "text-emerald-600" },
-              { label: "Declined / savings", value: money(totals.declined), detail: "Declined amount", Icon: TrendingDown, tone: "text-amber-600" },
+              { label: "Matching Claims", value: totals.count.toLocaleString(), detail: "Records in filter view", Icon: ClipboardList, tone: "text-slate-600" },
+              { label: "Original Value", value: money(totals.original), detail: "Submitted amount", Icon: CalendarDays, tone: "text-blue-600" },
+              { label: "Approved Value", value: money(totals.approved), detail: "Payable amount", Icon: BadgeCheck, tone: "text-emerald-600" },
+              { label: "Declined / Savings", value: money(totals.declined), detail: "Adjustments & deductions", Icon: TrendingDown, tone: "text-amber-600" },
             ].map(({ label, value, detail, Icon, tone }) => (
               <Card key={label} className="rounded-xl border-slate-200 bg-white shadow-sm transition-all hover:border-slate-300">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="text-sm font-medium text-slate-600">{label}</p>
-                    <div className="rounded-lg bg-slate-50 p-2">
+                <CardContent className="p-3.5 sm:p-4">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-xs font-medium text-slate-600">{label}</p>
+                    <div className="rounded-lg bg-slate-50 p-1.5 border border-slate-100">
                       <Icon className={`h-4 w-4 ${tone}`} aria-hidden="true" />
                     </div>
                   </div>
-                  <p className="mt-2 truncate text-xl font-semibold tracking-tight text-slate-900">{value}</p>
-                  <p className="mt-1 text-xs text-slate-500">{detail}</p>
+                  <p className="mt-2 truncate text-base sm:text-xl font-bold tracking-tight text-slate-900 font-mono">{value}</p>
+                  <p className="mt-0.5 text-[11px] text-slate-400">{detail}</p>
                 </CardContent>
               </Card>
             ))}
           </div>
-          </section>
-        )}
+        </section>
+      )}
 
-      </TabsContent>
-    </Tabs>
+      {/* ── Operational Claims Ledger Table ───────────────────────── */}
+      <Card className="rounded-xl border-slate-200 bg-white shadow-sm overflow-hidden">
+        <div className="flex flex-col gap-1 border-b border-slate-100 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h3 className="text-sm font-bold text-slate-900">Operational Claims Ledger</h3>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Detailed line registry for auditing, payment validation, and dispute analysis.
+            </p>
+          </div>
+          <span className="text-xs font-medium text-slate-500">
+            {filtered.length} total entries
+          </span>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left">
+            <thead className="bg-slate-50 text-[11px] font-bold uppercase tracking-wider text-slate-500 border-b border-slate-100">
+              <tr>
+                <th scope="col" className="p-3 pl-4">Date & Ref</th>
+                <th scope="col" className="p-3">Patient & Policy</th>
+                <th scope="col" className="p-3">Hospital Facility</th>
+                <th scope="col" className="p-3">Auth Code</th>
+                <th scope="col" className="p-3 text-right">Original Value</th>
+                <th scope="col" className="p-3 text-right">Approved Value</th>
+                <th scope="col" className="p-3 text-center">Status</th>
+                <th scope="col" className="p-3 pr-4">Audit / Settlement</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 text-xs">
+              {paginatedRows.map((row) => (
+                <tr key={row.claim_number || row.id} className="hover:bg-slate-50/70 transition-colors">
+                  <td className="p-3 pl-4">
+                    <p className="font-semibold text-slate-900">{row.claim_number}</p>
+                    <p className="text-[11px] text-slate-400 mt-0.5">
+                      {row.created_at ? new Date(row.created_at).toLocaleDateString("en-GB") : "-"}
+                    </p>
+                  </td>
+                  <td className="p-3">
+                    <p className="font-semibold text-slate-900">{row.patient_name || "-"}</p>
+                    <p className="text-[11px] text-slate-500 font-mono mt-0.5">{row.policy_number || "-"}</p>
+                  </td>
+                  <td className="p-3">
+                    <p className="font-medium text-slate-800 truncate max-w-[200px]" title={row.hospital_name}>
+                      {row.hospital_name || "-"}
+                    </p>
+                  </td>
+                  <td className="p-3 font-mono font-semibold text-slate-700">
+                    {row.auth_code || "-"}
+                  </td>
+                  <td className="p-3 text-right font-mono font-semibold text-slate-700">
+                    {money(row.original_amount || row.total_amount)}
+                  </td>
+                  <td className="p-3 text-right font-mono font-bold text-emerald-700">
+                    {money(row.approved_amount)}
+                  </td>
+                  <td className="p-3 text-center">
+                    <Badge variant="outline" className={cn("text-[10px] font-bold px-2 py-0.5 capitalize", STATUS_PILL_STYLES[row.status] || "bg-slate-100 text-slate-700")}>
+                      {(row.status || "pending").replace(/_/g, " ")}
+                    </Badge>
+                  </td>
+                  <td className="p-3 pr-4 max-w-[240px]">
+                    <p className="truncate text-[11px] text-slate-600" title={row.payment_note || row.audit_note || ""}>
+                      {row.payment_note || row.audit_note || (row.paid_at ? `Paid on ${new Date(row.paid_at).toLocaleDateString("en-GB")}` : "—")}
+                    </p>
+                  </td>
+                </tr>
+              ))}
+              {paginatedRows.length === 0 && !loading && (
+                <tr>
+                  <td colSpan={8} className="py-12 text-center text-xs font-medium text-slate-400">
+                    No claims match the selected search or filter criteria.
+                  </td>
+                </tr>
+              )}
+              {loading && (
+                <tr>
+                  <td colSpan={8} className="py-12 text-center text-xs font-medium text-slate-400">
+                    <RefreshCw className="h-5 w-5 animate-spin mx-auto text-primary mb-2" />
+                    Loading claims registry...
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+        {filtered.length > 0 && (
+          <div className="border-t border-slate-100 p-3 bg-slate-50/50">
+            <DataPagination
+              page={page}
+              totalPages={totalPages}
+              start={start}
+              end={end}
+              total={total}
+              pageSize={pageSize}
+              setPage={setPage}
+            />
+          </div>
+        )}
+      </Card>
+    </div>
   );
 }

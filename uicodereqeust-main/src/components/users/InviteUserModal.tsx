@@ -185,16 +185,24 @@ export function InviteUserModal({
             </p>
           )}
           {["hospital", "claims", "finance"].includes(newUser.role) && (
-            <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-slate-200 px-3 py-3">
+            <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-slate-200 px-3 py-3 hover:bg-slate-50/50 transition-colors">
               <Checkbox
                 checked={newUser.is_team_lead}
                 onCheckedChange={(checked) => setNewUser({ ...newUser, is_team_lead: checked === true })}
                 aria-label="Assign as team lead"
-                className="mt-0.5"
+                className="mt-0.5 text-brand-700"
               />
               <span className="min-w-0">
-                <span className="block text-sm font-medium text-slate-800">Assign as team lead</span>
-                <span className="mt-0.5 block text-xs leading-relaxed text-slate-500">Marks this person as the lead for their team. Team leads keep their existing role permissions; only the Utilization Manager Lead receives the additional authorization controls.</span>
+                <span className="block text-sm font-semibold text-slate-800">
+                  {newUser.role === "claims" ? "Assign as Claims Lead" : newUser.role === "finance" ? "Assign as Finance Lead" : "Assign as Hospital Lead"}
+                </span>
+                <span className="mt-0.5 block text-xs leading-relaxed text-slate-500">
+                  {newUser.role === "claims"
+                    ? "Grants elevated supervisor permissions to override finalized decisions, unlock locked claims for re-audit, and resolve disputed line items."
+                    : newUser.role === "finance"
+                    ? "Designates this officer as the finance team lead with disbursement authorization authority."
+                    : "Marks this account as the chief administrator / medical director for the facility."}
+                </span>
               </span>
             </label>
           )}

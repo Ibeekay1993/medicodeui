@@ -43,14 +43,20 @@ hmo_tariff_2025.*
 hospitals_master.*
 whatsapp_old_*
 
-# AI Slop Detox
+# Build & temp files
+*.timestamp*
+temp_func.sql
+check_rls.sql
+lint_output.txt
+
+# Clean & Secure
 *.txt
 !.github/**/*.txt
 tsc_*.txt
 ts_errors*.txt
 scratch_*.sql
 
-# AI Agent Files
+# Agent Files
 .agents/
 .gemini/
 *.log

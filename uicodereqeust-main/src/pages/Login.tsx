@@ -678,16 +678,13 @@ export default function Login() {
             )}
 
             {/* Bottom Footer Details */}
-            <div className="mt-8 border-t border-slate-100 pt-5 text-center">
-              <p className="text-[11px] text-slate-400">
-                Protected by Ronsberger HMO Access Security
-              </p>
-              <div className="mt-2 flex items-center justify-center gap-3 text-[11px] text-slate-500">
-                <Link to="/privacy-policy" className="hover:text-slate-800 hover:underline transition-colors">
+            <div className="mt-6 border-t border-slate-100 pt-4 text-center">
+              <div className="flex items-center justify-center gap-3 text-xs text-slate-400">
+                <Link to="/privacy-policy" className="hover:text-slate-700 hover:underline transition-colors">
                   Privacy Policy
                 </Link>
-                <span>•</span>
-                <Link to="/terms-of-service" className="hover:text-slate-800 hover:underline transition-colors">
+                <span>·</span>
+                <Link to="/terms-of-service" className="hover:text-slate-700 hover:underline transition-colors">
                   Terms of Service
                 </Link>
               </div>

@@ -1,8 +1,13 @@
 # Dependencies
 node_modules/
 
-# AI agent local state
+# Agent local state & logs
 .kilo/
+.agents/
+.gemini/
+*.log
+spec_files.log
+lint_output.txt
 
 # WhatsApp bot runtime (can contain session credentials)
 whatsapp-service/baileys_auth_info/
@@ -10,10 +15,13 @@ whatsapp-service/.env
 .env
 !.env.example
 
-# Logs
-*.log
+# Temporary files & timestamps
+*.tmp
+*.timestamp*
+*.tsbuildinfo
+temp_func.sql
+check_rls.sql
 
 # Backups and temporary state
 ship-support-load-20261005/
 /supabase/
-*.tsbuildinfo

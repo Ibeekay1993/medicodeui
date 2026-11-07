@@ -15,12 +15,6 @@ const toMessage = (err: unknown): string => {
   if (typeof err === "string") return err;
   const e = err as Record<string, unknown>;
   const msg = String(e?.message || e?.error_description || e?.msg || e?.details || e?.hint || "");
-  if (msg.includes("user_roles_one_lead_per_team_idx") || (msg.includes("duplicate key") && msg.includes("utilization_manager_lead"))) {
-    return "A Utilization Manager Lead is already active in the system. Reassign or change their role first before inviting a new lead.";
-  }
-  if (msg.includes("user_roles_one_lead_per_team_idx")) {
-    return "Only one lead can be assigned to this department. Please update the existing lead first.";
-  }
   return msg || "Invitation failed";
 };
 
@@ -76,35 +70,8 @@ serve(async (req) => {
 
     const supabase = getServiceClient();
 
-    // Check if Utilization Manager Lead already exists
-    if (role === "utilization_manager_lead") {
-      const { data: currentLead } = await supabase
-        .from("user_roles")
-        .select("id, full_name, email")
-        .eq("role", "utilization_manager_lead")
-        .maybeSingle();
-
-      if (currentLead && String(currentLead.email || "").toLowerCase() !== normalizedEmail) {
-        const leadName = currentLead.full_name || currentLead.email || "Current Lead";
-        throw new Error(
-          `A Utilization Manager Lead is already assigned (${leadName}). Only one active lead is permitted. Please update or change the existing lead first before inviting another.`
-        );
-      }
-    }
-
-    if (is_team_lead) {
-      const { data: currentLead, error: leadLookupError } = await supabase
-        .from("user_roles")
-        .select("id, full_name, email")
-        .eq("role", role)
-        .eq("is_team_lead", true)
-        .maybeSingle();
-      if (leadLookupError) throw leadLookupError;
-      if (currentLead && String(currentLead.email || "").toLowerCase() !== normalizedEmail) {
-        const leadName = currentLead.full_name || currentLead.email || "Current Lead";
-        throw new Error(`A team lead is already assigned to this department (${leadName}). Update the current lead first.`);
-      }
-    }
+    // Regional & Multi-Lead Support:
+    // Organizations can appoint multiple Utilization Manager Leads and Claims Leads across states and zones.
 
     // Rate Limiting: max 4 invites per email within 15 minutes
     const RATE_LIMIT_MAX = 4;

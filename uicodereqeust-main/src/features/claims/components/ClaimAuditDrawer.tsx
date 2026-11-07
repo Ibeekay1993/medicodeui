@@ -8,6 +8,8 @@ import {
   CheckCircle2,
   X,
   ShieldCheck,
+  ShieldAlert,
+  Unlock,
   Check,
   AlertTriangle,
   FileText,
@@ -23,6 +25,7 @@ import { ClaimDraft, AuditDecision, money, splitClaimNotes } from "@/lib/claims-
 import { formatNigeriaDate, formatNigeriaDateTime } from "@/lib/authorizationTime";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface ClaimAuditDrawerProps {
   selectedClaim: ClaimDraft;
@@ -89,7 +92,11 @@ export default function ClaimAuditDrawer({
   calculatedApprovedAmount
 }: ClaimAuditDrawerProps) {
   const { toast } = useToast();
+  const { isClaimsLead, isTeamLead, fullName } = useAuth();
   const [isReleasing, setIsReleasing] = useState(false);
+  const [leadOverrideActive, setLeadOverrideActive] = useState(false);
+  const [isUnlocking, setIsUnlocking] = useState(false);
+  const effectiveIsClaimsLead = isClaimsLead || (role === "claims" && isTeamLead) || role === "admin";
 
   if (!selectedClaim) return null;
 
@@ -102,7 +109,8 @@ export default function ClaimAuditDrawer({
     (selectedClaim.status === "submitted" || 
      selectedClaim.status === "pending" || 
      selectedClaim.status === "contested" || 
-     selectedClaim.status === "under_contest");
+     selectedClaim.status === "under_contest" ||
+     (effectiveIsClaimsLead && leadOverrideActive));
 
   const statusKey = String(selectedClaim.status || "pending").toLowerCase();
   const statusBadgeStyle = STATUS_PILL_STYLES[statusKey] || "border-slate-200 text-slate-700 bg-slate-50";
@@ -115,6 +123,33 @@ export default function ClaimAuditDrawer({
   const contestDaysRemaining = selectedClaim.contest_deadline
     ? Math.max(0, Math.ceil((new Date(selectedClaim.contest_deadline).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
     : 0;
+
+  const handleUnlockClaim = async () => {
+    if (!window.confirm(`Are you sure you want to unlock claim ${selectedClaim.claim_number}? This will reset it to submitted status and return it to the active review queue.`)) return;
+    setIsUnlocking(true);
+    try {
+      const { error } = await supabase
+        .from("claims")
+        .update({
+          status: "submitted",
+          payment_status: null,
+          audit_note: `[CLAIM UNLOCKED BY CLAIMS LEAD]\nUnlocked by: ${fullName || "Claims Lead"}\nDate: ${new Date().toLocaleString()}\nPrevious status: ${selectedClaim.status}\n\n${selectedClaim.audit_note || ""}`
+        } as any)
+        .eq("id", selectedClaim.id);
+
+      if (error) throw error;
+      toast({
+        title: "Claim Unlocked",
+        description: `Claim ${selectedClaim.claim_number} is now unlocked and returned to the review queue.`
+      });
+      setIsMobileDetailOpen(false);
+      window.location.reload();
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Unlock Failed", description: err.message });
+    } finally {
+      setIsUnlocking(false);
+    }
+  };
 
   const handleReleaseToPayment = async () => {
     setIsReleasing(true);
@@ -655,6 +690,24 @@ export default function ClaimAuditDrawer({
                   </div>
                 </div>
 
+                                {leadOverrideActive && (
+                  <div className="rounded-xl border border-purple-300 bg-purple-50 p-2.5 flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 text-xs font-bold text-purple-900">
+                      <ShieldAlert className="h-4 w-4 text-purple-700 shrink-0" />
+                      <span>Claims Lead Override Active: Adjust tariffs & finalize decision below.</span>
+                    </div>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => setLeadOverrideActive(false)}
+                      className="h-6 text-[11px] font-bold text-purple-700 hover:text-purple-900 px-2"
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                )}
+
                 {/* Audit Action Controls */}
                 {isAuditable ? (
                   <div className="grid grid-cols-2 gap-3 pt-1">
@@ -714,9 +767,16 @@ Reason: The claims auditing panel has rejected this claim in its entirety. Direc
                 ) : (
                   <div className="space-y-3 bg-slate-50 rounded-xl border border-slate-200 p-4">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-semibold text-slate-700">
-                        Final Status: <span className="text-slate-900 font-bold capitalize">{statusLabel}</span>
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-semibold text-slate-700">
+                          Final Status: <span className="text-slate-900 font-bold capitalize">{statusLabel}</span>
+                        </span>
+                        {effectiveIsClaimsLead && (
+                          <Badge className="bg-purple-100 text-purple-800 border-purple-200 text-[10px] font-bold">
+                            Claims Lead
+                          </Badge>
+                        )}
+                      </div>
                       {selectedClaim.payment_status === "awaiting_payment" ? (
                         <Badge className="bg-emerald-100 text-emerald-800 border-none text-[10px] font-bold">
                           ✓ In Payment Queue
@@ -727,6 +787,48 @@ Reason: The claims auditing panel has rejected this claim in its entirety. Direc
                         </Badge>
                       ) : null}
                     </div>
+
+                                        {effectiveIsClaimsLead && (
+                      <div className="mt-2 rounded-xl border border-purple-200 bg-purple-50/60 p-3 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-1.5">
+                            <ShieldCheck className="h-4 w-4 text-purple-700" />
+                            <span className="text-xs font-bold text-purple-900">Claims Lead Supervisor Controls</span>
+                          </div>
+                          <Badge className="bg-purple-100 text-purple-800 border-purple-300 text-[10px] font-bold">Elevated Authority</Badge>
+                        </div>
+                        <p className="text-[11px] text-purple-800/80 leading-relaxed">
+                          As Claims Lead, you have supervisory authority to override completed claim decisions or unlock this record for re-audit.
+                        </p>
+                        <div className="flex flex-wrap items-center gap-2 pt-1">
+                          <Button
+                            type="button"
+                            size="sm"
+                            onClick={() => setLeadOverrideActive(!leadOverrideActive)}
+                            className={cn(
+                              "text-xs font-bold h-8 rounded-lg shadow-sm transition-all",
+                              leadOverrideActive
+                                ? "bg-rose-600 hover:bg-rose-700 text-white"
+                                : "bg-purple-700 hover:bg-purple-800 text-white"
+                            )}
+                          >
+                            <ShieldAlert className="h-3.5 w-3.5 mr-1.5" />
+                            {leadOverrideActive ? "Exit Override Mode" : "Override Decision"}
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            disabled={isUnlocking}
+                            onClick={handleUnlockClaim}
+                            className="text-xs font-semibold h-8 rounded-lg border-purple-300 text-purple-900 hover:bg-purple-100 bg-white"
+                          >
+                            <Unlock className="h-3.5 w-3.5 mr-1.5" />
+                            {isUnlocking ? "Unlocking..." : "Unlock Claim Record"}
+                          </Button>
+                        </div>
+                      </div>
+                    )}
 
                     {selectedClaim.status === "partially_approved" && (
                       selectedClaim.payment_status === "awaiting_payment" ? (

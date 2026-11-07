@@ -59,6 +59,7 @@ const ROLE_METADATA: Record<string, { summary: string; permissions: string[]; ba
       "Audit submitted hospital invoices against approved codes",
       "Validate diagnosis against standard tariff schedules",
       "Contest or approve claim lines for payment",
+      "Claims Lead: Override completed decisions and unlock claims for re-audit",
     ],
   },
   finance: {
@@ -316,8 +317,16 @@ export function EditUserModal({
                 className="mt-0.5 text-brand-700"
               />
               <span className="min-w-0">
-                <span className="block text-xs font-bold text-slate-800">Assign as Team Lead</span>
-                <span className="block text-[11px] text-slate-500 leading-snug">Designates this officer as the primary lead for their operational unit.</span>
+                <span className="block text-xs font-bold text-slate-800">
+                  {editForm.role === "claims" ? "Assign as Claims Lead" : editForm.role === "finance" ? "Assign as Finance Lead" : "Assign as Hospital Lead"}
+                </span>
+                <span className="block text-[11px] text-slate-500 leading-snug">
+                  {editForm.role === "claims"
+                    ? "Grants supervisor authority to override finalized claim decisions, unlock locked claims for re-audit, and settle tariff discrepancies."
+                    : editForm.role === "finance"
+                    ? "Designates this officer as the finance team lead with disbursement authorization authority."
+                    : "Designates this user as the hospital facility lead."}
+                </span>
               </span>
             </label>
           )}
