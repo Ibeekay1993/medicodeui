@@ -20,7 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Edit3, Search, UserCog, ShieldCheck, ArrowRight, CheckCircle2, ShieldAlert } from "lucide-react";
+import { Loader2, Edit3, Search, UserCog, ShieldCheck, ArrowRight, CheckCircle2, ShieldAlert, X } from "lucide-react";
 import { availableRoles, filterHospitals, prettyDateTime, roleLabel } from "@/lib/user-helpers";
 
 const ROLE_METADATA: Record<string, { summary: string; permissions: string[]; badgeClass: string }> = {
@@ -333,9 +333,12 @@ export function EditUserModal({
 
           {/* Hospital Facility Binding */}
           {editForm.role === "hospital" && (
-            <div ref={editHospitalRef} className="space-y-1 pt-1 border-t border-slate-100">
-              <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                Assigned Hospital Facility <span className="text-rose-500">*</span>
+            <div ref={editHospitalRef} className="relative space-y-1 pt-1 border-t border-slate-100">
+              <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500 flex items-center justify-between">
+                <span>Assigned Hospital Facility <span className="text-rose-500">*</span></span>
+                {hospitals.length > 0 && (
+                  <span className="text-[10px] font-normal text-slate-400">({hospitals.length} facilities available)</span>
+                )}
               </label>
               <div className="relative">
                 <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-slate-400" />
@@ -350,30 +353,49 @@ export function EditUserModal({
                   }}
                   onFocus={() => setEditDropdownOpen(true)}
                   placeholder="Search facility name or code..."
-                  className="pl-8 h-9 rounded-lg text-xs font-semibold"
+                  className="pl-8 pr-20 h-9 rounded-lg text-xs font-semibold"
                 />
-                {editForm.hospital_id && (
-                  <Badge
-                    variant="outline"
-                    className="absolute right-2.5 top-2 rounded-full bg-emerald-50 text-emerald-700 border-emerald-200 text-[10px] font-black uppercase"
-                  >
-                    Linked
-                  </Badge>
-                )}
+                <div className="absolute right-2 top-1.5 flex items-center gap-1">
+                  {editHospitalSearch && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditForm({ ...editForm, hospital_id: "" });
+                        setEditHospitalSearch("");
+                        setEditDropdownOpen(true);
+                      }}
+                      className="p-1 text-slate-400 hover:text-slate-600 rounded-md transition-colors"
+                      title="Clear search to view all facilities"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  )}
+                  {editForm.hospital_id && (
+                    <Badge
+                      variant="outline"
+                      className="rounded-full bg-emerald-50 text-emerald-700 border-emerald-200 text-[10px] font-black uppercase px-1.5 py-0"
+                    >
+                      Linked
+                    </Badge>
+                  )}
+                </div>
               </div>
               {editDropdownOpen && (
-                <div className="absolute z-50 mt-1 max-h-48 w-full overflow-y-auto rounded-lg border border-slate-200 bg-white p-1 shadow-lg">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setEditForm({ ...editForm, hospital_id: "" });
-                      setEditHospitalSearch("");
-                      setEditDropdownOpen(false);
-                    }}
-                    className="flex w-full items-center justify-between rounded-md px-3 py-1.5 text-left text-xs font-bold text-rose-500 hover:bg-rose-50"
-                  >
-                    Clear Facility Assignment
-                  </button>
+                <div className="absolute left-0 right-0 z-50 mt-1 max-h-56 w-full overflow-y-auto rounded-lg border border-slate-200 bg-white p-1 shadow-xl animate-in fade-in-50 duration-150">
+                  <div className="flex items-center justify-between px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 border-b border-slate-100 mb-1">
+                    <span>Facilities ({filterHospitals(hospitals, editHospitalSearch).length})</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditForm({ ...editForm, hospital_id: "" });
+                        setEditHospitalSearch("");
+                        setEditDropdownOpen(false);
+                      }}
+                      className="text-rose-500 hover:text-rose-700 font-bold"
+                    >
+                      Unassign
+                    </button>
+                  </div>
                   {loadingHospitals ? (
                     <div className="flex items-center gap-2 px-3 py-2 text-xs text-slate-400 font-semibold">
                       <Loader2 className="h-3 w-3 animate-spin text-[#0F6E56]" />
@@ -382,25 +404,37 @@ export function EditUserModal({
                   ) : (
                     <>
                       {filterHospitals(hospitals, editHospitalSearch)
-                        .slice(0, 10)
-                        .map((h) => (
-                          <button
-                            key={h.id}
-                            type="button"
-                            onClick={() => {
-                              setEditForm({ ...editForm, hospital_id: h.id });
-                              setEditHospitalSearch(h.code ? `${h.name} - ${h.code}` : h.name);
-                              setEditDropdownOpen(false);
-                            }}
-                            className="flex w-full flex-col rounded-md px-3 py-2 text-left text-xs hover:bg-slate-50 transition-colors"
-                          >
-                            <span className="font-semibold text-slate-900">{h.name}</span>
-                            {h.code && <span className="text-[10px] text-slate-400 font-mono">{h.code}</span>}
-                          </button>
-                        ))}
+                        .slice(0, 100)
+                        .map((h) => {
+                          const isSelected = editForm.hospital_id === h.id;
+                          return (
+                            <button
+                              key={h.id}
+                              type="button"
+                              onClick={() => {
+                                setEditForm({ ...editForm, hospital_id: h.id });
+                                setEditHospitalSearch(h.code ? `${h.name} - ${h.code}` : h.name);
+                                setEditDropdownOpen(false);
+                              }}
+                              className={`flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-xs transition-colors ${
+                                isSelected ? "bg-emerald-50/80 text-emerald-900 font-bold" : "hover:bg-slate-50"
+                              }`}
+                            >
+                              <div className="min-w-0 pr-2">
+                                <span className="block truncate font-semibold text-slate-900">{h.name}</span>
+                                {h.code && <span className="text-[10px] text-slate-400 font-mono">{h.code}</span>}
+                              </div>
+                              {isSelected && (
+                                <Badge variant="outline" className="text-[9px] bg-emerald-100 text-emerald-800 border-emerald-300 shrink-0 font-bold">
+                                  Current
+                                </Badge>
+                              )}
+                            </button>
+                          );
+                        })}
                       {filterHospitals(hospitals, editHospitalSearch).length === 0 && (
-                        <div className="px-3 py-2 text-xs text-slate-400 font-semibold">
-                          No matching hospitals found
+                        <div className="px-3 py-3 text-center text-xs text-slate-400 font-medium">
+                          No matching hospitals found for "{editHospitalSearch}". Clear the box to browse all facilities.
                         </div>
                       )}
                     </>

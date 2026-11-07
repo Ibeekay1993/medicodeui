@@ -475,7 +475,7 @@ serve(async (req) => {
     };
 
     if (req.method === "PATCH" && action === "update") {
-      const { user_id, full_name, email, phone, role, hospital_id, access_status, is_team_lead } = body;
+      const { id, user_id, full_name, email, phone, role, hospital_id, access_status, is_team_lead } = body;
       if (!user_id) throw new Error("user_id is required");
       const allowedRoles = ["admin", "hospital", "utilization_manager", "utilization_manager_lead", "claims", "finance"];
       if (role !== undefined && !allowedRoles.includes(role)) throw new Error("Invalid role selected");
