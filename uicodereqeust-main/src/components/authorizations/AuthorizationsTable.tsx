@@ -171,11 +171,15 @@ export default function AuthorizationsTable({
                       <td className="py-2 pr-4">
                         <p className="text-sm font-semibold normal-case leading-snug text-slate-950">{r.patient_name}</p>
   <p className="mt-1 text-xs font-semibold text-slate-600 leading-snug break-words whitespace-normal max-w-[300px]">{r.diagnosis}</p>
-                        {isReferralFor(r) && (
+                        {r.referred_hospital_id === hospital?.id && r.hospital_id !== hospital?.id ? (
+                          <span className="mt-1.5 inline-flex max-w-[280px] rounded border border-indigo-200 bg-indigo-50 px-2 py-0.5 text-[11px] font-semibold text-indigo-700">
+                            <span className="break-words whitespace-normal leading-snug">📥 Inbound Referral from: {r.hospital_name || r.referring_hospital_name || "External Facility"}</span>
+                          </span>
+                        ) : isReferralFor(r) ? (
                           <span className="mt-1.5 inline-flex max-w-[240px] rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[11px] font-medium text-slate-600">
                             <span className="break-words whitespace-normal leading-snug">Referral To: {claimOwnerNameFor(r)}</span>
                           </span>
-                        )}
+                        ) : null}
                       </td>
                       <td className="py-2 pr-4">
                         {isApproved(r) && !r.is_unlocked && !otpVerifiedStatus[r.id] ? (
@@ -390,13 +394,19 @@ export default function AuthorizationsTable({
                   </div>
   
                   {/* Row 3: Referral info */}
-                  {isReferralFor(r) && (
+                  {r.referred_hospital_id === hospital?.id && r.hospital_id !== hospital?.id ? (
+                    <div className="mt-0.5">
+                      <span className="inline-block max-w-full break-words whitespace-normal rounded border border-indigo-200 bg-indigo-50 px-2 py-0.5 text-[11px] font-semibold leading-snug text-indigo-700">
+                        📥 Inbound Referral from: {r.hospital_name || r.referring_hospital_name || "External Facility"}
+                      </span>
+                    </div>
+                  ) : isReferralFor(r) ? (
                     <div className="mt-0.5">
                       <span className="inline-block max-w-full break-words whitespace-normal rounded bg-[#F5F3FF] px-1.5 py-0.5 text-[11px] font-medium leading-snug text-[#6D28D9]">
                         Referral To: {claimOwnerNameFor(r)}
                       </span>
                     </div>
-                  )}
+                  ) : null}
                   
                   {/* Code row */}
                   {(r.authorization_code || r.deletion_status === "awaiting_admin_approval" || !r.authorization_code) && (

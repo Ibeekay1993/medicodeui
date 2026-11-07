@@ -35,6 +35,7 @@ export default function HospitalAuthorizations() {
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 400);
   const [statusFilter, setStatusFilter] = useState("all");
+  const [scopeFilter, setScopeFilter] = useState<"originated" | "inbound_referral" | "all">("originated");
   
   const [selectedRequest, setSelectedRequest] = useState<any>(null);
   const [isReviewing, setIsReviewing] = useState(false);
@@ -54,7 +55,7 @@ export default function HospitalAuthorizations() {
 
   useEffect(() => {
     setPage(1);
-  }, [debouncedSearch, statusFilter]);
+  }, [debouncedSearch, statusFilter, scopeFilter]);
 
   const { data: hospital, isLoading: hospitalLoading } = useHospitalProfile(hospitalId || undefined, user?.id, user?.email);
 
@@ -62,6 +63,7 @@ export default function HospitalAuthorizations() {
     hospital: hospital || null,
     statusFilter,
     debouncedSearch,
+    scope: scopeFilter,
     page,
     pageSize,
   });
@@ -377,6 +379,8 @@ export default function HospitalAuthorizations() {
         loading={loading}
         statusFilter={statusFilter}
         setStatusFilter={setStatusFilter}
+        scopeFilter={scopeFilter}
+        setScopeFilter={setScopeFilter}
       />
 
       <AuthorizationsTable

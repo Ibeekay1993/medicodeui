@@ -217,28 +217,38 @@ export class HospitalService {
     hospital,
     statusFilter,
     searchTerm,
+    scope = "originated",
     page,
     pageSize,
   }: {
     hospital: Hospital;
     statusFilter: string;
     searchTerm: string;
+    scope?: "originated" | "inbound_referral" | "all";
     page: number;
     pageSize: number;
   }) {
-    const idQuery = [
-      `hospital_id.eq.${hospital.id}`,
-      `requesting_hospital_id.eq.${hospital.id}`,
-      `referring_hospital_id.eq.${hospital.id}`,
-      `referred_hospital_id.eq.${hospital.id}`,
-      `claiming_hospital_id.eq.${hospital.id}`,
-    ];
-
     let query = supabase
       .from("authorization_requests")
       .select("*", { count: "exact" })
-      .eq("is_historical", false)
-      .or(idQuery.join(","));
+      .eq("is_historical", false);
+
+    if (scope === "originated") {
+      query = query.or(`hospital_id.eq.${hospital.id},requesting_hospital_id.eq.${hospital.id}`);
+    } else if (scope === "inbound_referral") {
+      query = query
+        .eq("referred_hospital_id", hospital.id)
+        .neq("hospital_id", hospital.id);
+    } else {
+      const idQuery = [
+        `hospital_id.eq.${hospital.id}`,
+        `requesting_hospital_id.eq.${hospital.id}`,
+        `referring_hospital_id.eq.${hospital.id}`,
+        `referred_hospital_id.eq.${hospital.id}`,
+        `claiming_hospital_id.eq.${hospital.id}`,
+      ];
+      query = query.or(idQuery.join(","));
+    }
 
     if (statusFilter !== "all") {
       query = query.eq("status", statusFilter);

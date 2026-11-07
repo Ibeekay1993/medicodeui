@@ -1,14 +1,20 @@
 import { useState, useEffect, useRef } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Shield, Eye, EyeOff, AlertTriangle } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Loader2, Shield, Eye, EyeOff, AlertTriangle, ArrowLeft, Mail, CheckCircle2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-
 import { accessStatus } from "@/lib/user-helpers";
 import { isMfaRequiredForUser } from "@/lib/mfa-policy";
 import type { Database } from "@/integrations/supabase/types";
@@ -55,6 +61,13 @@ export default function Login() {
   const [pendingAdminRole, setPendingAdminRole] = useState<AppRole | null>(null);
   const [showPassword, setShowPassword] = useState(false);
 
+  // Forgot password modal state
+  const [forgotOpen, setForgotOpen] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [forgotLoading, setForgotLoading] = useState(false);
+  const [forgotSuccess, setForgotSuccess] = useState(false);
+  const [forgotError, setForgotError] = useState("");
+
   // Brute-force throttle state
   const [failedAttempts, setFailedAttempts] = useState(0);
   const [lockedUntil, setLockedUntil] = useState<number | null>(null);
@@ -84,8 +97,6 @@ export default function Login() {
         window.sessionStorage.removeItem("ronsberger-intended-path");
       }
       
-      // If session is active, verify they don't have a pending MFA challenge
-      // Hospitals are currently exempted from MFA
       if (role === "hospital") {
         navigate("/dashboard", { replace: true });
         return;
@@ -231,9 +242,6 @@ export default function Login() {
     else navigate("/", { replace: true });
   };
 
-
-
-  // FIX 3: Categorise errors correctly ï¿½ don't expose internals but distinguish network issues
   const isTransientAuthError = (err: any): boolean => {
     const msg: string = (err?.message || "").toLowerCase();
     if (msg.includes("invalid login credentials") || msg.includes("invalid_credentials") || msg.includes("account locked")) {
@@ -259,8 +267,7 @@ export default function Login() {
     if (isTransientAuthError(err)) {
       return "Connection error. Unable to reach the server. Please check your internet connection and try again.";
     }
-    // Generic message for any auth failure ï¿½ prevents user enumeration
-    return "Invalid credentials. Please check your email and password.";
+    return "Invalid email or password. Please verify your credentials.";
   };
 
   // ---------------------------------------------------------------------------
@@ -277,7 +284,7 @@ export default function Login() {
     try {
       const { data, error: authError } = await withAuthTimeout(
         supabase.auth.signInWithPassword({
-          email,
+          email: email.trim().toLowerCase(),
           password,
         }),
       );
@@ -309,7 +316,7 @@ export default function Login() {
       setFailedAttempts(0);
       setLockedUntil(null);
 
-      // Update last_sign_in timestamp on user_roles â€” fire-and-forget, must not block login
+      // Update last_sign_in timestamp on user_roles
       void supabase
         .from("user_roles")
         .update({ last_sign_in: new Date().toISOString() })
@@ -330,11 +337,7 @@ export default function Login() {
           return;
         }
       }
-
-      // Wait for useEffect to navigate
     } catch (err: any) {
-      // Only sign out if authentication itself failed.
-      // If auth succeeded but role-resolution timed out, keep the session alive.
       if (!authenticationSucceeded) {
         try {
           await withAuthTimeout(supabase.auth.signOut());
@@ -343,27 +346,19 @@ export default function Login() {
         }
       }
       
-      // Keep failed-attempt throttling in this browser and rely on Supabase
-      // Auth's server-side rate limits. An unauthenticated, email-based RPC
-      // allowed anyone to revoke another user's account by submitting guesses.
-      const dbAttempts = 1;
-
-      // When auth succeeded but role loading failed â€” don't increment counter, just show retry
       if (authenticationSucceeded) {
         setError("Your password was accepted, but your account profile could not be loaded. Please try again.");
         return;
       }
 
       const localAttempts = failedAttempts + 1;
-      const effectiveAttempts = Math.max(localAttempts, dbAttempts);
-      setFailedAttempts(effectiveAttempts);
-      if (effectiveAttempts >= MAX_FAILED_ATTEMPTS) {
+      setFailedAttempts(localAttempts);
+      if (localAttempts >= MAX_FAILED_ATTEMPTS) {
         setLockedUntil(Date.now() + LOCKOUT_DURATION_MS);
       }
 
-      if (effectiveAttempts >= 5 || err.message?.includes("Account locked")) {
-        // Automatically trigger password reset on the exact 5th attempt
-        if (effectiveAttempts === 5 && localAttempts === 5) {
+      if (localAttempts >= 5 || err.message?.includes("Account locked")) {
+        if (localAttempts === 5) {
           supabase.auth.resetPasswordForEmail(email, {
             redirectTo: `${window.location.origin}/reset-password`,
           }).catch((err) => console.error("Failed to send reset email on lockout", err));
@@ -371,10 +366,10 @@ export default function Login() {
         setError("Account locked due to 5 failed attempts. A password reset link has been sent to your email to regain access.");
       } else {
         const baseError = parseAuthError(err);
-        if (effectiveAttempts === 3) {
-          setError(`${baseError} You have 2 more trials before your account is locked.`);
-        } else if (effectiveAttempts === 4) {
-          setError(`${baseError} You have 1 more trial before your account is locked.`);
+        if (localAttempts === 3) {
+          setError(`${baseError} You have 2 more attempts before your account is temporarily locked.`);
+        } else if (localAttempts === 4) {
+          setError(`${baseError} You have 1 more attempt before your account is temporarily locked.`);
         } else {
           setError(baseError);
         }
@@ -437,67 +432,114 @@ export default function Login() {
   };
 
   // ---------------------------------------------------------------------------
+  // Request Password Reset Link (Forgot Password)
+  // ---------------------------------------------------------------------------
+  const handleRequestReset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const targetEmail = forgotEmail.trim().toLowerCase();
+    if (!targetEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(targetEmail)) {
+      setForgotError("Please enter a valid email address.");
+      return;
+    }
+
+    setForgotLoading(true);
+    setForgotError("");
+
+    try {
+      const siteUrl = window.location.origin;
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(targetEmail, {
+        redirectTo: `${siteUrl}/reset-password`,
+      });
+
+      if (resetError) throw resetError;
+
+      setForgotSuccess(true);
+    } catch (err: any) {
+      setForgotError(err?.message || "Failed to send password reset email. Please try again.");
+    } finally {
+      setForgotLoading(false);
+    }
+  };
+
+  // ---------------------------------------------------------------------------
   // Render
   // ---------------------------------------------------------------------------
   return (
-    <main className="min-h-screen bg-slate-50 font-sans">
-      <div className="mx-auto flex min-h-screen w-full max-w-md items-center justify-center px-4 py-10">
-        <Card className="w-full overflow-hidden rounded-xl border-slate-200 bg-white shadow-md">
-          <CardContent className="p-8 sm:p-10">
+    <main className="min-h-screen bg-slate-50 flex items-center justify-center p-4 sm:p-6 font-sans">
+      <div className="w-full max-w-[420px] animate-in fade-in duration-300">
+        <Card className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <CardContent className="p-7 sm:p-9">
+            {/* Logo and Brand Title */}
             <div className="mb-8 text-center">
-              <div className="mx-auto mb-4 flex h-[72px] w-[72px] items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-white p-2 shadow-sm">
-                <img src="/ronsberger-logo.webp" alt="Ronsberger HMO Logo" className="h-full w-full object-contain" fetchPriority="high" />
+              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-xl border border-slate-200 bg-white p-2 shadow-xs">
+                <img
+                  src="/ronsberger-logo.png"
+                  alt="Ronsberger HMO Logo"
+                  className="h-full w-full object-contain"
+                  fetchPriority="high"
+                  onError={(e) => {
+                    // Fallback to webp if png is not found
+                    const target = e.currentTarget;
+                    if (target.src.endsWith(".png")) {
+                      target.src = "/ronsberger-logo.webp";
+                    }
+                  }}
+                />
               </div>
-              <h1 className="text-xl font-semibold normal-case tracking-normal text-brand-700">
-                Ronsberger <span className="text-lime-800">HMO</span>
+              <h1 className="text-xl font-bold tracking-tight text-slate-900">
+                Ronsberger <span className="text-[#0F6E56]">HMO</span>
               </h1>
-              <p className="mt-2 text-sm font-medium text-slate-700">
-                Sign in to your account
+              <p className="mt-1.5 text-xs font-medium text-slate-500">
+                Clinical Authorization & Healthcare Operations
               </p>
             </div>
 
             {showMfa ? (
               /* ---- MFA screen ---- */
               <form onSubmit={handleVerifyMfa} className="space-y-5">
-                <div className="space-y-4">
-                  <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
-                    <p className="text-xs font-semibold text-brand-700 leading-tight flex items-center gap-2">
-                      <Shield className="h-4 w-4 text-brand-700" />
+                <div className="rounded-xl bg-emerald-50/70 border border-emerald-200/80 p-3.5">
+                  <div className="flex items-center gap-2">
+                    <Shield className="h-4 w-4 text-[#0F6E56] shrink-0" />
+                    <span className="text-xs font-bold text-[#0F6E56]">
                       Multi-Factor Authentication
-                    </p>
-                    <p className="text-xs text-slate-600 mt-1.5 leading-normal">
-                      Authenticator protection is enabled. Enter the verification code from your authenticator app to authorize this session.
-                    </p>
+                    </span>
                   </div>
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                       <Label htmlFor="mfa-code" className="text-xs font-bold text-slate-800">
-                         Authenticator Code
-                       </Label>
-                      <Badge className="bg-slate-100 text-brand-700 border border-slate-200 text-xs font-bold">
-                        MFA Enabled
-                      </Badge>
-                    </div>
-                    <Input
-                      id="mfa-code"
-                      type="text"
-                      maxLength={6}
-                      value={mfaCode}
-                      onChange={(e) => {
-                        setError("");
-                        setMfaCode(e.target.value.replace(/\D/g, ""));
-                      }}
-                      required
-                      placeholder="000000"
-                      className="h-14 rounded-xl text-center text-3xl font-mono tracking-[0.4em] bg-slate-50 border-slate-200 focus:border-brand-700 transition-all"
-                    />
-                  </div>
+                  <p className="text-xs text-slate-600 mt-1 leading-relaxed">
+                    Enter the 6-digit verification code from your authenticator app to authorize this session.
+                  </p>
                 </div>
-                <div className="flex flex-col gap-3">
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="mfa-code" className="text-xs font-semibold text-slate-700">
+                      Authenticator Code
+                    </Label>
+                    <Badge variant="outline" className="text-[10px] font-mono text-[#0F6E56] border-emerald-200 bg-emerald-50">
+                      MFA Active
+                    </Badge>
+                  </div>
+                  <Input
+                    id="mfa-code"
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    maxLength={6}
+                    value={mfaCode}
+                    onChange={(e) => {
+                      setError("");
+                      setMfaCode(e.target.value.replace(/\D/g, ""));
+                    }}
+                    required
+                    placeholder="000000"
+                    className="h-12 rounded-xl text-center text-2xl font-mono tracking-[0.3em] font-bold border-slate-200 bg-slate-50/50 focus:bg-white focus:border-[#0F6E56] focus:ring-2 focus:ring-[#0F6E56]/15 transition-all"
+                  />
+                </div>
+
+                <div className="flex flex-col gap-2.5 pt-1">
                   <Button
                     type="submit"
-                    disabled={isLoading}
-                    className="h-12 w-full rounded-lg bg-brand-700 font-semibold text-white shadow-sm transition-colors hover:bg-brand-800"
+                    disabled={isLoading || mfaCode.length < 6}
+                    className="h-11 w-full rounded-xl bg-[#0F6E56] font-semibold text-white shadow-xs transition-colors hover:bg-[#0a5240] disabled:opacity-60"
                   >
                     {isLoading ? (
                       <Loader2 className="h-4 w-4 animate-spin mx-auto" />
@@ -517,107 +559,87 @@ export default function Login() {
                       setMfaCode("");
                       setIsLoading(false);
                     }}
-                    className="h-12 w-full rounded-xl font-semibold text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-all"
+                    className="h-10 w-full rounded-xl text-xs font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors"
                   >
-                    Cancel & Sign Out
+                    Cancel & Return to Login
                   </Button>
                 </div>
+
                 {error && (
-                  <p className="text-center text-xs font-semibold text-rose-600 animate-in fade-in slide-in-from-bottom-1">
+                  <p className="text-center text-xs font-semibold text-rose-600 animate-in fade-in">
                     {error}
                   </p>
                 )}
               </form>
             ) : (
               /* ---- Login screen ---- */
-              <form onSubmit={handleSignIn} className="space-y-5">
-                {/* Hidden dummy fields to absorb browser credential autofill */}
-                <input
-                  type="text"
-                  name="email"
-                  value={email}
-                  autoComplete="username"
-                  aria-label="Hidden Username Autofill"
-                  style={{
-                    position: "absolute",
-                    top: "-1000px",
-                    left: "-1000px",
-                    width: "1px",
-                    height: "1px",
-                    opacity: 0,
-                    pointerEvents: "none",
-                  }}
-                  tabIndex={-1}
-                  readOnly
-                />
-                <input
-                  type="password"
-                  name="dummy-password"
-                  autoComplete="current-password"
-                  aria-label="Hidden Password Autofill"
-                  style={{
-                    position: "absolute",
-                    top: "-1000px",
-                    left: "-1000px",
-                    width: "1px",
-                    height: "1px",
-                    opacity: 0,
-                    pointerEvents: "none",
-                  }}
-                  tabIndex={-1}
-                  readOnly
-                />
+              <form onSubmit={handleSignIn} className="space-y-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="email" className="text-xs font-semibold text-slate-700">
+                    Email Address
+                  </Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    autoComplete="username"
+                    value={email}
+                    onChange={(e) => {
+                      setEmail(e.target.value);
+                      setError("");
+                    }}
+                    required
+                    disabled={isLocked}
+                    placeholder="name@hospital.com"
+                    className="h-11 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white focus:border-[#0F6E56] focus:ring-2 focus:ring-[#0F6E56]/15 text-sm transition-all"
+                  />
+                </div>
 
-                <div className="space-y-4">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="email" className="text-xs font-bold text-slate-800">
-                      Email Address
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="password" className="text-xs font-semibold text-slate-700">
+                      Password
                     </Label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setForgotEmail(email);
+                        setForgotSuccess(false);
+                        setForgotError("");
+                        setForgotOpen(true);
+                      }}
+                      className="text-xs font-semibold text-[#0F6E56] hover:text-[#0a5240] hover:underline transition-colors"
+                    >
+                      Forgot password?
+                    </button>
+                  </div>
+                  <div className="relative">
                     <Input
-                      id="email"
-                      type="email"
-                      value={email}
+                      id="password"
+                      type={showPassword ? "text" : "password"}
+                      autoComplete="current-password"
+                      value={password}
                       onChange={(e) => {
-                        setEmail(e.target.value);
+                        setPassword(e.target.value);
                         setError("");
                       }}
                       required
                       disabled={isLocked}
-                      placeholder="name@your-domain.com"
-                      className="h-12 rounded-xl bg-slate-50 border-slate-100 font-bold"
+                      placeholder="••••••••"
+                      className="h-11 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white focus:border-[#0F6E56] focus:ring-2 focus:ring-[#0F6E56]/15 text-sm pr-11 transition-all"
                     />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="password" className="text-xs font-bold text-slate-800">
-                      Password
-                    </Label>
-                    <div className="relative">
-                      <Input
-                        id="password"
-                        type={showPassword ? "text" : "password"}
-                        value={password}
-                        onChange={(e) => {
-                          setPassword(e.target.value);
-                          setError("");
-                        }}
-                        required
-                        disabled={isLocked}
-                        className="h-12 rounded-xl bg-slate-50 border-slate-100 font-bold pr-12"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-1 top-1/2 -translate-y-1/2 p-2 text-slate-500 hover:text-slate-700 transition-colors"
-                        aria-label={showPassword ? "Hide password" : "Show password"}
-                        tabIndex={-1}
-                      >
-                        {showPassword ? (
-                          <EyeOff className="h-4 w-4" />
-                        ) : (
-                          <Eye className="h-4 w-4" />
-                        )}
-                      </button>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-1 top-1/2 -translate-y-1/2 p-2.5 text-slate-400 hover:text-slate-600 transition-colors"
+                      aria-label={showPassword ? "Hide password" : "Show password"}
+                      tabIndex={-1}
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
+                    </button>
                   </div>
                 </div>
 
@@ -626,35 +648,135 @@ export default function Login() {
                   <div className="flex items-center gap-2 p-3 rounded-xl bg-amber-50 border border-amber-200 animate-in fade-in">
                     <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
                     <p className="text-xs font-semibold text-amber-800">
-                      Too many attempts ï¿½ please wait {lockCountdown}s
+                      Too many attempts — please wait {lockCountdown}s
                     </p>
                   </div>
                 )}
 
-                <Button
-                  type="submit"
-                  disabled={isLoading || isLocked}
-                  className="h-12 w-full rounded-lg bg-brand-700 font-semibold text-white shadow-sm transition-colors hover:bg-brand-800 disabled:opacity-60"
-                >
-                  {isLoading ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : isLocked ? (
-                    `Locked ï¿½ ${lockCountdown}s`
-                  ) : (
-                    "Login"
-                  )}
-                </Button>
+                <div className="pt-2">
+                  <Button
+                    type="submit"
+                    disabled={isLoading || isLocked}
+                    className="h-11 w-full rounded-xl bg-[#0F6E56] font-semibold text-sm text-white shadow-xs transition-colors hover:bg-[#0a5240] disabled:opacity-60"
+                  >
+                    {isLoading ? (
+                      <Loader2 className="h-4 w-4 animate-spin mx-auto" />
+                    ) : isLocked ? (
+                      `Locked — wait ${lockCountdown}s`
+                    ) : (
+                      "Sign In"
+                    )}
+                  </Button>
+                </div>
 
                 {error && !isLocked && (
-                  <p className="text-center text-xs font-semibold text-rose-700 animate-in fade-in slide-in-from-bottom-1">
+                  <p className="text-center text-xs font-semibold text-rose-600 animate-in fade-in">
                     {error}
                   </p>
                 )}
               </form>
             )}
+
+            {/* Bottom Footer Details */}
+            <div className="mt-8 border-t border-slate-100 pt-5 text-center">
+              <p className="text-[11px] text-slate-400">
+                Protected by Ronsberger HMO Access Security
+              </p>
+              <div className="mt-2 flex items-center justify-center gap-3 text-[11px] text-slate-500">
+                <Link to="/privacy-policy" className="hover:text-slate-800 hover:underline transition-colors">
+                  Privacy Policy
+                </Link>
+                <span>•</span>
+                <Link to="/terms-of-service" className="hover:text-slate-800 hover:underline transition-colors">
+                  Terms of Service
+                </Link>
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>
+
+      {/* Forgot Password Dialog */}
+      <Dialog open={forgotOpen} onOpenChange={setForgotOpen}>
+        <DialogContent className="rounded-2xl max-w-[400px] p-6">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold text-slate-900">
+              Reset Your Password
+            </DialogTitle>
+            <DialogDescription className="text-xs text-slate-500">
+              Enter your registered email address and we will send you a secure password reset link.
+            </DialogDescription>
+          </DialogHeader>
+
+          {forgotSuccess ? (
+            <div className="py-4 text-center space-y-3">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200">
+                <CheckCircle2 className="h-6 w-6" />
+              </div>
+              <h3 className="text-sm font-bold text-slate-900">Reset Link Sent</h3>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                If an account exists for <strong className="text-slate-800">{forgotEmail}</strong>, you will receive an email shortly with instructions to reset your password.
+              </p>
+              <Button
+                type="button"
+                onClick={() => setForgotOpen(false)}
+                className="mt-2 h-10 w-full rounded-xl bg-[#0F6E56] hover:bg-[#0a5240] text-xs font-semibold text-white"
+              >
+                Back to Sign In
+              </Button>
+            </div>
+          ) : (
+            <form onSubmit={handleRequestReset} className="space-y-4 pt-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="forgot-email" className="text-xs font-semibold text-slate-700">
+                  Email Address
+                </Label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                  <Input
+                    id="forgot-email"
+                    type="email"
+                    required
+                    value={forgotEmail}
+                    onChange={(e) => {
+                      setForgotEmail(e.target.value);
+                      setForgotError("");
+                    }}
+                    placeholder="name@hospital.com"
+                    className="h-10 pl-9 rounded-xl border-slate-200 text-xs focus:border-[#0F6E56] focus:ring-2 focus:ring-[#0F6E56]/15"
+                  />
+                </div>
+              </div>
+
+              {forgotError && (
+                <p className="text-xs font-medium text-rose-600">{forgotError}</p>
+              )}
+
+              <div className="flex gap-2 pt-1">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setForgotOpen(false)}
+                  className="h-10 flex-1 rounded-xl text-xs font-semibold text-slate-600 border-slate-200 hover:bg-slate-50"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={forgotLoading}
+                  className="h-10 flex-1 rounded-xl bg-[#0F6E56] hover:bg-[#0a5240] text-xs font-semibold text-white shadow-xs"
+                >
+                  {forgotLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin mx-auto" />
+                  ) : (
+                    "Send Reset Link"
+                  )}
+                </Button>
+              </div>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
     </main>
   );
 }

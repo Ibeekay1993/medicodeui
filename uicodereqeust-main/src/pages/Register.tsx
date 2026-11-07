@@ -2,16 +2,16 @@ import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { createClient } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, User, Lock, Building2, ShieldAlert } from "lucide-react";
+import { Loader2, User, Lock, Building2, ShieldAlert, CheckCircle2, Eye, EyeOff } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 
 // ---------------------------------------------------------------------------
-// JWT helpers — no library needed, works in all modern browsers
+// JWT helpers
 // ---------------------------------------------------------------------------
 function decodeJwtPayload(token: string): Record<string, any> | null {
   try {
@@ -46,6 +46,9 @@ export default function Register() {
   const [acceptPrivacy, setAcceptPrivacy] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+
   // Role, email, hospital decoded from JWT payload on page load
   const [tokenRole, setTokenRole] = useState<string | null>(null);
   const [tokenHospitalId, setTokenHospitalId] = useState<string | null>(null);
@@ -53,7 +56,6 @@ export default function Register() {
 
   // Invitation tokens stored strictly in memory
   const [pendingTokens, setPendingTokens] = useState<{ accessToken: string; refreshToken: string } | null>(null);
-
 
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [sessionResolving, setSessionResolving] = useState(true);
@@ -83,10 +85,8 @@ export default function Register() {
 
     const validateAndPrepare = async () => {
       try {
-        // Step 4: Force Logout Existing Session to enter a clean unauthenticated state
         await supabase.auth.signOut({ scope: "local" }).catch(() => {});
 
-        // Validate JWT expiry client-side first
         if (isJwtExpired(accessToken)) {
           setInviteError(
             "This invitation link has expired. Please contact your administrator to resend the invitation."
@@ -95,7 +95,6 @@ export default function Register() {
           return;
         }
 
-        // Step 5: Validate Invitation Token server-side
         const { data: userData, error: userError } = await supabase.auth.getUser(accessToken);
         if (userError || !userData?.user) {
           setInviteError(
@@ -108,10 +107,6 @@ export default function Register() {
         const userId = userData.user.id;
         const userEmail = userData.user.email || null;
 
-        // Step 6: Verify Invitation Status from DB
-        // Verify invite metadata using the invite's own access token. The regular
-        // app client is intentionally signed out here, so its anon key must not
-        // be allowed to query another user's invitation status.
         const inviteClient = createClient(
           import.meta.env.VITE_SUPABASE_URL,
           import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
@@ -143,7 +138,6 @@ export default function Register() {
           return;
         }
 
-        // Step 7: Store tokens strictly in memory React state (not localStorage/sessionStorage/cookies)
         setTokenRole(statusRow.role || null);
         setTokenHospitalId(statusRow.hospital_id || null);
         setTokenEmail(userEmail);
@@ -153,8 +147,6 @@ export default function Register() {
         if (metadata.full_name) {
           setFullName(metadata.full_name);
         }
-
-
       } catch (e: any) {
         setInviteError("An error occurred while validating your invitation. Please try again.");
       } finally {
@@ -179,7 +171,6 @@ export default function Register() {
       toast({ variant: "destructive", title: "Consent Required", description: "You must accept the Terms of Service and Privacy Policy to register." });
       return;
     }
-    // Minimum 8 characters
     if (password.length < 8) {
       toast({
         variant: "destructive",
@@ -210,10 +201,8 @@ export default function Register() {
     }
 
     setLoading(true);
-    let sessionEstablished = false;
 
     try {
-      // Step 2: Establish Supabase Session ONLY after validation succeeds
       const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
         access_token: pendingTokens.accessToken,
         refresh_token: pendingTokens.refreshToken,
@@ -225,11 +214,9 @@ export default function Register() {
         );
       }
 
-      sessionEstablished = true;
       const userId = sessionData.session.user.id;
       const email = sessionData.session.user.email || "";
 
-      // Complete Onboarding: Update auth user details (password and metadata)
       const { error: updateError } = await supabase.auth.updateUser({
         password,
         data: {
@@ -238,12 +225,10 @@ export default function Register() {
       });
       if (updateError) throw updateError;
 
-      // Step 5: Hospital linking/provisioning
       let linkedHospitalId = tokenHospitalId;
 
       if (tokenRole === "hospital") {
         if (tokenHospitalId) {
-          // Pre-assigned by admin — link user to existing hospital
           const { error: hospError } = await supabase
             .from("hospitals")
             .update({ user_id: userId } as any)
@@ -284,7 +269,6 @@ export default function Register() {
         }
       }
 
-      // Mark Invitation Consumed: Update user_roles with onboarding metadata
       const { error: roleUpdateError } = await supabase
         .from("user_roles")
         .update({
@@ -298,39 +282,38 @@ export default function Register() {
 
       if (roleUpdateError) throw roleUpdateError;
 
-      // Log the mandatory consent for GDPR/NDPR compliance
-      const { error: consentError } = await supabase
+      void supabase
         .from("consent_logs")
         .insert([{
           user_id: userId,
           action: "accept_all",
           policy_version: "2026-07"
         } as any]);
-      
-      if (consentError) {
-        console.error("Failed to append consent log:", consentError);
-        // We don't block the user if logging fails, but it's captured in server logs
-      }
 
       toast({
         title: "Registration Complete",
         description: "Your account is ready. Welcome to Ronsberger HMO!",
       });
 
-      // Clear pending tokens from state
-      setPendingTokens(null);
-      navigate("/");
-    } catch (error: any) {
+      if (tokenRole === "hospital") {
+        navigate("/dashboard", { replace: true });
+      } else if (tokenRole === "admin") {
+        navigate("/backoffice/admin", { replace: true });
+      } else if (tokenRole === "utilization_manager" || tokenRole === "utilization_manager_lead") {
+        navigate("/backoffice/utilization-manager", { replace: true });
+      } else if (tokenRole === "claims") {
+        navigate("/backoffice/claims", { replace: true });
+      } else if (tokenRole === "finance") {
+        navigate("/backoffice/finance", { replace: true });
+      } else {
+        navigate("/login", { replace: true });
+      }
+    } catch (err: any) {
       toast({
         variant: "destructive",
-        title: "Registration Failed",
-        description: error.message || "An unexpected error occurred. Please try again.",
+        title: "Setup Failed",
+        description: err.message || "Failed to complete account registration.",
       });
-
-      // Failure Rollback: Clear any partial session/authentication
-      if (sessionEstablished) {
-        await supabase.auth.signOut({ scope: "local" }).catch(() => {});
-      }
     } finally {
       setLoading(false);
     }
@@ -342,7 +325,7 @@ export default function Register() {
   if (sessionResolving) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <Loader2 className="h-8 w-8 animate-spin text-lime-500" />
+        <Loader2 className="h-8 w-8 animate-spin text-[#0F6E56]" />
       </div>
     );
   }
@@ -352,32 +335,36 @@ export default function Register() {
   // ---------------------------------------------------------------------------
   if (inviteError) {
     return (
-      <div className="min-h-screen bg-slate-50 font-sans py-12 px-4 flex items-center justify-center">
-        <div className="max-w-md w-full animate-in fade-in slide-in-from-bottom-4 duration-300">
-          <Card className="overflow-hidden rounded-xl border-slate-200 bg-white shadow-md">
-            <CardHeader className="text-center pb-2">
-              <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-lg border border-amber-200 bg-amber-50">
+      <main className="min-h-screen bg-slate-50 flex items-center justify-center p-4 sm:p-6 font-sans">
+        <div className="w-full max-w-[420px] animate-in fade-in duration-300">
+          <Card className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <CardContent className="p-8 text-center space-y-5">
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-amber-200 bg-amber-50">
                 <ShieldAlert className="h-7 w-7 text-amber-600" />
               </div>
-              <CardTitle className="text-2xl font-semibold text-slate-900">
-                Invitation <span className="text-amber-600">Error</span>
-              </CardTitle>
-              <CardDescription className="mt-2 text-sm font-medium text-slate-600">
-                Setup Failed
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="p-8 text-center space-y-6">
-              <p className="text-sm font-semibold text-slate-600 leading-relaxed">{inviteError}</p>
-              <Button
-                onClick={() => navigate("/login")}
-                className="h-12 w-full rounded-lg bg-primary text-sm font-semibold text-white shadow-sm transition-colors hover:bg-primary/90"
-              >
-                Go to Login
-              </Button>
+              <div>
+                <h1 className="text-xl font-bold tracking-tight text-slate-900">
+                  Invitation Issue
+                </h1>
+                <p className="mt-1 text-xs text-slate-500">
+                  Could not verify invitation token
+                </p>
+              </div>
+              <p className="text-xs text-slate-600 leading-relaxed font-medium">
+                {inviteError}
+              </p>
+              <div className="pt-2">
+                <Button
+                  onClick={() => navigate("/login")}
+                  className="h-11 w-full rounded-xl bg-[#0F6E56] hover:bg-[#0a5240] text-sm font-semibold text-white shadow-xs"
+                >
+                  Go to Login
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </div>
-      </div>
+      </main>
     );
   }
 
@@ -385,195 +372,184 @@ export default function Register() {
   // Registration form
   // ---------------------------------------------------------------------------
   return (
-    <main className="min-h-screen bg-slate-50 font-sans py-12 px-4">
-      <div className="max-w-md mx-auto">
-        <Card className="overflow-hidden rounded-xl border-slate-200 bg-white shadow-md">
-          <CardHeader className="text-center pb-2">
-            <div className="mx-auto mb-4 flex h-[72px] w-[72px] items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-white p-2 shadow-sm">
-              <img src="/ronsberger-logo.webp" alt="Ronsberger HMO Logo" className="h-full w-full object-contain" fetchPriority="high" />
+    <main className="min-h-screen bg-slate-50 flex items-center justify-center p-4 sm:p-6 font-sans">
+      <div className="w-full max-w-[460px] animate-in fade-in duration-300">
+        <Card className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <CardContent className="p-7 sm:p-9">
+            {/* Header Brand */}
+            <div className="mb-7 text-center">
+              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-xl border border-slate-200 bg-white p-2 shadow-xs">
+                <img
+                  src="/ronsberger-logo.png"
+                  alt="Ronsberger HMO Logo"
+                  className="h-full w-full object-contain"
+                  onError={(e) => {
+                    const target = e.currentTarget;
+                    if (target.src.endsWith(".png")) target.src = "/ronsberger-logo.webp";
+                  }}
+                />
+              </div>
+              <h1 className="text-xl font-bold tracking-tight text-slate-900">
+                Complete Registration
+              </h1>
+              <p className="mt-1 text-xs text-slate-500">
+                Set up your credentials for Ronsberger HMO Portal
+              </p>
+              {tokenEmail && (
+                <p className="mt-2 text-xs font-mono font-semibold text-[#0F6E56] bg-emerald-50 py-1 px-2.5 rounded-lg inline-block border border-emerald-100">
+                  {tokenEmail}
+                </p>
+              )}
             </div>
-            <CardTitle className="text-2xl font-semibold text-slate-900">
-              Complete <span className="text-lime-800">Registration</span>
-            </CardTitle>
-            <CardDescription className="mt-2 text-sm font-medium text-slate-600">
-              Finalize your Ronsberger HMO access
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="p-8">
-            <form onSubmit={handleCompleteRegistration} className="space-y-5" autoComplete="off">
-              {/* Hidden dummy fields to absorb browser credential autofill */}
-              <input
-                type="text"
-                name="email"
-                value={tokenEmail || ""}
-                autoComplete="username"
-                aria-label="Hidden Username Autofill"
-                style={{
-                  position: "absolute",
-                  top: "-1000px",
-                  left: "-1000px",
-                  width: "1px",
-                  height: "1px",
-                  opacity: 0,
-                  pointerEvents: "none",
-                }}
-                tabIndex={-1}
-                readOnly
-              />
-              <input
-                type="password"
-                name="dummy-password"
-                autoComplete="current-password"
-                aria-label="Hidden Password Autofill"
-                style={{
-                  position: "absolute",
-                  top: "-1000px",
-                  left: "-1000px",
-                  width: "1px",
-                  height: "1px",
-                  opacity: 0,
-                  pointerEvents: "none",
-                }}
-                tabIndex={-1}
-                readOnly
-              />
 
-              <div className="space-y-2">
-                <Label htmlFor="fullName" className="ml-1 text-sm font-medium text-slate-700">
+            <form onSubmit={handleCompleteRegistration} className="space-y-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="fullName" className="text-xs font-semibold text-slate-700">
                   Full Name
                 </Label>
                 <div className="relative">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                  <User className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                   <Input
                     id="fullName"
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
                     placeholder="Enter your full name"
-                    className="h-12 pl-10 rounded-xl bg-slate-50 border-slate-100 font-bold"
-                    autoComplete="new-name"
+                    autoComplete="name"
                     required
+                    className="h-11 pl-10 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white focus:border-[#0F6E56] focus:ring-2 focus:ring-[#0F6E56]/15 text-sm transition-all"
                   />
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="password" className="ml-1 text-sm font-medium text-slate-700">
+              <div className="space-y-1.5">
+                <Label htmlFor="password" className="text-xs font-semibold text-slate-700">
                   Create Password
                 </Label>
                 <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                  <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                   <Input
                     id="password"
-                    type="password"
+                    type={showPassword ? "text" : "password"}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Min. 8 characters"
-                    className="h-12 pl-10 rounded-xl bg-slate-50 border-slate-100 font-bold"
                     autoComplete="new-password"
                     required
+                    className="h-11 pl-10 pr-11 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white focus:border-[#0F6E56] focus:ring-2 focus:ring-[#0F6E56]/15 text-sm transition-all"
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-1 top-1/2 -translate-y-1/2 p-2.5 text-slate-400 hover:text-slate-600"
+                    tabIndex={-1}
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="confirmPassword" className="ml-1 text-sm font-medium text-slate-700">
+              <div className="space-y-1.5">
+                <Label htmlFor="confirmPassword" className="text-xs font-semibold text-slate-700">
                   Confirm Password
                 </Label>
                 <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                  <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                   <Input
                     id="confirmPassword"
-                    type="password"
+                    type={showConfirm ? "text" : "password"}
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     placeholder="Re-enter your password"
-                    className="h-12 pl-10 rounded-xl bg-slate-50 border-slate-100 font-bold"
                     autoComplete="new-password"
                     required
+                    className="h-11 pl-10 pr-11 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white focus:border-[#0F6E56] focus:ring-2 focus:ring-[#0F6E56]/15 text-sm transition-all"
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirm(!showConfirm)}
+                    className="absolute right-1 top-1/2 -translate-y-1/2 p-2.5 text-slate-400 hover:text-slate-600"
+                    tabIndex={-1}
+                  >
+                    {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
                 </div>
               </div>
 
               {tokenRole === "hospital" && (
-                <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
-                  <Label htmlFor="hospitalName" className="ml-1 text-sm font-medium text-slate-700">
-                    NHIA Hospital Name
+                <div className="space-y-1.5 pt-1">
+                  <Label htmlFor="hospitalName" className="text-xs font-semibold text-slate-700">
+                    Hospital Facility Name
                   </Label>
                   {tokenHospitalId ? (
-                    <div className="flex items-center gap-3 p-3 rounded-xl bg-emerald-50 border border-emerald-200">
-                      <Building2 className="h-4 w-4 text-emerald-600 shrink-0" />
-                      <p className="text-xs font-semibold text-emerald-700">
-                        Hospital account pre-configured by administrator
+                    <div className="flex items-center gap-2.5 p-3 rounded-xl bg-emerald-50 border border-emerald-200/80">
+                      <Building2 className="h-4 w-4 text-[#0F6E56] shrink-0" />
+                      <p className="text-xs font-semibold text-[#0F6E56]">
+                        Pre-assigned facility linked to your invite
                       </p>
                     </div>
                   ) : (
                     <div className="relative">
-                      <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                      <Building2 className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                       <Input
                         id="hospitalName"
                         value={hospitalName}
                         onChange={(e) => setHospitalName(e.target.value)}
-                        placeholder="As on NHIA Registration"
-                        className="h-12 pl-10 rounded-xl bg-slate-50 border-slate-100 font-bold"
-                        autoComplete="off"
+                        placeholder="As registered with NHIA"
                         required
+                        className="h-11 pl-10 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white focus:border-[#0F6E56] focus:ring-2 focus:ring-[#0F6E56]/15 text-sm transition-all"
                       />
                     </div>
                   )}
                 </div>
               )}
 
-              <div className="space-y-4 pt-2 pb-2">
-                <div className="flex items-start space-x-3">
+              {/* Legal & Consent Checkboxes */}
+              <div className="space-y-3 pt-3 pb-1 border-t border-slate-100">
+                <div className="flex items-start gap-2.5">
                   <Checkbox 
                     id="terms" 
                     checked={acceptTerms} 
-                    onCheckedChange={(checked) => setAcceptTerms(checked as boolean)} 
+                    onCheckedChange={(checked) => setAcceptTerms(checked as boolean)}
+                    className="mt-0.5 data-[state=checked]:bg-[#0F6E56] data-[state=checked]:border-[#0F6E56]"
                   />
-                  <div className="grid gap-1.5 leading-none">
-                    <label
-                      htmlFor="terms"
-                      className="text-sm font-medium text-slate-700 leading-snug cursor-pointer"
-                    >
-                      I agree to the{" "}
-                      <Link to="/terms-of-service" className="text-lime-600 hover:underline" target="_blank" rel="noopener noreferrer">
-                        Terms of Service
-                      </Link>{" "}
-                      and{" "}
-                      <Link to="/privacy-policy" className="text-lime-600 hover:underline" target="_blank" rel="noopener noreferrer">
-                        Privacy Policy
-                      </Link>.
-                    </label>
-                  </div>
+                  <Label htmlFor="terms" className="text-xs font-normal text-slate-600 leading-snug cursor-pointer">
+                    I agree to the{" "}
+                    <Link to="/terms-of-service" className="font-semibold text-[#0F6E56] hover:underline" target="_blank" rel="noopener noreferrer">
+                      Terms of Service
+                    </Link>{" "}
+                    and{" "}
+                    <Link to="/privacy-policy" className="font-semibold text-[#0F6E56] hover:underline" target="_blank" rel="noopener noreferrer">
+                      Privacy Policy
+                    </Link>.
+                  </Label>
                 </div>
-                <div className="flex items-start space-x-3">
+
+                <div className="flex items-start gap-2.5">
                   <Checkbox 
                     id="privacy" 
                     checked={acceptPrivacy} 
-                    onCheckedChange={(checked) => setAcceptPrivacy(checked as boolean)} 
+                    onCheckedChange={(checked) => setAcceptPrivacy(checked as boolean)}
+                    className="mt-0.5 data-[state=checked]:bg-[#0F6E56] data-[state=checked]:border-[#0F6E56]"
                   />
-                  <div className="grid gap-1.5 leading-none">
-                    <label
-                      htmlFor="privacy"
-                      className="text-sm font-medium text-slate-700 leading-snug cursor-pointer"
-                    >
-                      I consent to the processing of my personal and healthcare data in accordance with the Privacy Policy (required under GDPR/NDPR).
-                    </label>
-                  </div>
+                  <Label htmlFor="privacy" className="text-xs font-normal text-slate-600 leading-snug cursor-pointer">
+                    I consent to the processing of authorized healthcare data under GDPR/NDPR standards.
+                  </Label>
                 </div>
               </div>
 
-              <Button
-                type="submit"
-                disabled={loading}
-                className="mt-4 h-12 w-full rounded-lg bg-primary text-sm font-semibold text-white shadow-sm transition-colors hover:bg-primary/90"
-              >
-                {loading ? (
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                ) : (
-                  "Complete Account Setup"
-                )}
-              </Button>
+              <div className="pt-2">
+                <Button
+                  type="submit"
+                  disabled={loading || !acceptTerms || !acceptPrivacy}
+                  className="h-11 w-full rounded-xl bg-[#0F6E56] hover:bg-[#0a5240] text-sm font-semibold text-white shadow-xs transition-colors disabled:opacity-60"
+                >
+                  {loading ? (
+                    <Loader2 className="h-4 w-4 animate-spin mx-auto" />
+                  ) : (
+                    "Complete Account Setup"
+                  )}
+                </Button>
+              </div>
             </form>
           </CardContent>
         </Card>
