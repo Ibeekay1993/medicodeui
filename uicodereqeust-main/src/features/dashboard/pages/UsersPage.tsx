@@ -86,8 +86,8 @@ export default function UsersPage() {
   const [mfaUnenrollTarget, setMfaUnenrollTarget] = useState<any | null>(null);
   const [mfaExemptTarget, setMfaExemptTarget] = useState<any | null>(null);
 
-  const fetchUsers = useCallback(async () => {
-    setLoading(true);
+  const fetchUsers = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const { data: userRoles, error: rolesError } = await supabase
         .from("user_roles")
@@ -212,7 +212,7 @@ export default function UsersPage() {
     fetchNameRequests();
   }, [fetchUsers, fetchHospitals, fetchNameRequests]);
 
-  useTabVisibilityRefresh(fetchUsers);
+  useTabVisibilityRefresh(() => fetchUsers(true));
 
   const filtered = useMemo(() => users.filter((item) => {
     const hospitalName = item.hospital_name || hospitals.find((hospital) => hospital.id === item.hospital_id)?.name || "";
@@ -246,7 +246,7 @@ export default function UsersPage() {
         title: "Invitation Resent",
         description: `A fresh invitation link has been sent to ${targetUser.email}.`,
       });
-      fetchUsers();
+      fetchUsers(true);
     } catch (e: any) {
       console.error("Resend invite error:", e);
       toast({
@@ -301,7 +301,7 @@ export default function UsersPage() {
           : `${targetUser.full_name || "User"} will now follow the global MFA policy.`,
       });
       setMfaExemptTarget(null);
-      fetchUsers();
+      fetchUsers(true);
     } catch (e: any) {
       console.error(e);
       toast({
@@ -326,7 +326,7 @@ export default function UsersPage() {
       if (error) throw error;
       toast({ title: decideStatus === "approved" ? "Name Change Approved" : "Name Change Rejected", description: `Name update request has been ${decideStatus}.` });
       fetchNameRequests();
-      fetchUsers();
+      fetchUsers(true);
     } catch (e: any) {
       toast({ variant: "destructive", title: "Action Failed", description: e.message });
     } finally {
@@ -407,7 +407,7 @@ export default function UsersPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 text-xs text-slate-600">
-                  {loading ? (
+                  {loading && users.length === 0 ? (
                     <tr><td colSpan={5} className="px-4 py-12 text-center text-slate-500"><Loader2 className="mx-auto mb-3 h-6 w-6 animate-spin text-lime-500" /> Loading users...</td></tr>
                   ) : paginatedUsers.length === 0 ? (
                     <tr><td colSpan={5} className="px-4 py-12 text-center text-slate-500">No users found</td></tr>
@@ -504,7 +504,7 @@ export default function UsersPage() {
 
             {/* Mobile Card Layout View */}
             <div className="block lg:hidden divide-y divide-slate-100">
-              {loading ? (
+              {loading && users.length === 0 ? (
                 <div className="p-8 text-center text-slate-500"><Loader2 className="mx-auto mb-2 h-5 w-5 animate-spin text-lime-500" /> Loading users...</div>
               ) : paginatedUsers.length === 0 ? (
                 <div className="p-8 text-center text-slate-400 uppercase tracking-widest text-xs font-bold">No users found</div>

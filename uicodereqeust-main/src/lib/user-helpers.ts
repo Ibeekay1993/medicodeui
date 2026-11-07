@@ -4,6 +4,7 @@ export const availableRoles = [
   { value: "utilization_manager", label: "Utilization Manager" },
   { value: "utilization_manager_lead", label: "Utilization Manager Lead" },
   { value: "claims", label: "Claims Auditor" },
+  { value: "claims_lead", label: "Claims Lead (Head of Claims)" },
   { value: "finance", label: "Finance Officer" },
 ];
 
@@ -28,7 +29,7 @@ export const accessStatus = (user: any) => {
 
 export const roleLabel = (value?: string | null, isTeamLead = false) => {
   if (isTeamLead && value === "hospital") return "Hospital Admin Lead";
-  if (isTeamLead && value === "claims") return "Claims Lead";
+  if (value === "claims_lead" || (isTeamLead && value === "claims")) return "Claims Lead (Head of Claims)";
   if (isTeamLead && value === "finance") return "Finance Lead";
   return availableRoles.find((role) => role.value === value)?.label || (!value ? "Unassigned" : "Phased out");
 };
@@ -49,6 +50,7 @@ export const roleClass = (role: string) => {
     case "hospital":
       return "border-blue-200 bg-blue-50 text-blue-700";
     case "claims":
+    case "claims_lead":
       return "border-amber-200 bg-amber-50 text-amber-700";
     case "finance":
       return "border-purple-200 bg-purple-50 text-purple-700";

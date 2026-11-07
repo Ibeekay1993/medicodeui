@@ -96,7 +96,7 @@ export default function ClaimAuditDrawer({
   const [isReleasing, setIsReleasing] = useState(false);
   const [leadOverrideActive, setLeadOverrideActive] = useState(false);
   const [isUnlocking, setIsUnlocking] = useState(false);
-  const effectiveIsClaimsLead = isClaimsLead || (role === "claims" && isTeamLead) || role === "admin";
+  const effectiveIsClaimsLead = isClaimsLead || role === "claims_lead" || (role === "claims" && isTeamLead) || role === "admin";
 
   if (!selectedClaim) return null;
 
@@ -105,7 +105,7 @@ export default function ClaimAuditDrawer({
   const itemQty = (item: any) => Math.max(1, Number(item.quantity ?? 1));
 
   const isAuditable = 
-    (role === "claims" || role === "admin") &&
+    (role === "claims" || role === "claims_lead" || role === "admin") &&
     (selectedClaim.status === "submitted" || 
      selectedClaim.status === "pending" || 
      selectedClaim.status === "contested" || 

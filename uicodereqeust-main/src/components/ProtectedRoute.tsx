@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import type { Database } from "@/integrations/supabase/types";
@@ -104,7 +104,7 @@ export function ProtectedRoute({ children, allowedRoles, fallbackPath, loginPath
     // Correctly redirect to the user's intended base path if they hit a restricted area
     if (fallbackPath) return <Navigate to={fallbackPath} replace />;
     if (role === "hospital") return <Navigate to="/dashboard" replace />;
-    if (role === "claims") return <Navigate to="/backoffice/claims" replace />;
+    if (role === "claims" || role === "claims_lead") return <Navigate to="/backoffice/claims" replace />;
     if (role === "admin") return <Navigate to="/backoffice/admin" replace />;
     if (role === "finance") return <Navigate to="/backoffice/finance" replace />;
     return <Navigate to="/backoffice/utilization-manager" replace />;

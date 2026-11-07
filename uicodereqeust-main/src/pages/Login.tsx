@@ -110,7 +110,7 @@ export default function Login() {
           navigate("/backoffice/admin", { replace: true });
         } else if (role === "utilization_manager" || role === "utilization_manager_lead") {
           navigate("/backoffice/utilization-manager", { replace: true });
-        } else if (role === "claims") {
+        } else if (role === "claims" || role === "claims_lead") {
           navigate("/backoffice/claims", { replace: true });
         } else if (role === "finance") {
           navigate("/backoffice/finance", { replace: true });
@@ -238,7 +238,7 @@ export default function Login() {
     else if (resolvedRole === "admin") navigate("/backoffice/admin", { replace: true });
     else if (resolvedRole === "utilization_manager") navigate("/backoffice/utilization-manager", { replace: true });
     else if (resolvedRole === "utilization_manager_lead") navigate("/backoffice/utilization-manager", { replace: true });
-    else if (resolvedRole === "claims") navigate("/backoffice/claims", { replace: true });
+    else if (resolvedRole === "claims" || resolvedRole === "claims_lead") navigate("/backoffice/claims", { replace: true });
     else navigate("/", { replace: true });
   };
 

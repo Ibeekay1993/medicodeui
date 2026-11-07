@@ -172,7 +172,7 @@ export default function MfaSetup() {
   if (mfaRequired === false) {
     if (role === "admin") return <Navigate to="/backoffice/admin" replace />;
     if (role === "finance") return <Navigate to="/backoffice/finance" replace />;
-    if (role === "claims") return <Navigate to="/backoffice/claims" replace />;
+    if (role === "claims" || role === "claims_lead") return <Navigate to="/backoffice/claims" replace />;
     if (role === "utilization_manager" || role === "utilization_manager_lead") {
       return <Navigate to="/backoffice/utilization-manager" replace />;
     }
@@ -180,7 +180,7 @@ export default function MfaSetup() {
   }
   
   if (mfaVerified) {
-    if (role === "claims") return <Navigate to="/backoffice/claims" replace />;
+    if (role === "claims" || role === "claims_lead") return <Navigate to="/backoffice/claims" replace />;
     if (role === "admin") return <Navigate to="/backoffice/admin" replace />;
     if (role === "finance") return <Navigate to="/backoffice/finance" replace />;
     return <Navigate to="/backoffice/utilization-manager" replace />;

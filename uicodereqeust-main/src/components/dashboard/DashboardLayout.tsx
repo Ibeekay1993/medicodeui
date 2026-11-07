@@ -45,7 +45,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
   const getBasePath = () => {
     if (role === "hospital") return "/dashboard";
-    if (role === "claims") return "/backoffice/claims";
+    if (role === "claims" || role === "claims_lead") return "/backoffice/claims";
     if (role === "finance") return "/backoffice/finance";
     if (role === "admin") return "/backoffice/admin";
     return "/backoffice/utilization-manager";
@@ -54,7 +54,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
   const getNavigation = () => {
     const r = role as string;
-    if (r === "claims") {
+    if (r === "claims" || r === "claims_lead") {
       return [
         { name: "Dashboard", href: basePath, icon: Activity },
         { name: "Claims Queue", href: `${basePath}/all`, icon: Banknote },
@@ -84,7 +84,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       
       { name: "Claims & Intelligence", href: `${basePath}/claims-reports`, icon: FileSpreadsheet, hidden: r !== "admin" },
       { name: "Payment Reports", href: `${basePath}/payment-reports`, icon: FileSpreadsheet, hidden: r !== "admin" },
-      { name: "Pre-Auth Report", href: `${basePath}/reports`, icon: LayoutDashboard, hidden: r === "hospital" || r === "claims" || r === "finance" },
+      { name: "Pre-Auth Report", href: `${basePath}/reports`, icon: LayoutDashboard, hidden: r === "hospital" || r === "claims" || r === "claims_lead" || r === "finance" },
       
       { name: "Hospitals", href: `${basePath}/hospitals`, icon: Building2, hidden: r !== "admin" },
       { name: "Users", href: `${basePath}/users`, icon: Users, hidden: r !== "admin" },

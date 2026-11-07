@@ -3196,6 +3196,7 @@ export type Database = {
         | "hospital"
         | "admin"
         | "claims"
+        | "claims_lead"
         | "bureau"
         | "support"
         | "finance"

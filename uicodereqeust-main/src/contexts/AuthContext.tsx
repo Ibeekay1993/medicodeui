@@ -29,6 +29,7 @@ const sessionInactivityTimeoutByRole: Partial<Record<AppRole, number>> = {
   utilization_manager_lead: 5 * 60 * 60 * 1000, // 5 hours
   hospital: 2 * 60 * 60 * 1000, // 2 hours
   claims: 5 * 60 * 60 * 1000, // 5 hours
+  claims_lead: 5 * 60 * 60 * 1000, // 5 hours
   finance: 5 * 60 * 60 * 1000, // 5 hours
 };
 const defaultSessionInactivityTimeout = 2 * 60 * 60 * 1000;
@@ -165,7 +166,7 @@ function useAuthContextValue(
   signOut: () => Promise<void>,
   refreshProfile: () => Promise<void>
 ) {
-  const isClaimsLead = useMemo(() => (role === "claims" && isTeamLead) || role === "admin", [role, isTeamLead]);
+  const isClaimsLead = useMemo(() => (role === "claims" && isTeamLead) || role === "claims_lead" || role === "admin", [role, isTeamLead]);
   const isUtilizationManagerLead = useMemo(() => role === "utilization_manager_lead" || role === "admin", [role]);
   const isFinanceLead = useMemo(() => (role === "finance" && isTeamLead) || role === "admin", [role, isTeamLead]);
 

@@ -67,7 +67,7 @@ export default function DashboardHome() {
 
   const lastFetchedRef = useRef(0);
 
-  const fetchStats = useCallback(async (force = false) => {
+  const fetchStats = useCallback(async (force = false, silent = false) => {
     const now = Date.now();
     const THROTTLE_MS = 60000;
     if (!force && now - lastFetchedRef.current < THROTTLE_MS) {
@@ -75,9 +75,9 @@ export default function DashboardHome() {
     }
     lastFetchedRef.current = now;
 
-    setLoading(true);
+    if (!silent) setLoading(true);
     try {
-      const isClaimsRole = role === "claims";
+      const isClaimsRole = role === "claims" || role === "claims_lead";
       const isFinanceRole = role === "finance";
       const isAdmin = role === "admin";
 
@@ -375,10 +375,10 @@ export default function DashboardHome() {
     if (role) fetchStats(true);
   }, [role, fetchStats]);
 
-  useTabVisibilityRefresh(fetchStats, Boolean(role));
+  useTabVisibilityRefresh(() => fetchStats(false, true), Boolean(role));
 
   const isAdmin = role === "admin";
-  const isClaims = role === "claims";
+  const isClaims = role === "claims" || role === "claims_lead";
   const isFinance = role === "finance";
   const isUtilizationManager = role === "utilization_manager" || role === "utilization_manager_lead";
   const isNurseOrOther = role !== "admin" && role !== "claims" && role !== "finance";

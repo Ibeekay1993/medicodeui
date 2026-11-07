@@ -23,6 +23,7 @@ export function RootRedirect() {
     utilization_manager_lead: "/backoffice/utilization-manager",
     hospital: "/dashboard",
     claims: "/backoffice/claims",
+    claims_lead: "/backoffice/claims",
     finance: "/backoffice/finance",
   };
 

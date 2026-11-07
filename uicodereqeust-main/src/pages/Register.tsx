@@ -301,7 +301,7 @@ export default function Register() {
         navigate("/backoffice/admin", { replace: true });
       } else if (tokenRole === "utilization_manager" || tokenRole === "utilization_manager_lead") {
         navigate("/backoffice/utilization-manager", { replace: true });
-      } else if (tokenRole === "claims") {
+      } else if (tokenRole === "claims" || tokenRole === "claims_lead") {
         navigate("/backoffice/claims", { replace: true });
       } else if (tokenRole === "finance") {
         navigate("/backoffice/finance", { replace: true });
