@@ -88,6 +88,22 @@ export default function Register() {
       const hash = window.location.hash || "";
       const hashParams = new URLSearchParams(hash.startsWith("#") ? hash.slice(1) : hash);
 
+      // 0. Check for GoTrue error redirect in query params or hash
+      const urlErrorDesc = searchParams.get("error_description") || hashParams.get("error_description");
+      const urlErrorCode = searchParams.get("error_code") || hashParams.get("error_code");
+      const urlError = searchParams.get("error") || hashParams.get("error");
+      if (urlErrorDesc || urlError) {
+        const fullErr = decodeURIComponent(urlErrorDesc || urlError || "");
+        const isExpired = fullErr.toLowerCase().includes("expired") || fullErr.toLowerCase().includes("invalid") || urlErrorCode === "otp_expired";
+        setInviteError(
+          isExpired
+            ? "This invitation link was already used or has expired. Invitation links are single-use and valid for 7 days. Please contact your administrator to click 'Resend Invite' from the User Management directory."
+            : fullErr
+        );
+        setSessionResolving(false);
+        return;
+      }
+
       let accessToken = hashParams.get("access_token") || searchParams.get("access_token") || "";
       let refreshToken = hashParams.get("refresh_token") || searchParams.get("refresh_token") || "";
 
@@ -147,7 +163,7 @@ export default function Register() {
 
       if (isJwtExpired(accessToken)) {
         setInviteError(
-          "This invitation link has expired (invitation links are valid for 24 hours). Please contact your administrator to resend the invitation."
+          "This invitation link has expired (invitation links are valid for 7 days). Please contact your administrator to resend the invitation."
         );
         setSessionResolving(false);
         return;
@@ -437,7 +453,7 @@ export default function Register() {
                   Helpful troubleshooting tips:
                 </p>
                 <ul className="list-disc pl-4 space-y-1 text-slate-600">
-                  <li>Invitation links are single-use and expire after 24 hours.</li>
+                  <li>Invitation links are single-use and expire after 7 days.</li>
                   <li>If opening from an email app, try opening the link directly in Chrome or Safari.</li>
                   <li>If your password was already set up, you can proceed directly to login.</li>
                 </ul>
@@ -608,37 +624,37 @@ export default function Register() {
               )}
 
               {/* Legal & Consent Checkboxes */}
-              <div className="space-y-3 pt-3 pb-1 border-t border-slate-100">
-                <div className="flex items-start gap-2.5">
+              <div className="space-y-3.5 pt-3.5 pb-1 border-t border-slate-100">
+                <label htmlFor="terms" className="flex items-start gap-3 cursor-pointer select-none group">
                   <Checkbox 
                     id="terms" 
                     checked={acceptTerms} 
                     onCheckedChange={(checked) => setAcceptTerms(checked as boolean)}
-                    className="mt-0.5 data-[state=checked]:bg-[#0F6E56] data-[state=checked]:border-[#0F6E56]"
+                    className="mt-0.5 h-4 w-4 shrink-0 rounded-[4px] border-slate-300 data-[state=checked]:bg-[#0F6E56] data-[state=checked]:border-[#0F6E56] !h-4 !w-4 !min-h-[16px] !max-h-[16px] !min-w-[16px] !max-w-[16px]"
                   />
-                  <Label htmlFor="terms" className="text-xs font-normal text-slate-600 leading-snug cursor-pointer">
+                  <span className="text-xs font-normal text-slate-600 leading-snug">
                     I agree to the{" "}
-                    <Link to="/terms-of-service" className="font-semibold text-[#0F6E56] hover:underline" target="_blank" rel="noopener noreferrer">
+                    <Link to="/terms-of-service" className="font-semibold text-[#0F6E56] hover:underline" target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>
                       Terms of Service
                     </Link>{" "}
                     and{" "}
-                    <Link to="/privacy-policy" className="font-semibold text-[#0F6E56] hover:underline" target="_blank" rel="noopener noreferrer">
+                    <Link to="/privacy-policy" className="font-semibold text-[#0F6E56] hover:underline" target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>
                       Privacy Policy
                     </Link>.
-                  </Label>
-                </div>
+                  </span>
+                </label>
 
-                <div className="flex items-start gap-2.5">
+                <label htmlFor="privacy" className="flex items-start gap-3 cursor-pointer select-none group">
                   <Checkbox 
                     id="privacy" 
                     checked={acceptPrivacy} 
                     onCheckedChange={(checked) => setAcceptPrivacy(checked as boolean)}
-                    className="mt-0.5 data-[state=checked]:bg-[#0F6E56] data-[state=checked]:border-[#0F6E56]"
+                    className="mt-0.5 h-4 w-4 shrink-0 rounded-[4px] border-slate-300 data-[state=checked]:bg-[#0F6E56] data-[state=checked]:border-[#0F6E56] !h-4 !w-4 !min-h-[16px] !max-h-[16px] !min-w-[16px] !max-w-[16px]"
                   />
-                  <Label htmlFor="privacy" className="text-xs font-normal text-slate-600 leading-snug cursor-pointer">
+                  <span className="text-xs font-normal text-slate-600 leading-snug">
                     I consent to the processing of authorized healthcare data under GDPR/NDPR standards.
-                  </Label>
-                </div>
+                  </span>
+                </label>
               </div>
 
               <div className="pt-2">

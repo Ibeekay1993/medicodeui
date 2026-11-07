@@ -95,18 +95,21 @@ serve(async (req) => {
     }
 
     // Check for existing role or existing auth user
+    // A pending or non-onboarded user can always receive a fresh invitation link.
     const { data: existingRole } = await supabase
       .from("user_roles")
-      .select("id, user_id, last_sign_in")
+      .select("id, user_id, last_sign_in, invite_status, onboarding_completed")
       .ilike("email", normalizedEmail)
       .maybeSingle();
 
     if (existingRole) {
-      if (existingRole.last_sign_in) {
+      const isCompleted = existingRole.onboarding_completed === true || existingRole.invite_status === "completed";
+      if (isCompleted && existingRole.last_sign_in) {
         throw new Error("A user with this email already exists and has active sign-in history.");
       } else {
         if (existingRole.user_id) {
           await supabase.auth.admin.deleteUser(existingRole.user_id).catch(() => {});
+          await new Promise((r) => setTimeout(r, 200));
         }
       }
     }
@@ -241,7 +244,7 @@ serve(async (req) => {
             <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:16px;">
               <tr>
                 <td style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:12px 16px;">
-                  <p style="color:#b45309;font-size:12px;font-weight:600;margin:0;">This invitation link is personal and will expire in 24 hours. Please do not forward this email.</p>
+                  <p style="color:#b45309;font-size:12px;font-weight:600;margin:0;">This invitation link is personal and will expire in 7 days. Please do not forward this email.</p>
                 </td>
               </tr>
             </table>
