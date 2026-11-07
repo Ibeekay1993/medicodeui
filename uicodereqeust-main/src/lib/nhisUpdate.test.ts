@@ -76,4 +76,78 @@ describe("parseNhisRowWithoutMemberType", () => {
     expect(reconstructWrappedNhisRows(items).get(2))
       .toBe("3 2844595-21 EXTRA DEPENDENT 1 BILKISU MUHAMMED F 14/01/2001");
   });
+
+  it("reassembles EXTRA DEPENDENT 2 and single-line names, consuming neighbor fragments", () => {
+    const items = [
+      textItem("Relationship", 166, 508),
+      textItem("FirstName", 291, 508),
+      textItem("LastName", 405, 508),
+      textItem("Sex", 517, 508),
+      textItem("DOB", 538, 508),
+      textItem("EXTRA DEPENDENT", 166, 428),
+      textItem("4", 65, 421),
+      textItem("1626681-22", 86, 421),
+      textItem("ANIEBIET", 291, 421),
+      textItem("AKPAN", 405, 421),
+      textItem("F", 517, 421),
+      textItem("06/07/1992", 538, 421),
+      textItem("2", 166, 414),
+    ];
+
+    const repairs = reconstructWrappedNhisRows(items);
+    // Middle row (lineIndex 2 in lines) is reconstructed
+    expect(repairs.get(2))
+      .toBe("4 1626681-22 EXTRA DEPENDENT 2 ANIEBIET AKPAN F 06/07/1992");
+    // Neighbor lines (lineIndex 1 and 3) are consumed to prevent stray unclassified lines
+    expect(repairs.get(1)).toBe("");
+    expect(repairs.get(3)).toBe("");
+  });
+
+  it("reassembles a row far down the page with merged Sex DOB header", () => {
+    const items = [
+      textItem("Relationship", 166, 750),
+      textItem("FirstName", 291, 750),
+      textItem("LastName", 405, 750),
+      textItem("Sex DOB", 517, 750),
+      textItem("EXTRA DEPENDENT", 166, 207),
+      textItem("14", 65, 200),
+      textItem("1626681-22", 86, 200),
+      textItem("ANIEBIET", 291, 200),
+      textItem("AKPAN", 405, 200),
+      textItem("F", 517, 200),
+      textItem("06/07/1992", 538, 200),
+      textItem("2", 166, 193),
+    ];
+
+    const repairs = reconstructWrappedNhisRows(items);
+    expect(repairs.get(2))
+      .toBe("14 1626681-22 EXTRA DEPENDENT 2 ANIEBIET AKPAN F 06/07/1992");
+    expect(repairs.get(1)).toBe("");
+    expect(repairs.get(3)).toBe("");
+  });
+
+  it("reassembles multi-line wrapped first names and surnames", () => {
+    const items = [
+      textItem("Relationship", 166, 508),
+      textItem("FirstName", 291, 508),
+      textItem("LastName", 405, 508),
+      textItem("Sex", 517, 508),
+      textItem("DOB", 538, 508),
+      textItem("MARY", 291, 451),
+      textItem("OGHENE-", 405, 451),
+      textItem("1", 65, 444),
+      textItem("1626681-1", 86, 444),
+      textItem("PRINCIPAL", 166, 444),
+      textItem("ANN", 291, 444),
+      textItem("F", 517, 444),
+      textItem("01/01/1980", 538, 444),
+      textItem("ROBOR", 405, 437),
+    ];
+
+    const repairs = reconstructWrappedNhisRows(items);
+    expect(repairs.get(2))
+      .toBe("1 1626681-1 PRINCIPAL MARY ANN OGHENE-ROBOR F 01/01/1980");
+    expect(repairs.get(1)).toBe("");
+    expect(repairs.get(3)).toBe("");
+  });
 });

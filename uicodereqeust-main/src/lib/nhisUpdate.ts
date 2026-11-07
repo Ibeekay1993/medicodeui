@@ -256,15 +256,57 @@ export function reconstructWrappedNhisRows(items: any[]): Map<number, string> {
   const repairs = new Map<number, string>();
   const columnLabels = ["Relationship", "FirstName", "LastName", "Sex", "DOB"] as const;
 
-  const columnPositions = (anchorY: number) => {
-    const result = new Map<string, number>();
-    for (const label of columnLabels) {
-      const header = positioned
-        .filter((item) => item.text.toLowerCase() === label.toLowerCase())
-        .sort((a, b) => Math.abs(a.y - anchorY) - Math.abs(b.y - anchorY))[0];
-      if (header && Math.abs(header.y - anchorY) <= 160) result.set(label, header.x);
+  // 1. Detect column X positions across the page
+  const columns = new Map<string, number>();
+  for (const item of positioned) {
+    const normalized = item.text.replace(/\s+/g, " ").trim().toLowerCase();
+    if (!columns.has("Relationship") && /\brelationship\b/i.test(normalized)) {
+      columns.set("Relationship", item.x);
     }
-    return result;
+    if (!columns.has("FirstName") && /\bfirst\s*name\b/i.test(normalized)) {
+      columns.set("FirstName", item.x);
+    }
+    if (!columns.has("LastName") && (/\blast\s*name\b/i.test(normalized) || /\bsurname\b/i.test(normalized))) {
+      columns.set("LastName", item.x);
+    }
+    if (/\bsex\s+dob\b/i.test(normalized)) {
+      if (!columns.has("Sex")) columns.set("Sex", item.x);
+      if (!columns.has("DOB")) columns.set("DOB", item.x + 21);
+    } else {
+      if (!columns.has("Sex") && /\bsex\b/i.test(normalized)) {
+        columns.set("Sex", item.x);
+      }
+      if (!columns.has("DOB") && (/\bdob\b/i.test(normalized) || /\bdate\s+of\s+birth\b/i.test(normalized))) {
+        columns.set("DOB", item.x);
+      }
+    }
+  }
+
+  // Fallback defaults if page headers were not present
+  if (!columns.has("Relationship")) columns.set("Relationship", 165);
+  if (!columns.has("FirstName")) columns.set("FirstName", 285);
+  if (!columns.has("LastName")) columns.set("LastName", 400);
+  if (!columns.has("Sex")) columns.set("Sex", 518);
+  if (!columns.has("DOB")) columns.set("DOB", 540);
+
+  const getColumnForX = (x: number): string | null => {
+    const xRel = columns.get("Relationship")!;
+    const xFirst = columns.get("FirstName")!;
+    const xLast = columns.get("LastName")!;
+    const xSex = columns.get("Sex")!;
+    const xDob = columns.get("DOB")!;
+
+    const midRelFirst = (xRel + xFirst) / 2;
+    const midFirstLast = (xFirst + xLast) / 2;
+    const midLastSex = (xLast + xSex) / 2;
+    const midSexDob = (xSex + xDob) / 2;
+
+    if (x >= (xRel - 45) && x < midRelFirst) return "Relationship";
+    if (x >= midRelFirst && x < midFirstLast) return "FirstName";
+    if (x >= midFirstLast && x < midLastSex) return "LastName";
+    if (x >= midLastSex && x < midSexDob) return "Sex";
+    if (x >= midSexDob) return "DOB";
+    return null;
   };
 
   const readCell = (fragments: PositionedTextItem[]) => {
@@ -276,32 +318,94 @@ export function reconstructWrappedNhisRows(items: any[]): Map<number, string> {
     }, "").trim();
   };
 
-  for (const [lineIndex, line] of lines.entries()) {
-    if (!looksLikeDataRow.test(line.text) || !parseNhisRowWithoutMemberType(line.text)) continue;
-    const anchor = line.text.match(/^\s*(\d+)\s+([0-9]+(?:-[0-9]*)*)\s+/);
-    if (!anchor) continue;
+  // Find all anchor lines (lines that start with S/N and policy number)
+  const anchorIndices: number[] = [];
+  for (let i = 0; i < lines.length; i += 1) {
+    if (looksLikeDataRow.test(lines[i].text)) {
+      anchorIndices.push(i);
+    }
+  }
 
-    const columns = columnPositions(line.y);
-    if (columnLabels.some((label) => !columns.has(label))) continue;
-    const nearby = positioned.filter((item) => Math.abs(item.y - line.y) <= 8);
+  for (let a = 0; a < anchorIndices.length; a += 1) {
+    const lineIndex = anchorIndices[a];
+    const line = lines[lineIndex];
+    const anchorMatch = line.text.match(/^\s*(\d+)\s+([0-9]+(?:-[0-9]*)*)\s+/);
+    if (!anchorMatch) continue;
+
+    const prevAnchorY = a > 0 ? lines[anchorIndices[a - 1]].y : null;
+    const nextAnchorY = a < anchorIndices.length - 1 ? lines[anchorIndices[a + 1]].y : null;
+
+    let yUpper = prevAnchorY !== null ? (line.y + prevAnchorY) / 2 : line.y + 14;
+    let yLower = nextAnchorY !== null ? (line.y + nextAnchorY) / 2 : line.y - 14;
+
+    yUpper = Math.min(yUpper, line.y + 15);
+    yLower = Math.max(yLower, line.y - 15);
+
+    const neighborLineIndices: number[] = [];
+    for (let k = 0; k < lines.length; k += 1) {
+      if (k !== lineIndex && !anchorIndices.includes(k)) {
+        if (lines[k].y > yLower && lines[k].y < yUpper) {
+          neighborLineIndices.push(k);
+        }
+      }
+    }
+
+    if (rowPattern.test(line.text) && neighborLineIndices.length === 0) {
+      continue;
+    }
+
+    const nearby = positioned.filter((item) => item.y > yLower && item.y < yUpper);
     const cellFragments = new Map<string, PositionedTextItem[]>(columnLabels.map((label) => [label, []]));
     for (const item of nearby) {
-      const nearestColumn = columnLabels
-        .map((label) => ({ label, distance: Math.abs(item.x - (columns.get(label) ?? Infinity)) }))
-        .sort((a, b) => a.distance - b.distance)[0];
-      if (nearestColumn && nearestColumn.distance <= 28) cellFragments.get(nearestColumn.label)?.push(item);
+      const col = getColumnForX(item.x);
+      if (col && cellFragments.has(col)) {
+        cellFragments.get(col)!.push(item);
+      }
     }
-    const relationship = readCell(cellFragments.get("Relationship") || []);
-    const firstName = readCell(cellFragments.get("FirstName") || []);
-    const lastName = readCell(cellFragments.get("LastName") || []);
-    const sex = readCell(cellFragments.get("Sex") || []);
-    const dob = readCell(cellFragments.get("DOB") || []);
-    if (!/^(PRINCIPAL|SPOUSE|MEMBER|GIFSHIP|CHILD(?:\s+\d+)?|EXTRA\s+DEPENDENT(?:\s+\d+)?)$/i.test(relationship)) continue;
-    if (!firstName || !lastName || !/^[MF]$/i.test(sex) || !/^\d{2}\/\d{2}\/\d{4}$/.test(dob)) continue;
 
-    const rebuilt = normalizeLine(`${anchor[1]} ${anchor[2]} ${relationship} ${firstName} ${lastName} ${sex} ${dob}`);
-    if (rowPattern.test(rebuilt)) repairs.set(lineIndex, rebuilt);
+    const relationship = readCell(cellFragments.get("Relationship") || []);
+    let firstName = readCell(cellFragments.get("FirstName") || []);
+    let lastName = readCell(cellFragments.get("LastName") || []);
+    let sex = readCell(cellFragments.get("Sex") || []);
+    let dob = readCell(cellFragments.get("DOB") || []);
+
+    const lineSexMatch = line.text.match(/\s+([MF])\s+(\d{2}\/\d{2}\/\d{4})/i);
+    if (!sex && lineSexMatch) sex = lineSexMatch[1].toUpperCase();
+    if (!dob && lineSexMatch) dob = lineSexMatch[2];
+
+    if (!firstName && !lastName) {
+      const parsedUnclassified = parseNhisRowWithoutMemberType(line.text);
+      if (parsedUnclassified) {
+        const tokens = parsedUnclassified.name.split(/\s+/).filter(Boolean);
+        lastName = tokens[tokens.length - 1] || "";
+        firstName = tokens.slice(0, -1).join(" ") || "";
+      }
+    }
+
+    const isValidRelationship = /^(PRINCIPAL|SPOUSE|MEMBER|GIFSHIP|CHILD(?:\s+\d+)?|EXTRA\s+DEPENDENT(?:\s+\d+)?)$/i.test(relationship);
+
+    if (isValidRelationship && firstName && lastName && /^[MF]$/i.test(sex) && /^\d{2}\/\d{2}\/\d{4}$/.test(dob)) {
+      const rebuilt = normalizeLine(`${anchorMatch[1]} ${anchorMatch[2]} ${relationship} ${firstName} ${lastName} ${sex} ${dob}`);
+      if (rowPattern.test(rebuilt)) {
+        repairs.set(lineIndex, rebuilt);
+        for (const n of neighborLineIndices) {
+          repairs.set(n, "");
+        }
+      }
+    } else if (!isValidRelationship && (!relationship || /^\d+$/.test(relationship))) {
+      const name = [firstName, lastName].filter(Boolean).join(" ").trim();
+      if (name && /^[MF]$/i.test(sex) && /^\d{2}\/\d{2}\/\d{4}$/.test(dob)) {
+        const rebuilt = normalizeLine(`${anchorMatch[1]} ${anchorMatch[2]} ${name} ${sex} ${dob}`);
+        if (parseNhisRowWithoutMemberType(rebuilt)) {
+          repairs.set(lineIndex, rebuilt);
+          for (const n of neighborLineIndices) {
+            repairs.set(n, "");
+          }
+        }
+      }
+    }
   }
+
   return repairs;
 }
 
@@ -400,7 +504,9 @@ export async function extractNhisPdf(
     for (let index = 0; index < lines.length; index += 1) {
       const originalLine = lines[index];
       const repairIndex = index - (hasCarryOver ? 1 : 0);
-      const line = wrappedRowRepairs.get(repairIndex) || originalLine;
+      const repair = wrappedRowRepairs.get(repairIndex);
+      if (repair === "") continue;
+      const line = repair || originalLine;
 
       // ── Grand total ─────────────────────────────────────────────────────
       const grandTotalMatch = line.match(grandTotalPattern);
@@ -472,7 +578,7 @@ export async function extractNhisPdf(
       let missingTypeMatch = rowMatch ? null : parseNhisRowWithoutMemberType(line);
       let extraConsumed = 0;
 
-      if (!rowMatch && !missingTypeMatch) {
+      if (!rowMatch && !missingTypeMatch && looksLikeDataRow.test(line)) {
         // Try joining up to MAX_LOOKAHEAD subsequent lines.
         // joinLines handles trailing hyphens (word-break), so long names like
         // CHUKWUDOZIE-CHIMBUSOMMA that wrap across lines are reassembled
