@@ -160,7 +160,7 @@ serve(async (req) => {
 
     // Send the styled invitation email via Brevo with graceful fallback
     const brevoApiKey = Deno.env.get("BREVO_API_KEY");
-    const brevoFromRaw = Deno.env.get("BREVO_FROM_EMAIL") || "Ronsberger HMO <uironsberger@gmail.com>";
+    const brevoFromRaw = Deno.env.get("BREVO_FROM_EMAIL") || "Ronsberger HMO <noreply@ronsbergerhmo.io>";
     let emailSent = false;
     let emailErrorMessage = "";
 

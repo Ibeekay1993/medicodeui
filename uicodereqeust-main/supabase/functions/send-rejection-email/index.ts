@@ -113,7 +113,7 @@ serve(async (req) => {
     `;
 
     const brevoApiKey = Deno.env.get("BREVO_API_KEY");
-    const brevoFromRaw = Deno.env.get("BREVO_FROM_EMAIL") || "Ronsberger HMO <uironsberger@gmail.com>";
+    const brevoFromRaw = Deno.env.get("BREVO_FROM_EMAIL") || "Ronsberger HMO <noreply@ronsbergerhmo.io>";
 
     let emailStatus = "skipped";
     let emailResponseId: string | null = null;
