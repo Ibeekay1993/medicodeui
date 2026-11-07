@@ -46,13 +46,26 @@ serve(async (req) => {
     }
     webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
 
-    const { target_roles, target_user_ids, title, body, url, tag, url_by_role } = await req.json();
+    const { target_roles, target_user_ids, target_hospital_id, title, body, url, tag, url_by_role } = await req.json();
 
     const service = getServiceClient();
     let targetUserIds: string[] = [];
 
     if (Array.isArray(target_user_ids) && target_user_ids.length > 0) {
       targetUserIds = target_user_ids;
+    } else if (target_hospital_id) {
+      // Strictly isolate to active users of this specific hospital
+      const { data: hospUsers, error: hospErr } = await service
+        .from("user_roles")
+        .select("user_id")
+        .eq("hospital_id", target_hospital_id)
+        .eq("access_status", "active");
+
+      if (hospErr) {
+        throw new Error(`Failed to query hospital users: ${hospErr.message}`);
+      }
+
+      targetUserIds = (hospUsers || []).map((r: { user_id: string }) => r.user_id);
     } else if (Array.isArray(target_roles) && target_roles.length > 0) {
       const { data: roleUsers, error: roleError } = await service
         .from("user_roles")

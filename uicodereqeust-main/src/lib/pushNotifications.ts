@@ -297,15 +297,13 @@ export async function notifyPendingAuthorizationRequest(input: {
       : "hospital portal";
     const { data, error } = await supabase.functions.invoke("send-push-notification", {
       body: {
-        target_roles: ["admin", "utilization_manager", "utilization_manager_lead", "claims", "finance"],
+        target_roles: ["admin", "utilization_manager", "utilization_manager_lead"],
         title: "New Pending Authorization Request",
         body: `A new request from ${input.hospitalName || "a hospital"} via ${sourceLabel} is ready for review.`,
         url_by_role: {
           admin: "/backoffice/admin/requests",
           utilization_manager: "/backoffice/utilization-manager/requests",
           utilization_manager_lead: "/backoffice/utilization-manager/requests",
-          claims: "/backoffice/claims",
-          finance: "/backoffice/finance",
         },
         tag: `auth-request-${input.requestId}`,
       },
@@ -356,4 +354,36 @@ export async function sendPushTestNotification(userId: string): Promise<{
   if (!data.sent_count) return { success: false, sentCount: 0, error: data?.message || "No registered device subscriptions were found for this account." };
   if (data.failed_count > 0) return { success: false, sentCount: data.sent_count, error: `The push service accepted ${data.sent_count} device(s), but ${data.failed_count} device(s) failed.` };
   return { success: true, sentCount: data.sent_count };
+}
+
+
+/** Dispatch push notification strictly to the specific hospital that owns the authorization. */
+export async function notifyHospitalAuthorizationDecision(input: {
+  hospitalId: string;
+  requestId: string;
+  patientName?: string | null;
+  decision: "approved" | "partially_approved" | "rejected";
+  authorizationCode?: string | null;
+}): Promise<void> {
+  if (!input.hospitalId) return;
+  try {
+    const decisionText =
+      input.decision === "approved"
+        ? `Approved (Code: ${input.authorizationCode || "Pending"})`
+        : input.decision === "partially_approved"
+        ? `Partially Approved (Code: ${input.authorizationCode || "Pending"})`
+        : "Declined";
+
+    await supabase.functions.invoke("send-push-notification", {
+      body: {
+        target_hospital_id: input.hospitalId,
+        title: `Authorization ${decisionText}`,
+        body: `Your request for ${input.patientName || "patient"} has been ${decisionText.toLowerCase()}.`,
+        url: "/dashboard/authorizations",
+        tag: `auth-decision-${input.requestId}`,
+      },
+    });
+  } catch (error) {
+    console.error("Failed to dispatch hospital decision push notification", error);
+  }
 }

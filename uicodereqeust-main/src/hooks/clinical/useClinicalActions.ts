@@ -1,3 +1,4 @@
+import { notifyHospitalAuthorizationDecision } from "@/lib/pushNotifications";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -638,6 +639,18 @@ export function useClinicalActions({
             diagnosis: editDiagnosis,
             treatment: editTreatment,
             reason: decisionReason || "Deferred for further review",
+          });
+        }
+
+        // Dispatch push notification strictly to the hospital that owns this request
+        const targetHospitalId = request.hospital_id || request.requesting_hospital_id;
+        if (targetHospitalId && (targetStatus === "approved" || targetStatus === "partially_approved" || targetStatus === "rejected")) {
+          void notifyHospitalAuthorizationDecision({
+            hospitalId: targetHospitalId,
+            requestId: request.id,
+            patientName: request.patient_name,
+            decision: targetStatus,
+            authorizationCode: authCode || request.authorization_code,
           });
         }
 
