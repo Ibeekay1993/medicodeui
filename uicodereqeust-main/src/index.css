@@ -400,3 +400,17 @@ html {
 
 .tiny-header { font-size: 9px !important; -webkit-text-size-adjust: none; text-size-adjust: none; }
 @media (min-width: 640px) { .tiny-header { font-size: 11px !important; } }
+
+/* Responsive mobile text break and overflow protection */
+@media (max-width: 768px) {
+  html, body {
+    overflow-x: hidden;
+    max-width: 100vw;
+  }
+  
+  .med-card {
+    word-break: break-word;
+    overflow-wrap: break-word;
+    max-width: 100%;
+  }
+}

@@ -244,7 +244,7 @@ serve(async (req) => {
             <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:16px;">
               <tr>
                 <td style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:12px 16px;">
-                  <p style="color:#b45309;font-size:12px;font-weight:600;margin:0;">This invitation link is personal and will expire in 24 hours. Please do not forward this email.</p>
+                  <p style="color:#b45309;font-size:12px;font-weight:600;margin:0;">This invitation link is personal and will expire in 7 days. Please do not forward this email.</p>
                 </td>
               </tr>
             </table>

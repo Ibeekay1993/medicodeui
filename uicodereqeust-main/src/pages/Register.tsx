@@ -97,7 +97,7 @@ export default function Register() {
         const isExpired = fullErr.toLowerCase().includes("expired") || fullErr.toLowerCase().includes("invalid") || urlErrorCode === "otp_expired";
         setInviteError(
           isExpired
-            ? "This invitation link was already used or has expired. Invitation links are single-use and valid for 24 hours. Please contact your administrator to click 'Resend Invite' from the User Management directory."
+            ? "This invitation link was already used or has expired. Invitation links are single-use and valid for 7 days. Please contact your administrator to click 'Resend Invite' from the User Management directory."
             : fullErr
         );
         setSessionResolving(false);
@@ -163,7 +163,7 @@ export default function Register() {
 
       if (isJwtExpired(accessToken)) {
         setInviteError(
-          "This invitation link has expired (invitation links are valid for 24 hours). Please contact your administrator to resend the invitation."
+          "This invitation link has expired (invitation links are valid for 7 days). Please contact your administrator to resend the invitation."
         );
         setSessionResolving(false);
         return;
@@ -453,7 +453,7 @@ export default function Register() {
                   Helpful troubleshooting tips:
                 </p>
                 <ul className="list-disc pl-4 space-y-1 text-slate-600">
-                  <li>Invitation links are single-use and expire after 24 hours.</li>
+                  <li>Invitation links are single-use and expire after 7 days.</li>
                   <li>If opening from an email app, try opening the link directly in Chrome or Safari.</li>
                   <li>If your password was already set up, you can proceed directly to login.</li>
                 </ul>
