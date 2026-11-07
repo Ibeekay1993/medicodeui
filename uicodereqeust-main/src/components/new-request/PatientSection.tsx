@@ -159,29 +159,29 @@ export default function PatientSection({
             <label className="flex items-center gap-2 cursor-pointer w-fit group">
               <div
                 className="relative inline-flex h-4 w-7 items-center rounded-full transition-colors duration-200 ease-in-out shadow-inner"
-                style={{ backgroundColor: patientEmail === "no-email@medicode.com" ? '#334155' : '#cbd5e1' }}
+                style={{ backgroundColor: (patientEmail === "no-email@ronsbergerhmo.io" || patientEmail === "no-email@medicode.com" || (patientEmail && patientEmail.startsWith("no-email@"))) ? '#334155' : '#cbd5e1' }}
               >
                 <input 
                   type="checkbox" 
                   className="peer sr-only"
-                  checked={patientEmail === "no-email@medicode.com"}
+                  checked={(patientEmail === "no-email@ronsbergerhmo.io" || patientEmail === "no-email@medicode.com" || (patientEmail && patientEmail.startsWith("no-email@")))}
                   onChange={(e) => {
                     const val = e.target.checked;
                     if (val) {
-                      setPatientEmail("no-email@medicode.com");
-                    } else if (patientEmail === "no-email@medicode.com") {
+                      setPatientEmail("no-email@ronsbergerhmo.io");
+                    } else if ((patientEmail === "no-email@ronsbergerhmo.io" || patientEmail === "no-email@medicode.com" || (patientEmail && patientEmail.startsWith("no-email@")))) {
                       setPatientEmail("");
                     }
                   }}
                 />
-                <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition duration-200 ease-in-out shadow-xs ${patientEmail === "no-email@medicode.com" ? 'translate-x-3.5' : 'translate-x-0.5'}`} />
+                <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition duration-200 ease-in-out shadow-xs ${(patientEmail === "no-email@ronsbergerhmo.io" || patientEmail === "no-email@medicode.com" || (patientEmail && patientEmail.startsWith("no-email@"))) ? 'translate-x-3.5' : 'translate-x-0.5'}`} />
               </div>
               <span className="text-[11px] font-medium text-slate-600 select-none">No email (use WhatsApp SMS PIN)</span>
             </label>
           </div>
         </div>
         
-        {patientEmail !== "no-email@medicode.com" ? (
+        {!(patientEmail === "no-email@ronsbergerhmo.io" || patientEmail === "no-email@medicode.com" || (patientEmail && patientEmail.startsWith("no-email@"))) ? (
           <>
             <Input
               id="email-input"

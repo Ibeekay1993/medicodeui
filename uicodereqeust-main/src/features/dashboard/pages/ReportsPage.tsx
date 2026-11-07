@@ -547,7 +547,7 @@ export default function ReportsPage() {
     try {
       const ExcelJS = await import("exceljs");
       const workbook = new ExcelJS.Workbook();
-      workbook.creator = "Medicode System";
+      workbook.creator = "Ronsberger HMO System";
       workbook.created = new Date();
 
       const theme = {

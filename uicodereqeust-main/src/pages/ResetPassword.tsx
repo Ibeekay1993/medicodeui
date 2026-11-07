@@ -57,36 +57,80 @@ export default function ResetPassword() {
   const [requestError, setRequestError] = useState("");
 
   // ---------------------------------------------------------------------------
-  // On mount: check for tokens or show request email form
+  // On mount: check for tokens, PKCE codes, OTP recovery tokens, or show request form
   // ---------------------------------------------------------------------------
   useEffect(() => {
-    const hash = window.location.hash || "";
-    const params = new URLSearchParams(hash.startsWith("#") ? hash.slice(1) : hash);
-    const searchParams = new URLSearchParams(window.location.search);
-    
-    const accessToken = params.get("access_token") || searchParams.get("access_token") || "";
-    const refreshToken = params.get("refresh_token") || searchParams.get("refresh_token") || "";
-
-    if (!accessToken || !refreshToken) {
-      // No tokens present - user wants to request a reset link
-      setHasTokens(false);
-      setSessionResolving(false);
-      return;
-    }
-
-    setHasTokens(true);
-    // Immediately clear URL hash to prevent token leakage
-    window.history.replaceState(null, "", window.location.pathname);
-
     const validateAndPrepare = async () => {
+      setSessionResolving(true);
+      setInviteError(null);
+
       try {
-        await supabase.auth.signOut({ scope: "local" }).catch(() => {});
+        const searchParams = new URLSearchParams(window.location.search);
+        const hash = window.location.hash || "";
+        const hashParams = new URLSearchParams(hash.startsWith("#") ? hash.slice(1) : hash);
+
+        let accessToken = hashParams.get("access_token") || searchParams.get("access_token") || "";
+        let refreshToken = hashParams.get("refresh_token") || searchParams.get("refresh_token") || "";
+
+        // 1. Check for PKCE authorization code (?code=...)
+        const code = searchParams.get("code");
+        if (!accessToken && code) {
+          try {
+            const { data: codeData, error: codeError } = await supabase.auth.exchangeCodeForSession(code);
+            if (!codeError && codeData?.session) {
+              accessToken = codeData.session.access_token;
+              refreshToken = codeData.session.refresh_token;
+            }
+          } catch (err) {
+            console.warn("PKCE recovery code exchange error:", err);
+          }
+        }
+
+        // 2. Check for token_hash or token (?token_hash=... or ?token=...)
+        const tokenHash = searchParams.get("token_hash") || searchParams.get("token");
+        const otpType = (searchParams.get("type") as any) || "recovery";
+        if (!accessToken && tokenHash) {
+          try {
+            const { data: otpData, error: otpError } = await supabase.auth.verifyOtp({
+              token_hash: tokenHash,
+              type: otpType === "recovery" ? "recovery" : "email",
+            });
+            if (!otpError && otpData?.session) {
+              accessToken = otpData.session.access_token;
+              refreshToken = otpData.session.refresh_token;
+            }
+          } catch (err) {
+            console.warn("verifyOtp recovery error:", err);
+          }
+        }
+
+        // 3. Check for existing active recovery session if not passed directly in URL
+        if (!accessToken) {
+          const { data: sessionData } = await supabase.auth.getSession().catch(() => ({ data: { session: null } }));
+          if (sessionData?.session?.access_token) {
+            accessToken = sessionData.session.access_token;
+            refreshToken = sessionData.session.refresh_token || "";
+          }
+        }
+
+        // Clean tokens from URL bar to prevent token leakage
+        if (code || tokenHash || hashParams.has("access_token") || searchParams.has("access_token")) {
+          window.history.replaceState(null, "", window.location.pathname);
+        }
+
+        if (!accessToken) {
+          setHasTokens(false);
+          setPendingTokens(null);
+          setSessionResolving(false);
+          return;
+        }
 
         if (isJwtExpired(accessToken)) {
           setInviteError(
             "This password reset link has expired. Please request a new password reset link below."
           );
           setHasTokens(false);
+          setPendingTokens(null);
           setSessionResolving(false);
           return;
         }
@@ -94,17 +138,20 @@ export default function ResetPassword() {
         const { data: userData, error: userError } = await supabase.auth.getUser(accessToken);
         if (userError || !userData?.user) {
           setInviteError(
-            "This password reset link is invalid or has expired. Please request a new reset link."
+            "This password reset link is invalid or has expired. Please request a new reset link below."
           );
           setHasTokens(false);
+          setPendingTokens(null);
           setSessionResolving(false);
           return;
         }
 
         setPendingTokens({ accessToken, refreshToken });
+        setHasTokens(true);
       } catch (e: any) {
-        setInviteError("An error occurred while validating your reset link. Please try again.");
+        setInviteError("An error occurred while validating your reset link. Please request a new reset link below.");
         setHasTokens(false);
+        setPendingTokens(null);
       } finally {
         setSessionResolving(false);
       }
@@ -156,15 +203,19 @@ export default function ResetPassword() {
     }
 
     try {
-      const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
-        access_token: pendingTokens.accessToken,
-        refresh_token: pendingTokens.refreshToken,
-      });
-
-      if (sessionError || !sessionData?.session) {
-        throw new Error(
-          sessionError?.message || "Failed to establish password reset session. Please reopen the recovery link."
-        );
+      if (pendingTokens.accessToken && pendingTokens.refreshToken) {
+        const { data: currentSession } = await supabase.auth.getSession().catch(() => ({ data: { session: null } }));
+        if (!currentSession?.session) {
+          const { error: sessionError } = await supabase.auth.setSession({
+            access_token: pendingTokens.accessToken,
+            refresh_token: pendingTokens.refreshToken,
+          });
+          if (sessionError) {
+            throw new Error(
+              sessionError?.message || "Failed to establish password reset session. Please reopen the recovery link."
+            );
+          }
+        }
       }
 
       resetSessionApplied = true;

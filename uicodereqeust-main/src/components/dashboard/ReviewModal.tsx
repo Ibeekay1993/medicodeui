@@ -504,7 +504,7 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
               </div>
               {request?.patient_email && (
                 <div className="min-w-0 break-words text-[10px] font-medium leading-tight text-slate-500 [overflow-wrap:anywhere] sm:mt-0.5 sm:text-[11px]" title={request.patient_email}>
-                  {request.patient_email === "no-email@medicode.com" ? (
+                  {request.patient_email === "no-email@medicode.com" || request.patient_email === "no-email@ronsbergerhmo.io" || request.patient_email.startsWith("no-email@") ? (
                     <span className="italic opacity-70">No email provided</span>
                   ) : (
                     request.patient_email

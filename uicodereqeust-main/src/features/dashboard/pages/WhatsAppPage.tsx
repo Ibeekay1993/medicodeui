@@ -327,7 +327,7 @@ export default function WhatsAppPage() {
           method: "POST",
           body: {
             authorization_id: insertedRequest.id,
-            patient_email: "no-email@medicode.com",
+            patient_email: "no-email@ronsbergerhmo.io",
             policy_number: parsedData.policy_number || undefined,
             otp_type: "ARRIVAL",
             hospital_id: hospitalId || null,

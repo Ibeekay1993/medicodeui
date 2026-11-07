@@ -312,7 +312,7 @@ export function useClinicalActions({
           const { data: generated, error: generationError } = await supabase.functions.invoke("send-otp", {
             body: {
               authorization_id: request.id,
-              patient_email: request.patient_email || "no-email@medicode.com",
+              patient_email: request.patient_email || "no-email@ronsbergerhmo.io",
               policy_number: request.policy_number,
               otp_type: "ARRIVAL",
               hospital_id: request.claiming_hospital_id || request.referred_hospital_id || request.hospital_id,
@@ -940,7 +940,7 @@ export function useClinicalActions({
         method: "POST",
         body: {
           authorization_id: request.id,
-          patient_email: request.patient_email || "no-email@medicode.com",
+          patient_email: request.patient_email || "no-email@ronsbergerhmo.io",
           policy_number: request.policy_number,
           otp_type: "ARRIVAL",
           hospital_id: editReferralHospitalId,
