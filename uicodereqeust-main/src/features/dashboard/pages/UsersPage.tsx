@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,6 +26,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
@@ -455,41 +456,42 @@ export default function UsersPage() {
                                 <MoreVertical className="h-4 w-4" />
                               </Button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-42">
-                              <DropdownMenuItem onClick={() => setEditingUser(item)} className="cursor-pointer text-slate-700">
-                                <Pencil className="mr-2 h-3.5 w-3.5" /> Edit User
+                            <DropdownMenuContent align="end" className="w-48 p-1 rounded-xl border border-slate-200 bg-white shadow-lg">
+                              <DropdownMenuItem onClick={() => setEditingUser(item)} className="cursor-pointer text-slate-700 hover:text-slate-900 focus:bg-slate-50 focus:text-slate-900 rounded-lg text-xs font-medium py-2">
+                                <Pencil className="mr-2 h-3.5 w-3.5 text-slate-400" /> Edit User
                               </DropdownMenuItem>
                               {status === "onboarding" ? (
-                                <DropdownMenuItem onClick={() => handleResendInvite(item)} disabled={resendingUserId === item.id} className="cursor-pointer text-emerald-600 focus:text-emerald-700 focus:bg-emerald-50">
-                                  <Mail className="mr-2 h-3.5 w-3.5" /> Resend Invite
+                                <DropdownMenuItem onClick={() => handleResendInvite(item)} disabled={resendingUserId === item.id} className="cursor-pointer text-slate-700 hover:text-slate-900 focus:bg-slate-50 focus:text-slate-900 rounded-lg text-xs font-medium py-2">
+                                  <Mail className="mr-2 h-3.5 w-3.5 text-slate-400" /> Resend Invite
                                 </DropdownMenuItem>
                               ) : (
-                                <DropdownMenuItem onClick={() => setResetTarget(item)} className="cursor-pointer text-slate-700">
-                                  <KeyRound className="mr-2 h-3.5 w-3.5" /> Reset Password
+                                <DropdownMenuItem onClick={() => setResetTarget(item)} className="cursor-pointer text-slate-700 hover:text-slate-900 focus:bg-slate-50 focus:text-slate-900 rounded-lg text-xs font-medium py-2">
+                                  <KeyRound className="mr-2 h-3.5 w-3.5 text-slate-400" /> Reset Password
                                 </DropdownMenuItem>
                               )}
-                              <DropdownMenuItem onClick={() => setAccessTarget(item)} className={cn("cursor-pointer", suspended ? "text-emerald-600 focus:text-emerald-700 focus:bg-emerald-50" : "text-amber-600 focus:text-amber-700 focus:bg-amber-50")}>
-                                {suspended ? <UserCheck className="mr-2 h-3.5 w-3.5" /> : <UserX className="mr-2 h-3.5 w-3.5" />}
+                              <DropdownMenuItem onClick={() => setAccessTarget(item)} className="cursor-pointer text-slate-700 hover:text-slate-900 focus:bg-slate-50 focus:text-slate-900 rounded-lg text-xs font-medium py-2">
+                                {suspended ? <UserCheck className="mr-2 h-3.5 w-3.5 text-slate-400" /> : <UserX className="mr-2 h-3.5 w-3.5 text-slate-400" />}
                                 {suspended ? "Restore Access" : "Suspend Access"}
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => setDeleteTarget(item)} className="cursor-pointer text-rose-600 focus:text-rose-700 focus:bg-rose-50">
-                                <Trash2 className="mr-2 h-3.5 w-3.5" /> Delete User
-                              </DropdownMenuItem>
-                              {item.mfa_enabled && (
-                                <DropdownMenuItem onClick={() => setMfaUnenrollTarget(item)} className="cursor-pointer text-rose-600 focus:text-rose-700 focus:bg-rose-50">
-                                  <ShieldOff className="mr-2 h-3.5 w-3.5" /> Unenroll MFA
-                                </DropdownMenuItem>
-                              )}
                               {item.role !== "hospital" && (
                                 <DropdownMenuItem
                                   onClick={() => { setMfaExemptTarget({ user: item, exempt: item.mfa_exempt !== true }); }}
-                                  className={item.mfa_exempt === true ? "cursor-pointer text-emerald-600 focus:text-emerald-700 focus:bg-emerald-50" : "cursor-pointer text-amber-600 focus:text-amber-700 focus:bg-amber-50"}
+                                  className="cursor-pointer text-slate-700 hover:text-slate-900 focus:bg-slate-50 focus:text-slate-900 rounded-lg text-xs font-medium py-2"
                                 >
                                   {item.mfa_exempt === true
-                                    ? <><ShieldCheck className="mr-2 h-3.5 w-3.5" /> Follow Global MFA Policy</>
-                                    : <><ShieldOff className="mr-2 h-3.5 w-3.5" /> Disable MFA for User</>}
+                                    ? <><ShieldCheck className="mr-2 h-3.5 w-3.5 text-slate-400" /> Follow Global MFA Policy</>
+                                    : <><ShieldOff className="mr-2 h-3.5 w-3.5 text-slate-400" /> Disable MFA for User</>}
                                 </DropdownMenuItem>
                               )}
+                              {item.mfa_enabled && (
+                                <DropdownMenuItem onClick={() => setMfaUnenrollTarget(item)} className="cursor-pointer text-slate-700 hover:text-slate-900 focus:bg-slate-50 focus:text-slate-900 rounded-lg text-xs font-medium py-2">
+                                  <ShieldOff className="mr-2 h-3.5 w-3.5 text-slate-400" /> Unenroll MFA
+                                </DropdownMenuItem>
+                              )}
+                              <DropdownMenuSeparator className="my-1 border-t border-slate-100" />
+                              <DropdownMenuItem onClick={() => setDeleteTarget(item)} className="cursor-pointer text-rose-600 hover:text-rose-700 focus:bg-rose-50 focus:text-rose-700 rounded-lg text-xs font-medium py-2">
+                                <Trash2 className="mr-2 h-3.5 w-3.5 text-rose-500" /> Delete User
+                              </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </td>
@@ -536,41 +538,42 @@ export default function UsersPage() {
                             <MoreVertical className="h-4 w-4" />
                           </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-42">
-                          <DropdownMenuItem onClick={() => setEditingUser(item)} className="cursor-pointer text-slate-700">
-                            <Pencil className="mr-2 h-3.5 w-3.5" /> Edit User
+                        <DropdownMenuContent align="end" className="w-48 p-1 rounded-xl border border-slate-200 bg-white shadow-lg">
+                          <DropdownMenuItem onClick={() => setEditingUser(item)} className="cursor-pointer text-slate-700 hover:text-slate-900 focus:bg-slate-50 focus:text-slate-900 rounded-lg text-xs font-medium py-2">
+                            <Pencil className="mr-2 h-3.5 w-3.5 text-slate-400" /> Edit User
                           </DropdownMenuItem>
                           {status === "onboarding" ? (
-                            <DropdownMenuItem onClick={() => handleResendInvite(item)} disabled={resendingUserId === item.id} className="cursor-pointer text-emerald-600 focus:text-emerald-700 focus:bg-emerald-50">
-                              <Mail className="mr-2 h-3.5 w-3.5" /> Resend Invite
+                            <DropdownMenuItem onClick={() => handleResendInvite(item)} disabled={resendingUserId === item.id} className="cursor-pointer text-slate-700 hover:text-slate-900 focus:bg-slate-50 focus:text-slate-900 rounded-lg text-xs font-medium py-2">
+                              <Mail className="mr-2 h-3.5 w-3.5 text-slate-400" /> Resend Invite
                             </DropdownMenuItem>
                           ) : (
-                            <DropdownMenuItem onClick={() => setResetTarget(item)} className="cursor-pointer text-slate-700">
-                              <KeyRound className="mr-2 h-3.5 w-3.5" /> Reset Password
+                            <DropdownMenuItem onClick={() => setResetTarget(item)} className="cursor-pointer text-slate-700 hover:text-slate-900 focus:bg-slate-50 focus:text-slate-900 rounded-lg text-xs font-medium py-2">
+                              <KeyRound className="mr-2 h-3.5 w-3.5 text-slate-400" /> Reset Password
                             </DropdownMenuItem>
                           )}
-                          <DropdownMenuItem onClick={() => setAccessTarget(item)} className={cn("cursor-pointer", suspended ? "text-emerald-600 focus:text-emerald-700 focus:bg-emerald-50" : "text-amber-600 focus:text-amber-700 focus:bg-amber-50")}>
-                            {suspended ? <UserCheck className="mr-2 h-3.5 w-3.5" /> : <UserX className="mr-2 h-3.5 w-3.5" />}
+                          <DropdownMenuItem onClick={() => setAccessTarget(item)} className="cursor-pointer text-slate-700 hover:text-slate-900 focus:bg-slate-50 focus:text-slate-900 rounded-lg text-xs font-medium py-2">
+                            {suspended ? <UserCheck className="mr-2 h-3.5 w-3.5 text-slate-400" /> : <UserX className="mr-2 h-3.5 w-3.5 text-slate-400" />}
                             {suspended ? "Restore Access" : "Suspend Access"}
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => setDeleteTarget(item)} className="cursor-pointer text-rose-600 focus:text-rose-700 focus:bg-rose-50">
-                            <Trash2 className="mr-2 h-3.5 w-3.5" /> Delete User
-                          </DropdownMenuItem>
-                          {item.mfa_enabled && (
-                            <DropdownMenuItem onClick={() => setMfaUnenrollTarget(item)} className="cursor-pointer text-rose-600 focus:text-rose-700 focus:bg-rose-50">
-                              <ShieldOff className="mr-2 h-3.5 w-3.5" /> Unenroll MFA
-                            </DropdownMenuItem>
-                          )}
                           {item.role !== "hospital" && (
                             <DropdownMenuItem
                               onClick={() => { setMfaExemptTarget({ user: item, exempt: item.mfa_exempt !== true }); }}
-                              className={item.mfa_exempt === true ? "cursor-pointer text-emerald-600 focus:text-emerald-700 focus:bg-emerald-50" : "cursor-pointer text-amber-600 focus:text-amber-700 focus:bg-amber-50"}
+                              className="cursor-pointer text-slate-700 hover:text-slate-900 focus:bg-slate-50 focus:text-slate-900 rounded-lg text-xs font-medium py-2"
                             >
                               {item.mfa_exempt === true
-                                ? <><ShieldCheck className="mr-2 h-3.5 w-3.5" /> Follow Global MFA Policy</>
-                                : <><ShieldOff className="mr-2 h-3.5 w-3.5" /> Disable MFA for User</>}
+                                ? <><ShieldCheck className="mr-2 h-3.5 w-3.5 text-slate-400" /> Follow Global MFA Policy</>
+                                : <><ShieldOff className="mr-2 h-3.5 w-3.5 text-slate-400" /> Disable MFA for User</>}
                             </DropdownMenuItem>
                           )}
+                          {item.mfa_enabled && (
+                            <DropdownMenuItem onClick={() => setMfaUnenrollTarget(item)} className="cursor-pointer text-slate-700 hover:text-slate-900 focus:bg-slate-50 focus:text-slate-900 rounded-lg text-xs font-medium py-2">
+                              <ShieldOff className="mr-2 h-3.5 w-3.5 text-slate-400" /> Unenroll MFA
+                            </DropdownMenuItem>
+                          )}
+                          <DropdownMenuSeparator className="my-1 border-t border-slate-100" />
+                          <DropdownMenuItem onClick={() => setDeleteTarget(item)} className="cursor-pointer text-rose-600 hover:text-rose-700 focus:bg-rose-50 focus:text-rose-700 rounded-lg text-xs font-medium py-2">
+                            <Trash2 className="mr-2 h-3.5 w-3.5 text-rose-500" /> Delete User
+                          </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>
