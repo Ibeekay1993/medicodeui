@@ -53,14 +53,14 @@ export default function AuthorizationsHeader({
 
             {/* Scope segmented control: My Facility Requests vs Inbound Referrals vs All */}
             {setScopeFilter && (
-              <div className="inline-flex items-center rounded-lg bg-slate-100 p-0.5 border border-slate-200 text-xs ml-0 sm:ml-2">
+              <div className="inline-flex w-full max-w-full items-center rounded-xl border border-slate-200 bg-slate-100 p-0.5 text-xs shadow-inner sm:ml-2 sm:w-auto">
                 <button
                   type="button"
                   onClick={() => setScopeFilter("originated")}
                   className={cn(
-                    "flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-semibold transition-all",
+                    "flex items-center justify-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[10px] font-semibold transition-all sm:text-xs",
                     scopeFilter === "originated"
-                      ? "bg-white text-slate-900 shadow-xs"
+                      ? "bg-white text-slate-900 shadow-sm"
                       : "text-slate-600 hover:text-slate-900"
                   )}
                 >
@@ -71,9 +71,9 @@ export default function AuthorizationsHeader({
                   type="button"
                   onClick={() => setScopeFilter("inbound_referral")}
                   className={cn(
-                    "flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-semibold transition-all",
+                    "flex items-center justify-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[10px] font-semibold transition-all sm:text-xs",
                     scopeFilter === "inbound_referral"
-                      ? "bg-white text-slate-900 shadow-xs"
+                      ? "bg-white text-slate-900 shadow-sm"
                       : "text-slate-600 hover:text-slate-900"
                   )}
                 >
@@ -84,9 +84,9 @@ export default function AuthorizationsHeader({
                   type="button"
                   onClick={() => setScopeFilter("all")}
                   className={cn(
-                    "flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-semibold transition-all",
+                    "flex items-center justify-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[10px] font-semibold transition-all sm:text-xs",
                     scopeFilter === "all"
-                      ? "bg-white text-slate-900 shadow-xs"
+                      ? "bg-white text-slate-900 shadow-sm"
                       : "text-slate-600 hover:text-slate-900"
                   )}
                 >
