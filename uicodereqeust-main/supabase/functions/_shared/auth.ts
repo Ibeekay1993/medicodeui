@@ -3,6 +3,15 @@ import { corsHeaders } from "./cors.ts";
 
 export { corsHeaders };
 
+export function constantTimeEqual(a: string, b: string): boolean {
+  let diff = a.length ^ b.length;
+  const min = Math.min(a.length, b.length);
+  for (let i = 0; i < min; i++) {
+    diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+  return diff === 0;
+}
+
 export function parseBrevoSender(raw: string): { name: string; email: string } {
   const match = raw.match(/^(.+?)\s*<([^>]+)>$/);
   if (match) return { name: match[1].trim(), email: match[2].trim() };
@@ -111,7 +120,7 @@ export function getSensitiveActionErrorStatus(error: unknown): number {
 }
 
 export async function validateUser(req: Request, allowedRoles: string[]) {
-  const authHeader = req.headers.get("x-user-authorization") || req.headers.get("Authorization");
+  const authHeader = req.headers.get("Authorization") || req.headers.get("x-user-authorization");
   if (!authHeader) throw new Error("Unauthorized");
 
   const rawToken = authHeader.replace(/^Bearer\s+/i, "").trim();
@@ -136,29 +145,9 @@ export async function validateUser(req: Request, allowedRoles: string[]) {
       user = anonUserData.user;
     }
   }
-
-  // 3. Fallback: Parse unexpired JWT payload and verify user exists in auth.users
-  if (!user) {
-    try {
-      const parts = rawToken.split(".");
-      if (parts.length === 3) {
-        const payload = JSON.parse(
-          atob(parts[1].replace(/-/g, "+").replace(/_/g, "/").padEnd(Math.ceil(parts[1].length / 4) * 4, "="))
-        );
-        if (payload.sub && payload.exp && Math.floor(Date.now() / 1000) <= payload.exp) {
-          const { data: dbUser } = await service.auth.admin.getUserById(payload.sub);
-          if (dbUser?.user) {
-            user = dbUser.user;
-          }
-        }
-      }
-    } catch {
-      // payload parsing fallback failed
-    }
-  }
-
+  // Fail closed: Never trust unverified JWT payloads without signature verification.
   if (!user) throw new Error("Unauthorized");
-  const assuranceLevel = getAssuranceLevel(authHeader, user.id);
+  const assuranceLevel = getAssuranceLevel(rawToken, user.id);
 
   // 1. Direct query against canonical user_roles table
   const { data: roleRow, error: roleError } = await service

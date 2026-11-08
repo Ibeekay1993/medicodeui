@@ -32,8 +32,9 @@ serve(async (req) => {
     const apiKey = req.headers.get("x-api-key") || "";
     const workerSecret = req.headers.get("x-worker-secret") || "";
     const authHeader = req.headers.get("authorization") || "";
+    const bearerToken = authHeader.replace(/^Bearer\s+/i, "").trim();
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
-    const isServiceRole = Boolean(serviceKey && authHeader.includes(serviceKey));
+    const isServiceRole = Boolean(serviceKey && constantTimeEqual(bearerToken, serviceKey));
     const internalCall = isServiceRole || (!!INTERNAL_SHARED_SECRET &&
       (constantTimeEqual(apiKey, INTERNAL_SHARED_SECRET) || constantTimeEqual(workerSecret, INTERNAL_SHARED_SECRET)));
 

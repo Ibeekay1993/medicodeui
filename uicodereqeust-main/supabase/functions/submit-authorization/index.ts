@@ -30,6 +30,7 @@ import {
 } from "../_shared/whatsapp-worker-mode.ts";
 import {
   assertMfaForSensitiveAction,
+  constantTimeEqual,
   getAssuranceLevel,
   getSensitiveActionErrorStatus,
 } from "../_shared/auth.ts";
@@ -107,7 +108,7 @@ serve(async (req) => {
     return bad(400, "invalid_json");
   }
 
-  const isInternalCall = Boolean(MEDAUTH_API_KEY && provided === MEDAUTH_API_KEY);
+  const isInternalCall = Boolean(MEDAUTH_API_KEY && constantTimeEqual(provided, MEDAUTH_API_KEY));
   if (provided && !isInternalCall) return bad(401, "invalid_api_key");
 
   const supabase = getServiceClient();
@@ -119,7 +120,9 @@ serve(async (req) => {
   if (isInternalCall) {
     if (WORKER_SHARED_SECRET) {
       const workerSecret = req.headers.get("x-worker-secret") || "";
-      if (workerSecret !== WORKER_SHARED_SECRET && provided !== MEDAUTH_API_KEY) {
+      const matchesWorker = constantTimeEqual(workerSecret, WORKER_SHARED_SECRET);
+      const matchesProvided = Boolean(MEDAUTH_API_KEY) && constantTimeEqual(provided, MEDAUTH_API_KEY);
+      if (!matchesWorker && !matchesProvided) {
         return bad(401, "invalid_api_key");
       }
     }

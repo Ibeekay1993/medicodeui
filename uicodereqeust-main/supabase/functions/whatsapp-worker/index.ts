@@ -57,6 +57,7 @@ import {
 import { ensureArrivalPin } from "../_shared/arrival-pin.ts";
 import { schedulePendingAuthorizationPush } from "../_shared/pending-auth-push.ts";
 import { parseWhatsAppHospitalContactResolution } from "../_shared/whatsapp-hospital-contact.ts";
+import { constantTimeEqual } from "../_shared/auth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -2180,11 +2181,12 @@ serve(async (req) => {
     return new Response("ok", { headers: corsHeaders });
   const auth = req.headers.get("authorization") || "",
     bearer = auth.startsWith("Bearer ") ? auth.slice(7).trim() : "",
-    serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
-  if (
-    bearer !== serviceKey &&
-    (!WORKER_SECRET || req.headers.get("x-worker-secret") !== WORKER_SECRET)
-  )
+    serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "",
+    workerSecret = req.headers.get("x-worker-secret") || "";
+  const isAuthorized =
+    (Boolean(serviceKey) && constantTimeEqual(bearer, serviceKey)) ||
+    (Boolean(WORKER_SECRET) && constantTimeEqual(workerSecret, WORKER_SECRET));
+  if (!isAuthorized)
     return new Response("forbidden", { status: 403 });
   let body: any = {};
   try {
