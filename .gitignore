@@ -4,6 +4,7 @@ node_modules/
 # Agent local state & logs
 .kilo/
 .agents/
+!.agents/AGENTS.md
 .gemini/
 *.log
 spec_files.log

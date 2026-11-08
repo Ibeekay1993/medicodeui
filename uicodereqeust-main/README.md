@@ -1,38 +1,52 @@
-# MedAuth (MedCode UI)
+# Ronsberger HMO Enterprise Portal
 
-MedAuth streamlines clinical pre-authorizations, tariff matching, and claims processing. Built on a modern React, TypeScript, and Vite frontend, it integrates with Supabase DB for authorization rules, NHIA pricing structures, and clinician workflows.
+The **Ronsberger HMO Enterprise Portal** is a production healthcare management platform that streamlines clinical pre-authorizations, tariff matching, referrals, and claims processing for hospitals, clinicians, and administrators under Ronsberger Nigeria Limited.
 
-## Features
+Built on React 18, TypeScript, TailwindCSS, and a self-hosted Supabase backend on Hostinger VPS (Coolify).
 
-- **Clinical Pre-Authorization & Review**: Clinician and nurse portals to submit, evaluate, and track medical authorizations.
-- **Tariff & Drug Matching**: Integration with NHIA Medicine & Procedure Price Lists (2025) for automated or manual tariff verification.
-- **Claims Portal & Analysis**: Dashboard to analyze claims distribution, request history, and HMO compliance.
-- **WhatsApp Integration**: Automated notifications and support channel tracking.
-- **Audit Logging**: Comprehensive system tracing for admin compliance.
+## Architecture & Production Domains
 
-## Technology Stack
+- **Frontend Portal**: [https://app.ronsbergerhmo.io](https://app.ronsbergerhmo.io)
+- **Backend API**: [https://api.ronsbergerhmo.io](https://api.ronsbergerhmo.io)
+- **Hosting**: Hostinger VPS (`2.24.58.189`) managed via Coolify.
+- **WhatsApp Gateway**: Evolution API deployed on AWS ECS.
 
-- **Frontend**: React 18, TypeScript, Vite, TailwindCSS, Radix UI
-- **Routing & State**: React Router DOM, TanStack React Query
-- **Data Integration**: Supabase client integration
-- **Formatting & Export**: Excel (XLSX) parsers, custom PDF tools
+For full AI agent and contributor guidelines, see [AI_INSTRUCTIONS.md](../AI_INSTRUCTIONS.md).
 
-## Setup and Installation
+## Key Capabilities
+
+- **Clinical Pre-Authorization & Review**: Hospital staff and nurse portals to submit, evaluate, and track medical authorizations with automated code generation.
+- **NHIA Tariff & Medicine Matching**: Integration with NHIA Medicine & Procedure Price Lists (2025) for automated or manual tariff verification.
+- **Claims Management & Audit**: Centralized claims ledger with historical reconciliation, NHIS tariff validation, and dispute workflows.
+- **WhatsApp Integration**: Patient notifications, arrival OTP validation, and hospital support channel tracking via Evolution API.
+- **7-Day Invitation Validity**: Account setup and invitation links valid for 7 days.
+
+## Development Setup
 
 1. Install dependencies:
    ```bash
-   bun install
+   npm install
    ```
-2. Configure local environment (`.env` file):
+
+2. Environment configuration:
+   Copy `.env.example` to `.env` and configure:
    ```env
-   VITE_SUPABASE_URL=your_supabase_url
+   VITE_SUPABASE_URL=https://api.ronsbergerhmo.io
    VITE_SUPABASE_PUBLISHABLE_KEY=your_supabase_anon_key
    ```
-3. Run the development server:
+
+3. Run development server:
    ```bash
-   bun run dev
+   npm run dev
    ```
-4. Build for production:
+
+4. Verify TypeScript and test suite:
    ```bash
-   bun run build
+   npx tsc --noEmit
+   npm test -- --run
+   ```
+
+5. Build for production:
+   ```bash
+   npm run build
    ```

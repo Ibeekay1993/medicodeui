@@ -1,0 +1,144 @@
+# AI BUILDER MASTER SPECIFICATION & INSTRUCTION MANUAL
+**RONSBERGER HMO ENTERPRISE PORTAL**
+
+> **ATTENTION ALL AI CODING AGENTS (Codex, Claude Code, Cursor, Antigravity, Copilot, etc.):**  
+> Read this document completely BEFORE reading any other file, making assumptions, or proposing architectural changes.  
+> This file is the single, authoritative source of truth for the codebase, infrastructure, deployment workflows, and Git management policies.
+
+---
+
+## 1. PRODUCT IDENTITY & DOMAINS
+
+- **Platform Name**: **Ronsberger HMO Portal** (formerly prototyped under working titles "MedCode" or "MedAuth").
+- **Company**: Ronsberger Nigeria Limited (Licensed HMO).
+- **Production Web Application**: **`https://app.ronsbergerhmo.io`**
+- **Production API & Supabase Backend**: **`https://api.ronsbergerhmo.io`**
+- **Canonical Email Domain**: `@ronsbergerhmo.io` (fallback placeholder: `no-email@ronsbergerhmo.io`).
+
+---
+
+## 2. GIT SINGLE-BRANCH POLICY (`main` ONLY)
+
+- **THERE IS ONLY ONE BRANCH**: **`main`**.
+- **No Long-Lived Feature Branches**: Do not branch off into `agents/...`, `feat/...`, `hardening/...`, or `codex/...` unless explicitly instructed for a brief isolated test.
+- **Immediate Consolidation**: Any working changes must be tested, committed, and merged directly into `main`. Stale local and remote branches must be pruned immediately.
+- **Single Source of Truth on GitHub**: GitHub repository `Ibeekay1993/medicodeui` must only have `main` as active branch. All production code must be deployable from `main`.
+
+---
+
+## 3. STRICTLY PROHIBITED LEGACY INFRASTRUCTURE (PERMANENTLY DECOMMISSIONED)
+
+The system underwent a complete migration away from Firebase and managed cloud services. Any AI proposing or referencing the following is **STRICTLY PROHIBITED**:
+
+| Legacy Component | Status | Action Required |
+| :--- | :--- | :--- |
+| **Firebase Hosting** | **PERMANENTLY DEAD** | NEVER run `firebase deploy`. NEVER generate `firebase.json` or `.firebaserc`. |
+| **`medicodeui.web.app`** | **DECOMMISSIONED** | Never redirect users or API calls here. |
+| **Firebase Cloud Functions** | **RETIRED** | All backend functions are Supabase Edge Functions (`uicodereqeust-main/supabase/functions/`). |
+| **Managed Supabase `optistuvyeiojlgmkdks`** | **DECOMMISSIONED** | Old managed Supabase cloud project is dead. Never fall back to this URL. Frontend must fail loudly if `VITE_SUPABASE_URL` is omitted. |
+| **Meta WhatsApp Cloud API / Webhook** | **REPLACED** | Replaced by self-hosted Evolution API on AWS ECS. |
+| **Legacy Baileys Node Service (`whatsapp-service`)** | **ARCHIVED** | Archived in `docs/archive/legacy-baileys-prototype/`. Not active. |
+
+---
+
+## 4. CURRENT PRODUCTION INFRASTRUCTURE & HOSTING
+
+### A. Hostinger VPS (`2.24.58.189`) & Coolify Management
+All production web services and backend database engines run on the dedicated Hostinger VPS managed via **Coolify**:
+- **Frontend Container**: Nginx Alpine serving static production build from `/usr/share/nginx/html/`.
+  - Docker container naming filter: `4s2tyq1...`
+- **Backend Supabase Stack**: Self-hosted Docker Compose under `/data/coolify/services/rufiptlacf2ik0phgii71ekq/`:
+  - `supabase-db` (PostgreSQL 15+)
+  - `supabase-auth` (GoTrue auth service)
+  - `supabase-kong` (API Gateway exposing `https://api.ronsbergerhmo.io`)
+  - `supabase-rest` (PostgREST)
+  - `supabase-storage` (S3/Local storage)
+  - `supabase-edge-functions` (Deno runtime serving edge functions mounted at `/data/coolify/services/rufiptlacf2ik0phgii71ekq/volumes/functions/`)
+
+### B. Invitation Expiration Policy
+- All staff and hospital user email invitation tokens and OTPs expire after **7 days (604,800 seconds)**.
+- Configured in Coolify Docker Compose for `supabase-auth`:
+  - `GOTRUE_MAILER_OTP_EXP: 604800`
+  - `GOTRUE_OTP_EXP: 604800`
+
+### C. WhatsApp Integration Architecture
+- **Active Provider**: **Evolution API** running on **AWS ECS**.
+- **Edge Function Worker**: `supabase/functions/whatsapp-worker/` handles incoming webhooks and message dispatch.
+- **AWS Lambda / SQS Worker**: Paused. Do NOT re-enable AWS Lambda or create competing polling mechanisms.
+
+---
+
+## 5. CODEBASE DIRECTORY STRUCTURE
+
+```text
+/
+├── .agents/
+│   └── AGENTS.md                  <-- System rules for AI coding assistants
+├── AI_INSTRUCTIONS.md             <-- This master file
+├── DEPLOYMENT_GUIDE.md            <-- Deployment commands and ops reference
+├── WHATSAPP_SETUP.md              <-- Evolution API / WhatsApp documentation
+└── uicodereqeust-main/            <-- Primary application repository
+    ├── src/                       <-- React 18, TypeScript, Vite, TailwindCSS
+    │   ├── components/            <-- Reusable UI components & modals
+    │   ├── features/              <-- Domain modules (claims, hospital, payments, reports)
+    │   ├── hooks/                 <-- Custom React hooks
+    │   ├── lib/                   <-- Utilities, API clients, tariff parsers
+    │   └── pages/                 <-- Application views (Dashboard, Register, Login)
+    ├── supabase/
+    │   ├── functions/             <-- Deno Edge Functions (send-otp, whatsapp-worker, etc.)
+    │   └── migrations/            <-- Idempotent PostgreSQL schema migrations
+    └── docs/
+        └── archive/               <-- Archived historical prototypes (Baileys, Meta webhook)
+```
+
+---
+
+## 6. ENGINEERING & QUALITY GATES (MUST PASS BEFORE ANY COMMIT)
+
+Every AI builder must uphold these non-negotiable quality checks:
+
+1. **Explicit Imports Verification**:
+   - Every added React hook (`useState`, `useEffect`, `useCallback`, `useMemo`, `useRef`) MUST be explicitly imported at the top of the file.
+   - Every Lucide icon, UI component, and TypeScript interface must have a valid import. Never leave undefined references.
+2. **TypeScript Compilation Gate**:
+   - Run `cd uicodereqeust-main && npx tsc --noEmit`.
+   - **Must complete with 0 errors**.
+3. **Unit Test Suite Gate**:
+   - Run `cd uicodereqeust-main && npm test -- --run`.
+   - All test suites (22 test files, 246+ tests) must pass with 0 failures.
+4. **Mobile Responsive Guardrails**:
+   - **Checkboxes**: Must be strictly sized to `16px × 16px` (`h-4 w-4 rounded-[4px]`) and explicitly excluded from touch-target min-height styles.
+   - **Bottom Navigation**: Mobile `<main>` container must have `pb-24` padding to prevent sticky bottom navigation bars from covering buttons or content.
+   - **Text Overflow**: All dynamic labels, emails, phone numbers, and badges must use `break-words` and `[overflow-wrap:anywhere]` to prevent horizontal overflow on screens under 380px width.
+5. **Security & Secrets**:
+   - Never commit API keys, service role keys, SSH private keys, or passwords.
+   - Always read credentials from environment variables or Supabase Vault.
+
+---
+
+## 7. HOW TO DEPLOY TO PRODUCTION
+
+### Step 1: Build Frontend Assets
+```bash
+cd uicodereqeust-main
+npm run build
+```
+
+### Step 2: Deploy to Hostinger VPS Nginx Container
+```powershell
+python scripts/deploy-vps.py
+```
+*(Or use `node scripts/deploy-guard.mjs` / SSH deployment to copy `uicodereqeust-main/dist/` into `/usr/share/nginx/html/` of the active frontend container `4s2tyq1...`).*
+
+### Step 3: Deploy Edge Functions
+Sync updated functions in `uicodereqeust-main/supabase/functions/` to `/data/coolify/services/rufiptlacf2ik0phgii71ekq/volumes/functions/` on the VPS and restart the `supabase-edge-functions` container.
+
+---
+
+## 8. SUMMARY FOR AI AGENTS
+
+- **Branch**: `main` only.
+- **Brand**: Ronsberger HMO (`app.ronsbergerhmo.io`).
+- **No Firebase, No Medicode, No Managed Supabase `optistuvyeiojlgmkdks`**.
+- **Check Imports**: Always.
+- **TypeScript `tsc`**: Must be 0 errors.
