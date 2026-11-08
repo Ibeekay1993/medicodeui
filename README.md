@@ -6,6 +6,8 @@ This repository contains the full codebase for the **Ronsberger HMO Enterprise P
 - **Backend API**: [https://api.ronsbergerhmo.io](https://api.ronsbergerhmo.io)
 - **Primary Codebase Directory**: [`uicodereqeust-main/`](uicodereqeust-main/)
 
+> **Git policy: `main` only.** Do not create branches or pull requests. Commit validated changes directly to `main`; GitHub should have only the `main` branch.
+
 ## Important Documentation for Developers & AI Agents
 
 - **[AI_INSTRUCTIONS.md](AI_INSTRUCTIONS.md)**: Master architectural guide, quality gates, and single-branch policy for AI coding assistants (Codex, Claude, Cursor, Antigravity).

@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { corsHeaders, getServiceClient, parseBrevoSender, validateUser, maskEmail } from "../_shared/auth.ts"
+import { corsHeaders, getServiceClient, validateUser, maskEmail } from "../_shared/auth.ts"
+import { getBrevoSender } from "../_shared/brevo.ts"
 
 interface AuthRequest {
   id?: string;
@@ -60,7 +61,6 @@ serve(async (req) => {
     }
 
     const brevoApiKey = Deno.env.get("BREVO_API_KEY");
-    const brevoFromRaw = Deno.env.get("BREVO_FROM_EMAIL") || "Ronsberger HMO Reports <noreply@ronsbergerhmo.io>";
 
     if (!brevoApiKey) {
       console.warn("⚠️ BREVO_API_KEY is not set - daily report will not be sent");
@@ -264,7 +264,7 @@ serve(async (req) => {
     }
     const base64Csv = btoa(binary);
 
-    const brevoSender = parseBrevoSender(brevoFromRaw);
+    const brevoSender = getBrevoSender();
 
     console.log(`Sending daily report to ${maskEmail(recipientEmail)}...`);
     console.log(`From: ${brevoSender.name} <${brevoSender.email}>`);
@@ -291,23 +291,25 @@ serve(async (req) => {
       })
     });
 
-    const emailData = await emailResponse.json();
-    console.log(`Brevo response status: ${emailResponse.status}`, emailData);
+    console.log(`Brevo response status: ${emailResponse.status}`);
 
     if (!emailResponse.ok) {
-      const errorMsg = `Email send failed: ${JSON.stringify(emailData)}`;
+      const errorMsg = `Email send failed with HTTP ${emailResponse.status}`;
       console.error(`❌ ${errorMsg}`);
       throw new Error(errorMsg);
     }
 
     console.log(`Daily report sent successfully to ${maskEmail(recipientEmail)}`);
-    return new Response(JSON.stringify({ message: `Daily report sent successfully to ${recipientEmail}`, data: emailData }), {
+    return new Response(JSON.stringify({
+      success: true,
+      message: `Daily report sent successfully to ${maskEmail(recipientEmail)}`,
+    }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
     });
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error('❌ daily-report error:', errorMessage);
+    console.error('daily-report failed:', error instanceof Error ? error.name : "unknown_error");
     return new Response(JSON.stringify({ error: errorMessage, success: false }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,

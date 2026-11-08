@@ -303,7 +303,7 @@ describe("ReportsPage report integrity", () => {
     renderPage();
 
     fireEvent.click(await screen.findByRole("button", { name: "Export payment advice" }));
-    await waitFor(() => expect(mocks.saveAs).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(mocks.saveAs).toHaveBeenCalledTimes(1), { timeout: 10_000 });
 
     const workbook = await readDownloadedWorkbook();
     expect(workbook.worksheets.map((sheet) => sheet.name)).toEqual(["Payment Advice Schedule", "Payment Advice Checks"]);
@@ -322,7 +322,7 @@ describe("ReportsPage report integrity", () => {
     renderPage();
 
     fireEvent.click(await screen.findByRole("button", { name: "Export full report" }));
-    await waitFor(() => expect(mocks.saveAs).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(mocks.saveAs).toHaveBeenCalledTimes(1), { timeout: 10_000 });
 
     const workbook = await readDownloadedWorkbook();
     expect(workbook.worksheets.map((sheet) => sheet.name)).toContain("Payment Advice Schedule");

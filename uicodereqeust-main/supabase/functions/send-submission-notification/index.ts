@@ -8,26 +8,22 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { corsHeaders as sharedCorsHeaders } from "../_shared/cors.ts";
+import { getBrevoSender } from "../_shared/brevo.ts";
 
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
+  ...sharedCorsHeaders,
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-api-key, x-worker-secret",
+  "Vary": "Origin",
 };
 
 const BREVO_API_KEY = Deno.env.get("BREVO_API_KEY");
-const BREVO_FROM_EMAIL = Deno.env.get("BREVO_FROM_EMAIL") || "Ronsberger HMO <noreply@ronsbergerhmo.io>";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const INTERNAL_API_KEY = Deno.env.get("INTERNAL_API_KEY") || Deno.env.get("MEDAUTH_INTERNAL_API_KEY") || "";
 const WHATSAPP_WORKER_SECRET = Deno.env.get("WHATSAPP_WORKER_SECRET") || "";
 const ALLOWED_ROLES = ["utilization_manager", "admin", "hospital", "claims"];
-
-function parseBrevoSender(raw: string): { name: string; email: string } {
-  const match = raw.match(/^(.+?)\s*<([^>]+)>$/);
-  if (match) return { name: match[1].trim(), email: match[2] };
-  return { name: "Ronsberger HMO", email: raw };
-}
 
 function bad(status: number, message: string) {
   return new Response(JSON.stringify({ error: true, message }), {
@@ -119,17 +115,17 @@ serve(async (req) => {
           whatsappError = `send-whatsapp ${resp.status}`;
           console.error("send-submission-notification: WhatsApp send failed", resp.status);
         }
-      } catch (err) {
+      } catch {
         whatsappError = (err as Error).message || "unknown";
-        console.error("WhatsApp sending failed:", whatsappError);
+        console.error("WhatsApp sending failed");
       }
     }
 
     // 2. Email Notification (Brevo) — unchanged behaviour
-    if (patient_email && !patient_email.startsWith("no-email@") && !patient_email.endsWith("@medicode.com") && BREVO_API_KEY) {
+    if (patient_email && !patient_email.startsWith("no-email@") && BREVO_API_KEY) {
       console.log(`Sending submission email to ${maskEmail(patient_email)}...`);
 
-      const brevoSender = parseBrevoSender(BREVO_FROM_EMAIL);
+      const brevoSender = getBrevoSender();
       const itemsHtml = (requested_items && requested_items.length > 0)
         ? requested_items.map((item: Record<string, unknown>) => `<li>${item.quantity}x ${item.name}</li>`).join("")
         : "<li>No specific items listed</li>";
@@ -185,12 +181,11 @@ serve(async (req) => {
         if (brevoResponse.ok) {
           emailStatus = "sent";
         } else {
-          const errText = await brevoResponse.text();
-          console.error("Brevo API error:", errText);
+          console.error(`Brevo API error with HTTP ${brevoResponse.status}`);
           emailStatus = "failed";
         }
       } catch (err) {
-        console.error("Email sending failed:", err);
+        console.error("Email sending failed");
         emailStatus = "failed";
       }
     }
@@ -205,8 +200,8 @@ serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
 
-  } catch (error: unknown) {
-    console.error("Submission Notification Edge Function Error:", error);
-    return bad(500, (error as Error)?.message || "internal_error");
+  } catch {
+    console.error("Submission Notification Edge Function Error");
+    return bad(500, "internal_error");
   }
 });

@@ -172,7 +172,7 @@ DECLARE
 BEGIN
   SELECT s.base_policy INTO family_policy
   FROM public.split_family_policy(trim(coalesce(p_family_policy, ''))) s;
-  IF normalized_email = '' OR normalized_email = 'no-email@medicode.com' THEN
+  IF normalized_email = '' OR normalized_email = 'no-email@ronsbergerhmo.io' THEN
     RETURN jsonb_build_object('allowed', true, 'reason', 'not_provided');
   END IF;
   SELECT family_policy_number INTO existing_family
@@ -205,7 +205,7 @@ DECLARE
 BEGIN
   SELECT s.base_policy INTO family_policy
   FROM public.split_family_policy(trim(coalesce(p_family_policy, ''))) s;
-  IF normalized_email = '' OR normalized_email = 'no-email@medicode.com' THEN
+  IF normalized_email = '' OR normalized_email = 'no-email@ronsbergerhmo.io' THEN
     RETURN jsonb_build_object('allowed', true, 'reason', 'not_provided');
   END IF;
   IF normalized_email !~ '^[^@\s]+@[^@\s]+\.[^@\s]+$' THEN

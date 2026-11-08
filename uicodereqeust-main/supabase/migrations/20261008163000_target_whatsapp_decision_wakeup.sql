@@ -83,7 +83,7 @@ BEGIN
       END IF;
 
       PERFORM net.http_post(
-        url := 'https://optistuvyeiojlgmkdks.supabase.co/functions/v1/whatsapp-worker',
+        url := 'https://api.ronsbergerhmo.io/functions/v1/whatsapp-worker',
         headers := jsonb_build_object(
           'Content-Type', 'application/json',
           'x-worker-secret', worker_secret

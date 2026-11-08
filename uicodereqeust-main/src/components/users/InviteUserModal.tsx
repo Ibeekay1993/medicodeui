@@ -22,6 +22,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Mail, Search } from "lucide-react";
 import { availableRoles, filterHospitals } from "@/lib/user-helpers";
+import { getSupabaseFunctionErrorMessage } from "@/lib/supabaseFunctionErrors";
 
 interface InviteUserModalProps {
   isOpen: boolean;
@@ -103,25 +104,17 @@ export function InviteUserModal({
           is_team_lead: newUser.is_team_lead,
         },
       });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.message || "Invitation failed.");
-
-      if (data?.action_link && data?.email_sent === false) {
-        toast({
-          title: "User Account Created",
-          description: "User registered. The activation link has been copied to your clipboard.",
-        });
-        try {
-          await navigator.clipboard.writeText(data.action_link);
-        } catch {
-          // ignore clipboard errors
-        }
-      } else {
-        toast({
-          title: "Invitation Sent",
-          description: `A secure registration link has been sent to ${email}.`,
-        });
+      if (error) {
+        throw new Error(await getSupabaseFunctionErrorMessage(error, "Invitation email was not accepted. Please retry."));
       }
+      if (data?.error || data?.success !== true || data?.email_sent !== true) {
+        throw new Error(data?.message || "Invitation email was not accepted. Please retry.");
+      }
+
+      toast({
+        title: "Invitation Email Accepted",
+        description: `Brevo accepted the invitation for ${email}. Check Brevo logs for final delivery status.`,
+      });
       onOpenChange(false);
       onSuccess();
     } catch (error: any) {

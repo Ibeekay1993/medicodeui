@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders, getServiceClient, validateUser } from "../_shared/auth.ts";
+import { getBrevoSender } from "../_shared/brevo.ts";
 
 interface AdminActionBody {
   action?: string;
@@ -430,11 +431,7 @@ serve(async (req) => {
       const brevoApiKey = Deno.env.get("BREVO_API_KEY");
       if (brevoApiKey) {
         const resetLink = (data as { properties?: { action_link?: string } })?.properties?.action_link || "";
-        const senderRaw = Deno.env.get("BREVO_FROM_EMAIL") || "Ronsberger HMO <noreply@ronsbergerhmo.io>";
-        const senderMatch = senderRaw.match(/^(.+?)\s*<([^>]+)>$/);
-        const brevoSender = senderMatch
-          ? { name: senderMatch[1].trim(), email: senderMatch[2].trim() }
-          : { name: "Ronsberger HMO", email: senderRaw };
+        const brevoSender = getBrevoSender();
 
         await fetch("https://api.brevo.com/v3/smtp/email", {
           method: "POST",

@@ -1,5 +1,13 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { corsHeaders, getServiceClient, validateUser, parseBrevoSender } from "../_shared/auth.ts";
+import { assertMfaForSensitiveAction, corsHeaders, getServiceClient, maskEmail, validateUser } from "../_shared/auth.ts";
+import {
+  brevoAccepted,
+  escapeHtml,
+  invitationLinkType,
+  invitationRedirectUrl,
+  invitationSender,
+  InvitationConfigurationError,
+} from "../_shared/invitation.ts";
 
 interface InvitePayload {
   email?: string;
@@ -18,24 +26,52 @@ const toMessage = (err: unknown): string => {
   return msg || "Invitation failed";
 };
 
+class InvitationHttpError extends Error {
+  constructor(message: string, readonly status: number) {
+    super(message);
+    this.name = "InvitationHttpError";
+  }
+}
+
+async function hashEmail(email: string): Promise<string> {
+  const data = new TextEncoder().encode(email.trim().toLowerCase());
+  const digest = await crypto.subtle.digest("SHA-256", data);
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  if (req.method !== "POST") {
+    return new Response(JSON.stringify({ error: true, message: "Method not allowed." }), {
+      status: 405,
+      headers: { ...corsHeaders, "Content-Type": "application/json", Allow: "POST, OPTIONS" },
+    });
+  }
 
   let payload: InvitePayload = {};
   let adminUser: { id?: string; email?: string } | null = null;
   const safeAudit = async (supabase: ReturnType<typeof getServiceClient>, action: string, details: Record<string, unknown>, severity = "info") => {
     try {
+      const email = typeof details.email === "string" ? details.email.trim().toLowerCase() : "";
+      const emailHash = typeof details.email_hash === "string" ? details.email_hash : (email ? await hashEmail(email) : "");
+      const sanitizedDetails: Record<string, unknown> = { ...details };
+      if (email) sanitizedDetails.email = maskEmail(email);
+      delete sanitizedDetails.email_hash;
+      delete sanitizedDetails.full_name;
+      delete sanitizedDetails.phone;
+      delete sanitizedDetails.action_link;
+      delete sanitizedDetails.input_payload;
       await supabase.from("audit_logs").insert({
         action,
         action_type: action,
         user_id: adminUser?.id ?? null,
         actor_user_id: adminUser?.id ?? null,
-        actor_name: adminUser?.email ?? "Unknown admin",
+        actor_name: "Administrator",
         actor_role: "admin",
         entity_type: "admin_user_management",
-        entity_id: String(details.email || "invite-user"),
-        new_values: details,
-        details,
+        entity_id: String(details.invited_user_id || emailHash || "invite-user"),
+        new_values: sanitizedDetails,
+        details: sanitizedDetails,
         severity,
         device_info: req.headers.get("user-agent"),
         ip_address: null,
@@ -49,26 +85,57 @@ serve(async (req) => {
     // Only admins can invite users
     const validated = await validateUser(req, ["admin"]);
     adminUser = validated.user;
+    await assertMfaForSensitiveAction(validated.user.id, validated.assuranceLevel);
 
-    payload = await req.json();
+    const parsedPayload: unknown = await req.json();
+    if (!parsedPayload || typeof parsedPayload !== "object" || Array.isArray(parsedPayload)) {
+      throw new InvitationHttpError("The invitation request body must be a JSON object.", 400);
+    }
+    payload = parsedPayload as InvitePayload;
     const { email, fullName, role, phone = null, hospital_id = null, is_team_lead = false } = payload;
     const normalizedEmail = String(email || "").trim().toLowerCase();
+    const normalizedName = typeof fullName === "string" ? fullName.trim() : "";
     const allowedRoles = ["admin", "hospital", "utilization_manager", "utilization_manager_lead", "claims", "claims_lead", "finance"];
 
-    if (!normalizedEmail || !fullName || !role) {
-      throw new Error("Missing required fields: email, fullName, role");
+    if (!normalizedEmail || !normalizedName || !role) {
+      throw new InvitationHttpError("Email, full name, and role are required.", 400);
+    }
+    if (normalizedName.length > 200) {
+      throw new InvitationHttpError("Full name must be 200 characters or fewer.", 400);
     }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
-      throw new Error("Enter a valid email address.");
+      throw new InvitationHttpError("Enter a valid email address.", 400);
     }
     if (!allowedRoles.includes(role)) {
-      throw new Error("Invalid role selected.");
+      throw new InvitationHttpError("Invalid role selected.", 400);
     }
     if (typeof is_team_lead !== "boolean" || (is_team_lead && !["hospital", "claims", "finance"].includes(role))) {
-      throw new Error("This team lead assignment is not available for the selected role.");
+      throw new InvitationHttpError("This team lead assignment is not available for the selected role.", 400);
+    }
+    if (phone !== null && (typeof phone !== "string" || phone.length > 40)) {
+      throw new InvitationHttpError("Enter a valid phone number.", 400);
+    }
+    if (hospital_id !== null && (typeof hospital_id !== "string" || !/^[0-9a-f-]{36}$/i.test(hospital_id))) {
+      throw new InvitationHttpError("Select a valid hospital.", 400);
     }
 
     const supabase = getServiceClient();
+    const emailHash = await hashEmail(normalizedEmail);
+
+    // Validate sender and redirect before creating or changing any account.
+    const brevoApiKey = Deno.env.get("BREVO_API_KEY")?.trim();
+    if (!brevoApiKey) {
+      throw new InvitationHttpError("Invitation email service is not configured. Ask an administrator to verify BREVO_API_KEY.", 503);
+    }
+    let brevoSender: { name: string; email: string };
+    let redirectTo: string;
+    try {
+      brevoSender = invitationSender();
+      redirectTo = invitationRedirectUrl(Deno.env.get("SITE_URL"));
+    } catch (error) {
+      if (error instanceof InvitationConfigurationError) throw new InvitationHttpError(error.message, 503);
+      throw error;
+    }
 
     // Regional & Multi-Lead Support:
     // Organizations can appoint multiple Utilization Manager Leads and Claims Leads across states and zones.
@@ -78,72 +145,92 @@ serve(async (req) => {
     const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000;
     const windowStart = new Date(Date.now() - RATE_LIMIT_WINDOW_MS).toISOString();
 
-    const { count: recentAttempts } = await supabase
+    const { count: recentAttempts, error: rateLimitQueryError } = await supabase
       .from("audit_logs")
       .select("id", { count: "exact", head: true })
-      .eq("action", "ADMIN_USER_INVITED")
-      .eq("entity_id", normalizedEmail)
+      .in("action", ["ADMIN_USER_INVITED", "ADMIN_USER_INVITATION_ATTEMPTED"])
+      .in("entity_id", [emailHash, normalizedEmail])
       .gte("created_at", windowStart);
+
+    if (rateLimitQueryError) {
+      throw new InvitationHttpError("Could not validate invitation rate limits. Please retry shortly.", 503);
+    }
 
     if ((recentAttempts || 0) >= RATE_LIMIT_MAX) {
       await safeAudit(supabase, "ADMIN_INVITE_RATE_LIMITED", {
         function_name: "invite-user",
         email: normalizedEmail,
+        email_hash: emailHash,
         attempts_in_window: recentAttempts,
       }, "warning");
-      throw new Error("Rate limit reached: Please wait a few moments before resending an invitation to this email.");
+      throw new InvitationHttpError("Invitation limit reached for this address. Wait 15 minutes before retrying.", 429);
     }
 
+    await safeAudit(supabase, "ADMIN_USER_INVITATION_ATTEMPTED", {
+      function_name: "invite-user",
+      email: normalizedEmail,
+      email_hash: emailHash,
+      role,
+    });
+
     // Check for existing role or existing auth user
-    // A pending or non-onboarded user can always receive a fresh invitation link.
-    const { data: existingRole } = await supabase
+    // Preserve a pending user's Auth ID; do not delete/recreate identities to resend mail.
+    const { data: existingRole, error: existingRoleError } = await supabase
       .from("user_roles")
-      .select("id, user_id, last_sign_in, invite_status, onboarding_completed")
+      .select("id, user_id, invite_status, onboarding_completed")
       .ilike("email", normalizedEmail)
       .maybeSingle();
 
-    if (existingRole) {
-      const isCompleted = existingRole.onboarding_completed === true || existingRole.invite_status === "completed";
-      if (isCompleted && existingRole.last_sign_in) {
-        throw new Error("A user with this email already exists and has active sign-in history.");
-      } else {
-        if (existingRole.user_id) {
-          await supabase.auth.admin.deleteUser(existingRole.user_id).catch(() => {});
-          await new Promise((r) => setTimeout(r, 200));
-        }
-      }
+    if (existingRoleError) {
+      throw new InvitationHttpError("Could not verify the existing account. No invitation changes were made.", 503);
+    }
+
+    let linkType: "invite" | "magiclink";
+    try {
+      linkType = invitationLinkType(existingRole);
+    } catch {
+      throw new InvitationHttpError("This account has already completed setup. Use the existing account controls instead.", 409);
     }
 
     // Resolve hospital name if hospital_id is present
     let hospitalName = "";
     if (hospital_id) {
-      const { data: hospitalData } = await supabase
+      const { data: hospitalData, error: hospitalError } = await supabase
         .from("hospitals")
         .select("name")
         .eq("id", hospital_id)
         .maybeSingle();
+      if (hospitalError || !hospitalData) {
+        throw new InvitationHttpError("The selected hospital could not be verified. No invitation was sent.", 400);
+      }
       if (hospitalData?.name) {
         hospitalName = hospitalData.name;
       }
     }
 
     // Generate the invite link via Supabase Admin API
-    const configuredSiteUrl = (Deno.env.get("SITE_URL") || "https://app.ronsbergerhmo.io").replace(/\/+$/, "");
-    const redirectTo = `${configuredSiteUrl.replace(/\/login$/, "")}/register`;
     const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
-      type: "invite",
+      type: linkType,
       email: normalizedEmail,
       options: {
-        data: { full_name: fullName, role: role, hospital_id: hospital_id },
+        ...(linkType === "invite" ? { data: { full_name: normalizedName, role, hospital_id } } : {}),
         redirectTo,
       }
     });
 
-    if (linkError) throw linkError;
+    if (linkError) {
+      if (/already registered|already exists/i.test(linkError.message)) {
+        throw new InvitationHttpError("An account with this email already exists. Use Resend Invite from User Management.", 409);
+      }
+      throw new InvitationHttpError("Supabase Auth could not create the invitation link. Check the Auth service and retry.", 502);
+    }
     const actionLink = (linkData as any)?.properties?.action_link || (linkData as any)?.action_link;
     const targetUser = (linkData as any)?.user || linkData;
     if (!actionLink || !targetUser?.id) {
-      throw new Error("Failed to generate secure invitation token.");
+      throw new InvitationHttpError("Supabase Auth did not return a secure invitation link.", 502);
+    }
+    if (existingRole?.user_id && targetUser.id !== existingRole.user_id) {
+      throw new InvitationHttpError("The existing account could not be safely matched. No account was replaced.", 409);
     }
 
     // Set the role in user_roles IMMEDIATELY so the record is guaranteed
@@ -151,7 +238,7 @@ serve(async (req) => {
       user_id: targetUser.id,
       role: role,
       is_team_lead: Boolean(is_team_lead),
-      full_name: fullName,
+      full_name: normalizedName,
       email: normalizedEmail,
       phone,
       hospital_id,
@@ -159,17 +246,13 @@ serve(async (req) => {
       invite_status: "pending",
     }], { onConflict: "user_id" });
 
-    if (roleError) throw roleError;
+    if (roleError) {
+      throw new InvitationHttpError("The invitation record could not be saved. No delivery was reported.", 503);
+    }
 
-    // Send the styled invitation email via Brevo with graceful fallback
-    const brevoApiKey = Deno.env.get("BREVO_API_KEY");
-    const brevoFromRaw = Deno.env.get("BREVO_FROM_EMAIL") || "Ronsberger HMO <noreply@ronsbergerhmo.io>";
-    let emailSent = false;
-    let emailErrorMessage = "";
-
-    if (brevoApiKey) {
-      try {
-        const roleDisplayNames = new Map<string, string>([
+    // Send via the verified Brevo API sender. A 2xx response without a provider
+    // message ID is not treated as a successful invitation.
+    const roleDisplayNames = new Map<string, string>([
           ["admin", "Administrator"],
           ["hospital", "Hospital Representative"],
           ["nurse", "Utilization Manager"],
@@ -178,20 +261,26 @@ serve(async (req) => {
           ["claims", "Claims Officer"],
           ["claims_lead", "Claims Lead (Head of Claims)"],
           ["finance", "Finance Officer"],
-        ]);
-        const displayRole = roleDisplayNames.get(role) || role;
-        const brevoSender = parseBrevoSender(brevoFromRaw);
+    ]);
+    const displayRole = roleDisplayNames.get(role) || role;
+    const safeFullName = escapeHtml(normalizedName);
+    const safeHospitalName = escapeHtml(hospitalName);
+    const safeActionLink = escapeHtml(actionLink);
 
-        const brevoResponse = await fetch("https://api.brevo.com/v3/smtp/email", {
+    let brevoResponse: Response;
+    try {
+      brevoResponse = await fetch("https://api.brevo.com/v3/smtp/email", {
           method: "POST",
           headers: {
             "api-key": brevoApiKey,
             "Content-Type": "application/json",
           },
+          signal: AbortSignal.timeout(15_000),
           body: JSON.stringify({
             sender: brevoSender,
             to: [{ email: normalizedEmail }],
             subject: "Ronsberger HMO - You have been invited",
+            textContent: `Hello, ${normalizedName}. You have been invited to the Ronsberger HMO Administrative Portal as ${displayRole}. Set up your account here: ${actionLink}. This personal invitation link expires in 7 days.`,
             htmlContent: `<!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
@@ -213,7 +302,7 @@ serve(async (req) => {
         </tr>
         <tr>
           <td style="padding:32px;">
-            <p style="color:#475569;font-size:14px;line-height:1.6;margin:0 0 8px;">Hello, <strong>${fullName}</strong></p>
+            <p style="color:#475569;font-size:14px;line-height:1.6;margin:0 0 8px;">Hello, <strong>${safeFullName}</strong></p>
             <p style="color:#475569;font-size:14px;line-height:1.6;margin:0 0 20px;">
               You have been invited as a <strong>${displayRole}</strong> to the Ronsberger HMO Administrative System.
             </p>
@@ -225,9 +314,9 @@ serve(async (req) => {
               </tr>
               <tr><td style="padding:12px 16px;">
                 <table width="100%" cellpadding="0" cellspacing="0">
-                  <tr><td style="padding:4px 0;font-size:12px;color:#64748B;width:40%;">Full Name</td><td style="padding:4px 0;font-size:12px;color:#1E293B;font-weight:700;">${fullName}</td></tr>
+                  <tr><td style="padding:4px 0;font-size:12px;color:#64748B;width:40%;">Full Name</td><td style="padding:4px 0;font-size:12px;color:#1E293B;font-weight:700;">${safeFullName}</td></tr>
                   <tr><td style="padding:4px 0;font-size:12px;color:#64748B;">Role</td><td style="padding:4px 0;font-size:12px;color:#1E293B;font-weight:700;">${displayRole}</td></tr>
-                  ${hospitalName ? `<tr><td style="padding:4px 0;font-size:12px;color:#64748B;">Hospital</td><td style="padding:4px 0;font-size:12px;color:#1E293B;font-weight:700;">${hospitalName}</td></tr>` : ""}
+                  ${hospitalName ? `<tr><td style="padding:4px 0;font-size:12px;color:#64748B;">Hospital</td><td style="padding:4px 0;font-size:12px;color:#1E293B;font-weight:700;">${safeHospitalName}</td></tr>` : ""}
                 </table>
               </td></tr>
             </table>
@@ -237,7 +326,7 @@ serve(async (req) => {
             <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
               <tr>
                 <td align="center">
-                  <a href="${actionLink}" target="_blank" style="display:inline-block;background-color:#0F6E56;color:#ffffff;padding:14px 28px;font-weight:bold;font-size:15px;text-decoration:none;border-radius:8px;box-shadow:0 4px 12px rgba(15, 110, 86, 0.2);">Activate Portal Access</a>
+                  <a href="${safeActionLink}" target="_blank" rel="noopener noreferrer" style="display:inline-block;background-color:#0F6E56;color:#ffffff;padding:14px 28px;font-weight:bold;font-size:15px;text-decoration:none;border-radius:8px;box-shadow:0 4px 12px rgba(15, 110, 86, 0.2);">Activate Portal Access</a>
                 </td>
               </tr>
             </table>
@@ -264,50 +353,73 @@ serve(async (req) => {
 </body>
 </html>`,
           }),
-        });
-
-        if (brevoResponse.ok) {
-          emailSent = true;
-        } else {
-          const brevoData = await brevoResponse.json().catch(() => ({}));
-          emailErrorMessage = brevoData.message || `Brevo HTTP ${brevoResponse.status}`;
-        }
-      } catch (err: any) {
-        emailErrorMessage = err?.message || "Email dispatch failed";
-      }
+      });
+    } catch {
+      throw new InvitationHttpError("Could not connect to Brevo. The pending account is preserved; retry after the email service recovers.", 502);
     }
+
+    const brevoData = await brevoResponse.json().catch(() => null);
+    if (!brevoAccepted(brevoResponse.status, brevoData)) {
+      const providerCode = brevoData && typeof brevoData === "object" && typeof (brevoData as { code?: unknown }).code === "string"
+        ? (brevoData as { code: string }).code
+        : undefined;
+      console.error("Invitation email rejected by Brevo", { status: brevoResponse.status, providerCode });
+      throw new InvitationHttpError(
+        brevoResponse.status === 401 || brevoResponse.status === 403
+          ? "Brevo rejected its API credentials. Verify BREVO_API_KEY in the production Edge Function environment."
+          : "Brevo did not accept the invitation email. Verify the noreply sender and Brevo transactional-email settings, then retry.",
+        502,
+      );
+    }
+    const providerMessageId = brevoData.messageId;
 
     await safeAudit(supabase, "ADMIN_USER_INVITED", {
       function_name: "invite-user",
       email: normalizedEmail,
-      full_name: fullName,
+      email_hash: emailHash,
       role,
-      phone,
       hospital_id,
       invited_user_id: targetUser.id,
-      email_sent: emailSent,
+      email_sent: true,
+      email_provider_message_id: providerMessageId,
       timestamp: new Date().toISOString(),
     });
 
     return new Response(JSON.stringify({ 
       success: true, 
-      email_sent: emailSent,
-      action_link: actionLink,
-      message: emailSent 
-        ? `Invitation sent successfully to ${normalizedEmail}`
-        : `User account created. Share this activation link: ${actionLink}`,
-      user: targetUser,
+      email_sent: true,
+      email_provider: "brevo",
+      email_provider_status: "accepted",
+      email_provider_message_id: providerMessageId,
+      message: "Brevo accepted the invitation email. Confirm final delivery in Brevo logs.",
     }), {
+      status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
 
   } catch (err) {
-    const errorMsg = toMessage(err);
+    let status = 500;
+    let errorMsg = "The invitation could not be completed. Please retry or check the server logs.";
+    const rawMessage = toMessage(err);
+    if (err instanceof InvitationHttpError) {
+      status = err.status;
+      errorMsg = err.message;
+    } else if (err instanceof InvitationConfigurationError) {
+      status = 503;
+      errorMsg = err.message;
+    } else if (rawMessage === "Unauthorized") {
+      status = 401;
+      errorMsg = "Your session is not authorized to invite users. Sign in again with an administrator account.";
+    } else if (["Role not permitted", "Account deactivated", "MFA verification is required to perform this action"].includes(rawMessage)) {
+      status = 403;
+      errorMsg = rawMessage;
+    }
     try {
       const supabase = getServiceClient();
-      await safeAudit(supabase, "ADMIN_USERS_EDGE_FUNCTION_ERROR", {
+      await safeAudit(supabase, "ADMIN_USER_INVITATION_FAILED", {
         function_name: "invite-user",
-        input_payload: { email: payload?.email, fullName: payload?.fullName, role: payload?.role },
+        email: typeof payload?.email === "string" ? payload.email : "",
+        role: payload?.role,
         user_performing_action: adminUser?.id ?? null,
         error_message: errorMsg,
         timestamp: new Date().toISOString(),
@@ -315,7 +427,8 @@ serve(async (req) => {
     } catch {
       // Ignore audit write failures
     }
-    return new Response(JSON.stringify({ error: true, message: errorMsg }), {
+    return new Response(JSON.stringify({ error: true, email_sent: false, message: errorMsg }), {
+      status,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }

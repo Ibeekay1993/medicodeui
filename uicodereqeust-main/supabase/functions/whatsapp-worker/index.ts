@@ -57,12 +57,13 @@ import {
 import { ensureArrivalPin } from "../_shared/arrival-pin.ts";
 import { schedulePendingAuthorizationPush } from "../_shared/pending-auth-push.ts";
 import { parseWhatsAppHospitalContactResolution } from "../_shared/whatsapp-hospital-contact.ts";
-import { constantTimeEqual } from "../_shared/auth.ts";
+import { constantTimeEqual, corsHeaders as sharedCorsHeaders } from "../_shared/auth.ts";
 
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
+  ...sharedCorsHeaders,
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type, x-worker-secret",
+  "Vary": "Origin",
 };
 const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY") || "";
 const GEMINI_MODEL = Deno.env.get("GEMINI_MODEL") || "gemini-2.5-flash";

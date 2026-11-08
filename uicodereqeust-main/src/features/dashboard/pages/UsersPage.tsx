@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { getSupabaseFunctionErrorMessage } from "@/lib/supabaseFunctionErrors";
 import { useDataPagination } from "@/hooks/use-data-pagination";
 import { DataPagination } from "@/components/dashboard/DataPagination";
 import {
@@ -241,26 +242,18 @@ export default function UsersPage() {
       });
 
       if (error) {
-        let msg = error.message;
-        try {
-          if ((error as any).context && typeof (error as any).context.json === "function") {
-            const body = await (error as any).context.json();
-            if (body?.message) msg = body.message;
-          }
-        } catch {
-          // ignore
-        }
-        throw new Error(msg || "Failed to resend invitation.");
+        throw new Error(await getSupabaseFunctionErrorMessage(error, "Invitation email was not accepted. Please retry."));
       }
-      if (data?.error) throw new Error(data.message || "Failed to resend invitation.");
+      if (data?.error || data?.success !== true || data?.email_sent !== true) {
+        throw new Error(data?.message || "Invitation email was not accepted. Please retry.");
+      }
 
       toast({
-        title: "Invitation Resent",
-        description: `A fresh invitation link has been sent to ${targetUser.email}.`,
+        title: "Invitation Email Accepted",
+        description: `Brevo accepted the invitation for ${targetUser.email}. Check Brevo logs for final delivery status.`,
       });
       fetchUsers(true);
     } catch (e: any) {
-      console.error("Resend invite error:", e);
       toast({
         variant: "destructive",
         title: "Resend Failed",

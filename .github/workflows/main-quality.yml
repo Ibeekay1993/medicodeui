@@ -1,0 +1,55 @@
+name: Main quality gates
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: main-quality-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    env:
+      VITE_SUPABASE_URL: https://api.ronsbergerhmo.io
+      VITE_SUPABASE_PUBLISHABLE_KEY: ci-only-not-a-production-key
+    steps:
+      - name: Check out main
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: uicodereqeust-main/package-lock.json
+
+      - name: Install dependencies
+        working-directory: uicodereqeust-main
+        run: npm ci
+
+      - name: Typecheck
+        working-directory: uicodereqeust-main
+        run: npm run typecheck
+
+      - name: Lint
+        working-directory: uicodereqeust-main
+        run: npm run lint
+
+      - name: Unit tests
+        working-directory: uicodereqeust-main
+        run: npm test -- --run
+
+      - name: Dependency audit
+        working-directory: uicodereqeust-main
+        run: npm audit --audit-level=high
+
+      - name: Staging build
+        working-directory: uicodereqeust-main
+        run: npm run build:staging

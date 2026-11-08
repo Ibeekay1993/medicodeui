@@ -4,6 +4,12 @@ import path from "path";
 
 export default defineConfig({
   plugins: [react()],
+  define: {
+    // Explicit, non-production values for unit tests. Production builds use
+    // deployment environment variables and fail when either value is absent.
+    "import.meta.env.VITE_SUPABASE_URL": JSON.stringify("https://api.ronsbergerhmo.io"),
+    "import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY": JSON.stringify("test-only-publishable-key"),
+  },
   test: {
     environment: "jsdom",
     globals: true,

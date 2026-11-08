@@ -58,7 +58,7 @@ BEGIN
     p_authorization_id,
     encode(digest(new_pin, 'sha256'), 'hex'),
     new_pin,
-    COALESCE(NULLIF(btrim(p_patient_email), ''), 'no-email@medicode.com'),
+    COALESCE(NULLIF(btrim(p_patient_email), ''), 'no-email@ronsbergerhmo.io'),
     now() + interval '10 years',
     'ARRIVAL',
     p_hospital_id

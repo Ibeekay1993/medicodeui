@@ -30,11 +30,12 @@
 // 4 digits in error paths.
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { validateUser } from "../_shared/auth.ts";
+import { corsHeaders as sharedCorsHeaders, validateUser } from "../_shared/auth.ts";
 
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
+  ...sharedCorsHeaders,
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-api-key, x-worker-secret",
+  "Vary": "Origin",
 };
 
 const EVOLUTION_API_URL = Deno.env.get("EVOLUTION_API_URL") || "";

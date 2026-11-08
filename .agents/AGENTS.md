@@ -5,8 +5,9 @@ This repository is governed by the following strict engineering and architectura
 
 ## 1. Single Branch Policy (`main` ONLY)
 - **ONLY ONE BRANCH**: All active development, fixes, and production releases must exist on `main`.
-- Do NOT create separate branches (`hardening/...`, `agents/...`, `feat/...`, `codex/...`) unless explicitly directed for an isolated test, and merge/delete them immediately after completion.
-- Local repository and GitHub remote must remain clean with `main` as the default and single source of truth.
+- Do NOT create any branch, temporary branch, pull-request branch, or branch-based worktree. Make every change directly on `main`.
+- Commit and push validated changes directly to `main`. If an unexpected branch exists, preserve any unique work on `main` first, then delete the branch.
+- Local repository and GitHub remote must contain only `main`, with `main` as the default and single source of truth.
 
 ## 2. Completely Decommissioned Infrastructure (Strictly Prohibited)
 - **NO FIREBASE**: Firebase Hosting, Firebase Functions, `firebase deploy`, `firebase.json`, and `.firebaserc` are permanently removed. Never suggest or reintroduce Firebase.

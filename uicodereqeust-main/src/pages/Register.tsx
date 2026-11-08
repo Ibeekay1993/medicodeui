@@ -20,6 +20,7 @@ import {
   Info,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
+import { invitationOtpType } from "@/lib/invitationLinks";
 
 // ---------------------------------------------------------------------------
 // JWT helpers
@@ -121,12 +122,12 @@ export default function Register() {
 
       // 2. Check for token_hash or token (?token_hash=... or ?token=...)
       const tokenHash = searchParams.get("token_hash") || searchParams.get("token");
-      const otpType = (searchParams.get("type") as any) || "invite";
-      if (!accessToken && tokenHash) {
+      const otpType = invitationOtpType(searchParams.get("type"));
+      if (!accessToken && tokenHash && otpType) {
         try {
           const { data: otpData, error: otpError } = await supabase.auth.verifyOtp({
             token_hash: tokenHash,
-            type: otpType === "signup" ? "signup" : "invite",
+            type: otpType,
           });
           if (!otpError && otpData?.session) {
             accessToken = otpData.session.access_token;

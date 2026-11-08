@@ -15,12 +15,14 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { corsHeaders as sharedCorsHeaders } from "../_shared/cors.ts";
 import { parseWhatsAppHospitalContactResolution } from "../_shared/whatsapp-hospital-contact.ts";
 import { isDuplicateWebhookInsertError } from "../_shared/whatsapp-message-idempotency.ts";
 
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
+  ...sharedCorsHeaders,
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-webhook-token",
+  "Vary": "Origin",
 };
 
 const EVOLUTION_WEBHOOK_TOKEN = Deno.env.get("EVOLUTION_WEBHOOK_TOKEN") || "";

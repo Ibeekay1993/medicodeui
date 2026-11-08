@@ -29,12 +29,6 @@ export function maskEmail(email?: string | null): string {
   return `${maskedUser}@${domain}`;
 }
 
-export function parseBrevoSender(raw: string): { name: string; email: string } {
-  const match = raw.match(/^(.+?)\s*<([^>]+)>$/);
-  if (match) return { name: match[1].trim(), email: match[2].trim() };
-  return { name: "Ronsberger HMO", email: raw };
-}
-
 export function getServiceClient() {
   return createClient(
     Deno.env.get("SUPABASE_URL")!,

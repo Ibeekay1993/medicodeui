@@ -775,12 +775,13 @@ export function recordsToCsv(records: NhisBeneficiaryRecord[]): string {
 }
 
 export async function recordsToXlsxBlob(records: NhisBeneficiaryRecord[]): Promise<Blob> {
-  const XLSX = await import("xlsx");
-  const worksheet = XLSX.utils.json_to_sheet(records, { header: FIELDS });
-  const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, "Beneficiaries");
-  const buffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
-  return new Blob([buffer], {
+  const ExcelJS = (await import("exceljs")).default;
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet("Beneficiaries");
+  worksheet.columns = FIELDS.map((field) => ({ header: field, key: field }));
+  for (const record of records) worksheet.addRow(record);
+  const buffer = await workbook.xlsx.writeBuffer();
+  return new Blob([new Uint8Array(buffer)], {
     type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   });
 }

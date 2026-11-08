@@ -124,7 +124,7 @@ BEGIN
 
       IF NULLIF(BTRIM(worker_secret), '') IS NOT NULL THEN
         PERFORM net.http_post(
-          url     := 'https://optistuvyeiojlgmkdks.supabase.co/functions/v1/whatsapp-worker',
+          url     := 'https://api.ronsbergerhmo.io/functions/v1/whatsapp-worker',
           headers := jsonb_build_object(
                        'Content-Type',     'application/json',
                        'x-worker-secret',  worker_secret
@@ -163,7 +163,7 @@ BEGIN
       '*/5 * * * *',
       $cron_job_sql$
         SELECT net.http_post(
-          url := 'https://optistuvyeiojlgmkdks.supabase.co/functions/v1/whatsapp-worker',
+          url := 'https://api.ronsbergerhmo.io/functions/v1/whatsapp-worker',
           headers := jsonb_build_object(
             'Content-Type', 'application/json',
             'x-worker-secret', (SELECT decrypted_secret FROM vault.decrypted_secrets WHERE name = 'medcode_whatsapp_worker_secret_20261004' LIMIT 1)

@@ -29,7 +29,7 @@ For full AI agent and contributor guidelines, see [AI_INSTRUCTIONS.md](../AI_INS
    ```
 
 2. Environment configuration:
-   Copy `.env.example` to `.env` and configure:
+   Copy `.env.production.example` to `.env` and configure the self-hosted endpoint and publishable key:
    ```env
    VITE_SUPABASE_URL=https://api.ronsbergerhmo.io
    VITE_SUPABASE_PUBLISHABLE_KEY=your_supabase_anon_key

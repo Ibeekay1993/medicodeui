@@ -31,14 +31,16 @@ import {
 import {
   assertMfaForSensitiveAction,
   constantTimeEqual,
+  corsHeaders as sharedCorsHeaders,
   getAssuranceLevel,
   getSensitiveActionErrorStatus,
 } from "../_shared/auth.ts";
 
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
+  ...sharedCorsHeaders,
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type, x-api-key",
+  "Vary": "Origin",
 };
 
 const MEDAUTH_API_KEY = Deno.env.get("MEDAUTH_INTERNAL_API_KEY") || "";

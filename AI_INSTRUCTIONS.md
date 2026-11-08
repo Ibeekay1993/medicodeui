@@ -9,7 +9,7 @@
 
 ## 1. PRODUCT IDENTITY & DOMAINS
 
-- **Platform Name**: **Ronsberger HMO Portal** (formerly prototyped under working titles "MedCode" or "MedAuth").
+- **Platform Name**: **Ronsberger HMO Portal**.
 - **Company**: Ronsberger Nigeria Limited (Licensed HMO).
 - **Production Web Application**: **`https://app.ronsbergerhmo.io`**
 - **Production API & Supabase Backend**: **`https://api.ronsbergerhmo.io`**
@@ -20,9 +20,9 @@
 ## 2. GIT SINGLE-BRANCH POLICY (`main` ONLY)
 
 - **THERE IS ONLY ONE BRANCH**: **`main`**.
-- **No Long-Lived Feature Branches**: Do not branch off into `agents/...`, `feat/...`, `hardening/...`, or `codex/...` unless explicitly instructed for a brief isolated test.
-- **Immediate Consolidation**: Any working changes must be tested, committed, and merged directly into `main`. Stale local and remote branches must be pruned immediately.
-- **Single Source of Truth on GitHub**: GitHub repository `Ibeekay1993/medicodeui` must only have `main` as active branch. All production code must be deployable from `main`.
+- **No Branches Are Allowed**: Never create local or remote branches, temporary branches, pull-request branches, or branch-based worktrees. Do all work directly on `main`.
+- **Direct Main Workflow**: Validate changes, commit them directly to `main`, and push `main`. If an unexpected branch exists, preserve any unique work on `main` first, then delete that branch.
+- **Single Source of Truth on GitHub**: The GitHub repository must only have `main` as its active branch. All production code must be deployable from `main`.
 
 ---
 
@@ -105,7 +105,7 @@ Every AI builder must uphold these non-negotiable quality checks:
    - **Must complete with 0 errors**.
 3. **Unit Test Suite Gate**:
    - Run `cd uicodereqeust-main && npm test -- --run`.
-   - All test suites (22 test files, 246+ tests) must pass with 0 failures.
+   - All test suites present in the repository must pass with 0 failures.
 4. **Mobile Responsive Guardrails**:
    - **Checkboxes**: Must be strictly sized to `16px × 16px` (`h-4 w-4 rounded-[4px]`) and explicitly excluded from touch-target min-height styles.
    - **Bottom Navigation**: Mobile `<main>` container must have `pb-24` padding to prevent sticky bottom navigation bars from covering buttons or content.
@@ -125,10 +125,7 @@ npm run build
 ```
 
 ### Step 2: Deploy to Hostinger VPS Nginx Container
-```powershell
-python scripts/deploy-vps.py
-```
-*(Or use `node scripts/deploy-guard.mjs` / SSH deployment to copy `uicodereqeust-main/dist/` into `/usr/share/nginx/html/` of the active frontend container `4s2tyq1...`).*
+Use the production application in Coolify to deploy the latest `main` commit. Follow `DEPLOYMENT_GUIDE.md`; do not copy files into a running container or use a branch other than `main`.
 
 ### Step 3: Deploy Edge Functions
 Sync updated functions in `uicodereqeust-main/supabase/functions/` to `/data/coolify/services/rufiptlacf2ik0phgii71ekq/volumes/functions/` on the VPS and restart the `supabase-edge-functions` container.

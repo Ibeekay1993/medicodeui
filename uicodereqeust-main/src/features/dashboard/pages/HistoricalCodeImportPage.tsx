@@ -20,8 +20,32 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { HistoricalAuthorisationImportTab } from "../components/HistoricalAuthorisationImportTab";
+import { readSpreadsheetRows } from "@/lib/spreadsheetImport";
 
 type ImportMode = "add" | "replace" | "wipe";
+
+function columnName(index: number) {
+  let value = index + 1;
+  let name = "";
+  while (value > 0) {
+    const remainder = (value - 1) % 26;
+    name = String.fromCharCode(65 + remainder) + name;
+    value = Math.floor((value - 1) / 26);
+  }
+  return name;
+}
+
+function makeUniqueHeaders(headerRow: string[], width: number) {
+  const used = new Set<string>();
+  return Array.from({ length: width }, (_, index) => {
+    const base = headerRow[index]?.trim() || `Column ${columnName(index)}`;
+    let candidate = base;
+    let suffix = 2;
+    while (used.has(candidate)) candidate = `${base} (${suffix++})`;
+    used.add(candidate);
+    return candidate;
+  });
+}
 
 const supportedFields = [
   "record_type",
@@ -149,37 +173,6 @@ export default function HistoricalCodeImportPage() {
     };
   }, [mappedRows]);
 
-  const parseFile = async (f: File, headersIncluded: boolean) => {
-    const XLSX = await import("xlsx");
-    const buffer = await f.arrayBuffer();
-    const workbook = XLSX.read(buffer, { type: "array", cellDates: false });
-    const sheet = workbook.Sheets[workbook.SheetNames[0]];
-    const parsed = XLSX.utils.sheet_to_json<Record<string, any>>(sheet, { 
-      defval: "", 
-      raw: false,
-      ...(headersIncluded ? {} : { header: "A" }) 
-    });
-    const parsedHeaders = parsed[0] ? Object.keys(parsed[0]) : [];
-    setHeaders(parsedHeaders);
-    setRows(parsed);
-    setMapping(Object.fromEntries(parsedHeaders.map((header) => [header, guessField(header)])));
-  };
-
-  const handleFile = async (f?: File) => {
-    if (!f) return;
-    const isValidType = f.name.endsWith('.csv') || f.name.endsWith('.xls') || f.name.endsWith('.xlsx');
-    if (!isValidType) {
-      toast({ variant: "destructive", title: "Invalid file type", description: "Please upload a CSV or Excel file." });
-      return;
-    }
-    setFile(f);
-    setFileName(f.name);
-    setSummary(null);
-    setCurrentPage(1);
-    setImportProgress(0);
-    await parseFile(f, hasHeaders);
-  };
-
   const clearFile = () => {
     setFile(null);
     setFileName("");
@@ -189,6 +182,48 @@ export default function HistoricalCodeImportPage() {
     setSummary(null);
     setCurrentPage(1);
     setImportProgress(0);
+  };
+
+  const parseFile = async (f: File, headersIncluded: boolean) => {
+    const matrix = await readSpreadsheetRows(f);
+    const width = Math.max(0, ...matrix.map((row) => row.length));
+    const headerRow = headersIncluded ? matrix[0] ?? [] : [];
+    const keys = headersIncluded
+      ? makeUniqueHeaders(headerRow, width)
+      : Array.from({ length: width }, (_, index) => columnName(index));
+    const dataRows = headersIncluded ? matrix.slice(1) : matrix;
+    const parsed = dataRows.map((row) =>
+      Object.fromEntries(keys.map((key, index) => [key, row[index] ?? ""]))
+    );
+    const parsedHeaders = keys;
+    setHeaders(parsedHeaders);
+    setRows(parsed);
+    setMapping(Object.fromEntries(parsedHeaders.map((header) => [header, guessField(header)])));
+  };
+
+  const handleFile = async (f?: File) => {
+    if (!f) return;
+    const fileName = f.name.toLowerCase();
+    const isValidType = fileName.endsWith('.csv') || fileName.endsWith('.xlsx');
+    if (!isValidType) {
+      toast({ variant: "destructive", title: "Unsupported file type", description: "Upload a CSV or .xlsx file. Save older .xls workbooks as .xlsx first." });
+      return;
+    }
+    setFile(f);
+    setFileName(f.name);
+    setSummary(null);
+    setCurrentPage(1);
+    setImportProgress(0);
+    try {
+      await parseFile(f, hasHeaders);
+    } catch (error) {
+      clearFile();
+      toast({
+        variant: "destructive",
+        title: "Could not read spreadsheet",
+        description: error instanceof Error ? error.message : "Check that the file is a valid CSV or .xlsx workbook.",
+      });
+    }
   };
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -210,9 +245,16 @@ export default function HistoricalCodeImportPage() {
 
   useEffect(() => {
     if (file) {
-      parseFile(file, hasHeaders);
+      void parseFile(file, hasHeaders).catch((error) => {
+        clearFile();
+        toast({
+          variant: "destructive",
+          title: "Could not read spreadsheet",
+          description: error instanceof Error ? error.message : "Check that the file is valid.",
+        });
+      });
     }
-  }, [hasHeaders]);
+  }, [hasHeaders, file, toast]);
 
   const { mutateAsync: importHistoricalCodes } = useImportHistoricalCodes();
 
@@ -331,7 +373,7 @@ export default function HistoricalCodeImportPage() {
               <p className="mb-4 text-sm text-slate-500">Supports .CSV, .XLS, .XLSX (max 50MB)</p>
               <label className="inline-flex h-10 cursor-pointer items-center justify-center rounded-lg bg-slate-900 px-6 text-sm font-bold text-white shrink-0 hover:bg-slate-800 transition-colors">
                 Browse Files
-                <Input type="file" accept=".csv,.xlsx,.xls" className="hidden" onChange={(event) => handleFile(event.target.files?.[0])} />
+                <Input type="file" accept=".csv,.xlsx" className="hidden" onChange={(event) => handleFile(event.target.files?.[0])} />
               </label>
             </div>
           </CardContent>

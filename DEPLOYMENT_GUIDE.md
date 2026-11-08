@@ -24,8 +24,8 @@ Never put a service-role key, database password, Evolution API key, webhook toke
 
 ## Deployment workflow
 
-1. Merge reviewed changes into the production branch.
-2. In Coolify, deploy from the intended GitHub repository and production branch.
+1. Commit validated changes directly to `main`; do not create branches or pull requests.
+2. In Coolify, deploy the GitHub repository's `main` branch.
 3. Let Coolify build and replace the frontend container; do not copy files into a running container.
 4. Verify `https://app.ronsbergerhmo.io/build-meta.json` and confirm its commit matches the deployed commit.
 5. Check the frontend, API health, authentication and a representative hospital workflow.

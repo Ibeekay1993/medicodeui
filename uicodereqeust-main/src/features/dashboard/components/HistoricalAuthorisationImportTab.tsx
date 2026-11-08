@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { readSpreadsheetRows } from "@/lib/spreadsheetImport";
 import {
   HistoricalRawRow,
   HistoricalReconciledRecord,
@@ -289,17 +290,7 @@ export function HistoricalAuthorisationImportTab() {
       setCommitProgress(0);
 
       try {
-        const XLSX = await import("xlsx");
-        const buffer = await uploadedFile.arrayBuffer();
-        const workbook = XLSX.read(buffer, { type: "array", cellDates: true });
-        const sheet = workbook.Sheets[workbook.SheetNames[0]];
-
-        // In july ao.xlsx, row 1 contains data without standard headers
-        const rawJson: any[][] = XLSX.utils.sheet_to_json(sheet, {
-          header: 1,
-          defval: "",
-          raw: false,
-        });
+        const rawJson = await readSpreadsheetRows(uploadedFile);
 
         // Filter out blank rows
         const dataRows = rawJson.filter((r) => r && r.some((c) => String(c).trim() !== ""));
@@ -816,7 +807,7 @@ export function HistoricalAuthorisationImportTab() {
               <span className="text-xs text-slate-500 mt-1">.xlsx, .xls or .csv spreadsheets</span>
               <input
                 type="file"
-                accept=".xlsx,.xls,.csv"
+                accept=".xlsx,.csv"
                 className="hidden"
                 onChange={(e) => {
                   const f = e.target.files?.[0];

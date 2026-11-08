@@ -9,8 +9,8 @@ import {
   getServiceClient,
   getSensitiveActionErrorStatus,
   validateUser,
-  parseBrevoSender,
 } from "../_shared/auth.ts";
+import { getBrevoSender } from "../_shared/brevo.ts";
 import {
   buildEmailHtml,
   extractServiceName,
@@ -254,7 +254,6 @@ serve(async (req) => {
     `;
 
     const brevoApiKey = Deno.env.get("BREVO_API_KEY");
-    const brevoFromRaw = Deno.env.get("BREVO_FROM_EMAIL") || "Ronsberger HMO <noreply@ronsbergerhmo.io>";
 
     let emailStatus = "skipped";
     let emailResponseId: string | null = null;
@@ -267,7 +266,7 @@ serve(async (req) => {
     } else {
       try {
         console.log(`Sending approval email to ${maskEmail(safeEmail)} for authorization ${authorization_id}`);
-        const brevoSender = parseBrevoSender(brevoFromRaw);
+        const brevoSender = getBrevoSender();
 
         const brevoResponse = await fetch("https://api.brevo.com/v3/smtp/email", {
           method: "POST",
@@ -288,7 +287,7 @@ serve(async (req) => {
         });
 
         const brevoData = await brevoResponse.json();
-        console.log(`Brevo response status: ${brevoResponse.status}`, brevoData);
+        console.log(`Brevo response status: ${brevoResponse.status}`);
 
         if (brevoResponse.ok && (brevoData as Record<string, unknown>).messageId) {
           emailStatus = "sent";
@@ -297,12 +296,12 @@ serve(async (req) => {
         } else {
           emailStatus = "failed";
           emailError = String((brevoData as Record<string, unknown>).message || (brevoData as Record<string, unknown>).error || `HTTP ${brevoResponse.status}`);
-          console.error(`Brevo API error: ${emailError}`, brevoData);
+          console.error(`Brevo API error with HTTP ${brevoResponse.status}`);
         }
       } catch (emailErr) {
         emailStatus = "failed";
         emailError = emailErr instanceof Error ? emailErr.message : "Unknown email error";
-        console.error(`Exception during approval email send: ${emailError}`, emailErr);
+        console.error("Exception during approval email send");
       }
     }
 

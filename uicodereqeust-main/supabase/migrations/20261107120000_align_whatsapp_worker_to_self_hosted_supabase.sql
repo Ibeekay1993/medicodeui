@@ -6,7 +6,7 @@ BEGIN;
 
 DO $$
 DECLARE
-  old_endpoint constant text := 'https://optistuvyeiojlgmkdks.supabase.co/functions/v1/whatsapp-worker';
+  old_endpoint constant text := 'https://api.ronsbergerhmo.io/functions/v1/whatsapp-worker';
   new_endpoint constant text := 'https://api.ronsbergerhmo.io/functions/v1/whatsapp-worker';
   worker_secret_name constant text := 'medcode_whatsapp_worker_secret_20261004';
   function_definition text;

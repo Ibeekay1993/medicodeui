@@ -459,17 +459,17 @@ export default function RequestsPage() {
     <div className="space-y-4 max-w-full overflow-x-hidden pb-10 animate-in fade-in duration-500">
 
       <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
-        <div className="flex flex-col items-stretch justify-between gap-3 md:flex-row md:items-center md:gap-4">
-          <div className="w-full min-w-0 md:w-auto">
-            <Tabs value={statusFilter === 'action_required' ? 'action_required' : 'all'} onValueChange={(val) => { setStatusFilter(val); setCurrentPage(1); }} className="w-full min-w-0 md:w-auto">
-              <TabsList aria-label="Filter authorization requests" className="h-11 w-full min-w-0 max-w-full rounded-xl bg-slate-100 p-1 shadow-inner ring-1 ring-inset ring-slate-200 sm:w-auto sm:min-w-[280px]">
-                <TabsTrigger value="action_required" className="h-9 min-h-0 flex-1 basis-0 rounded-lg px-2 py-0 text-[11px] font-bold tracking-tight text-slate-600 transition-all duration-150 data-[state=active]:bg-slate-900 data-[state=active]:text-white data-[state=active]:shadow-sm data-[state=active]:ring-1 data-[state=active]:ring-slate-700/10 data-[state=inactive]:bg-transparent data-[state=inactive]:text-slate-600 data-[state=inactive]:hover:bg-slate-200/80 active:bg-slate-200 sm:px-4 sm:text-xs">Action Needed</TabsTrigger>
-                <TabsTrigger value="all" className="h-9 min-h-0 flex-1 basis-0 rounded-lg px-2 py-0 text-[11px] font-bold tracking-tight text-slate-600 transition-all duration-150 data-[state=active]:bg-slate-900 data-[state=active]:text-white data-[state=active]:shadow-sm data-[state=active]:ring-1 data-[state=active]:ring-slate-700/10 data-[state=inactive]:bg-transparent data-[state=inactive]:text-slate-600 data-[state=inactive]:hover:bg-slate-200/80 active:bg-slate-200 sm:px-4 sm:text-xs">All Requests</TabsTrigger>
+        <div className="flex min-w-0 flex-col items-stretch justify-between gap-3 lg:flex-row lg:items-center lg:gap-4">
+          <div className="w-full min-w-0 lg:w-auto">
+            <Tabs value={statusFilter === 'action_required' ? 'action_required' : 'all'} onValueChange={(val) => { setStatusFilter(val); setCurrentPage(1); }} className="w-full min-w-0 lg:w-auto">
+              <TabsList aria-label="Filter authorization requests" className="h-11 w-full min-w-0 max-w-full grid-cols-[minmax(0,1fr)_minmax(0,1fr)] rounded-xl bg-slate-100 p-1 shadow-inner ring-1 ring-inset ring-slate-200 lg:w-auto lg:min-w-[280px]">
+                <TabsTrigger value="action_required" className="h-9 min-h-0 min-w-0 flex-1 basis-0 whitespace-normal break-words rounded-lg px-1.5 py-0 text-center text-[11px] font-bold leading-tight tracking-tight text-slate-600 transition-all duration-150 data-[state=active]:bg-slate-900 data-[state=active]:text-white data-[state=active]:shadow-sm data-[state=active]:ring-1 data-[state=active]:ring-slate-700/10 data-[state=inactive]:bg-transparent data-[state=inactive]:text-slate-600 data-[state=inactive]:hover:bg-slate-200/80 active:bg-slate-200 sm:px-4 sm:text-xs">Action Needed</TabsTrigger>
+                <TabsTrigger value="all" className="h-9 min-h-0 min-w-0 flex-1 basis-0 whitespace-normal break-words rounded-lg px-1.5 py-0 text-center text-[11px] font-bold leading-tight tracking-tight text-slate-600 transition-all duration-150 data-[state=active]:bg-slate-900 data-[state=active]:text-white data-[state=active]:shadow-sm data-[state=active]:ring-1 data-[state=active]:ring-slate-700/10 data-[state=inactive]:bg-transparent data-[state=inactive]:text-slate-600 data-[state=inactive]:hover:bg-slate-200/80 active:bg-slate-200 sm:px-4 sm:text-xs">All Requests</TabsTrigger>
               </TabsList>
             </Tabs>
           </div>
 
-        <div className="grid w-full grid-cols-1 gap-2 sm:flex sm:flex-wrap sm:items-center sm:justify-end md:w-auto">
+        <div className="grid w-full min-w-0 grid-cols-1 gap-2 sm:flex sm:flex-wrap sm:items-center sm:justify-end lg:w-auto">
           {statusFilter !== 'action_required' && (
             <Select value={statusFilter} onValueChange={(val: any) => { setStatusFilter(val); setCurrentPage(1); }}>
               <SelectTrigger className="h-11 w-full rounded-lg border border-slate-200 bg-white text-xs font-medium text-slate-700 sm:h-9 sm:w-40">
