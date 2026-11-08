@@ -126,7 +126,7 @@ serve(async (req) => {
     }
 
     // 2. Email Notification (Brevo) — unchanged behaviour
-    if (patient_email && patient_email !== "no-email@medicode.com" && BREVO_API_KEY) {
+    if (patient_email && !patient_email.startsWith("no-email@") && !patient_email.endsWith("@medicode.com") && BREVO_API_KEY) {
       console.log(`Sending submission email to ${patient_email}...`);
 
       const brevoSender = parseBrevoSender(BREVO_FROM_EMAIL);

@@ -66,7 +66,7 @@ serve(async (req) => {
     if (!request) throw new Error("Request not found");
     assertRequestHospitalScope(profile, request);
     
-    const safeEmail = request.patient_email || "no-email@medicode.com";
+    const safeEmail = request.patient_email || "no-email@ronsbergerhmo.io";
     const normalizedOtpType = String(otp_type || "ARRIVAL").toUpperCase();
     if (!["ARRIVAL", "TREATMENT"].includes(normalizedOtpType)) {
       throw new Error("Invalid OTP type");

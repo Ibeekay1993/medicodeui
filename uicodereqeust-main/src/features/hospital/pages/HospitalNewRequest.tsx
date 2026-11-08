@@ -154,7 +154,7 @@ export default function HospitalNewRequest() {
       if (Array.isArray(draft.treatments)) setValue("treatments", draft.treatments);
       if (draft.phone) setValue("phone", draft.phone);
       if (draft.patientEmail) setValue("patientEmail", draft.patientEmail);
-      if (draft.patientEmail === "no-email@medicode.com" || draft.patientEmail === "no-email@ronsbergerhmo.io" || (draft.patientEmail && draft.patientEmail.startsWith("no-email@"))) setValue("noEmail", true);
+      if (draft.patientEmail === "no-email@ronsbergerhmo.io" || (draft.patientEmail && (draft.patientEmail.startsWith("no-email@") || draft.patientEmail.endsWith("@medicode.com")))) setValue("noEmail", true);
       if (draft.urgency) setValue("urgency", draft.urgency as any);
       if (draft.referralHospitalId) setValue("referralHospitalId", draft.referralHospitalId);
       if (draft.referralHospitalName) setValue("referralHospitalName", draft.referralHospitalName);
@@ -414,7 +414,7 @@ export default function HospitalNewRequest() {
       const diagnosisText = diagnoses.join("; ");
 
       // Register contacts atomically against the canonical family policy.
-      if (!noEmail && patientEmail.trim() && patientEmail.trim() !== "no-email@medicode.com" && patientEmail.trim() !== "no-email@ronsbergerhmo.io" && !patientEmail.trim().startsWith("no-email@")) {
+      if (!noEmail && patientEmail.trim() && patientEmail.trim() !== "no-email@ronsbergerhmo.io" && !patientEmail.trim().startsWith("no-email@") && !patientEmail.trim().endsWith("@medicode.com")) {
         const { data: emailCheck, error: emailError } = await (supabase.rpc as any)('register_policy_email', {
           p_email: patientEmail.trim(),
           p_family_policy: familyPolicy
@@ -522,7 +522,7 @@ export default function HospitalNewRequest() {
       }
 
       // Asynchronously send submission notification via Email and WhatsApp
-      if ((phone && phone.trim().length >= 10) || (patientEmail && patientEmail.trim() !== "no-email@medicode.com" && patientEmail.trim() !== "no-email@ronsbergerhmo.io" && !patientEmail.trim().startsWith("no-email@"))) {
+      if ((phone && phone.trim().length >= 10) || (patientEmail && patientEmail.trim() !== "no-email@ronsbergerhmo.io" && !patientEmail.trim().startsWith("no-email@") && !patientEmail.trim().endsWith("@medicode.com"))) {
         supabase.functions.invoke("send-submission-notification", {
           body: {
             phone_number: phone,
@@ -547,7 +547,7 @@ export default function HospitalNewRequest() {
       try {
         let fnResult: any = {};
         let otpError: any = null;
-        const isNoEmail = patientEmail.trim() === "no-email@medicode.com" || patientEmail.trim() === "no-email@ronsbergerhmo.io" || patientEmail.trim().startsWith("no-email@");
+        const isNoEmail = patientEmail.trim() === "no-email@ronsbergerhmo.io" || patientEmail.trim().startsWith("no-email@") || patientEmail.trim().endsWith("@medicode.com");
 
         if (isReferral) {
           const { data, error } = await supabase.functions.invoke("send-otp", {
@@ -758,7 +758,7 @@ export default function HospitalNewRequest() {
                   <div className="flex justify-between items-start gap-2">
                     <span className="text-slate-700 font-semibold">Contact:</span>
                     <span className="font-bold text-slate-900 text-right">
-                      {phone} {(!noEmail && patientEmail && patientEmail !== "no-email@medicode.com" && patientEmail !== "no-email@ronsbergerhmo.io" && !patientEmail.startsWith("no-email@")) ? `· ${patientEmail}` : ""}
+                      {phone} {(!noEmail && patientEmail && patientEmail !== "no-email@ronsbergerhmo.io" && !patientEmail.startsWith("no-email@") && !patientEmail.endsWith("@medicode.com")) ? ` · ${patientEmail}` : ""}
                     </span>
                   </div>
                   <div className="flex justify-between items-start gap-2">

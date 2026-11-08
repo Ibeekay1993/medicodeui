@@ -32,7 +32,7 @@ async function sha256Hex(value: string): Promise<string> {
 export async function ensureArrivalPin(
   supabase: SupabaseClient,
   authorizationId: string,
-  email = "no-email@medicode.com",
+  email = "no-email@ronsbergerhmo.io",
   createdBy: string | null = null,
 ): Promise<string> {
   const { data: existing, error: existingError } = await supabase

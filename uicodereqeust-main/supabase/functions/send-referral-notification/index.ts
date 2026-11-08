@@ -94,7 +94,7 @@ serve(async (req) => {
     }
 
     // Skip email if no valid email is provided
-    if (!patientEmail || patientEmail === "no-email@medicode.com") {
+    if (!patientEmail || patientEmail === "no-email@ronsbergerhmo.io" || patientEmail.startsWith("no-email@") || patientEmail.endsWith("@medicode.com")) {
       return new Response(
         JSON.stringify({ success: true, message: "WhatsApp triggered. Skipped email for placeholder/missing address." }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } },

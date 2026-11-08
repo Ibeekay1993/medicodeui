@@ -8,7 +8,7 @@ export function useSubmitHospitalRequest() {
     mutationFn: async (payload: any) => {
       const { email, familyPolicy, requestData, isReferral } = payload;
       
-      if (email && email !== "no-email@medicode.com" && email !== "no-email@ronsbergerhmo.io" && !email.startsWith("no-email@")) {
+      if (email && email !== "no-email@ronsbergerhmo.io" && !email.startsWith("no-email@") && !email.endsWith("@medicode.com")) {
         const emailCheck = await HospitalService.validatePolicyEmail(email, familyPolicy);
         if (emailCheck && !emailCheck.allowed) {
           throw new Error(emailCheck.reason || "This email address is already associated with another policy family.");

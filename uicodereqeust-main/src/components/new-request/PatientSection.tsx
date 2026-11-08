@@ -37,8 +37,8 @@ export default function PatientSection({
 }: PatientSectionProps) {
   const isNoEmail =
     patientEmail === "no-email@ronsbergerhmo.io" ||
-    patientEmail === "no-email@medicode.com" ||
-    patientEmail.startsWith("no-email@");
+    patientEmail.startsWith("no-email@") ||
+    patientEmail.endsWith("@medicode.com");
 
   const selectPatient = (p: any) => {
     setSelectedPatient(p);

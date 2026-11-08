@@ -46,7 +46,7 @@ serve(async (req) => {
       );
     }
 
-    if (patientEmail === "no-email@medicode.com") {
+    if (patientEmail === "no-email@ronsbergerhmo.io" || patientEmail.startsWith("no-email@") || patientEmail.endsWith("@medicode.com")) {
       return new Response(
         JSON.stringify({ success: true, message: "Skipped rejection email for placeholder address" }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } },

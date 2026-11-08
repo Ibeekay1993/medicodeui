@@ -85,7 +85,7 @@ serve(async (req) => {
     }
 
     const patientEmail = request.patient_email;
-    const safeEmail = patientEmail || "no-email@medicode.com";
+    const safeEmail = patientEmail || "no-email@ronsbergerhmo.io";
 
     const { data: existingOtp } = await supabase
       .from("otp_verifications")
@@ -144,7 +144,7 @@ serve(async (req) => {
       }).catch(err => console.error("WhatsApp trigger failed:", err));
     }
 
-    if (safeEmail === "no-email@medicode.com") {
+    if (safeEmail === "no-email@ronsbergerhmo.io" || safeEmail.startsWith("no-email@") || safeEmail.endsWith("@medicode.com")) {
       return new Response(
         JSON.stringify({ success: true, message: pinCreated ? "WhatsApp triggered; PIN generated; approval email skipped for placeholder address." : "WhatsApp triggered; Existing PIN reused; approval email skipped for placeholder address." }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } },
