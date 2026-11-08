@@ -16,7 +16,7 @@ This repository is governed by the following strict engineering and architectura
 ## 3. Production Environment & Hosting
 - **Production Web Application**: `https://app.ronsbergerhmo.io`
 - **Production Backend API**: `https://api.ronsbergerhmo.io`
-- **Hosting Infrastructure**: Dedicated Hostinger VPS (`2.24.58.189`) managed with **Coolify**.
+- **Hosting Infrastructure**: Dedicated Hostinger VPS managed with **Coolify**.
 - **Frontend Container**: Nginx container (prefix `4s2tyq1...`), serving files from `/usr/share/nginx/html/`.
 - **Backend Services**: Self-hosted Supabase Docker Compose under `/data/coolify/services/rufiptlacf2ik0phgii71ekq/`.
 - **Edge Functions**: Volume mounted at `/data/coolify/services/rufiptlacf2ik0phgii71ekq/volumes/functions/`.

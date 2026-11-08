@@ -12,6 +12,23 @@ export function constantTimeEqual(a: string, b: string): boolean {
   return diff === 0;
 }
 
+
+export function maskPhone(phone?: string | null): string {
+  if (!phone) return "";
+  const cleaned = phone.trim();
+  if (cleaned.length <= 4) return "****";
+  return `${cleaned.slice(0, 3)}****${cleaned.slice(-4)}`;
+}
+
+export function maskEmail(email?: string | null): string {
+  if (!email) return "";
+  const cleaned = email.trim();
+  const [user, domain] = cleaned.split("@");
+  if (!domain) return "****";
+  const maskedUser = user.length > 2 ? `${user[0]}***${user[user.length - 1]}` : `${user[0] || "*"}***`;
+  return `${maskedUser}@${domain}`;
+}
+
 export function parseBrevoSender(raw: string): { name: string; email: string } {
   const match = raw.match(/^(.+?)\s*<([^>]+)>$/);
   if (match) return { name: match[1].trim(), email: match[2].trim() };

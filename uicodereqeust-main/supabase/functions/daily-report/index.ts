@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { corsHeaders, getServiceClient, parseBrevoSender, validateUser } from "../_shared/auth.ts"
+import { corsHeaders, getServiceClient, parseBrevoSender, validateUser, maskEmail } from "../_shared/auth.ts"
 
 interface AuthRequest {
   id?: string;
@@ -266,7 +266,7 @@ serve(async (req) => {
 
     const brevoSender = parseBrevoSender(brevoFromRaw);
 
-    console.log(`📧 Sending daily report to ${recipientEmail}...`);
+    console.log(`Sending daily report to ${maskEmail(recipientEmail)}...`);
     console.log(`From: ${brevoSender.name} <${brevoSender.email}>`);
     console.log(`Records included: ${effectiveRecords.length}`);
 
@@ -300,7 +300,7 @@ serve(async (req) => {
       throw new Error(errorMsg);
     }
 
-    console.log(`✅ Daily report sent successfully to ${recipientEmail}`);
+    console.log(`Daily report sent successfully to ${maskEmail(recipientEmail)}`);
     return new Response(JSON.stringify({ message: `Daily report sent successfully to ${recipientEmail}`, data: emailData }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,

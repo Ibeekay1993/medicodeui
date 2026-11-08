@@ -1,4 +1,5 @@
 ﻿import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { clearPatientAndSessionData } from "@/lib/sessionState";
 import { supabase } from "@/integrations/supabase/client";
 import type { Session, User } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
@@ -393,6 +394,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = useCallback(async () => {
     try {
+      clearPatientAndSessionData();
       handleSession(null);
       await supabase.auth.signOut();
     } catch (error) {
@@ -404,6 +406,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!session) return;
 
     try {
+      clearPatientAndSessionData();
       handleSession(null);
       await supabase.auth.signOut({ scope: "local" });
     } catch (error) {

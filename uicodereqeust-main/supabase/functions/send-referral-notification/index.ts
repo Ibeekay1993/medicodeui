@@ -1,5 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import {
+  maskEmail,
+  maskPhone,
   assertMfaForSensitiveAction,
   assertRequestHospitalScope,
   corsHeaders,
@@ -78,7 +80,7 @@ serve(async (req) => {
     // leaves the server. `send-whatsapp` accepts the same X-Api-Key we use
     // for `submit-authorization`, so we reuse MEDAUTH_INTERNAL_API_KEY.
     if (request.patient_phone && otp !== "PENDING") {
-      console.log(`Triggering WhatsApp PIN for ${request.patient_phone}`);
+      console.log(`Triggering WhatsApp PIN for ${maskPhone(request.patient_phone)}`);
       const pName = patientName;
       const hName = referredHospital;
       const whatsappText =
@@ -209,7 +211,7 @@ serve(async (req) => {
       emailError = "BREVO_API_KEY not configured";
     } else {
       try {
-        console.log(`Sending referral notification to ${patientEmail} for authorization ${authorization_id}`);
+        console.log(`Sending referral notification to ${maskEmail(patientEmail)} for authorization ${authorization_id}`);
         const brevoSender = parseBrevoSender(brevoFromRaw);
 
         const brevoResponse = await fetch("https://api.brevo.com/v3/smtp/email", {

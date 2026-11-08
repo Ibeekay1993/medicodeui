@@ -1,6 +1,8 @@
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import {
+  maskEmail,
+  maskPhone,
   assertMfaForSensitiveAction,
   assertRequestHospitalScope,
   corsHeaders,
@@ -129,7 +131,7 @@ serve(async (req) => {
 
     // Trigger WhatsApp Notification if phone number exists
     if (request.patient_phone && otp) {
-      console.log(`Triggering WhatsApp PIN for ${request.patient_phone}`);
+      console.log(`Triggering WhatsApp PIN for ${maskPhone(request.patient_phone)}`);
       // We don't await this so it doesn't block the email
       supabase.functions.invoke("send-whatsapp-otp", {
         body: {
@@ -264,7 +266,7 @@ serve(async (req) => {
       emailError = "BREVO_API_KEY not configured";
     } else {
       try {
-        console.log(`Sending approval email to ${safeEmail} for authorization ${authorization_id}`);
+        console.log(`Sending approval email to ${maskEmail(safeEmail)} for authorization ${authorization_id}`);
         const brevoSender = parseBrevoSender(brevoFromRaw);
 
         const brevoResponse = await fetch("https://api.brevo.com/v3/smtp/email", {

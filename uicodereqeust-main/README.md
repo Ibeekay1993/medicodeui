@@ -8,7 +8,7 @@ Built on React 18, TypeScript, TailwindCSS, and a self-hosted Supabase backend o
 
 - **Frontend Portal**: [https://app.ronsbergerhmo.io](https://app.ronsbergerhmo.io)
 - **Backend API**: [https://api.ronsbergerhmo.io](https://api.ronsbergerhmo.io)
-- **Hosting**: Hostinger VPS (`2.24.58.189`) managed via Coolify.
+- **Hosting**: Dedicated Hostinger VPS managed via Coolify.
 - **WhatsApp Gateway**: Evolution API deployed on AWS ECS.
 
 For full AI agent and contributor guidelines, see [AI_INSTRUCTIONS.md](../AI_INSTRUCTIONS.md).

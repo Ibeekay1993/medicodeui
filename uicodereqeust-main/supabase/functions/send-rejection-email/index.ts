@@ -120,12 +120,12 @@ serve(async (req) => {
     let emailError: string | null = null;
 
     if (!brevoApiKey) {
-      console.warn("⚠️ BREVO_API_KEY not configured - rejection email will not be sent");
+      console.warn("BREVO_API_KEY not configured - rejection email will not be sent");
       emailStatus = "skipped";
       emailError = "BREVO_API_KEY not configured";
     } else {
       try {
-        console.log(`📧 Sending rejection email to ${patientEmail} for authorization ${authorization_id}`);
+        console.log(`Sending rejection email to ${maskEmail(patientEmail)} for authorization ${authorization_id}`);
         const brevoSender = parseBrevoSender(brevoFromRaw);
 
         const brevoResponse = await fetch("https://api.brevo.com/v3/smtp/email", {
@@ -153,16 +153,16 @@ serve(async (req) => {
         if (brevoResponse.ok && (brevoData as Record<string, unknown>).messageId) {
           emailStatus = "sent";
           emailResponseId = String((brevoData as Record<string, unknown>).messageId);
-          console.log(`✅ Rejection email sent successfully. Message ID: ${emailResponseId}`);
+          console.log(`Rejection email sent successfully. Message ID: ${emailResponseId}`);
         } else {
           emailStatus = "failed";
           emailError = String((brevoData as Record<string, unknown>).message || (brevoData as Record<string, unknown>).error || `HTTP ${brevoResponse.status}`);
-          console.error(`❌ Brevo API error: ${emailError}`, brevoData);
+          console.error(`Brevo API error: ${emailError}`, brevoData);
         }
       } catch (emailErr) {
         emailStatus = "failed";
         emailError = emailErr instanceof Error ? emailErr.message : "Unknown email error";
-        console.error(`❌ Exception during rejection email send: ${emailError}`, emailErr);
+        console.error(`Exception during rejection email send: ${emailError}`, emailErr);
       }
     }
 

@@ -43,7 +43,7 @@ The system underwent a complete migration away from Firebase and managed cloud s
 
 ## 4. CURRENT PRODUCTION INFRASTRUCTURE & HOSTING
 
-### A. Hostinger VPS (`2.24.58.189`) & Coolify Management
+### A. Hostinger VPS & Coolify Management
 All production web services and backend database engines run on the dedicated Hostinger VPS managed via **Coolify**:
 - **Frontend Container**: Nginx Alpine serving static production build from `/usr/share/nginx/html/`.
   - Docker container naming filter: `4s2tyq1...`
