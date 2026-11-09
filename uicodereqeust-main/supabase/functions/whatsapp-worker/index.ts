@@ -79,7 +79,6 @@ const EVOLUTION_API_KEY = Deno.env.get("EVOLUTION_API_KEY") || "";
 const EVOLUTION_INSTANCE_NAME =
   Deno.env.get("EVOLUTION_INSTANCE_NAME") || "medicode-test";
 const WORKER_SECRET = Deno.env.get("WHATSAPP_WORKER_SECRET") || "";
-const LAMBDA_WORKER_URL = Deno.env.get("WHATSAPP_LAMBDA_WORKER_URL") || "";
 const MAX_ATTEMPTS = Number(Deno.env.get("WHATSAPP_MAX_ATTEMPTS") || "5");
 // Cron is only a backstop; webhook-triggered requests are processed one at a
 // time. Keep each scheduled invocation bounded to avoid long Edge requests.
@@ -2198,14 +2197,6 @@ serve(async (req) => {
   const processingMode = resolveWorkerProcessingMode(
     req.headers.get(WORKER_PROCESSING_MODE_HEADER),
   );
-
-  if (LAMBDA_WORKER_URL) {
-    if (!WORKER_SECRET) {
-      return new Response(JSON.stringify({ error: "lambda_worker_secret_missing" }), {
-        status: 503,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
 
     let target: URL;
     try {

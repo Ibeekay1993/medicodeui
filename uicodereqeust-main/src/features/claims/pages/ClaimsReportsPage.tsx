@@ -29,6 +29,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useDataPagination } from "@/hooks/use-data-pagination";
 import { DataPagination } from "@/components/dashboard/DataPagination";
+import { ClaimStatusMetricCard } from "../components/ClaimStatusMetricCard";
 
 const money = (value: unknown) => `₦${Number(value || 0).toLocaleString()}`;
 const csvCell = (value: unknown) => `"${String(value ?? "").replace(/"/g, '""')}"`;
@@ -531,76 +532,64 @@ export default function ClaimsReportsPage() {
   };
 
   return (
-    <div className="max-w-full space-y-6 overflow-x-hidden pb-12">
-      {/* ── Executive Header ────────────────────────────────────────── */}
-      <div className="flex flex-col items-start justify-between gap-4 rounded-xl border border-slate-200 bg-white p-4 sm:flex-row sm:items-center shadow-sm">
-        <div>
-          <h2 className="text-lg font-bold text-slate-900 tracking-tight">Claims Report & Ledger</h2>
-          <p className="mt-0.5 text-xs text-slate-500">
-            Real-time portfolio telemetry, hospital network utilization, and operational claims register.
-          </p>
-        </div>
-        <div className="flex w-full items-center gap-2 sm:w-auto">
-          <Button
-            variant="outline"
-            size="sm"
-            aria-label="Refresh claims data"
-            className="h-10 w-10 shrink-0 border-slate-300 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900"
-            onClick={() => void loadReport()}
-            title="Refresh report"
-            disabled={loading}
-          >
-            <RefreshCw className={cn("h-4 w-4", loading && "animate-spin text-primary")} />
-          </Button>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button className="h-10 flex-1 rounded-lg bg-slate-900 px-4 text-sm font-semibold text-white shadow-sm hover:bg-slate-800 sm:flex-none">
-                <Download className="mr-2 h-4 w-4" /> Export Reports
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="z-50 w-64 rounded-xl border border-slate-200 bg-white p-1.5 shadow-lg">
-              <DropdownMenuItem onClick={exportCSV} className="cursor-pointer rounded-lg py-2 text-xs font-semibold">
-                Download CSV (Claims Ledger)
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={exportXLSX} className="cursor-pointer rounded-lg py-2 text-xs font-semibold">
-                Download Excel (Executive Summary & Data)
-              </DropdownMenuItem>
-              <div className="my-1 h-px bg-slate-100" />
-              <DropdownMenuItem onClick={exportReconciliationXLSX} className="cursor-pointer rounded-lg py-2 text-xs font-semibold">
-                Reconciliation Report (Excel)
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </div>
-
-      {/* ── Unified Filter Toolbar ────────────────────────────────── */}
+    <div className="max-w-full space-y-4 overflow-x-hidden pb-12">
+      {/* ── Unified Compact Action & Filter Toolbar ────────────────── */}
       <Card className="rounded-xl border-slate-200 bg-white shadow-sm">
-        <CardContent className="space-y-4 p-4">
-          <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+        <CardContent className="space-y-3.5 p-3.5 sm:p-4">
+          <div className="flex flex-wrap items-center justify-between gap-2.5">
             <div className="flex items-center gap-2">
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-700">
                 <Filter className="h-4 w-4" />
               </div>
-              <div>
-                <h3 className="text-sm font-bold text-slate-900">Claims Report Filter</h3>
-                <p className="text-xs text-slate-500">
-                  Select a partner provider or view all network facilities, and search claims.
-                </p>
-              </div>
+              <span className="text-sm font-bold text-slate-900">Claims Filters</span>
+              {hasActiveFilters && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={resetFilters}
+                  className="h-7 gap-1 rounded-md px-2 text-xs font-semibold text-slate-500 hover:bg-slate-100 hover:text-slate-900"
+                >
+                  <RotateCcw className="h-3 w-3 text-slate-400" />
+                  Reset
+                </Button>
+              )}
             </div>
-            {hasActiveFilters && (
+
+            <div className="flex items-center gap-2 ml-auto">
               <Button
-                type="button"
-                variant="ghost"
-                onClick={resetFilters}
-                className="h-8 gap-1.5 self-start rounded-lg px-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-900 sm:self-auto"
+                variant="outline"
+                size="sm"
+                aria-label="Refresh claims data"
+                className="h-9 w-9 shrink-0 rounded-lg border-slate-200 bg-white p-0 text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                onClick={() => void loadReport()}
+                title="Refresh report"
+                disabled={loading}
               >
-                <RotateCcw className="h-3.5 w-3.5 text-slate-400" />
-                Reset filters
+                <RefreshCw className={cn("h-4 w-4", loading && "animate-spin text-primary")} />
               </Button>
-            )}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button size="sm" className="h-9 rounded-lg bg-slate-900 px-3.5 text-xs font-semibold text-white shadow-sm hover:bg-slate-800">
+                    <Download className="mr-1.5 h-3.5 w-3.5" /> Export Reports
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="z-50 w-64 rounded-xl border border-slate-200 bg-white p-1.5 shadow-lg">
+                  <DropdownMenuItem onClick={exportCSV} className="cursor-pointer rounded-lg py-2 text-xs font-semibold">
+                    Download CSV (Claims Ledger)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={exportXLSX} className="cursor-pointer rounded-lg py-2 text-xs font-semibold">
+                    Download Excel (Executive Summary & Data)
+                  </DropdownMenuItem>
+                  <div className="my-1 h-px bg-slate-100" />
+                  <DropdownMenuItem onClick={exportReconciliationXLSX} className="cursor-pointer rounded-lg py-2 text-xs font-semibold">
+                    Reconciliation Report (Excel)
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
+
 
           <div className="grid min-w-0 grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-12">
             <div className="relative min-w-0 md:col-span-2 xl:col-span-4">
@@ -719,30 +708,17 @@ export default function ClaimsReportsPage() {
         ].map(({ key, label, count, amount, Icon, iconBg, activeBorder }) => {
           const isSelected = status === key;
           return (
-            <div
+            <ClaimStatusMetricCard
               key={label}
-              onClick={() => setStatus((prev) => (prev === key ? "all" : key))}
-              role="button"
-              tabIndex={0}
-              className={cn(
-                "flex min-w-0 cursor-pointer items-center gap-3 overflow-hidden rounded-xl border border-slate-200 bg-white p-3 sm:p-4 shadow-sm transition-all hover:border-slate-300 hover:shadow",
-                isSelected && activeBorder
-              )}
-              title={`Click to filter by ${label}`}
-            >
-              <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-lg sm:h-11 sm:w-11", iconBg)}>
-                <Icon className="h-5 w-5 sm:h-6 sm:w-6" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-xs font-medium text-slate-600">{label}</p>
-                <p className="mt-1 text-base sm:text-lg font-bold tracking-tight text-slate-900 leading-none">
-                  {count}{" "}
-                  <span className="text-xs sm:text-sm text-slate-500 font-normal ml-1">
-                    {money(amount)}
-                  </span>
-                </p>
-              </div>
-            </div>
+              label={label}
+              count={count}
+              value={money(amount)}
+              Icon={Icon}
+              iconBg={iconBg}
+              activeBorder={activeBorder}
+              selected={isSelected}
+              onSelect={() => setStatus((prev) => (prev === key ? "all" : key))}
+            />
           );
         })}
       </div>
