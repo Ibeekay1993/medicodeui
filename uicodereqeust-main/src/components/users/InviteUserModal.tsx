@@ -112,8 +112,8 @@ export function InviteUserModal({
       }
 
       toast({
-        title: "Invitation Email Accepted",
-        description: `Brevo accepted the invitation for ${email}. Check Brevo logs for final delivery status.`,
+        title: "Invitation Sent",
+        description: `The invitation email has been sent to ${email}.`,
       });
       onOpenChange(false);
       onSuccess();

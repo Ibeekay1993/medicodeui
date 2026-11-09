@@ -55,16 +55,30 @@ All production web services and backend database engines run on the dedicated Ho
   - `supabase-storage` (S3/Local storage)
   - `supabase-edge-functions` (Deno runtime serving edge functions mounted at `/data/coolify/services/rufiptlacf2ik0phgii71ekq/volumes/functions/`)
 
-### B. Invitation Expiration Policy
+### B. Invitation Expiration Policy & Email Delivery
 - All staff and hospital user email invitation tokens and OTPs expire after **7 days (604,800 seconds)**.
 - Configured in Coolify Docker Compose for `supabase-auth`:
   - `GOTRUE_MAILER_OTP_EXP: 604800`
   - `GOTRUE_OTP_EXP: 604800`
+- Transactional invitations are sent via **Brevo API** from `Ronsberger HMO <noreply@ronsbergerhmo.io>`.
 
-### C. WhatsApp Integration Architecture
-- **Active Provider**: **Evolution API** running on **AWS ECS**.
-- **Edge Function Worker**: `supabase/functions/whatsapp-worker/` handles incoming webhooks and message dispatch.
+### C. WhatsApp Automation & Inbound Webhook Architecture
+- **Active Provider**: **Evolution API** running on AWS ECS (`https://wa-api.claimspilot.online`).
+- **Webhook Endpoint**: `https://api.ronsbergerhmo.io/functions/v1/whatsapp-webhook`
+  - Requires header `x-webhook-token: da540a3731e3f746aaf64d1e529629dbb1e1986b0e1656fa1fbd651e7ec6a734`.
+  - Inbound webhook inserts into `whatsapp_messages` and triggers `whatsapp-worker`.
+- **Queue Sweeper Cron Backstop**:
+  - The host VPS executes `/root/whatsapp_worker_cron.sh` every minute via system crontab (`* * * * * /root/whatsapp_worker_cron.sh`).
+  - This guarantees that even if a network hiccup or webhook interruption occurs, queued inbound messages are automatically picked up and processed.
 - **AWS Lambda / SQS Worker**: Paused. Do NOT re-enable AWS Lambda or create competing polling mechanisms.
+
+### D. Coolify Service Configuration Persistence Rule
+- Coolify stores its Docker Compose template inside its PostgreSQL database (`coolify-db`) in `services.docker_compose_raw`.
+- **CRITICAL**: Whenever environment variables or compose configurations are updated in `/data/coolify/services/rufiptlacf2ik0phgii71ekq/docker-compose.yml`, they MUST ALSO be updated in Coolify's database:
+  - `docker cp /path/to/docker-compose.yml coolify-db:/tmp/compose.yml`
+  - `docker exec coolify-db psql -U coolify -d coolify -c "UPDATE services SET docker_compose_raw = pg_read_file('/tmp/compose.yml') WHERE id = 1;"`
+  - `docker exec coolify-db rm /tmp/compose.yml`
+  This ensures that Coolify never overwrites or wipes out custom Edge Functions environment variables (`EVOLUTION_WEBHOOK_TOKEN`, `BREVO_API_KEY`, etc.) when saving from the Coolify dashboard.
 
 ---
 

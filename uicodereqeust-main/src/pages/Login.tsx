@@ -462,8 +462,16 @@ export default function Login() {
   };
 
   // ---------------------------------------------------------------------------
-  // Render
+  // Render -- suppress login flash: show spinner while auth resolves
   // ---------------------------------------------------------------------------
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-50">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-slate-300 border-t-slate-800" aria-label="Checking session\u2026" />
+      </div>
+    );
+  }
+
   return (
     <main className="min-h-screen bg-slate-50 flex items-center justify-center p-4 sm:p-6 font-sans">
       <div className="w-full max-w-[420px] animate-in fade-in duration-300">

@@ -21,8 +21,10 @@ This repository is governed by the following strict engineering and architectura
 - **Frontend Container**: Nginx container (prefix `4s2tyq1...`), serving files from `/usr/share/nginx/html/`.
 - **Backend Services**: Self-hosted Supabase Docker Compose under `/data/coolify/services/rufiptlacf2ik0phgii71ekq/`.
 - **Edge Functions**: Volume mounted at `/data/coolify/services/rufiptlacf2ik0phgii71ekq/volumes/functions/`.
+- **Coolify Persistence**: Always sync any compose/environment changes to `coolify-db` (`services.docker_compose_raw`) so Coolify UI never wipes them out.
 - **Invitation & OTP Expiration**: 7 days (`604800` seconds in `GOTRUE_MAILER_OTP_EXP` and `GOTRUE_OTP_EXP`).
-- **WhatsApp**: Evolution API on AWS ECS. (AWS Lambda/SQS worker is paused; do not restart).
+- **Emails**: Sent via Brevo API with verified sender `Ronsberger HMO <noreply@ronsbergerhmo.io>`.
+- **WhatsApp**: Evolution API on AWS ECS (`https://wa-api.claimspilot.online`). Automatic 1-minute cron backstop `/root/whatsapp_worker_cron.sh` on the VPS host sweeps and processes inbound queue.
 
 ## 4. Mandatory Quality Gates Before Finishing Any Task
 - **Explicit Imports**: Always check the top of the file when introducing React hooks (`useEffect`, `useState`, `useCallback`, etc.), components, or icons. Never leave undefined references.

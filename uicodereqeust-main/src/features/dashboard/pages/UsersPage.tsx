@@ -249,8 +249,8 @@ export default function UsersPage() {
       }
 
       toast({
-        title: "Invitation Email Accepted",
-        description: `Brevo accepted the invitation for ${targetUser.email}. Check Brevo logs for final delivery status.`,
+        title: "Invitation Sent",
+        description: `The invitation email has been sent to ${targetUser.email}.`,
       });
       fetchUsers(true);
     } catch (e: any) {

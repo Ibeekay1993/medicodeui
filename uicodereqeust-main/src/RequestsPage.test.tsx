@@ -29,9 +29,11 @@ test('renders both request tabs with shrink-safe sizing and switches between the
   const actionNeeded = screen.getByRole('tab', { name: 'Action Needed' });
   const allRequests = screen.getByRole('tab', { name: 'All Requests' });
 
-  expect(tabList).toHaveClass('w-full', 'min-w-0', 'grid-cols-[minmax(0,1fr)_minmax(0,1fr)]');
-  expect(actionNeeded).toHaveClass('min-w-0', 'whitespace-normal', 'break-words');
-  expect(allRequests).toHaveClass('min-w-0', 'whitespace-normal', 'break-words');
+  // Tabs use an equal-width grid so both pills are always identical in size.
+  // whitespace-nowrap prevents text wrapping that would make one tab taller/wider.
+  expect(tabList).toHaveClass('grid', 'grid-cols-2', 'w-full');
+  expect(actionNeeded).toHaveClass('w-full', 'whitespace-nowrap');
+  expect(allRequests).toHaveClass('w-full', 'whitespace-nowrap');
   expect(actionNeeded).toHaveAttribute('aria-selected', 'true');
 
   fireEvent.mouseDown(allRequests, { button: 0 });
