@@ -2198,58 +2198,6 @@ serve(async (req) => {
     req.headers.get(WORKER_PROCESSING_MODE_HEADER),
   );
 
-    let target: URL;
-    try {
-      target = new URL(LAMBDA_WORKER_URL);
-    } catch {
-      return new Response(JSON.stringify({ error: "lambda_worker_url_invalid" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-    if (
-      target.protocol !== "https:" ||
-      !/^[a-z0-9-]+\.lambda-url\.eu-west-1\.on\.aws$/i.test(target.hostname) ||
-      target.pathname !== "/" ||
-      target.username !== "" ||
-      target.password !== "" ||
-      target.search !== "" ||
-      target.hash !== ""
-    ) {
-      return new Response(JSON.stringify({ error: "lambda_worker_url_not_allowed" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    try {
-      const response = await fetch(target.toString(), {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-worker-secret": WORKER_SECRET,
-        },
-        body: JSON.stringify(body),
-      });
-      const responseBody = await response.text();
-      return new Response(responseBody, {
-        status: response.status,
-        headers: {
-          ...corsHeaders,
-          "Content-Type": response.headers.get("Content-Type") || "application/json",
-        },
-      });
-    } catch (error) {
-      console.error("Lambda WhatsApp worker proxy failed", {
-        message: (error as Error)?.message || "unknown",
-      });
-      return new Response(JSON.stringify({ error: "lambda_worker_unavailable" }), {
-        status: 502,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-  }
-
   const supabase = getServiceClient();
   let responseBody: Record<string, unknown> = { ok: true };
   try {

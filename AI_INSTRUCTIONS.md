@@ -65,7 +65,7 @@ All production web services and backend database engines run on the dedicated Ho
 ### C. WhatsApp Automation & Inbound Webhook Architecture
 - **Active Provider**: **Evolution API** running on AWS ECS (`https://wa-api.claimspilot.online`).
 - **Webhook Endpoint**: `https://api.ronsbergerhmo.io/functions/v1/whatsapp-webhook`
-  - Requires header `x-webhook-token: da540a3731e3f746aaf64d1e529629dbb1e1986b0e1656fa1fbd651e7ec6a734`.
+  - Requires the `x-webhook-token` header to match the `EVOLUTION_WEBHOOK_TOKEN` secret configured in Coolify and Evolution API; never store its value in Git.
   - Inbound webhook inserts into `whatsapp_messages` and triggers `whatsapp-worker`.
 - **Queue Sweeper Cron Backstop**:
   - The host VPS executes `/root/whatsapp_worker_cron.sh` every minute via system crontab (`* * * * * /root/whatsapp_worker_cron.sh`).
