@@ -40,7 +40,7 @@ import { usePaymentBatches, useUpdatePaymentBatchStatus, useDeletePaymentBatch }
 import { PaymentsService } from "../services/paymentsService";
 
 export default function BatchesPage() {
-  const { user, role } = useAuth();
+  const { role } = useAuth();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<"all" | "draft" | "ready" | "paid">("all");
   const [selectedBatchId, setSelectedBatchId] = useState<string | null>(null);
@@ -192,7 +192,7 @@ export default function BatchesPage() {
   };
 
   const handleConfirmPayment = async () => {
-    if (!payBatchTarget || !user) return;
+    if (!payBatchTarget) return;
 
     try {
       await updateBatchStatusMutation.mutateAsync({
@@ -201,7 +201,6 @@ export default function BatchesPage() {
         evidenceFile: receiptFile || undefined,
         paidAt: new Date().toISOString(),
         bankReference: bankRef,
-        paidBy: user.id,
       });
 
       toast({

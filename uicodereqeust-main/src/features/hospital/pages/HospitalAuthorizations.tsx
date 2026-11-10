@@ -9,7 +9,6 @@ import { supabase } from "@/integrations/supabase/client";
 
 import { useToast } from "@/hooks/use-toast";
 import {
-  getApprovedItems,
   claimOwnerNameFor,
   canSubmitClaimFor,
   isClaimLockedAfterTransfer,
@@ -173,61 +172,17 @@ export default function HospitalAuthorizations() {
         p_notes: `Automated claim submission for auth ${selectedRequest.authorization_code}`,
       });
 
-      if (!rpcErr && rpcRes?.success) {
+      if (rpcErr) throw rpcErr;
+      if (!rpcRes?.success) {
+        throw new Error(rpcRes?.message || "The claim could not be submitted. Please refresh and try again.");
+      }
+
+      if (rpcRes.success) {
         toast({ title: "Claim Submitted", description: `Reimbursement claim ${rpcRes.claim_number} has been logged and queued for audit.` });
         setIsReviewing(false);
         await refetch();
         return;
       }
-
-      // 2. Resilient fallback if RPC not yet deployed
-      const approvedItems = getApprovedItems(selectedRequest);
-      const { data: claimData, error: createError } = await supabase.from("hospital_claims" as any).insert({
-        hospital_id: hospital.id,
-        hospital_name: hospital.name,
-        request_id: selectedRequest.id,
-        claim_number: `CLM-${selectedRequest.authorization_code || Math.random().toString(36).substr(2, 9).toUpperCase()}`,
-        auth_code: selectedRequest.authorization_code,
-        patient_name: selectedRequest.patient_name,
-        policy_number: selectedRequest.policy_number,
-        diagnosis: selectedRequest.diagnosis || "Not Specified",
-        approved_for: selectedRequest.treatment || "N/A",
-        status: "draft",
-        total_amount: selectedRequest.total_amount || 0,
-        original_amount: selectedRequest.total_amount || 0,
-        approved_amount: selectedRequest.total_amount || 0,
-        notes: `Automated claim submission for auth ${selectedRequest.authorization_code}`,
-        approved_items: approvedItems,
-        line_items: approvedItems,
-        requesting_hospital_id: selectedRequest.requesting_hospital_id || selectedRequest.hospital_id || null,
-        requesting_hospital_name: selectedRequest.requesting_hospital_name || selectedRequest.hospital_name || null,
-        referring_hospital_id: selectedRequest.referring_hospital_id || selectedRequest.hospital_id || null,
-        referring_hospital_name: selectedRequest.referring_hospital_name || selectedRequest.hospital_name || null,
-        referred_hospital_id: selectedRequest.referred_hospital_id || null,
-        referred_hospital_name: selectedRequest.referred_hospital_name || null,
-        claiming_hospital_id: hospital.id,
-        claiming_hospital_name: hospital.name,
-        created_by: user.id
-      }).select().single();
-
-      if (createError) throw createError;
-
-      const { error: updateError } = await supabase.rpc("rpc_submit_hospital_claim" as any, {
-        p_claim_id: (claimData as any).id,
-      });
-
-      if (updateError) throw updateError;
-
-      // Synchronize the authorization request status
-      await supabase.from("authorization_requests").update({
-        claimed: true,
-        claim_status: "submitted",
-        updated_at: new Date().toISOString()
-      }).eq("id", selectedRequest.id);
-
-      toast({ title: "Claim Submitted", description: "Your reimbursement request has been logged successfully." });
-      setIsReviewing(false);
-      await refetch();
     } catch (error: any) {
       console.error("Claim submission error:", error);
       toast({ 

@@ -3094,6 +3094,10 @@ export type Database = {
         Args: { p_claim_id: string; p_details: Json; p_status: string }
         Returns: undefined
       }
+      rpc_unlock_hospital_claim: {
+        Args: { p_claim_id: string }
+        Returns: undefined
+      }
       rpc_update_hospital_profile: {
         Args: { p_hospital_id: string; p_payload: Json }
         Returns: undefined

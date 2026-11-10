@@ -68,14 +68,12 @@ export function useUpdatePaymentBatchStatus() {
       evidenceFile,
       paidAt,
       bankReference,
-      paidBy,
     }: {
       batchId: string;
       status: string;
       evidenceFile?: File;
       paidAt?: string;
       bankReference?: string;
-      paidBy?: string;
     }) => {
       let receiptPath: string | null = null;
 
@@ -90,8 +88,6 @@ export function useUpdatePaymentBatchStatus() {
       }
       if (paidAt) updatePayload.paid_at = paidAt;
       if (bankReference?.trim()) updatePayload.bank_reference = bankReference.trim();
-      if (paidBy) updatePayload.paid_by = paidBy;
-
       if (status === "paid") {
         await PaymentsService.settlePaymentBatch(batchId, updatePayload);
       } else if (status === "rejected") {

@@ -90,7 +90,7 @@ export default function ClaimAuditDrawer({
   calculatedApprovedAmount
 }: ClaimAuditDrawerProps) {
   const { toast } = useToast();
-  const { isClaimsLead, isTeamLead, fullName } = useAuth();
+  const { isClaimsLead, isTeamLead } = useAuth();
   const [isReleasing, setIsReleasing] = useState(false);
   const [leadOverrideActive, setLeadOverrideActive] = useState(false);
   const [isUnlocking, setIsUnlocking] = useState(false);
@@ -134,14 +134,9 @@ export default function ClaimAuditDrawer({
     if (!window.confirm(`Are you sure you want to unlock claim ${selectedClaim.claim_number}? This will reset it to submitted status and return it to the active review queue.`)) return;
     setIsUnlocking(true);
     try {
-      const { error } = await supabase
-        .from("hospital_claims")
-        .update({
-          status: "submitted",
-          payment_status: null,
-          audit_note: `[CLAIM UNLOCKED BY CLAIMS LEAD]\nUnlocked by: ${fullName || "Claims Lead"}\nDate: ${new Date().toLocaleString()}\nPrevious status: ${selectedClaim.status}\n\n${selectedClaim.audit_note || ""}`
-        })
-        .eq("id", selectedClaim.id);
+      const { error } = await supabase.rpc("rpc_unlock_hospital_claim", {
+        p_claim_id: selectedClaim.id,
+      });
 
       if (error) throw error;
       toast({
