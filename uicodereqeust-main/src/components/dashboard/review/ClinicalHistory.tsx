@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { format } from "date-fns";
 import { matchesBeneficiaryHistoryRecord } from "@/lib/clinicalUtils";
+import { getApprovedHistoryItems } from "@/lib/approvedHistoryItems";
 import { ChevronDown, ChevronUp, Clock3, Loader2 } from "lucide-react";
 
 interface ClinicalHistoryProps {
@@ -26,6 +27,8 @@ const HistoryCard = ({ record }: { record: any }) => {
   };
   const statusLabel = displayValue(record.status, "APPROVED");
   const status = statusLabel.toLowerCase();
+  const isApprovedRecord = status.includes("approv");
+  const approvedItems = isApprovedRecord ? getApprovedHistoryItems(record.approved_items) : [];
   let statusClasses = "bg-slate-100 text-slate-600 border-slate-200";
   if (status.includes("reject") || status.includes("decline")) {
     statusClasses = "bg-red-100 text-red-700 border-red-200";
@@ -104,8 +107,41 @@ const HistoryCard = ({ record }: { record: any }) => {
           </section>
         </div>
         <section className="min-w-0 border-t border-slate-100 pt-3 sm:border-l sm:border-t-0 sm:pl-5 sm:pt-0">
-          <h4 className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">Treatment &amp; quantity</h4>
-          <p className="mt-1 break-words text-sm leading-relaxed text-slate-800">{displayValue(record.treatment)}</p>
+          <h4 className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+            {isApprovedRecord ? "Approved treatment & quantity" : "Treatment requested"}
+          </h4>
+          {isApprovedRecord && approvedItems.length > 0 ? (
+            <ul className="mt-2 space-y-2" aria-label="Approved treatment items">
+              {approvedItems.map((item, index) => (
+                <li key={`${item.code || item.name}-${index}`} className="min-w-0 rounded-lg border border-slate-200 bg-white p-3">
+                  <div className="flex min-w-0 flex-wrap items-start justify-between gap-2">
+                    <p className="min-w-0 flex-1 break-words text-sm font-semibold leading-snug text-slate-900">{item.name}</p>
+                    <span className="inline-flex shrink-0 items-center gap-1.5 rounded-md bg-slate-100 px-2 py-1 text-xs text-slate-700">
+                      <span className="font-medium">Approved quantity</span>
+                      <span className="font-bold tabular-nums text-slate-950">
+                        {item.quantity === null ? "Not recorded" : new Intl.NumberFormat("en-NG", { maximumFractionDigits: 2 }).format(item.quantity)}
+                        {item.unit ? ` ${item.unit}` : ""}
+                      </span>
+                    </span>
+                  </div>
+                  {(item.code || item.category || item.frequency || item.duration) && (
+                    <p className="mt-1.5 break-words text-xs leading-relaxed text-slate-600">
+                      {[item.code && `Code ${item.code}`, item.category, item.frequency, item.duration].filter(Boolean).join(" · ")}
+                    </p>
+                  )}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <>
+              <p className="mt-1 break-words text-sm leading-relaxed text-slate-800">{displayValue(record.treatment)}</p>
+              {isApprovedRecord && (
+                <p className="mt-2 text-xs leading-relaxed text-slate-600">
+                  Item-level approved quantities were not stored separately for this historical record.
+                </p>
+              )}
+            </>
+          )}
         </section>
       </div>
         {note && (

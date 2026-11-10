@@ -111,7 +111,7 @@ export function useClinicalVerification(
         const { data, error } = await withAbortTimeout(
           (signal) => supabase
             .from("authorization_requests")
-            .select("id, request_id, patient_name, policy_number, beneficiary_number, diagnosis, treatment, hospital_name, status, authorization_code, decision_reason, clinical_notes, decided_at, created_at, source, is_historical")
+            .select("id, request_id, patient_name, policy_number, beneficiary_number, diagnosis, treatment, approved_items, hospital_name, status, authorization_code, decision_reason, clinical_notes, decided_at, created_at, source, is_historical")
             .or([...conditions].join(","))
             .limit(100)
             .abortSignal(signal),
