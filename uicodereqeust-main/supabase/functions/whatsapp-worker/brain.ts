@@ -98,7 +98,7 @@ export function extractAuthFieldsFromRaw(
     ["diagnosis", /^(?:\*?\s*diagnosis\s*\*?\s*(?:(?::|;|-)\s*|\s+))(.+)$/i],
     ["treatment", /^(?:\*?\s*(?:drugs?|treatment)\s*\*?\s*(?:(?::|-)\s*|\s+))(.+)$/i],
     ["procedure", /^(?:\*?\s*procedures?\s*\*?\s*(?:(?::|-)\s*|\s+))(.+)$/i],
-    ["investigation", /^(?:\*?\s*investigations?\s*\*?\s*(?:(?::|-)\s*|\s+))(.+)$/i],
+    ["investigation", /^(?:\*?\s*(?:investigations?|tests?|lab(?:oratory)?\s+tests?|radiology|imaging)\s*\*?\s*(?:(?::|-)\s*|\s+))(.+)$/i],
     [
       "requestedService",
       /^(?:\*?\s*(?:services?|consultation)\s*\*?\s*(?:(?::|-)\s*|\s+))(.+)$/i,
@@ -163,7 +163,7 @@ export const AUTH_HEADER_PATTERNS = [
   /(?:^|\n)\s*(?:full\s*name|patient\s*name|name)\s*:\s*[^\n\r]+/i,
   /(?:^|\n)\s*(?:nhia\s*(?:no|number)?|nhis\s*(?:no|number)?|policy\s*(?:no|number)?)\s*:\s*[^\n\r]+/i,
   /(?:^|\n)\s*diagnosis\s*(?::|;)\s*[^\n\r]+/i,
-  /(?:^|\n)\s*(?:drugs?|treatment|procedures?|investigations?|services?|consultation)\s*:\s*[^\n\r]+/i,
+  /(?:^|\n)\s*(?:drugs?|treatment|procedures?|investigations?|tests?|lab(?:oratory)?\s+tests?|radiology|imaging|services?|consultation)\s*:\s*[^\n\r]+/i,
 ];
 
 export function hasStrongAuthIndicators(text: string) {
@@ -307,7 +307,7 @@ export function brainGuard(
   const auth =
     hasStrongAuthIndicators(t) ||
     (/\b(?:submit|request|authorization|pre[- ]?authorization)\b/i.test(t) &&
-      /\b(?:patient|diagnosis|treatment|drug|procedure|investigation|service|nhia|nhis|policy)\b/i.test(
+      /\b(?:patient|diagnosis|treatment|drug|procedure|investigation|test|radiology|imaging|service|nhia|nhis|policy)\b/i.test(
         t,
       ));
   if (explicitStatus && !auth) {
@@ -359,7 +359,7 @@ export function brainGuard(
       out.intent,
     ) &&
     conversation?.active_intent === "INCOMPLETE_AUTHORIZATION" &&
-    /\b(?:name|patient|nhia|nhis|policy|diagnosis|treatment|drug|procedure|investigation|service)\b/i.test(
+    /\b(?:name|patient|nhia|nhis|policy|diagnosis|treatment|drug|procedure|investigation|test|radiology|imaging|service)\b/i.test(
       t,
     )
   )

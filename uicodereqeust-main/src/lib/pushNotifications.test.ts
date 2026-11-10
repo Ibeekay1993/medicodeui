@@ -8,32 +8,45 @@ vi.mock("@/integrations/supabase/client", () => ({
 import {
   notifyHospitalAuthorizationDecision,
   notifyPendingAuthorizationRequest,
-  sendPushTestNotification,
-  subscribeToPushNotifications,
 } from "./pushNotifications";
 
-describe("paused push notifications", () => {
-  beforeEach(() => invoke.mockReset());
-
-  it("does not ask the browser for permission or create a subscription", async () => {
-    await expect(subscribeToPushNotifications("staff-1")).resolves.toEqual({
-      success: false,
-      error: "Push notifications are currently paused.",
+describe("push notification dispatch", () => {
+  beforeEach(() => {
+    invoke.mockReset();
+    invoke.mockResolvedValue({
+      data: { success: true, sent_count: 1, failed_count: 0 },
+      error: null,
     });
   });
 
-  it("does not send request, decision, or test pushes to Supabase", async () => {
-    await notifyPendingAuthorizationRequest({ requestId: "request-1", hospitalName: "Test Hospital" });
+  it("dispatches a pending request push to approver roles", async () => {
+    await notifyPendingAuthorizationRequest({
+      requestId: "request-1",
+      hospitalName: "Test Hospital",
+      source: "whatsapp",
+    });
+
+    expect(invoke).toHaveBeenCalledWith("send-push-notification", {
+      body: expect.objectContaining({
+        authorization_id: "request-1",
+        target_roles: ["admin", "utilization_manager", "utilization_manager_lead"],
+        title: "New Pending Authorization Request",
+      }),
+    });
+  });
+
+  it("dispatches a decision push only to the request hospital", async () => {
     await notifyHospitalAuthorizationDecision({
       hospitalId: "hospital-1",
       requestId: "request-1",
       decision: "approved",
     });
-    await expect(sendPushTestNotification("staff-1")).resolves.toEqual({
-      success: false,
-      sentCount: 0,
-      error: "Push notifications are currently paused.",
+
+    expect(invoke).toHaveBeenCalledWith("send-push-notification", {
+      body: expect.objectContaining({
+        authorization_id: "request-1",
+        target_hospital_id: "hospital-1",
+      }),
     });
-    expect(invoke).not.toHaveBeenCalled();
   });
 });

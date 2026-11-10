@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { MessageSquare, Save, Wand2, Loader2, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { notifyPendingAuthorizationRequest } from "@/lib/pushNotifications";
 import { parsePrescriptionClientFallback } from "@/lib/prescriptionParser";
 
 const whatsappSamples = [
@@ -315,12 +314,6 @@ export default function WhatsAppPage() {
       );
       if (error) throw error;
       if (!insertedRequest?.id) throw new Error("Request created but no ID returned");
-
-      void notifyPendingAuthorizationRequest({
-        requestId: insertedRequest.id,
-        hospitalName,
-        source: "whatsapp_parser",
-      });
 
       try {
         const { error: otpError } = await supabase.functions.invoke("send-otp", {

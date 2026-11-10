@@ -17,7 +17,6 @@ const VAPID_KEY_STORAGE = "ronsberger_push_vapid_public_key";
 const PUSH_OPT_OUT_PREFIX = "ronsberger_push_opt_out:";
 const SERVICE_WORKER_START_TIMEOUT_MS = 20_000;
 const PUSH_PROMPT_DISMISSED_PREFIX = "ronsberger_push_prompt_dismissed:";
-export const PUSH_NOTIFICATIONS_ENABLED = false;
 
 function withTimeout<T>(promise: PromiseLike<T>, timeoutMs: number, message: string): Promise<T> {
   let timeoutId: ReturnType<typeof setTimeout>;
@@ -110,9 +109,6 @@ export async function subscribeToPushNotifications(userId: string): Promise<{
   success: boolean;
   error?: string;
 }> {
-  if (!PUSH_NOTIFICATIONS_ENABLED) {
-    return { success: false, error: "Push notifications are currently paused." };
-  }
   if (!isPushNotificationSupported()) {
     return { success: false, error: "Push notifications not supported in this browser." };
   }
@@ -295,7 +291,6 @@ export async function notifyPendingAuthorizationRequest(input: {
   hospitalName?: string | null;
   source?: string | null;
 }): Promise<void> {
-  if (!PUSH_NOTIFICATIONS_ENABLED) return;
   try {
     const sourceLabel = input.source === "whatsapp" || input.source === "whatsapp_parser"
       ? "WhatsApp"
@@ -334,9 +329,6 @@ export async function sendPushTestNotification(userId: string): Promise<{
   sentCount: number;
   error?: string;
 }> {
-  if (!PUSH_NOTIFICATIONS_ENABLED) {
-    return { success: false, sentCount: 0, error: "Push notifications are currently paused." };
-  }
   if (!isPushNotificationSupported()) {
     return { success: false, sentCount: 0, error: "Push notifications are not supported in this browser. On iPhone or iPad, install the portal to the Home Screen first." };
   }
@@ -374,7 +366,7 @@ export async function notifyHospitalAuthorizationDecision(input: {
   decision: "approved" | "partially_approved" | "rejected";
   authorizationCode?: string | null;
 }): Promise<void> {
-  if (!PUSH_NOTIFICATIONS_ENABLED || !input.hospitalId) return;
+  if (!input.hospitalId) return;
   try {
     const decisionText =
       input.decision === "approved"

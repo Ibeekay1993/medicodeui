@@ -6,8 +6,6 @@ const VAPID_PUBLIC_KEY = Deno.env.get("VAPID_PUBLIC_KEY") || "";
 const VAPID_PRIVATE_KEY = Deno.env.get("VAPID_PRIVATE_KEY") || "";
 const VAPID_SUBJECT = Deno.env.get("VAPID_SUBJECT") || "mailto:support@ronsbergerhmo.com";
 const INTERNAL_SHARED_SECRET = Deno.env.get("WHATSAPP_WORKER_SECRET") || Deno.env.get("MEDAUTH_INTERNAL_API_KEY") || "";
-const PUSH_NOTIFICATIONS_ENABLED = false;
-
 const ALLOWED_ROLES = ["admin", "utilization_manager", "utilization_manager_lead", "hospital", "claims", "finance"];
 
 function constantTimeEqual(a: string, b: string): boolean {
@@ -20,19 +18,6 @@ function constantTimeEqual(a: string, b: string): boolean {
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
-  }
-
-  // Keep the endpoint available for a clear response, but skip auth fan-out,
-  // VAPID setup, subscription reads, and web-push delivery while paused.
-  if (!PUSH_NOTIFICATIONS_ENABLED) {
-    return new Response(JSON.stringify({
-      success: false,
-      paused: true,
-      message: "Push notifications are currently paused.",
-    }), {
-      status: 410,
-      headers: { ...corsHeaders, "Content-Type": "application/json", "Cache-Control": "no-store" },
-    });
   }
 
   if (req.method !== "POST") {

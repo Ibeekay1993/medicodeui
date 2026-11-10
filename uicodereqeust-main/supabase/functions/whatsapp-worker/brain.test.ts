@@ -141,6 +141,38 @@ describe("extractAuthFieldsFromRaw", () => {
     expect(fields.requestedService).toBe("Specialist consultation");
   });
 
+  it("recognizes a compact Test label as a requested investigation", () => {
+    const msg = [
+      "Full name: ufa francis",
+      "NHIS No: 1638381",
+      "Sex: male",
+      "Phone no: 08156339815",
+      "Diagnosis: chronic osteoarthritis (right side waist pain",
+      "Test:lumbar x ray",
+      "For code",
+    ].join("\n");
+
+    const fields = extractAuthFieldsFromRaw(msg);
+    const analysis = deterministicFallbackAnalysis(msg, {});
+
+    expect(fields.investigation).toBe("lumbar x ray");
+    expect(hasStrongAuthIndicators(msg)).toBe(true);
+    expect(analysis).toMatchObject({
+      intent: "NEW_AUTHORIZATION",
+      patientName: "ufa francis",
+      policyNumber: "1638381",
+      diagnosis: "chronic osteoarthritis (right side waist pain",
+      investigation: "lumbar x ray",
+      patientPhone: "08156339815",
+    });
+    expect(combineRequestedServices(
+      analysis.treatment,
+      analysis.procedure,
+      analysis.investigation,
+      analysis.requestedService,
+    )).toBe("Investigations: lumbar x ray");
+  });
+
   it("extracts the hospital format including originating hospital", () => {
     const msg = [
       "Full Name: AKIN TEHINGBOLA",
