@@ -80,7 +80,7 @@ const HistoryCard = ({ record }: { record: any }) => {
       : "bg-emerald-600 ring-emerald-100";
 
   return (
-    <article className="relative pb-9 pl-7 last:pb-0 sm:pl-8">
+    <article className="relative pb-6 pl-7 last:pb-0 sm:pb-8 sm:pl-8">
       <span aria-hidden="true" className={`absolute left-0 top-1.5 h-3.5 w-3.5 rounded-full ring-4 ${markerTone}`} />
       <span aria-hidden="true" className="absolute bottom-0 left-[6px] top-5 w-px bg-slate-200" />
       <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] sm:gap-6">
@@ -106,32 +106,46 @@ const HistoryCard = ({ record }: { record: any }) => {
             <p className="mt-1 break-words text-sm font-semibold leading-relaxed text-slate-900">{displayValue(record.diagnosis)}</p>
           </section>
         </div>
-        <section className="min-w-0 border-t border-slate-100 pt-3 sm:border-l sm:border-t-0 sm:pl-5 sm:pt-0">
-          <h4 className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">
-            {isApprovedRecord ? "Approved treatment & quantity" : "Treatment requested"}
-          </h4>
+        <section className="min-w-0 border-t border-slate-100 pt-2.5 sm:border-l sm:border-t-0 sm:pl-5 sm:pt-0">
+          <div className="flex min-w-0 items-center justify-between gap-2">
+            <h4 className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500 sm:text-xs sm:tracking-[0.12em]">
+              {isApprovedRecord ? "Approved treatments" : "Treatment requested"}
+            </h4>
+            {isApprovedRecord && approvedItems.length > 0 && (
+              <span className="shrink-0 text-[10px] font-medium tabular-nums text-slate-500">
+                {approvedItems.length} {approvedItems.length === 1 ? "item" : "items"}
+              </span>
+            )}
+          </div>
           {isApprovedRecord && approvedItems.length > 0 ? (
-            <ul className="mt-2 space-y-2" aria-label="Approved treatment items">
-              {approvedItems.map((item, index) => (
-                <li key={`${item.code || item.name}-${index}`} className="min-w-0 rounded-lg border border-slate-200 bg-white p-3">
-                  <div className="flex min-w-0 flex-wrap items-start justify-between gap-2">
-                    <p className="min-w-0 flex-1 break-words text-sm font-semibold leading-snug text-slate-900">{item.name}</p>
-                    <span className="inline-flex shrink-0 items-center gap-1.5 rounded-md bg-slate-100 px-2 py-1 text-xs text-slate-700">
-                      <span className="font-medium">Approved quantity</span>
-                      <span className="font-bold tabular-nums text-slate-950">
-                        {item.quantity === null ? "Not recorded" : new Intl.NumberFormat("en-NG", { maximumFractionDigits: 2 }).format(item.quantity)}
-                        {item.unit ? ` ${item.unit}` : ""}
+            <>
+              {approvedItems.some((item) => item.quantityNeedsReview) && (
+                <p className="mt-1.5 rounded-md border border-amber-200 bg-amber-50 px-2 py-1.5 text-[11px] leading-snug text-amber-900">
+                  One or more quantities have no quantity confirmation marker. Check the rows marked “Recorded qty” against the original approval.
+                </p>
+              )}
+              <ul className="mt-1.5 divide-y divide-slate-200 overflow-hidden rounded-lg border border-slate-200 bg-white" aria-label="Approved treatment items">
+                {approvedItems.map((item, index) => (
+                  <li key={`${item.code || item.name}-${index}`} className="min-w-0 px-2.5 py-2 sm:px-3 sm:py-2.5">
+                    <div className="flex min-w-0 items-start justify-between gap-2">
+                      <p className="min-w-0 flex-1 break-words text-[13px] font-medium leading-snug text-slate-900 sm:text-sm">{item.name}</p>
+                      <span className={`inline-flex max-w-[46%] shrink-0 items-center gap-1 rounded-md px-1.5 py-1 text-[10px] leading-tight sm:max-w-none sm:gap-1.5 sm:px-2 sm:text-xs ${item.quantityNeedsReview ? "bg-amber-100 text-amber-950" : "bg-emerald-50 text-emerald-950"}`}>
+                        <span className="font-medium">{item.quantityNeedsReview ? "Recorded qty" : "Approved qty"}</span>
+                        <span className="font-bold tabular-nums">
+                          {item.quantity === null ? "Not recorded" : new Intl.NumberFormat("en-NG", { maximumFractionDigits: 2 }).format(item.quantity)}
+                          {item.unit ? ` ${item.unit}` : ""}
+                        </span>
                       </span>
-                    </span>
-                  </div>
-                  {(item.code || item.category || item.frequency || item.duration) && (
-                    <p className="mt-1.5 break-words text-xs leading-relaxed text-slate-600">
-                      {[item.code && `Code ${item.code}`, item.category, item.frequency, item.duration].filter(Boolean).join(" · ")}
-                    </p>
-                  )}
-                </li>
-              ))}
-            </ul>
+                    </div>
+                    {(item.code || item.category || item.frequency || item.duration) && (
+                      <p className="mt-0.5 break-words text-[11px] leading-snug text-slate-600 sm:mt-1 sm:text-xs sm:leading-relaxed">
+                        {[item.code && `Code ${item.code}`, item.category, item.frequency, item.duration].filter(Boolean).join(" · ")}
+                      </p>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </>
           ) : (
             <>
               <p className="mt-1 break-words text-sm leading-relaxed text-slate-800">{displayValue(record.treatment)}</p>
@@ -268,7 +282,7 @@ export function ClinicalHistory({
               </button>
             </div>
 
-            <div className="max-h-[min(60vh,560px)] overflow-y-auto overscroll-contain pl-1 pr-1 sm:max-h-[560px]">
+            <div className="pl-1 pr-1">
               {checking ? (
                 <div className="rounded-xl border border-dashed border-slate-200 p-6 text-center bg-slate-50/50 animate-pulse">
                   <Loader2 className="w-5 h-5 animate-spin text-emerald-600 mx-auto mb-2" />
