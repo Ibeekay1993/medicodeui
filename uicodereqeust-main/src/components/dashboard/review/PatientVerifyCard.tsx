@@ -58,6 +58,9 @@ export function PatientVerifyCard({
   const [showFamily, setShowFamily] = useState(false);
   const matchedMember = familyMembers.find((member) => member.id === matchedMemberId);
   const familyCountLabel = `${familyMembers.length} ${familyMembers.length === 1 ? "member" : "members"}`;
+  const familyNamesAction = familyMembers.length === 1
+    ? "View 1 member name"
+    : `View ${familyMembers.length} member names`;
   const identityRequiresReview = patientMatchStatus === "ambiguous" || patientMatchStatus === "conflict";
 
   return (
@@ -161,18 +164,27 @@ export function PatientVerifyCard({
               aria-label={`${showFamily ? "Hide" : "Show"} family member names for ${familyCountLabel}`}
               onClick={() => setShowFamily((visible) => !visible)}
               disabled={familyMembers.length === 0}
-              className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-emerald-100 bg-emerald-50 px-3 text-left text-xs font-semibold text-emerald-900 transition-colors hover:bg-emerald-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-50 disabled:text-slate-500"
+              className="group inline-flex min-h-11 w-full items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2 text-left shadow-sm transition-colors hover:border-slate-300 hover:bg-slate-50 active:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500 sm:w-[270px]"
             >
-              <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-white px-1.5 font-bold tabular-nums text-emerald-800">
-                {familyMembers.length}
-              </span>
-              <span className="flex min-w-0 flex-col leading-tight">
-                <span>{familyCountLabel} on policy</span>
-                <span className="mt-0.5 text-[10px] font-medium text-emerald-800/75">
-                  {showFamily ? "Hide member list" : "Tap to view member names"}
+              <span className="flex min-w-0 items-center gap-2.5">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-emerald-700">
+                  <Users aria-hidden="true" className="h-4 w-4" />
+                </span>
+                <span className="flex min-w-0 flex-col leading-tight">
+                  <span className="text-[13px] font-semibold text-slate-900">Family members</span>
+                  <span className="mt-0.5 text-[11px] font-medium text-slate-600">
+                    {showFamily ? "Hide member names" : familyNamesAction}
+                  </span>
                 </span>
               </span>
-              {showFamily ? <ChevronUp aria-hidden="true" className="ml-1 h-4 w-4 shrink-0" /> : <ChevronDown aria-hidden="true" className="ml-1 h-4 w-4 shrink-0" />}
+              <span className="flex shrink-0 items-center gap-2">
+                <span className="inline-flex h-7 min-w-7 items-center justify-center rounded-md border border-slate-200 bg-slate-100 px-1.5 text-xs font-semibold tabular-nums text-slate-800">
+                  {familyMembers.length}
+                </span>
+                {showFamily
+                  ? <ChevronUp aria-hidden="true" className="h-4 w-4 text-slate-500" />
+                  : <ChevronDown aria-hidden="true" className="h-4 w-4 text-slate-500" />}
+              </span>
             </button>
           </div>
         </div>
@@ -185,7 +197,7 @@ export function PatientVerifyCard({
           )}
 
         <div id="nhis-family-details" hidden={!showFamily} className="mt-3 border-t border-slate-100 pt-3 animate-in fade-in duration-200">
-          <section aria-label="Family members on this policy" className="rounded-xl border border-emerald-100 bg-emerald-50/40 p-3">
+          <section aria-label="Family members on this policy" className="rounded-xl border border-slate-200 bg-white p-3">
             <div className="flex flex-wrap items-center justify-between gap-1.5">
               <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800">
                 <Users aria-hidden="true" className="h-4 w-4 text-emerald-700" />

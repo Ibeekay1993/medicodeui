@@ -35,12 +35,15 @@ describe("PatientVerifyCard family roster", () => {
     );
 
     const detailsButton = screen.getByRole("button", { name: "Show family member names for 2 members" });
-    expect(within(detailsButton).getByText("Tap to view member names")).toBeVisible();
+    expect(within(detailsButton).getByText("Family members")).toBeVisible();
+    expect(within(detailsButton).getByText("View 2 member names")).toBeVisible();
     expect(detailsButton).toHaveAttribute("aria-expanded", "false");
     expect(screen.queryByRole("region", { name: "Family members on this policy" })).not.toBeInTheDocument();
 
     fireEvent.click(detailsButton);
     expect(detailsButton).toHaveAttribute("aria-expanded", "true");
+    expect(detailsButton).toHaveAttribute("aria-label", "Hide family member names for 2 members");
+    expect(within(detailsButton).getByText("Hide member names")).toBeVisible();
     const familyRoster = screen.getByRole("region", { name: "Family members on this policy" });
     expect(within(familyRoster).getByText("UGWU REGINA")).toBeInTheDocument();
     expect(within(familyRoster).getByText("UGWU CHINEDU")).toBeInTheDocument();
