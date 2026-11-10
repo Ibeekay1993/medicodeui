@@ -352,16 +352,16 @@ export default function UsersPage() {
   return (
     <div className="space-y-4 max-w-full overflow-hidden pb-10 animate-in fade-in duration-500">
       <div className="flex flex-wrap items-center gap-2 pb-3">
-        <div className="inline-flex h-9 sm:h-10 items-center rounded-lg bg-slate-100 p-1 gap-1">
+        <div className="grid w-full grid-cols-2 items-center gap-1 rounded-lg bg-slate-100 p-1 sm:inline-flex sm:h-10 sm:w-auto">
           <button
             onClick={() => setActiveTab("directory")}
-            className={cn("h-full rounded-md px-3 sm:px-4 text-xs font-bold transition-colors", activeTab === "directory" ? "bg-slate-900 text-white shadow-none" : "bg-transparent text-slate-600 hover:bg-slate-200/70")}
+            className={cn("min-h-11 min-w-0 rounded-md px-2 text-center text-[11px] font-bold leading-tight transition-colors sm:h-full sm:min-h-0 sm:px-4 sm:text-xs", activeTab === "directory" ? "bg-slate-900 text-white shadow-none" : "bg-transparent text-slate-600 hover:bg-slate-200/70")}
           >
             User Directory
           </button>
           <button
             onClick={() => setActiveTab("approvals")}
-            className={cn("h-full rounded-md px-3 sm:px-4 text-xs font-bold transition-colors inline-flex items-center gap-1.5", activeTab === "approvals" ? "bg-slate-900 text-white shadow-none" : "bg-transparent text-slate-600 hover:bg-slate-200/70")}
+            className={cn("inline-flex min-h-11 min-w-0 items-center justify-center gap-1.5 rounded-md px-2 text-center text-[11px] font-bold leading-tight transition-colors sm:h-full sm:min-h-0 sm:px-4 sm:text-xs", activeTab === "approvals" ? "bg-slate-900 text-white shadow-none" : "bg-transparent text-slate-600 hover:bg-slate-200/70")}
           >
             Name Approvals
             {nameRequests.length > 0 && <span className="rounded-full bg-red-600 px-1.5 py-0.2 text-[10px] text-white font-bold">{nameRequests.length}</span>}

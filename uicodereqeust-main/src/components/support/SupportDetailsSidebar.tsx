@@ -375,7 +375,7 @@ export function SupportDetailsSidebar({
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-1 p-1 bg-slate-100 rounded-lg text-xs font-bold h-9">
+                <div className="grid min-h-11 grid-cols-2 gap-1 rounded-lg bg-slate-100 p-1 text-xs font-bold sm:h-9 sm:min-h-0">
                   <button
                     type="button"
                     onClick={() => {
@@ -383,7 +383,7 @@ export function SupportDetailsSidebar({
                       setLinkSearchTerm("");
                     }}
                     className={cn(
-                      "h-full rounded-md transition-colors",
+                      "min-h-11 min-w-0 rounded-md px-1 text-center text-[11px] leading-tight transition-colors sm:h-full sm:min-h-0 sm:px-2 sm:text-xs",
                       activeLinkType === "request" ? "bg-slate-900 text-white shadow-none" : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/70"
                     )}
                   >
@@ -396,7 +396,7 @@ export function SupportDetailsSidebar({
                       setLinkSearchTerm("");
                     }}
                     className={cn(
-                      "h-full rounded-md transition-colors",
+                      "min-h-11 min-w-0 rounded-md px-1 text-center text-[11px] leading-tight transition-colors sm:h-full sm:min-h-0 sm:px-2 sm:text-xs",
                       activeLinkType === "claim" ? "bg-slate-900 text-white shadow-none" : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/70"
                     )}
                   >

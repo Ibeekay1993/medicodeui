@@ -70,14 +70,6 @@ export class UsersService {
     if (error) throw error;
   }
 
-  static async resendInvitation(email: string) {
-    const { error } = await supabase.auth.resend({
-      type: "signup",
-      email,
-    });
-    if (error) throw error;
-  }
-
   static async getHospitalsForSelect() {
     const { data, error } = await supabase
       .from("hospitals")

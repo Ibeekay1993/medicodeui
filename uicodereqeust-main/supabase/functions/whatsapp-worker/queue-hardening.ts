@@ -98,6 +98,7 @@ export function classifyRetryFailure(
   }
 
   const permanentPatterns = [
+    "beneficiary_conflict",
     "beneficiary_mismatch",
     "beneficiary_ambiguous",
     "unregistered_sender",

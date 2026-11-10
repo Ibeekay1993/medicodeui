@@ -286,12 +286,12 @@ export default function BatchesPage() {
       {/* Tabs / Filters Bar */}
       <div className="flex flex-col lg:flex-row justify-between items-center gap-3 bg-white p-4 rounded-xl border border-slate-100 shadow-sm">
         <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
-          <div className="inline-flex h-9 sm:h-10 items-center bg-slate-100 p-1 rounded-lg gap-1">
+          <div className="inline-flex min-h-11 items-center gap-1 rounded-lg bg-slate-100 p-1 sm:h-10 sm:min-h-0">
             {(["all", "draft", "ready", "paid"] as const).map(tab => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
-                className={`h-full px-3 py-1 rounded-md text-xs font-bold uppercase tracking-wider transition-colors ${
+                className={`min-h-11 rounded-md px-2 py-1 text-[11px] font-bold uppercase tracking-wider transition-colors sm:h-full sm:min-h-0 sm:px-3 sm:text-xs ${
                   activeTab === tab 
                     ? "bg-slate-900 text-white shadow-none" 
                     : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/70"

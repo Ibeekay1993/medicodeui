@@ -646,6 +646,15 @@ async function postAuthorization(
         };
       }
       if (
+        failureMessage === "beneficiary_conflict" ||
+        failure?.message === "beneficiary_conflict"
+      ) {
+        return {
+          error: "beneficiary_conflict",
+          message: "The beneficiary number conflicts with the patient name or policy. Please verify the member details before resubmitting.",
+        };
+      }
+      if (
         failureMessage === "beneficiary_ambiguous" ||
         failure?.message === "beneficiary_ambiguous"
       ) {
@@ -1465,6 +1474,30 @@ async function processMessageBody(
           `⚠️ NHIS/POLICY MATCH FAILED\n\n` +
           `The policy number belongs to the same family group, but the patient name supplied does not match the registered NHIS beneficiary record.\n\n` +
           `Please resend the exact patient name as it appears on the NHIS record, or confirm the correct policy number before submitting again.\n\n` +
+          `No authorization request has been created.\n\n— Ronsberger HMO`;
+        patientReplies.push(finalReply);
+        priority = Math.max(priority, 3);
+        continue;
+      }
+      if (result?.error === "beneficiary_conflict") {
+        await updateConversation(supabase, row.phone_number, {
+          pending_data: withWorkerModeOnPendingData({
+            patientName,
+            policyNumber,
+            patientPhone,
+            diagnosis,
+            treatment: service,
+            procedure,
+            investigation,
+            requestedService,
+            originatingHospital: hospital,
+            referralHospital: referral,
+          }, processingMode),
+          active_intent: "INCOMPLETE_AUTHORIZATION",
+        });
+        finalReply =
+          `⚠️ BENEFICIARY DETAILS CONFLICT\n\n` +
+          `The beneficiary number does not match the patient name or family policy in the NHIS record. Please verify the member number and full name before resubmitting.\n\n` +
           `No authorization request has been created.\n\n— Ronsberger HMO`;
         patientReplies.push(finalReply);
         priority = Math.max(priority, 3);

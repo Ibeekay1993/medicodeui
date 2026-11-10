@@ -371,7 +371,7 @@ export default function WhatsAppAccessPage() {
               variant={activeTab === "contacts" ? "default" : "outline"}
               onClick={() => setActiveTab("contacts")}
               aria-label="Access list"
-              className="h-8 gap-1.5 px-2.5 text-xs sm:px-3"
+              className="min-h-11 gap-1.5 px-2.5 text-xs sm:h-8 sm:min-h-0 sm:px-3"
             >
               <Building2 className="h-4 w-4 shrink-0" /> <span>Access</span>
             </Button>
@@ -379,11 +379,11 @@ export default function WhatsAppAccessPage() {
               variant={activeTab === "audit" ? "default" : "outline"}
               onClick={() => setActiveTab("audit")}
               aria-label="Audit history"
-              className="h-8 gap-1.5 px-2.5 text-xs sm:px-3"
+              className="min-h-11 gap-1.5 px-2.5 text-xs sm:h-8 sm:min-h-0 sm:px-3"
             >
               <History className="h-4 w-4 shrink-0" /> <span>Audit</span>
             </Button>
-            <Button onClick={openCreate} aria-label="Add WhatsApp number" className="med-button-primary h-8 gap-1.5 px-2.5 text-xs sm:px-3">
+            <Button onClick={openCreate} aria-label="Add WhatsApp number" className="med-button-primary min-h-11 gap-1.5 px-2.5 text-xs sm:h-8 sm:min-h-0 sm:px-3">
               <Plus className="h-4 w-4 shrink-0" /> <span>Add</span>
             </Button>
         </div>

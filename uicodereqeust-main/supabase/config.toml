@@ -45,3 +45,13 @@ entrypoint = "./functions/send-referral-notification/index.ts"
 enabled = true
 verify_jwt = false
 entrypoint = "./functions/send-push-notification/index.ts"
+
+[functions.invitation-validate]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/invitation-validate/index.ts"
+
+[functions.invitation-accept]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/invitation-accept/index.ts"

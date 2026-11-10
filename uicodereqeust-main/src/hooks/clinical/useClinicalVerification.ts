@@ -1,11 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import {
-  cleanPatientName,
-  normalizePatientNameForMatch,
+  normalizeBeneficiaryNumber,
   normalizePolicyNumber,
   normalizePolicyRoot,
   recordMatchesPolicy,
+  resolveBeneficiaryIdentityMatch,
 } from "@/lib/clinicalUtils";
 
 function withTimeout<T>(promise: PromiseLike<T>, ms: number = 4000): Promise<T> {
@@ -42,7 +42,7 @@ export function useClinicalVerification(
   const [nhisVerified, setNhisVerified] = useState<boolean | null>(null);
   const [policyVerified, setPolicyVerified] = useState<boolean | null>(null);
   const [patientVerified, setPatientVerified] = useState<boolean | null>(null);
-  const [patientMatchStatus, setPatientMatchStatus] = useState<"exact" | "partial" | "none" | null>(null);
+  const [patientMatchStatus, setPatientMatchStatus] = useState<"exact" | "partial" | "none" | "ambiguous" | "conflict" | null>(null);
   const [matchedMemberId, setMatchedMemberId] = useState<string | null>(null);
   const [matchedBeneficiaryNumber, setMatchedBeneficiaryNumber] = useState<string | null>(null);
   const [earlyRefill, setEarlyRefill] = useState<{ isEarly: boolean; daysSince: number; lastDate: string } | null>(null);
@@ -59,7 +59,7 @@ export function useClinicalVerification(
     const policy = normalizePolicyNumber(request?.policy_number);
     const patientName = String(request?.patient_name || "").trim();
     const policyRoot = normalizePolicyRoot(policy);
-    const beneficiaryNum = normalizePolicyNumber(request?.beneficiary_number);
+    const beneficiaryNum = normalizeBeneficiaryNumber(request?.beneficiary_number);
 
     if (!policy && !patientName && !beneficiaryNum) {
       setLocalHistory([]);
@@ -121,27 +121,6 @@ export function useClinicalVerification(
         history = data || [];
       }
 
-      // Name fallback: for legacy requests that have no policy attached
-      if (!rpcSucceeded && rpcUnavailable && !policy && patientName.length >= 3) {
-        const namePrefixes = [...new Set(cleanPatientName(patientName)
-          .split(/\s+/)
-          .map((word) => word.replace(/[^a-z0-9]/gi, ""))
-          .filter((word) => word.length >= 3))];
-        if (namePrefixes.length) {
-          const { data, error } = await withAbortTimeout(
-            (signal) => supabase
-              .from("authorization_requests")
-              .select("id, request_id, patient_name, policy_number, beneficiary_number, diagnosis, treatment, hospital_name, status, authorization_code, decision_reason, clinical_notes, decided_at, created_at, source, is_historical")
-              .or(namePrefixes.map((word) => "patient_name.ilike." + word + "%").join(","))
-              .limit(50)
-              .abortSignal(signal),
-            12000,
-          );
-          if (error) throw error;
-          history = data || [];
-        }
-      }
-
       // Sort newest first in memory (instant, 0ms CPU overhead)
       history.sort((a, b) => {
         const tA = Date.parse(a.decided_at || a.created_at || "") || 0;
@@ -151,10 +130,8 @@ export function useClinicalVerification(
 
       const matchingHistory = history.filter((record: any) => {
         if (policy) return recordMatchesPolicy(record, policy);
-        if (beneficiaryNum && normalizePolicyNumber(record?.beneficiary_number) === beneficiaryNum) return true;
-        const rName = normalizePatientNameForMatch(record?.patient_name || "");
-        const pName = normalizePatientNameForMatch(patientName);
-        return Boolean(rName && pName && rName === pName);
+        if (beneficiaryNum && normalizeBeneficiaryNumber(record?.beneficiary_number) === beneficiaryNum) return true;
+        return false;
       }).map((record: any) => ({
         ...record,
         date: record.date || record.decided_at || record.created_at,
@@ -192,9 +169,10 @@ export function useClinicalVerification(
 
     // 2. NHIS family & policy resolution (Indexed lookups, NO unindexed RPC calls)
     try {
-      let matchedRows: any[] = [];
+      let policyRows: any[] = [];
       if (policy) {
-        const conditions = new Set([`policy_number.eq.${policy}`]);
+        const conditions = new Set<string>();
+        conditions.add(`policy_number.eq.${policy}`);
         if (policyRoot && policyRoot !== policy) conditions.add(`policy_number.eq.${policyRoot}`);
         if (policyRoot) conditions.add(`policy_number.like.${policyRoot}-%`);
         const { data, error } = await withTimeout(
@@ -206,99 +184,42 @@ export function useClinicalVerification(
           4000
         );
         if (error) throw error;
-        matchedRows = data || [];
+        policyRows = data || [];
       }
-      const hasPolicyMatch = matchedRows.length > 0;
-
-      // Name fallback — only runs if policy didn't match
-      if (!hasPolicyMatch && patientName) {
-        const namePrefixes = [...new Set(cleanPatientName(patientName)
-          .split(/\s+/)
-          .map((word) => word.replace(/[^a-z0-9]/gi, ""))
-          .filter((word) => word.length >= 3))];
-        if (namePrefixes.length) {
-          const { data, error } = await withTimeout(
-            supabase
-              .from("nhis_beneficiaries")
-              .select("id,full_name,surname,first_name,hcp_name,hcp_code,member_type,policy_number,beneficiary_number")
-              .or(namePrefixes.map((word) => `full_name.ilike.${word}%`).join(","))
-              .limit(30),
-            4000
-          );
-          if (error) throw error;
-          matchedRows = data || [];
-        }
+      const hasPolicyMatch = policyRows.length > 0;
+      let fallbackRows: any[] = [];
+      if (!hasPolicyMatch && policy) {
+        const { data: patients, error } = await withTimeout(
+          supabase.from("patients").select("id,policy_number,surname,first_name,role,expiry_date").eq("policy_number", policy),
+          4000,
+        );
+        if (error) throw error;
+        fallbackRows = patients || [];
       }
 
-      const hasNameMatch = matchedRows.length > 0 && !hasPolicyMatch;
-
-      let matchStatus: "exact" | "partial" | "none" = "none";
+      const candidateRows = hasPolicyMatch ? policyRows : fallbackRows;
+      const identityMatch = resolveBeneficiaryIdentityMatch(
+        candidateRows,
+        patientName,
+        request?.beneficiary_number,
+      );
       let bestMatchMemberId: string | null = null;
       let bestMatchBeneficiaryNumber: string | null = null;
-
-      if (hasNameMatch || hasPolicyMatch) {
-        const normalizedRequestedName = patientName
-          .toLowerCase()
-          .replace(/[^a-z0-9]+/g, " ")
-          .trim()
-          .split(/\s+/)
-          .filter(Boolean)
-          .sort()
-          .join(" ");
-        const requestedBeneficiary = String(request?.beneficiary_number || "").trim().toUpperCase();
-        const exactBeneficiaryMatch = requestedBeneficiary
-          ? matchedRows.find((row) => String(row.beneficiary_number || "").trim().toUpperCase() === requestedBeneficiary)
-          : undefined;
-        const exactNameMatch = matchedRows.find((row) => {
-          const rowName = String(row.full_name || `${row.surname || ""} ${row.first_name || ""}`)
-            .toLowerCase()
-            .replace(/[^a-z0-9]+/g, " ")
-            .trim()
-            .split(/\s+/)
-            .filter(Boolean)
-            .sort()
-            .join(" ");
-          return rowName === normalizedRequestedName;
-        });
-        if (requestedBeneficiary ? exactBeneficiaryMatch && exactNameMatch?.id === exactBeneficiaryMatch.id : exactNameMatch) {
-          matchStatus = "exact";
-          const matchedMember = exactBeneficiaryMatch || exactNameMatch;
-          bestMatchMemberId = matchedMember.id;
-          bestMatchBeneficiaryNumber = String(matchedMember.beneficiary_number || "").trim() || null;
-        }
+      if (identityMatch.status === "exact" && identityMatch.member) {
+        bestMatchMemberId = identityMatch.member.id || null;
+        bestMatchBeneficiaryNumber = String(identityMatch.member.beneficiary_number || "").trim() || null;
       }
 
       setMatchedMemberId(bestMatchMemberId);
       setMatchedBeneficiaryNumber(bestMatchBeneficiaryNumber);
-      setPatientMatchStatus(matchStatus);
+      setPatientMatchStatus(identityMatch.status);
       setPolicyVerified(hasPolicyMatch);
-      setNhisVerified(hasPolicyMatch || hasNameMatch);
+      setNhisVerified(hasPolicyMatch);
 
-      // Fallback to patients table if no NHIS match
-      if (matchedRows.length > 0) {
-        setPatientVerified(true);
-        setFamilyMembers(matchedRows);
-      } else if (request?.policy_number) {
-        const { data: patients, error } = await withTimeout(
-          supabase.from("patients").select("*").eq("policy_number", request.policy_number),
-          4000,
-        );
-        if (error) throw error;
-        if (patients && patients.length > 0) {
-          setPatientVerified(true);
-          setFamilyMembers(patients);
-          const principal = patients.find((p: any) => p.role === "PRINCIPAL") || patients[0];
-          if (principal.expiry_date && new Date(principal.expiry_date) < new Date()) {
-            setPatientVerified(false);
-          }
-        } else {
-          setPatientVerified(false);
-          setFamilyMembers([]);
-        }
-      } else {
-        setPatientVerified(false);
-        setFamilyMembers([]);
-      }
+      // Only policy-scoped NHIS rows can be presented as this policy's family.
+      // Broad name searches across policies are intentionally not used for identity.
+      setPatientVerified(identityMatch.status === "exact");
+      setFamilyMembers(hasPolicyMatch ? policyRows : fallbackRows);
     } catch (nhisErr) {
       console.warn("NHIS verification warning:", nhisErr);
       setVerificationLoadFailed(true);

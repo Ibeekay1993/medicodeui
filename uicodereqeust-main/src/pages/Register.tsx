@@ -65,6 +65,7 @@ export default function Register() {
   const [tokenRole, setTokenRole] = useState<string | null>(null);
   const [tokenHospitalId, setTokenHospitalId] = useState<string | null>(null);
   const [tokenEmail, setTokenEmail] = useState<string | null>(null);
+  const [invitationToken, setInvitationToken] = useState<string | null>(null);
 
   // Invitation tokens stored strictly in memory
   const [pendingTokens, setPendingTokens] = useState<{ accessToken: string; refreshToken: string } | null>(null);
@@ -86,6 +87,33 @@ export default function Register() {
       const searchParams = new URLSearchParams(window.location.search);
       const hash = window.location.hash || "";
       const hashParams = new URLSearchParams(hash.startsWith("#") ? hash.slice(1) : hash);
+
+      // New links use an app-owned seven-day bearer token. Validation is
+      // read-only: opening, refreshing, or abandoning this page does not use it.
+      const customToken = hashParams.get("invitation") || searchParams.get("invitation") || sessionStorage.getItem("pending_custom_invitation") || "";
+      if (customToken) {
+        setInvitationToken(customToken);
+        sessionStorage.setItem("pending_custom_invitation", customToken);
+        if (window.location.search || window.location.hash) {
+          window.history.replaceState(null, "", window.location.pathname);
+        }
+        const { data: validation, error: validationError } = await supabase.functions.invoke("invitation-validate", {
+          body: { token: customToken },
+        });
+        if (validationError || validation?.success !== true) {
+          setInviteError(validation?.message || validationError?.message || "This invitation is invalid or has expired. Ask an administrator to resend it.");
+          setSessionResolving(false);
+          return;
+        }
+        setTokenRole(String(validation.role || ""));
+        setTokenHospitalId(validation.hospital_id || null);
+        setTokenEmail(validation.email || null);
+        setFullName(String(validation.full_name || ""));
+        setHospitalName(String(validation.hospital_name || ""));
+        setPendingTokens(null);
+        setSessionResolving(false);
+        return;
+      }
 
       // 0. Check for GoTrue error redirect in query params or hash
       const urlErrorDesc = searchParams.get("error_description") || hashParams.get("error_description");
@@ -266,7 +294,7 @@ export default function Register() {
       toast({ variant: "destructive", title: "Error", description: "Hospital name is required." });
       return;
     }
-    if (!pendingTokens) {
+    if (!pendingTokens && !invitationToken) {
       toast({
         variant: "destructive",
         title: "Session Expired",
@@ -278,9 +306,54 @@ export default function Register() {
     setLoading(true);
 
     try {
+      if (invitationToken) {
+        const { data: activation, error: activationError } = await supabase.functions.invoke("invitation-accept", {
+          body: {
+            token: invitationToken,
+            fullName: fullName.trim(),
+            password,
+            hospitalName: hospitalName.trim(),
+            acceptedTerms: acceptTerms,
+            acceptedPrivacy: acceptPrivacy,
+          },
+        });
+        if (activationError || activation?.success !== true) {
+          throw new Error(activation?.message || activationError?.message || "Account setup could not be completed. Please retry.");
+        }
+
+        sessionStorage.removeItem("pending_custom_invitation");
+        const activatedRole = String(activation.role || tokenRole || "");
+        const activationEmail = String(activation.email || tokenEmail || "");
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email: activationEmail,
+          password,
+        });
+        if (signInError) {
+          toast({
+            title: "Account activated",
+            description: "Your account is ready. Sign in with your new password to continue.",
+          });
+          navigate("/login", { replace: true });
+          return;
+        }
+
+        toast({ title: "Registration Complete", description: "Your account is ready. Welcome to Ronsberger HMO!" });
+        if (activatedRole === "hospital") navigate("/dashboard", { replace: true });
+        else if (activatedRole === "admin") navigate("/backoffice/admin", { replace: true });
+        else if (activatedRole === "utilization_manager" || activatedRole === "utilization_manager_lead") navigate("/backoffice/utilization-manager", { replace: true });
+        else if (activatedRole === "claims" || activatedRole === "claims_lead") navigate("/backoffice/claims", { replace: true });
+        else if (activatedRole === "finance") navigate("/backoffice/finance", { replace: true });
+        else navigate("/login", { replace: true });
+        return;
+      }
+
+      const legacyTokens = pendingTokens;
+      if (!legacyTokens) {
+        throw new Error("Registration session expired. Please reopen your invitation link.");
+      }
       const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
-        access_token: pendingTokens.accessToken,
-        refresh_token: pendingTokens.refreshToken,
+        access_token: legacyTokens.accessToken,
+        refresh_token: legacyTokens.refreshToken,
       });
 
       if (sessionError || !sessionData?.session) {
@@ -348,6 +421,7 @@ export default function Register() {
         .from("user_roles")
         .update({
           full_name: fullName.trim(),
+          access_status: "active",
           onboarding_completed: true,
           onboarding_completed_at: new Date().toISOString(),
           invite_status: "completed",
@@ -452,7 +526,7 @@ export default function Register() {
                   Helpful troubleshooting tips:
                 </p>
                 <ul className="list-disc pl-4 space-y-1 text-slate-600">
-                  <li>Invitation links are single-use and expire after 7 days.</li>
+                  <li>New invitation links expire seven days after they are issued. Opening a new link does not use it.</li>
                   <li>If opening from an email app, try opening the link directly in Chrome or Safari.</li>
                   <li>If your password was already set up, you can proceed directly to login.</li>
                 </ul>

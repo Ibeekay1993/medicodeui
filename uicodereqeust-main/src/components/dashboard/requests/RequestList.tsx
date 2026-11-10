@@ -348,7 +348,7 @@ export function RequestList({
               <div key={r.id} className="flex cursor-pointer flex-col rounded-xl border border-slate-200 bg-white p-3 shadow-sm transition-colors hover:bg-slate-50 active:bg-slate-50" onClick={() => onSelectRequest(r)}>
                 {/* Header Row */}
                 <div className="mb-1 flex items-start justify-between gap-2">
-                  <span className="min-w-0 flex-1 text-sm font-semibold normal-case leading-snug text-slate-900">{r.patient_name}</span>
+                <span className="min-w-0 flex-1 break-words text-sm font-semibold normal-case leading-snug text-slate-900 [overflow-wrap:anywhere]">{r.patient_name}</span>
                   <div className={cn(
                     "flex shrink-0 items-center gap-1.5 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[10px] font-semibold",
                     statusColor
@@ -361,6 +361,19 @@ export function RequestList({
                 {/* Diagnosis */}
                 <div className="mb-1.5 line-clamp-2 text-xs font-medium leading-relaxed text-slate-600">
                   {r.diagnosis || "No diagnosis recorded"}
+                </div>
+
+                <div className="mb-2 grid min-w-0 grid-cols-1 gap-x-3 gap-y-1 text-[11px] sm:grid-cols-2">
+                  <div className="min-w-0">
+                    <span className="font-semibold text-slate-400">Hospital</span>
+                    <span className="ml-1 break-words font-medium text-slate-700 [overflow-wrap:anywhere]">
+                      {r.claiming_hospital_name || r.requesting_hospital_name || r.hospital_name || "Not recorded"}
+                    </span>
+                  </div>
+                  <div className="min-w-0">
+                    <span className="font-semibold text-slate-400">Policy</span>
+                    <span className="ml-1 break-all font-mono font-medium text-slate-700">{r.policy_number || "Not recorded"}</span>
+                  </div>
                 </div>
 
                 {/* Referral */}

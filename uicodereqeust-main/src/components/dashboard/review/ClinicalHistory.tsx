@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { format } from "date-fns";
-import { normalizePatientNameForMatch, normalizePolicyNumber, normalizePolicyRoot } from "@/lib/clinicalUtils";
+import { matchesBeneficiaryHistoryRecord } from "@/lib/clinicalUtils";
 import { ChevronDown, ChevronUp, Clock3, Loader2 } from "lucide-react";
 
 interface ClinicalHistoryProps {
@@ -11,6 +11,7 @@ interface ClinicalHistoryProps {
   requestPatientName: string;
   requestPolicyNumber: string;
   requestBeneficiaryNumber?: string | null;
+  familyMembers?: Array<Record<string, unknown>>;
   checking?: boolean;
   historyLoadFailed?: boolean;
   onRetryHistory?: () => void;
@@ -132,62 +133,27 @@ export function ClinicalHistory({
   requestPatientName,
   requestPolicyNumber,
   requestBeneficiaryNumber,
+  familyMembers = [],
   checking = false,
   historyLoadFailed = false,
   onRetryHistory,
 }: ClinicalHistoryProps) {
   const [expanded, setExpanded] = useState(true);
   const [includeDependents, setIncludeDependents] = useState(false);
+  const currentBeneficiaryNumber = requestBeneficiaryNumber || request?.beneficiary_number || null;
 
-  // Filter history based on includeDependents toggle
-  const currentPatientClean = normalizePatientNameForMatch(requestPatientName || "");
-  const currentBeneficiaryNumber = normalizePolicyNumber(
-    requestBeneficiaryNumber || request?.beneficiary_number || "",
-  ).toUpperCase();
-  const familyPolicyRoot = normalizePolicyRoot(requestPolicyNumber).toUpperCase();
-
-  // Clean beneficiary ID by standardizing suffix (e.g. 2871167-02 -> 2871167-2)
-  const normBenId = (val: string) => String(val || "").replace(/[^\dA-Za-z-]/g, "").replace(/-0+([1-9])/g, "-$1").toUpperCase();
-
-  const filteredHistory = visibleHistory.filter((record) => {
-    const recordPolicy = normalizePolicyNumber(record.policy_number || "").toUpperCase();
-    const recordBen = normalizePolicyNumber(record.beneficiary_number || "").toUpperCase();
-    const recordPolicyRoot = normalizePolicyRoot(recordPolicy || recordBen).toUpperCase();
-
-    if (includeDependents) {
-      // Include any record belonging to the same family policy root
-      if (familyPolicyRoot && recordPolicyRoot === familyPolicyRoot) return true;
-      if (familyPolicyRoot && (recordPolicy.includes(familyPolicyRoot) || recordBen.includes(familyPolicyRoot))) return true;
-      return false;
-    }
-
-    const recordPatientClean = normalizePatientNameForMatch(record.patient_name || record.name || "");
-    const storedBeneficiaryNumber = normBenId(record.beneficiary_number || "");
-    const storedPolicyNumber = normBenId(record.policy_number || "");
-    const cleanCurrentBen = normBenId(currentBeneficiaryNumber);
-
-    const inferredBeneficiaryNumber = storedBeneficiaryNumber || (
-      storedPolicyNumber && normalizePolicyRoot(storedPolicyNumber).toUpperCase() === familyPolicyRoot &&
-      storedPolicyNumber !== familyPolicyRoot
-        ? storedPolicyNumber
-        : ""
-    );
-
-    // 1. Direct normalized beneficiary ID match (e.g. 2871167-2 === 2871167-2)
-    if (cleanCurrentBen && inferredBeneficiaryNumber && inferredBeneficiaryNumber === cleanCurrentBen) {
-      return true;
-    }
-
-    // 2. Exact patient name match within the same family policy
-    if (currentPatientClean && recordPatientClean === currentPatientClean) {
-      if (!familyPolicyRoot || recordPolicyRoot === familyPolicyRoot || !recordPolicyRoot) {
-        return true;
-      }
-    }
-
-    // 3. Fallback: if record has matching beneficiary ID
-    return Boolean(cleanCurrentBen && inferredBeneficiaryNumber && inferredBeneficiaryNumber === cleanCurrentBen);
-  });
+  const filteredHistory = visibleHistory.filter((record) =>
+    matchesBeneficiaryHistoryRecord(
+      record,
+      {
+        patientName: requestPatientName,
+        policyNumber: requestPolicyNumber,
+        beneficiaryNumber: currentBeneficiaryNumber,
+      },
+      familyMembers,
+      includeDependents,
+    ),
+  );
   return (
     <div className="w-full">
       <div className="bg-white rounded-2xl p-4 mb-3 border border-slate-100 shadow-sm">

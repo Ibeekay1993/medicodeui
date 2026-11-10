@@ -302,30 +302,30 @@ export default function HistoricalCodeImportPage() {
   return (
     <div className="w-full space-y-6 pb-12 animate-in fade-in duration-500 px-2 sm:px-4 lg:px-6">
       {/* Top Navigation Tabs */}
-      <div className="flex border-b border-slate-200 gap-6">
+      <div className="grid grid-cols-1 gap-2 border-b border-slate-200 pb-2 sm:flex sm:gap-6 sm:pb-0">
         <button
           type="button"
           onClick={() => setActiveTab("authorisations")}
-          className={`pb-3 text-sm font-semibold transition-colors relative flex items-center gap-2 ${
+          className={`relative flex min-h-11 w-full items-start gap-2 rounded-lg border px-3 py-2 text-left text-sm font-semibold leading-snug transition-colors sm:min-h-0 sm:w-auto sm:items-center sm:rounded-none sm:border-0 sm:px-0 sm:pb-3 ${
             activeTab === "authorisations"
-              ? "text-emerald-700 border-b-2 border-emerald-600 font-bold"
-              : "text-slate-500 hover:text-slate-800"
+              ? "border-emerald-200 bg-emerald-50 text-emerald-700 sm:border-b-2 sm:border-emerald-600 sm:bg-transparent sm:font-bold"
+              : "border-slate-200 text-slate-500 hover:bg-slate-50 sm:border-b-2 sm:border-transparent sm:hover:bg-transparent sm:hover:text-slate-800"
           }`}
         >
-          <FileSpreadsheet className="h-4 w-4" />
+          <FileSpreadsheet className="mt-0.5 h-4 w-4 shrink-0 sm:mt-0" />
           Historical Authorisations & Tariffs (Payment Advice)
         </button>
 
         <button
           type="button"
           onClick={() => setActiveTab("codes")}
-          className={`pb-3 text-sm font-semibold transition-colors relative flex items-center gap-2 ${
+          className={`relative flex min-h-11 w-full items-start gap-2 rounded-lg border px-3 py-2 text-left text-sm font-semibold leading-snug transition-colors sm:min-h-0 sm:w-auto sm:items-center sm:rounded-none sm:border-0 sm:px-0 sm:pb-3 ${
             activeTab === "codes"
-              ? "text-emerald-700 border-b-2 border-emerald-600 font-bold"
-              : "text-slate-500 hover:text-slate-800"
+              ? "border-emerald-200 bg-emerald-50 text-emerald-700 sm:border-b-2 sm:border-emerald-600 sm:bg-transparent sm:font-bold"
+              : "border-slate-200 text-slate-500 hover:bg-slate-50 sm:border-b-2 sm:border-transparent sm:hover:bg-transparent sm:hover:text-slate-800"
           }`}
         >
-          <Upload className="h-4 w-4" />
+          <Upload className="mt-0.5 h-4 w-4 shrink-0 sm:mt-0" />
           Legacy Code Registry
         </button>
       </div>

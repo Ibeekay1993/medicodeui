@@ -12,7 +12,6 @@ import {
   Settings, 
   LogOut, 
   ShieldCheck, 
-  Bell, 
   ChevronLeft, 
   ChevronRight,
   Menu,
@@ -101,6 +100,18 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   };
 
   const navigation = getNavigation();
+  const navigationGroups = role === "admin"
+    ? [
+        { title: "Workspace", names: ["Dashboard", "Authorizations", "Messages", "WhatsApp Parser"] },
+        { title: "Claims & finance", names: ["Claims Queue", "Payments", "Claims Report", "Payment Reports", "Pre-Auth Report"] },
+        { title: "Organization", names: ["Hospitals", "Users", "Announcements"] },
+        { title: "Operations & records", names: ["WhatsApp Access", "Audit Feed", "Delete Requests", "NHIS Update", "Historical Import"] },
+        { title: "Account", names: ["Settings"] },
+      ].map((group) => ({
+        ...group,
+        items: navigation.filter((item) => group.names.includes(item.name)),
+      })).filter((group) => group.items.length > 0)
+    : [{ title: "", names: navigation.map((item) => item.name), items: navigation }];
 
   const isActiveRoute = (href?: string | null) => {
     if (!href || typeof href !== "string") return false;
@@ -294,15 +305,20 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         </div>
 
         <nav className="flex-1 px-3 space-y-1.5 overflow-y-auto" role="navigation" aria-label="Main navigation">
-          {navigation.map((item) => (
-            <NavItem
-              key={item.name}
-              item={item}
-              isActive={isActiveRoute(item.href)}
-              onClick={() => navigate(item.href)}
-              variant="rail"
-              expanded={isSidebarExpanded}
-            />
+          {navigationGroups.map((group) => (
+            <div key={group.title || "main-navigation"} className="space-y-1.5">
+              {group.title && isSidebarExpanded && <p className="px-4 pt-3 pb-1 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500">{group.title}</p>}
+              {group.items.map((item) => (
+                <NavItem
+                  key={item.name}
+                  item={item}
+                  isActive={isActiveRoute(item.href)}
+                  onClick={() => navigate(item.href)}
+                  variant="rail"
+                  expanded={isSidebarExpanded}
+                />
+              ))}
+            </div>
           ))}
         </nav>
 
@@ -352,16 +368,6 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               <p className="text-xs font-semibold text-slate-900 truncate max-w-[140px]">{fullName || "Complete Profile"}</p>
               <p className="text-xs font-medium capitalize text-brand-700">{role}</p>
             </div>
-            <Button variant="ghost" size="icon"
-              className={cn("h-8 w-8 rounded-lg relative", actionableMessages > 0 ? "text-brand-700" : "text-slate-400")}
-              aria-label={`Notifications${actionableMessages > 0 ? `, ${actionableMessages} unread` : ""}`}>
-              <Bell className="h-4 w-4" />
-              {actionableMessages > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-sky-500 text-xs font-bold text-white ring-2 ring-white">
-                  {actionableMessages > 9 ? "9+" : actionableMessages}
-                </span>
-              )}
-            </Button>
             <Button variant="ghost" size="icon" onClick={() => setIsMobileMenuOpen(true)}
               className="md:hidden h-8 w-8 rounded-lg bg-slate-50 text-slate-600" aria-label="Open navigation menu">
               <Menu className="h-5 w-5" />
@@ -408,15 +414,20 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           </div>
 
           <div className="flex-1 overflow-y-auto p-4 space-y-1">
-            {navigation.map((item) => (
-              <SheetClose asChild key={item.name}>
-                <NavItem
-                  item={item}
-                  isActive={isActiveRoute(item.href)}
-                  onClick={() => navigate(item.href)}
-                  variant="sheet"
-                />
-              </SheetClose>
+            {navigationGroups.map((group) => (
+              <div key={group.title || "main-navigation"} className="space-y-1">
+                {group.title && <p className="px-4 pt-3 pb-1 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500">{group.title}</p>}
+                {group.items.map((item) => (
+                  <SheetClose asChild key={item.name}>
+                    <NavItem
+                      item={item}
+                      isActive={isActiveRoute(item.href)}
+                      onClick={() => navigate(item.href)}
+                      variant="sheet"
+                    />
+                  </SheetClose>
+                ))}
+              </div>
             ))}
           </div>
 

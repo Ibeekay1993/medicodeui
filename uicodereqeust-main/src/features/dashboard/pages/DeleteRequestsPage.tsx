@@ -125,16 +125,16 @@ export default function DeleteRequestsPage() {
           </div>
         </div>
 
-        <div className="inline-flex h-8 items-center gap-1 rounded-lg bg-slate-100 p-0.5 self-end sm:self-auto">
+        <div className="grid w-full grid-cols-2 items-center gap-1 rounded-lg bg-slate-100 p-1 self-end sm:inline-flex sm:h-8 sm:w-auto sm:p-0.5 sm:self-auto">
           <button 
             onClick={() => setActiveTab("queue")} 
-            className={cn("rounded-md px-3 py-1 text-xs font-bold transition-all", activeTab === "queue" ? "bg-slate-900 text-white shadow-sm" : "text-slate-600 hover:bg-slate-200/70")}
+            className={cn("min-h-11 min-w-0 rounded-md px-2 py-1 text-center text-[11px] font-bold leading-tight transition-all sm:h-full sm:min-h-0 sm:px-3 sm:text-xs", activeTab === "queue" ? "bg-slate-900 text-white shadow-sm" : "text-slate-600 hover:bg-slate-200/70")}
           >
             Queue ({rows.length})
           </button>
           <button 
             onClick={() => setActiveTab("archive")} 
-            className={cn("inline-flex items-center gap-1 rounded-md px-3 py-1 text-xs font-bold transition-all", activeTab === "archive" ? "bg-slate-900 text-white shadow-sm" : "text-slate-600 hover:bg-slate-200/70")}
+            className={cn("inline-flex min-h-11 min-w-0 items-center justify-center gap-1 rounded-md px-2 py-1 text-center text-[11px] font-bold leading-tight transition-all sm:h-full sm:min-h-0 sm:px-3 sm:text-xs", activeTab === "archive" ? "bg-slate-900 text-white shadow-sm" : "text-slate-600 hover:bg-slate-200/70")}
           >
             <Archive className="h-3 w-3" /> Archive
           </button>

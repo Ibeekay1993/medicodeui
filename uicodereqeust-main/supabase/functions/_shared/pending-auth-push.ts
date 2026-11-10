@@ -10,12 +10,18 @@ type PushClient = {
   };
 };
 
+const PUSH_NOTIFICATIONS_ENABLED = false;
+
 /** Dispatch a best-effort approver alert without delaying request creation. */
 export function schedulePendingAuthorizationPush(
   supabase: PushClient,
   requestId: string,
   hospitalName: string | null | undefined,
 ) {
+  // Push fan-out is intentionally paused to keep request intake independent
+  // from device subscriptions and notification delivery.
+  if (!PUSH_NOTIFICATIONS_ENABLED) return;
+
   const sharedSecret = Deno.env.get("WHATSAPP_WORKER_SECRET") ||
     Deno.env.get("MEDAUTH_INTERNAL_API_KEY") || "";
 

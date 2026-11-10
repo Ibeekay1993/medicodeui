@@ -69,6 +69,12 @@ export function normalizePolicyNumber(value: unknown) {
     .trim();
 }
 
+export function normalizeBeneficiaryNumber(value: unknown) {
+  return normalizePolicyNumber(value)
+    .toUpperCase()
+    .replace(/-0+([1-9]\d*)$/, "-$1");
+}
+
 export function normalizePolicyRoot(value: unknown) {
   const raw = String(value ?? "").trim();
   if (!raw) return "";
@@ -91,22 +97,17 @@ export function recordMatchesPolicy(record: any, policy: string) {
   const recordPolicy = normalizePolicyNumber(recordRawPolicy);
   const recordBen = normalizePolicyNumber(recordRawBen);
   const normalizedPolicy = normalizePolicyNumber(policy);
-  const recordRoot = normalizePolicyRoot(recordRawPolicy || recordRawBen);
-  const policyRoot = normalizePolicyRoot(policy);
 
   if (recordPolicy && normalizedPolicy && recordPolicy === normalizedPolicy) return true;
   if (recordBen && normalizedPolicy && recordBen === normalizedPolicy) return true;
-  if (recordRoot && policyRoot && recordRoot === policyRoot) return true;
-  if (recordPolicy && policyRoot && (recordPolicy.startsWith(policyRoot) || recordPolicy.includes(policyRoot))) return true;
-  if (recordBen && policyRoot && (recordBen.startsWith(policyRoot) || recordBen.includes(policyRoot))) return true;
-  if (normalizedPolicy && recordRoot && (normalizedPolicy.startsWith(recordRoot) || normalizedPolicy.includes(recordRoot))) return true;
 
-  // Name fallback match for same patient if policy numbers are slightly dissimilar
-  const recordName = normalizePatientNameForMatch(record?.patient_name || record?.name);
-  const targetName = normalizePatientNameForMatch(record?.target_patient_name || policy);
-  if (recordName && targetName && recordName === targetName) return true;
-
-  return false;
+  // Family membership is represented by a numeric policy root plus an
+  // optional numeric dependant suffix (for example 1639554 and 1639554-2).
+  // Avoid substring/prefix matching: policy 1639554 must never match 11639554.
+  const familyNumber = (value: string) => value.toUpperCase().match(/^(\d{4,12})(?:-(\d+))?$/);
+  const targetFamily = familyNumber(normalizedPolicy);
+  const recordFamily = familyNumber(recordPolicy || recordBen);
+  return Boolean(targetFamily && recordFamily && targetFamily[1] === recordFamily[1]);
 }
 
 export function recordMatchesHistory(record: any, policy: string) {
@@ -114,16 +115,114 @@ export function recordMatchesHistory(record: any, policy: string) {
 }
 
 export function normalizePatientNameForMatch(value: unknown) {
-  const cleaned = cleanPatientName(String(value ?? ""))
+  const withoutTitles = String(value ?? "")
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/^\s*(?:(?:mr|mrs|miss|ms|dr|prof|professor)\.?\s+)+/i, "");
+
+  return withoutTitles
     .toLowerCase()
     .replace(/[^a-z0-9\s]/g, " ")
-    .trim();
-
-  return cleaned
+    .trim()
     .split(/\s+/)
-    .filter(w => w.length >= 2 && !["null", "nil", "none", "na", "undefined"].includes(w))
+    .filter((token) => token && !["null", "nil", "none", "na", "undefined"].includes(token))
     .sort()
     .join(" ");
+}
+
+export interface BeneficiaryIdentityCandidate {
+  id?: string | null;
+  beneficiary_number?: unknown;
+  full_name?: unknown;
+  name?: unknown;
+  first_name?: unknown;
+  surname?: unknown;
+}
+
+export type BeneficiaryIdentityMatchStatus = "exact" | "none" | "ambiguous" | "conflict";
+
+/**
+ * Resolve a name only within a caller-supplied, already policy-scoped candidate
+ * set. Names are order-insensitive, but the complete token set must agree.
+ * A reliable beneficiary number can narrow to one member; it cannot override
+ * conflicting name evidence or duplicate identifiers.
+ */
+export function resolveBeneficiaryIdentityMatch<T extends BeneficiaryIdentityCandidate>(
+  candidates: T[],
+  submittedName: unknown,
+  submittedBeneficiaryNumber?: unknown,
+): { status: BeneficiaryIdentityMatchStatus; member: T | null } {
+  const name = normalizePatientNameForMatch(submittedName);
+  const beneficiaryNumber = normalizeBeneficiaryNumber(submittedBeneficiaryNumber);
+  const getCandidateName = (candidate: T) => {
+    const fullName = String(candidate.full_name || candidate.name || "").trim();
+    return fullName || [candidate.surname, candidate.first_name]
+      .map((part) => String(part || "").trim())
+      .filter(Boolean)
+      .join(" ");
+  };
+  const matchesName = (candidate: T) => {
+    const candidateName = normalizePatientNameForMatch(getCandidateName(candidate));
+    return Boolean(name && candidateName && candidateName === name);
+  };
+
+  if (beneficiaryNumber) {
+    const byNumber = candidates.filter(
+      (candidate) => normalizeBeneficiaryNumber(candidate.beneficiary_number) === beneficiaryNumber,
+    );
+    if (byNumber.length > 1) return { status: "ambiguous", member: null };
+    if (byNumber.length === 0) {
+      return { status: candidates.some(matchesName) ? "conflict" : "none", member: null };
+    }
+    if (name && !matchesName(byNumber[0])) return { status: "conflict", member: null };
+    return { status: "exact", member: byNumber[0] };
+  }
+
+  const byName = candidates.filter(matchesName);
+  if (byName.length > 1) return { status: "ambiguous", member: null };
+  if (byName.length === 1) return { status: "exact", member: byName[0] };
+  return { status: "none", member: null };
+}
+
+export interface ClinicalHistoryIdentityRecord {
+  policy_number?: unknown;
+  beneficiary_number?: unknown;
+  patient_name?: unknown;
+  name?: unknown;
+}
+
+export function matchesBeneficiaryHistoryRecord(
+  record: ClinicalHistoryIdentityRecord,
+  identity: { patientName: unknown; policyNumber: unknown; beneficiaryNumber?: unknown },
+  familyMembers: BeneficiaryIdentityCandidate[],
+  includeDependents: boolean,
+): boolean {
+  const policyNumber = String(identity.policyNumber ?? "");
+  if (includeDependents) return Boolean(normalizePolicyRoot(policyNumber) && recordMatchesPolicy(record, policyNumber));
+
+  const policyScoped = Boolean(normalizePolicyRoot(policyNumber) && recordMatchesPolicy(record, policyNumber));
+  if (!policyScoped) return false;
+
+  const currentBeneficiary = normalizeBeneficiaryNumber(identity.beneficiaryNumber);
+  const recordPolicy = normalizePolicyNumber(record.policy_number).toUpperCase();
+  const inferredFromPolicy = recordPolicy.match(/^(\d{4,12}-\d+)$/)?.[1] || "";
+  const recordBeneficiary = normalizeBeneficiaryNumber(record.beneficiary_number || inferredFromPolicy);
+  if (currentBeneficiary && recordBeneficiary) return currentBeneficiary === recordBeneficiary;
+
+  const currentName = normalizePatientNameForMatch(identity.patientName);
+  const recordName = normalizePatientNameForMatch(record.patient_name || record.name);
+  if (!currentName || !recordName || currentName !== recordName) return false;
+
+  const familyNameMatches = familyMembers.filter((member) => {
+    const name = String(member.full_name || member.name || [member.surname, member.first_name].filter(Boolean).join(" "));
+    return normalizePatientNameForMatch(name) === currentName;
+  });
+  if (familyNameMatches.length !== 1) return false;
+
+  const familyMemberNumber = normalizeBeneficiaryNumber(familyNameMatches[0].beneficiary_number);
+  if (currentBeneficiary && familyMemberNumber !== currentBeneficiary) return false;
+  if (recordBeneficiary && familyMemberNumber !== recordBeneficiary) return false;
+  return true;
 }
 
 export function canDeleteRequestRecord(record: any) {

@@ -203,6 +203,7 @@ serve(async (req) => {
         _message_id: whatsappMessageId,
         _patient_name: patientName,
         _policy_number: policyNumber,
+        _beneficiary_number: beneficiaryNumber || null,
       },
     );
 
@@ -230,6 +231,9 @@ serve(async (req) => {
       }
       if (reason === "beneficiary_mismatch") {
         return bad(422, "beneficiary_mismatch");
+      }
+      if (reason === "beneficiary_conflict") {
+        return bad(422, "beneficiary_conflict");
       }
       return bad(422, reason);
     }

@@ -690,16 +690,16 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
           )}
 
           {/* TabsList */}
-          <TabsList className="grid grid-cols-2 w-full h-9 sm:h-10 bg-slate-100 p-1 gap-1 mt-3 rounded-lg">
+          <TabsList className="grid h-auto w-full grid-cols-2 bg-slate-100 p-1 gap-1 mt-3 rounded-lg sm:h-10">
             <TabsTrigger
               value="verification"
-              className="h-full min-h-0 min-w-0 w-full whitespace-nowrap rounded-md px-2 py-0 text-xs font-bold text-slate-600 transition-colors data-[state=active]:bg-slate-900 data-[state=active]:text-white data-[state=active]:shadow-none data-[state=inactive]:bg-transparent data-[state=inactive]:text-slate-600 data-[state=inactive]:hover:bg-slate-200/70 active:bg-slate-200 sm:px-4"
+              className="h-11 min-w-0 w-full whitespace-normal break-words rounded-md px-1 py-0 text-center text-[11px] font-bold leading-tight text-slate-600 transition-colors data-[state=active]:bg-slate-900 data-[state=active]:text-white data-[state=active]:shadow-none data-[state=inactive]:bg-transparent data-[state=inactive]:text-slate-600 data-[state=inactive]:hover:bg-slate-200/70 active:bg-slate-200 sm:h-full sm:whitespace-nowrap sm:px-4 sm:text-xs"
             >
               Patient Verify & History
             </TabsTrigger>
             <TabsTrigger
               value="clinical"
-              className="h-full min-h-0 min-w-0 w-full whitespace-nowrap rounded-md px-2 py-0 text-xs font-bold text-slate-600 transition-colors data-[state=active]:bg-slate-900 data-[state=active]:text-white data-[state=active]:shadow-none data-[state=inactive]:bg-transparent data-[state=inactive]:text-slate-600 data-[state=inactive]:hover:bg-slate-200/70 active:bg-slate-200 sm:px-4"
+              className="h-11 min-w-0 w-full whitespace-normal break-words rounded-md px-1 py-0 text-center text-[11px] font-bold leading-tight text-slate-600 transition-colors data-[state=active]:bg-slate-900 data-[state=active]:text-white data-[state=active]:shadow-none data-[state=inactive]:bg-transparent data-[state=inactive]:text-slate-600 data-[state=inactive]:hover:bg-slate-200/70 active:bg-slate-200 sm:h-full sm:whitespace-nowrap sm:px-4 sm:text-xs"
             >
               Clinical Review
             </TabsTrigger>
@@ -774,7 +774,6 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
                   nhisVerified={verification.nhisVerified}
                   familyMembers={verification.familyMembers}
                   earlyRefill={verification.earlyRefill}
-                  requestPatientName={requestPatientName}
                   requestPolicyNumber={requestPolicyNumber}
                   primaryHospitalLoading={primaryHospitalLoading}
                   primaryHospital={primaryHospital}
@@ -792,6 +791,7 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
                   requestPatientName={requestPatientName}
                   requestPolicyNumber={requestPolicyNumber}
                   requestBeneficiaryNumber={verification.matchedBeneficiaryNumber || request?.beneficiary_number || null}
+                  familyMembers={verification.familyMembers}
                   checking={verification.historyChecking}
                   historyLoadFailed={verification.historyLoadFailed}
                   onRetryHistory={() => void verification.runHistoryLookup()}

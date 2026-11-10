@@ -3,11 +3,11 @@ import { assertMfaForSensitiveAction, corsHeaders, getServiceClient, maskEmail, 
 import {
   brevoAccepted,
   escapeHtml,
-  invitationLinkType,
   invitationRedirectUrl,
   invitationSender,
   InvitationConfigurationError,
 } from "../_shared/invitation.ts";
+import { createInvitationToken, hashInvitationToken, invitationActivationUrl } from "../_shared/invitation-token.ts";
 
 interface InvitePayload {
   email?: string;
@@ -50,6 +50,9 @@ serve(async (req) => {
 
   let payload: InvitePayload = {};
   let adminUser: { id?: string; email?: string } | null = null;
+  let issuedTokenHash: string | null = null;
+  let issuedTokenUserId: string | null = null;
+  let invitationEmailAccepted = false;
   const safeAudit = async (supabase: ReturnType<typeof getServiceClient>, action: string, details: Record<string, unknown>, severity = "info") => {
     try {
       const email = typeof details.email === "string" ? details.email.trim().toLowerCase() : "";
@@ -177,7 +180,7 @@ serve(async (req) => {
     // Preserve a pending user's Auth ID; do not delete/recreate identities to resend mail.
     const { data: existingRole, error: existingRoleError } = await supabase
       .from("user_roles")
-      .select("id, user_id, invite_status, onboarding_completed")
+      .select("id, user_id, role, full_name, email, phone, hospital_id, is_team_lead, invite_status, onboarding_completed")
       .ilike("email", normalizedEmail)
       .maybeSingle();
 
@@ -185,20 +188,35 @@ serve(async (req) => {
       throw new InvitationHttpError("Could not verify the existing account. No invitation changes were made.", 503);
     }
 
-    let linkType: "invite" | "magiclink";
-    try {
-      linkType = invitationLinkType(existingRole);
-    } catch {
+    if (existingRole?.onboarding_completed || existingRole?.invite_status === "completed") {
       throw new InvitationHttpError("This account has already completed setup. Use the existing account controls instead.", 409);
     }
+    if (existingRole && !existingRole.user_id) {
+      throw new InvitationHttpError("An unlinked user record already exists for this email. Reconcile it before inviting so no duplicate account is created.", 409);
+    }
+    if (existingRole?.user_id && (existingRole.invite_status !== "pending" || existingRole.onboarding_completed)) {
+      throw new InvitationHttpError("This account is not awaiting invitation setup. No account status was changed; use the approved administrator account controls.", 409);
+    }
+
+    // On a resend, the saved role and organization remain authoritative. A
+    // client cannot use resend to change a pending user's role assignment.
+    const isResend = Boolean(existingRole?.user_id);
+    if (isResend && String(existingRole.role) !== role) {
+      throw new InvitationHttpError("This pending invitation has a different assigned role. Update the user record through the approved administrator workflow first.", 409);
+    }
+    const intendedRole = isResend ? String(existingRole.role) : role;
+    const intendedName = isResend ? String(existingRole.full_name || normalizedName) : normalizedName;
+    const intendedPhone = isResend ? (existingRole.phone || phone) : phone;
+    const intendedHospitalId = isResend ? (existingRole.hospital_id || hospital_id) : hospital_id;
+    const intendedTeamLead = isResend ? Boolean(existingRole.is_team_lead) : Boolean(is_team_lead);
 
     // Resolve hospital name if hospital_id is present
     let hospitalName = "";
-    if (hospital_id) {
+    if (intendedHospitalId) {
       const { data: hospitalData, error: hospitalError } = await supabase
         .from("hospitals")
         .select("name")
-        .eq("id", hospital_id)
+        .eq("id", intendedHospitalId)
         .maybeSingle();
       if (hospitalError || !hospitalData) {
         throw new InvitationHttpError("The selected hospital could not be verified. No invitation was sent.", 400);
@@ -208,47 +226,72 @@ serve(async (req) => {
       }
     }
 
-    // Generate the invite link via Supabase Admin API
-    const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
-      type: linkType,
-      email: normalizedEmail,
-      options: {
-        ...(linkType === "invite" ? { data: { full_name: normalizedName, role, hospital_id } } : {}),
-        redirectTo,
+    let targetUser: { id: string; email?: string | null } | null = null;
+    if (existingRole?.user_id) {
+      const { data: existingAuthUser, error: existingAuthError } = await supabase.auth.admin.getUserById(existingRole.user_id);
+      if (existingAuthError || !existingAuthUser?.user || String(existingAuthUser.user.email || "").toLowerCase() !== normalizedEmail) {
+        throw new InvitationHttpError("The pending account could not be safely verified. No account was replaced.", 409);
       }
-    });
-
-    if (linkError) {
-      if (/already registered|already exists/i.test(linkError.message)) {
-        throw new InvitationHttpError("An account with this email already exists. Use Resend Invite from User Management.", 409);
+      targetUser = existingAuthUser.user;
+    } else {
+      const temporaryPassword = `${createInvitationToken()}Aa1!`;
+      const { data: created, error: createError } = await supabase.auth.admin.createUser({
+        email: normalizedEmail,
+        password: temporaryPassword,
+        email_confirm: false,
+        user_metadata: { full_name: normalizedName, role: intendedRole, hospital_id: intendedHospitalId },
+      });
+      if (createError || !created?.user?.id) {
+        const alreadyExists = /already registered|already exists/i.test(createError?.message || "");
+        throw new InvitationHttpError(
+          alreadyExists
+            ? "An account already exists for this email but is not linked to a pending invitation. Ask an administrator to reconcile the existing account; no duplicate was created."
+            : "Supabase Auth could not prepare the pending account. Check Auth service health and retry.",
+          alreadyExists ? 409 : 502,
+        );
       }
-      throw new InvitationHttpError("Supabase Auth could not create the invitation link. Check the Auth service and retry.", 502);
+      targetUser = created.user;
     }
-    const actionLink = (linkData as any)?.properties?.action_link || (linkData as any)?.action_link;
-    const targetUser = (linkData as any)?.user || linkData;
-    if (!actionLink || !targetUser?.id) {
-      throw new InvitationHttpError("Supabase Auth did not return a secure invitation link.", 502);
-    }
-    if (existingRole?.user_id && targetUser.id !== existingRole.user_id) {
-      throw new InvitationHttpError("The existing account could not be safely matched. No account was replaced.", 409);
-    }
+    if (!targetUser?.id) throw new InvitationHttpError("Supabase Auth did not return the pending account identity.", 502);
 
     // Set the role in user_roles IMMEDIATELY so the record is guaranteed
     const { error: roleError } = await supabase.from("user_roles").upsert([{
       user_id: targetUser.id,
-      role: role,
-      is_team_lead: Boolean(is_team_lead),
-      full_name: normalizedName,
+      role: intendedRole,
+      is_team_lead: intendedTeamLead,
+      full_name: intendedName,
       email: normalizedEmail,
-      phone,
-      hospital_id,
-      access_status: "active",
+      phone: intendedPhone,
+      hospital_id: intendedHospitalId,
+      // Pending accounts must remain blocked even if Auth is marked confirmed
+      // during a retryable activation; completion RPC restores active access.
+      access_status: "suspended",
       invite_status: "pending",
+      onboarding_completed: false,
     }], { onConflict: "user_id" });
 
     if (roleError) {
       throw new InvitationHttpError("The invitation record could not be saved. No delivery was reported.", 503);
     }
+
+    // New links use a non-consuming, random bearer token stored only as a
+    // SHA-256 digest. Opening /register validates it but does not consume it.
+    const invitationToken = createInvitationToken();
+    const invitationTokenHash = await hashInvitationToken(invitationToken);
+    issuedTokenHash = invitationTokenHash;
+    issuedTokenUserId = targetUser.id;
+    const { error: tokenInsertError } = await supabase.from("user_invitation_tokens").insert({
+      user_id: targetUser.id,
+      token_hash: invitationTokenHash,
+      intended_email: normalizedEmail,
+      issued_by: adminUser.id,
+      expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+    });
+    if (tokenInsertError) {
+      console.error("Invitation token storage failed", { code: tokenInsertError.code });
+      throw new InvitationHttpError("The secure invitation could not be stored. No email was sent; retry after the database is available.", 503);
+    }
+    const actionLink = invitationActivationUrl(redirectTo, invitationToken);
 
     // Send via the verified Brevo API sender. A 2xx response without a provider
     // message ID is not treated as a successful invitation.
@@ -262,8 +305,8 @@ serve(async (req) => {
           ["claims_lead", "Claims Lead (Head of Claims)"],
           ["finance", "Finance Officer"],
     ]);
-    const displayRole = roleDisplayNames.get(role) || role;
-    const safeFullName = escapeHtml(normalizedName);
+    const displayRole = roleDisplayNames.get(intendedRole) || intendedRole;
+    const safeFullName = escapeHtml(intendedName);
     const safeHospitalName = escapeHtml(hospitalName);
     const safeActionLink = escapeHtml(actionLink);
 
@@ -280,7 +323,7 @@ serve(async (req) => {
             sender: brevoSender,
             to: [{ email: normalizedEmail }],
             subject: "Ronsberger HMO - You have been invited",
-            textContent: `Hello, ${normalizedName}. You have been invited to the Ronsberger HMO Administrative Portal as ${displayRole}. Set up your account here: ${actionLink}. This personal invitation link expires in 7 days.`,
+            textContent: `Hello, ${intendedName}. You have been invited to the Ronsberger HMO Administrative Portal as ${displayRole}. Set up your account here: ${actionLink}. This personal invitation link expires in 7 days.`,
             htmlContent: `<!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
@@ -372,18 +415,33 @@ serve(async (req) => {
       );
     }
     const providerMessageId = brevoData.messageId;
+    invitationEmailAccepted = true;
 
-    await safeAudit(supabase, "ADMIN_USER_INVITED", {
+      await safeAudit(supabase, "ADMIN_USER_INVITED", {
       function_name: "invite-user",
       email: normalizedEmail,
       email_hash: emailHash,
-      role,
+      role: intendedRole,
       hospital_id,
       invited_user_id: targetUser.id,
       email_sent: true,
       email_provider_message_id: providerMessageId,
+      invitation_expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
       timestamp: new Date().toISOString(),
     });
+
+    const { error: revokeError } = await supabase
+      .from("user_invitation_tokens")
+      .update({ revoked_at: new Date().toISOString() })
+      .eq("user_id", targetUser.id)
+      .neq("token_hash", invitationTokenHash)
+      .is("consumed_at", null)
+      .is("revoked_at", null);
+    if (revokeError) {
+      // The newly sent link works; retain an audit trail if token rotation could
+      // not revoke older links due to a transient database error.
+      console.error("Previous invitation token revocation failed", { code: revokeError.code });
+    }
 
     return new Response(JSON.stringify({ 
       success: true, 
@@ -416,6 +474,13 @@ serve(async (req) => {
     }
     try {
       const supabase = getServiceClient();
+      if (issuedTokenHash && issuedTokenUserId && !invitationEmailAccepted) {
+        await supabase.from("user_invitation_tokens")
+          .update({ revoked_at: new Date().toISOString() })
+          .eq("token_hash", issuedTokenHash)
+          .eq("user_id", issuedTokenUserId)
+          .is("consumed_at", null);
+      }
       await safeAudit(supabase, "ADMIN_USER_INVITATION_FAILED", {
         function_name: "invite-user",
         email: typeof payload?.email === "string" ? payload.email : "",

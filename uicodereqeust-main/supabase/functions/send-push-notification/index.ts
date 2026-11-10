@@ -6,6 +6,7 @@ const VAPID_PUBLIC_KEY = Deno.env.get("VAPID_PUBLIC_KEY") || "";
 const VAPID_PRIVATE_KEY = Deno.env.get("VAPID_PRIVATE_KEY") || "";
 const VAPID_SUBJECT = Deno.env.get("VAPID_SUBJECT") || "mailto:support@ronsbergerhmo.com";
 const INTERNAL_SHARED_SECRET = Deno.env.get("WHATSAPP_WORKER_SECRET") || Deno.env.get("MEDAUTH_INTERNAL_API_KEY") || "";
+const PUSH_NOTIFICATIONS_ENABLED = false;
 
 const ALLOWED_ROLES = ["admin", "utilization_manager", "utilization_manager_lead", "hospital", "claims", "finance"];
 
@@ -19,6 +20,19 @@ function constantTimeEqual(a: string, b: string): boolean {
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
+  }
+
+  // Keep the endpoint available for a clear response, but skip auth fan-out,
+  // VAPID setup, subscription reads, and web-push delivery while paused.
+  if (!PUSH_NOTIFICATIONS_ENABLED) {
+    return new Response(JSON.stringify({
+      success: false,
+      paused: true,
+      message: "Push notifications are currently paused.",
+    }), {
+      status: 410,
+      headers: { ...corsHeaders, "Content-Type": "application/json", "Cache-Control": "no-store" },
+    });
   }
 
   if (req.method !== "POST") {
@@ -40,17 +54,72 @@ serve(async (req) => {
 
     // Browser callers must be signed-in staff. The trusted server-to-server
     // path is used for requests created by Evolution's WhatsApp worker or service role.
-    if (!internalCall) await validateUser(req, ALLOWED_ROLES);
+    const validated = internalCall ? null : await validateUser(req, ALLOWED_ROLES);
 
     if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) {
       throw new Error("Push notifications are not configured on the server");
     }
     webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
 
-    const { target_roles, target_user_ids, target_hospital_id, title, body, url, tag, url_by_role } = await req.json();
+    const { target_roles, target_user_ids, target_hospital_id, authorization_id, title, body, url, tag, url_by_role } = await req.json();
 
     const service = getServiceClient();
     let targetUserIds: string[] = [];
+
+    if (!internalCall && validated) {
+      const actorId = validated.user.id;
+      const role = validated.profile.role;
+      if (Array.isArray(target_user_ids) && target_user_ids.length > 0) {
+        if (target_user_ids.length !== 1 || target_user_ids[0] !== actorId) {
+          throw new Error("Push test notifications may only target the signed-in account.");
+        }
+      } else if (Array.isArray(target_roles) && target_roles.length > 0) {
+        const allowedApproverRoles = ["admin", "utilization_manager", "utilization_manager_lead"];
+        if (target_roles.some((target: unknown) => typeof target !== "string" || !allowedApproverRoles.includes(target))) {
+          throw new Error("The requested notification audience is not permitted.");
+        }
+        if (!["admin", "utilization_manager", "utilization_manager_lead", "hospital"].includes(role) || !authorization_id) {
+          throw new Error("A valid authorization request is required for this notification.");
+        }
+        const { data: request, error: requestError } = await service
+          .from("authorization_requests")
+          .select("id,status,hospital_id,requesting_hospital_id,referred_hospital_id,source")
+          .eq("id", authorization_id)
+          .maybeSingle();
+        if (requestError || !request) throw new Error("Authorization request not found.");
+        if (!["pending", "pending_authorization", "pending_referral", "info_provided"].includes(String(request.status).toLowerCase())) {
+          throw new Error("This request is no longer awaiting review.");
+        }
+        if (role === "hospital" && (!validated.profile.hospital_id || ![
+          request.hospital_id,
+          request.requesting_hospital_id,
+          request.referred_hospital_id,
+        ].includes(validated.profile.hospital_id))) {
+          throw new Error("This request is outside your hospital.");
+        }
+        if (role !== "hospital" && !["admin", "utilization_manager", "utilization_manager_lead"].includes(role)) {
+          throw new Error("Role not permitted");
+        }
+      } else if (target_hospital_id) {
+        if (!["admin", "utilization_manager", "utilization_manager_lead"].includes(role) || !authorization_id) {
+          throw new Error("Only authorized reviewers can notify a request hospital.");
+        }
+        const { data: request, error: requestError } = await service
+          .from("authorization_requests")
+          .select("id,status,hospital_id,requesting_hospital_id,referred_hospital_id")
+          .eq("id", authorization_id)
+          .maybeSingle();
+        if (requestError || !request) throw new Error("Authorization request not found.");
+        const status = String(request.status || "").toLowerCase();
+        const allowedStatus = ["approved", "partially_approved", "rejected"].includes(status);
+        const requestHospitals = [request.hospital_id, request.requesting_hospital_id, request.referred_hospital_id].filter(Boolean);
+        if (!allowedStatus || !requestHospitals.includes(target_hospital_id)) {
+          throw new Error("The hospital does not match this completed authorization.");
+        }
+      } else {
+        throw new Error("A valid notification recipient is required.");
+      }
+    }
 
     if (Array.isArray(target_user_ids) && target_user_ids.length > 0) {
       targetUserIds = target_user_ids;
@@ -145,7 +214,7 @@ serve(async (req) => {
         if (err.statusCode === 404 || err.statusCode === 410) {
           deadSubscriptionEndpoints.push(sub.endpoint);
         } else {
-          console.warn(`Push delivery failed for endpoint ${sub.endpoint}:`, err.message || err);
+          console.warn("Push delivery failed for a registered endpoint", { statusCode: err.statusCode || null });
         }
       }
     });
@@ -170,7 +239,7 @@ serve(async (req) => {
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error: any) {
-    console.error("send-push-notification error:", error);
+    console.error("send-push-notification error", { message: error.message || "unknown" });
     return new Response(
       JSON.stringify({ success: false, error: error.message || "Internal server error" }),
       { status: /Unauthorized|Role not permitted|deactivated/i.test(error.message || "") ? 401 : 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }

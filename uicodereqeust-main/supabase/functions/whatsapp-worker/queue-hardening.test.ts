@@ -28,6 +28,9 @@ describe("queue hardening helpers", () => {
     const result = classifyRetryFailure("beneficiary_mismatch");
     expect(result.kind).toBe("failed");
     expect(result.category).toContain("beneficiary_mismatch");
+    const conflict = classifyRetryFailure("beneficiary_conflict");
+    expect(conflict.kind).toBe("failed");
+    expect(conflict.category).toContain("beneficiary_conflict");
   });
 
   it("classifies transient infrastructure failures as retries", () => {

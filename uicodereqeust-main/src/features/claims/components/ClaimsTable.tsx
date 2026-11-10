@@ -202,26 +202,33 @@ export default function ClaimsTable({
                   ? "border-l-rose-500"
                   : "border-l-amber-500";
 
+              const hasApprovedAmount =
+                c.approved_amount !== undefined &&
+                c.approved_amount !== null &&
+                ["approved", "partially_approved", "paid"].includes(c.status);
+
               return (
-                <div
+                <button
+                  type="button"
                   key={c.id}
+                  aria-label={`Review claim ${c.claim_number} for ${c.patient_name}`}
                   onClick={() => {
                     setSelectedClaimId(c.id);
                     setIsMobileDetailOpen(true);
                   }}
                   className={cn(
-                    "p-3 rounded-xl border border-slate-200/80 bg-white shadow-sm cursor-pointer transition-all duration-200 border-l-4 active:scale-[0.99]",
+                    "block w-full p-3 text-left rounded-xl border border-slate-200/80 bg-white shadow-sm cursor-pointer transition-all duration-200 border-l-4 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 focus-visible:ring-offset-2",
                     statusColor,
                     selectedClaimId === c.id ? "ring-2 ring-slate-400 bg-slate-50" : ""
                   )}
                 >
                   <div className="flex justify-between items-start gap-2">
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm font-bold text-slate-950 uppercase tracking-tight leading-snug truncate">
+                      <p className="break-words text-sm font-bold text-slate-950 uppercase tracking-tight leading-snug [overflow-wrap:anywhere]">
                         {c.patient_name}
                       </p>
-                      <p className="text-xs font-medium text-slate-500 mt-0.5 tracking-tight font-mono truncate">
-                        {c.policy_number} · Ref: {c.claim_number}
+                      <p className="break-words text-xs font-medium text-slate-500 mt-0.5 tracking-tight font-mono [overflow-wrap:anywhere]">
+                        {c.policy_number} · Ref: {c.claim_number} · {formatNigeriaDate(c.created_at)}
                       </p>
                     </div>
                     <div className="shrink-0">
@@ -231,23 +238,28 @@ export default function ClaimsTable({
 
                   <div className="mt-2.5 pt-2 border-t border-slate-100 flex justify-between items-end gap-3">
                     <div className="min-w-0 flex-1">
-                      <p className="font-semibold text-slate-800 text-xs leading-tight truncate">
+                      <p className="break-words font-semibold text-slate-800 text-xs leading-tight [overflow-wrap:anywhere]">
                         {c.diagnosis || "General Consultation"}
                       </p>
-                      <p className="text-[11px] font-medium text-slate-500 mt-0.5 truncate">
+                      <p className="break-words text-[11px] font-medium text-slate-500 mt-0.5 [overflow-wrap:anywhere]">
                         {c.hospital_name}
                       </p>
                     </div>
                     <div className="text-right shrink-0 flex flex-col items-end">
-                      <span className="text-[11px] font-bold text-indigo-700 leading-none font-mono">
+                      <span className="break-all text-[11px] font-bold text-indigo-700 leading-none font-mono">
                         Auth: {c.auth_code}
                       </span>
-                      <span className="font-bold font-mono text-slate-900 text-sm mt-1 leading-none">
+                      <span className="font-bold font-mono text-slate-900 text-sm mt-1 leading-none tabular-nums">
                         {money(c.total_amount)}
                       </span>
+                      {hasApprovedAmount && (
+                        <span className="mt-1 font-mono text-[10px] font-semibold leading-tight text-emerald-700 tabular-nums">
+                          Payable {money(c.approved_amount!)}
+                        </span>
+                      )}
                     </div>
                   </div>
-                </div>
+                </button>
               );
             })}
           </div>
