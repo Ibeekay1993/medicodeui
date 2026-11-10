@@ -6,11 +6,14 @@
    - skipWaiting + clients.claim for seamless version transitions
    ===================================================================== */
 
-const SW_VERSION = "ronsberger-sw-v4";
+const SW_VERSION = "ronsberger-sw-v5";
 const STATIC_CACHE = SW_VERSION + "-static";
 const RUNTIME_CACHE = SW_VERSION + "-runtime";
 
-const IMMUTABLE_EXTENSIONS = [".js", ".css", ".woff2", ".woff", ".ttf"];
+// Vite emits the PDF.js module worker as a content-hashed .mjs asset.
+// Cache it like other immutable build assets so offline/network fallback never
+// returns index.html for a JavaScript module import.
+const IMMUTABLE_EXTENSIONS = [".js", ".mjs", ".css", ".woff2", ".woff", ".ttf"];
 
 const NETWORK_FIRST_URLS = [
   "/",
