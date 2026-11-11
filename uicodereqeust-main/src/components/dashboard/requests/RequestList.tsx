@@ -1,8 +1,9 @@
+import { BrandSpinner } from "@/components/BrandSpinner";
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Copy, Loader2, Trash2, LockKeyhole } from "lucide-react";
+import { Copy, Trash2, LockKeyhole } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
@@ -174,7 +175,7 @@ export function RequestList({
             {isLoading && requests.length === 0 ? (
               <tr>
                 <td colSpan={isClaimsRole ? 7 : 8} className="py-12 text-center text-xs font-black uppercase tracking-widest text-slate-400">
-                  <Loader2 className="mx-auto mb-3 h-6 w-6 animate-spin text-brand-700" />
+                  <BrandSpinner className="mx-auto mb-3 h-6 w-6 animate-spin text-brand-700" />
                   Loading requests...
                 </td>
               </tr>
@@ -313,7 +314,7 @@ export function RequestList({
       <div className="block md:hidden min-h-[50vh] space-y-3 bg-slate-100/70 px-1 py-3 min-[420px]:px-2 sm:px-2">
         {isLoading && requests.length === 0 ? (
           <div className="py-12 text-center text-xs font-black uppercase tracking-widest text-slate-400 bg-white rounded-xl shadow-sm p-6 border border-slate-100">
-            <Loader2 className="mx-auto mb-3 h-6 w-6 animate-spin text-brand-700" />
+            <BrandSpinner className="mx-auto mb-3 h-6 w-6 animate-spin text-brand-700" />
             Loading requests...
           </div>
         ) : requests.length === 0 ? (

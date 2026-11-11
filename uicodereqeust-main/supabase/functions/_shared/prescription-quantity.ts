@@ -28,6 +28,36 @@ function stripTabsEachAnnotation(term: string): string {
     .trim();
 }
 
+function hasExplicitFrequency(term: string): boolean {
+  return /(?:^|\s)(?:O\.?D\.?|DLY|DAILY|Q\.?D\.?|QDAY|ONCE DAILY|B\.?D\.?|BID|TWICE DAILY|T\.?D\.?S\.?|TID|THREE TIMES DAILY|Q\.?I\.?D\.?|QDS|FOUR TIMES DAILY|HS|NOCTE|NIGHTLY|AT NIGHT|PRN|WHEN REQUIRED|AS NEEDED|STAT|IMMEDIATELY)(?=\s|x|×|\*|$)/i.test(term);
+}
+
+function hasExplicitDoseQuantity(term: string): boolean {
+  const cleaned = stripTabsEachAnnotation(term);
+  // Quantity arithmetic is only safe when the prescription states the number
+  // of tablets/capsules per dose. Strength alone (for example, "10 mg daily")
+  // does not establish how many units are taken at each dose.
+  return /\b(?:take\s*)?\d+(?:\.\d+)?\s*(?:tabs?|tablets?|caps?|capsules?)\b/i.test(cleaned);
+}
+
+function hasExplicitDuration(term: string): boolean {
+  const cleaned = stripTabsEachAnnotation(term);
+  const compact = cleaned.replace(/\s+/g, "");
+  return /(?:x|for|×|\*)?\d+[/\\](?:7|12|52)(?!\d)/i.test(compact) ||
+    /\b\d+\s*(?:days?|d|weeks?|wks?|w|months?|mths?|m)\b/i.test(cleaned) ||
+    /(?:^|\s)(?:x|×|\*)\s*\d+\b/i.test(cleaned);
+}
+
+/** A calculated medication count is provisional unless the prescription has
+ * enough explicit supply information to calculate it safely. */
+export function medicationQuantityNeedsReview(term: string): boolean {
+  if (extractUnitQuantity(term) !== null) return false;
+  return extractDurationDays(term).label === "single service" ||
+    !hasExplicitDuration(term) ||
+    !hasExplicitFrequency(term) ||
+    !hasExplicitDoseQuantity(term);
+}
+
 export function extractDurationDays(term: string) {
   // Strip parenthetical annotations before any duration parsing
   const cleaned = stripTabsEachAnnotation(term);

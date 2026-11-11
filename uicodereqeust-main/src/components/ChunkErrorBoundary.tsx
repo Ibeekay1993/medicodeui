@@ -1,4 +1,5 @@
 import React from "react";
+import { BrandSpinner } from "@/components/BrandSpinner";
 
 interface Props {
   children: React.ReactNode;
@@ -106,10 +107,7 @@ export class ChunkErrorBoundary extends React.Component<Props, State> {
         return (
           <div className="min-h-screen w-full bg-slate-50 flex items-center justify-center p-4">
             <div className="flex flex-col items-center gap-6 max-w-sm w-full mx-4">
-              <div className="relative flex h-16 w-16 items-center justify-center rounded-2xl bg-white shadow-md p-2.5">
-                <img src="/ronsberger-logo.webp" alt="Ronsberger HMO Logo" className="h-full w-full object-contain" />
-                <div className="absolute -inset-1 border-2 border-t-[#3f3f95] border-r-[#01aef2] border-b-transparent border-l-transparent rounded-[18px] animate-spin" />
-              </div>
+              <BrandSpinner className="h-16 w-16" />
               <div className="text-center">
                 <p className="badge-label text-[#01aef2] uppercase tracking-wider text-[11px] font-black">Ronsberger HMO</p>
                 <p className="mt-2 text-xs font-bold text-slate-500 uppercase tracking-widest">Updating Workspace...</p>

@@ -1,3 +1,4 @@
+import { BrandSpinner } from "@/components/BrandSpinner";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Lock, Mail, Play, Loader2 } from "lucide-react";
+import { Lock, Mail, Play } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface AdminControlsCardProps {
@@ -194,7 +195,7 @@ export default function AdminControlsCard({ user }: AdminControlsCardProps) {
               )}
             >
               {savingPolicy ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                <BrandSpinner className="h-3.5 w-3.5 animate-spin" />
               ) : enforceMfaPolicy ? (
                 "Disable Policy"
               ) : (
@@ -262,7 +263,7 @@ export default function AdminControlsCard({ user }: AdminControlsCardProps) {
                 size="sm"
                 className="flex-1 sm:flex-none h-10 px-4 text-xs font-semibold bg-slate-900 hover:bg-black text-white shadow-sm"
               >
-                {isSavingSettings ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Save"}
+                {isSavingSettings ? <BrandSpinner className="h-3.5 w-3.5 animate-spin" /> : "Save"}
               </Button>
               <Button
                 onClick={handleTriggerReport}
@@ -272,7 +273,7 @@ export default function AdminControlsCard({ user }: AdminControlsCardProps) {
                 className="flex-1 sm:flex-none h-10 px-4 text-xs font-semibold border-slate-300 text-slate-700 bg-white hover:bg-slate-100 gap-1.5 shadow-sm"
               >
                 {isTriggeringReport ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  <BrandSpinner className="h-3.5 w-3.5 animate-spin" />
                 ) : (
                   <>
                     <Play className="h-3 w-3 fill-current" />

@@ -20,6 +20,9 @@ type ApprovedItem = {
   duration?: string;
   matched_via?: string;
   matched_text?: string;
+  quantity_requires_review?: boolean;
+  price_requires_review?: boolean;
+  declined?: boolean;
 };
 
 function getInitials(nameOrEmail?: string | null) {
@@ -158,8 +161,18 @@ serve(async (req) => {
 
     if (action === "approve") {
       if (!approvedItems.length) throw new Error("At least one approved NHIA item is required");
-      const codes = approvedItems.map((item) => String(item.code || "").trim()).filter(Boolean);
-      if (!codes.length) throw new Error("Approved items must include NHIA codes");
+      const codes = approvedItems.map((item) => String(item.code || "").trim());
+      if (codes.some((code) => !code)) throw new Error("Approved items must include NHIA codes");
+      if (new Set(codes).size !== codes.length) throw new Error("Duplicate NHIA items are not allowed in one approval");
+      if (approvedItems.some((item) => item.declined === true)) {
+        throw new Error("Remove declined lines before using the full approval action");
+      }
+      if (approvedItems.some((item) => item.quantity_requires_review !== false)) {
+        throw new Error("Confirm every treatment quantity from the request or prescription before approval");
+      }
+      if (approvedItems.some((item) => item.price_requires_review !== false)) {
+        throw new Error("Confirm every tariff price from the active NHIA catalog before approval");
+      }
 
       const { data: nhiaItems, error: itemsError } = await supabase
         .from("nhia_items")
@@ -173,26 +186,52 @@ serve(async (req) => {
       }
 
       const validByCode = new Map(nhiaItems.map((item: Record<string, unknown>) => [item.code, item]));
-      const requestedByCode = new Map(approvedItems.map((item) => [String(item.code || "").trim(), item]));
-      const normalizedItems = codes.map((code) => {
+      const normalizedItems = codes.map((code, index) => {
         const item = validByCode.get(code) as Record<string, unknown>;
-        const requested = requestedByCode.get(code) || {};
-        const unitPrice = Number(requested.unit_price ?? item.amount ?? requested.price ?? 0);
-        const quantity = Math.max(1, Number(requested.quantity || 1));
+        const requested = approvedItems[index] || {};
+        const catalogUnitPrice = Number(item.amount);
+        const requestedUnitPrice = requested.unit_price;
+        const unitPrice = requestedUnitPrice === undefined || requestedUnitPrice === null || requestedUnitPrice === ""
+          ? catalogUnitPrice
+          : Number(requestedUnitPrice);
+        const quantity = requested.quantity === undefined || requested.quantity === null || requested.quantity === ""
+          ? Number.NaN
+          : Number(requested.quantity);
+        if (!Number.isFinite(catalogUnitPrice) || catalogUnitPrice < 0) {
+          throw new Error(`NHIA catalog price is missing or invalid for ${code}`);
+        }
+        const roundedUnitPrice = Math.round((unitPrice + Number.EPSILON) * 100) / 100;
+        const roundedCatalogUnitPrice = Math.round((catalogUnitPrice + Number.EPSILON) * 100) / 100;
+        if (!Number.isFinite(unitPrice) || unitPrice < 0 || roundedUnitPrice !== roundedCatalogUnitPrice) {
+          throw new Error(`Tariff price for ${code} does not match the active NHIA catalog`);
+        }
+        if (!Number.isFinite(quantity) || quantity <= 0) {
+          throw new Error(`A positive confirmed quantity is required for ${code}`);
+        }
+        const amount = Math.round((unitPrice * quantity + Number.EPSILON) * 100) / 100;
+        if (requested.amount !== undefined && requested.amount !== null && requested.amount !== "") {
+          const requestedAmount = Number(requested.amount);
+          const roundedRequestedAmount = Math.round((requestedAmount + Number.EPSILON) * 100) / 100;
+          if (!Number.isFinite(requestedAmount) || requestedAmount < 0 || roundedRequestedAmount !== amount) {
+            throw new Error(`Line total for ${code} does not equal its tariff price multiplied by quantity`);
+          }
+        }
         return {
           code: item.code,
           name: item.name,
           category: item.category,
           unit_price: unitPrice,
           quantity,
-          amount: unitPrice * quantity,
+          quantity_requires_review: false,
+          price_requires_review: false,
+          amount,
           frequency: requested.frequency || null,
           duration: requested.duration || null,
           matched_via: requested.matched_via || null,
           matched_text: requested.matched_text || null,
         };
       });
-      const total = normalizedItems.reduce((sum, item) => sum + Number(item.amount || 0), 0);
+      const total = Math.round((normalizedItems.reduce((sum, item) => sum + item.amount, 0) + Number.EPSILON) * 100) / 100;
       const first = normalizedItems[0];
       let authorizationCode = requestRow.authorization_code;
       if (!authorizationCode) {

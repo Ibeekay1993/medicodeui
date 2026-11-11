@@ -1,10 +1,11 @@
+import { BrandSpinner } from "@/components/BrandSpinner";
 import { useEffect, useRef, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { MessageCircle, Send, Loader2, Paperclip, FileDown, Plus, X } from "lucide-react";
+import { MessageCircle, Send, Paperclip, FileDown, Plus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -286,7 +287,7 @@ export function LiveChat() {
           <ScrollArea className="flex-1 bg-[#f8fafc]">
             <div ref={scrollRef} className="h-full space-y-4 overflow-y-auto p-6">
               {loading ? (
-                <div className="flex h-40 items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-emerald-600" /></div>
+                <div className="flex h-40 items-center justify-center"><BrandSpinner className="h-6 w-6 animate-spin text-emerald-600" /></div>
               ) : messages.length === 0 ? (
                 <div className="rounded-2xl border border-slate-100 bg-white p-4 text-xs font-bold text-slate-500">
                   Send a message and the utilization manager/support team will see it in the Messages inbox.
@@ -346,7 +347,7 @@ export function LiveChat() {
                   onKeyDown={(e) => e.key === "Enter" && sendMessage()}
                 />
                 <Button onClick={sendMessage} disabled={sending || !draft.trim()} className="h-10 w-10 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shrink-0 p-0">
-                  {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                  {sending ? <BrandSpinner className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                 </Button>
               </div>
             )}

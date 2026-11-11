@@ -1,3 +1,4 @@
+import { BrandSpinner } from "@/components/BrandSpinner";
 import { useState, useRef, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -20,7 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Mail, Search } from "lucide-react";
+import { Mail, Search } from "lucide-react";
 import { availableRoles, filterHospitals } from "@/lib/user-helpers";
 import { getSupabaseFunctionErrorMessage } from "@/lib/supabaseFunctionErrors";
 
@@ -240,7 +241,7 @@ export function InviteUserModal({
                   </button>
                   {loadingHospitals ? (
                     <div className="flex items-center gap-2 px-3 py-2 text-xs text-slate-400 font-semibold">
-                      <Loader2 className="h-3 w-3 animate-spin text-[#93c34b]" />
+                      <BrandSpinner className="h-3 w-3 animate-spin text-[#93c34b]" />
                       Loading hospitals...
                     </div>
                   ) : (
@@ -281,7 +282,7 @@ export function InviteUserModal({
             className="med-button-primary w-full"
           >
             {isInviting ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
+              <BrandSpinner className="h-4 w-4 animate-spin" />
             ) : (
               <Mail className="h-4 w-4" />
             )}{" "}

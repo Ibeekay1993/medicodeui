@@ -1,17 +1,6 @@
+import { BrandSpinner } from "@/components/BrandSpinner";
 import { useEffect, useMemo, useState } from "react";
-import {
-  AlertOctagon,
-  Building2,
-  CheckCircle2,
-  History,
-  Loader2,
-  Pencil,
-  Plus,
-  Search,
-  ShieldAlert,
-  ShieldOff,
-  Trash2,
-} from "lucide-react";
+import { AlertOctagon, Building2, CheckCircle2, History, Pencil, Plus, Search, ShieldAlert, ShieldOff, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { HospitalsAdminService } from "../services/hospitalsAdminService";
 import { Button } from "@/components/ui/button";
@@ -433,7 +422,7 @@ export default function WhatsAppAccessPage() {
 
             {loading ? (
               <div className="flex items-center justify-center py-10 text-sm text-slate-500">
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading access...
+                <BrandSpinner className="mr-2 h-4 w-4 animate-spin" /> Loading access...
               </div>
             ) : filtered.length === 0 ? (
               <div className="py-10 text-center text-sm text-slate-500">No matching numbers.</div>
@@ -533,13 +522,13 @@ export default function WhatsAppAccessPage() {
               <History className="h-4 w-4 text-slate-500" /> Security Audit Log Trail
             </h3>
             <Button variant="outline" size="sm" onClick={loadAuditLogs} disabled={loadingLogs}>
-              {loadingLogs ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : null} Refresh Audit Logs
+              {loadingLogs ? <BrandSpinner className="mr-2 h-3.5 w-3.5 animate-spin" /> : null} Refresh Audit Logs
             </Button>
           </div>
 
           {loadingLogs ? (
             <div className="flex items-center justify-center py-12 text-slate-500">
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading access audit history...
+              <BrandSpinner className="mr-2 h-4 w-4 animate-spin" /> Loading access audit history...
             </div>
           ) : auditLogs.length === 0 ? (
             <div className="py-12 text-center text-sm text-slate-500">No security audit logs recorded yet.</div>
@@ -708,7 +697,7 @@ export default function WhatsAppAccessPage() {
               Cancel
             </Button>
             <Button onClick={save} disabled={saving} className="med-button-primary">
-              {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              {saving ? <BrandSpinner className="mr-2 h-4 w-4 animate-spin" /> : null}
               {editing ? "Save Changes" : "Register Number"}
             </Button>
           </DialogFooter>
@@ -769,7 +758,7 @@ export default function WhatsAppAccessPage() {
               disabled={deleting}
               className="rounded-xl bg-rose-600 text-white hover:bg-rose-700"
             >
-              {deleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+              {deleting ? <BrandSpinner className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
               {deleting ? "Deleting…" : "Delete record"}
             </AlertDialogAction>
           </AlertDialogFooter>

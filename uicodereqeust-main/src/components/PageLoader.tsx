@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { Loader2 } from "lucide-react";
+import { BrandSpinner } from "@/components/BrandSpinner";
 
 export function PageLoader({
   className,
@@ -17,7 +17,7 @@ export function PageLoader({
       role="status"
       aria-live="polite"
     >
-      <Loader2 className="h-5 w-5 animate-spin text-slate-500" aria-hidden="true" />
+      <BrandSpinner className="h-7 w-7" />
       <span className="text-sm font-medium text-slate-600">{label}</span>
     </div>
   );

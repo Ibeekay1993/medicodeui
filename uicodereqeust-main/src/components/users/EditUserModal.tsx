@@ -1,3 +1,4 @@
+import { BrandSpinner } from "@/components/BrandSpinner";
 import { useState, useRef, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -20,7 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Edit3, Search, UserCog, ShieldCheck, ArrowRight, CheckCircle2, X } from "lucide-react";
+import { Edit3, Search, UserCog, ShieldCheck, ArrowRight, CheckCircle2, X } from "lucide-react";
 import { availableRoles, filterHospitals, prettyDateTime, roleLabel } from "@/lib/user-helpers";
 
 const ROLE_METADATA: Record<string, { summary: string; permissions: string[]; badgeClass: string }> = {
@@ -398,7 +399,7 @@ export function EditUserModal({
                   </div>
                   {loadingHospitals ? (
                     <div className="flex items-center gap-2 px-3 py-2 text-xs text-slate-400 font-semibold">
-                      <Loader2 className="h-3 w-3 animate-spin text-[#0F6E56]" />
+                      <BrandSpinner className="h-3 w-3 animate-spin text-[#0F6E56]" />
                       Loading hospitals...
                     </div>
                   ) : (
@@ -461,7 +462,7 @@ export function EditUserModal({
             className="bg-[#0F6E56] hover:bg-[#0a5242] text-white text-xs font-bold h-8 px-4 rounded-lg shadow-sm"
           >
             {isSaving ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+              <BrandSpinner className="h-3.5 w-3.5 animate-spin mr-1.5" />
             ) : (
               <Edit3 className="h-3.5 w-3.5 mr-1.5" />
             )}

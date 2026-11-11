@@ -1,3 +1,4 @@
+import { BrandSpinner } from "@/components/BrandSpinner";
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -10,7 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { money } from "@/lib/claims-helpers";
-import { Loader2 } from "lucide-react";
+
 import { PaymentsService } from "../services/paymentsService";
 import { useCreatePaymentBatch } from "../hooks/usePayments";
 
@@ -159,7 +160,7 @@ export function CreateBatchModal({
           >
             {isSubmitting ? (
               <span className="flex items-center gap-1.5">
-                <Loader2 className="h-3 w-3 animate-spin" /> Assembling...
+                <BrandSpinner className="h-3 w-3 animate-spin" /> Assembling...
               </span>
             ) : (
               "Confirm & Create Batch"

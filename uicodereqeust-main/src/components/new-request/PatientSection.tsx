@@ -1,7 +1,8 @@
+import { BrandSpinner } from "@/components/BrandSpinner";
 import type { RefObject } from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Loader2, Search, Plus, CheckCircle2, X, User } from "lucide-react";
+import { Search, Plus, CheckCircle2, X, User } from "lucide-react";
 import Dropdown from "./Dropdown";
 
 interface PatientSectionProps {
@@ -76,7 +77,7 @@ export default function PatientSection({
           />
           <div className="absolute right-3 top-2.5 pointer-events-none">
             {patientLoading ? (
-              <Loader2 className="h-4 w-4 animate-spin text-emerald-600" />
+              <BrandSpinner className="h-4 w-4 animate-spin text-emerald-600" />
             ) : (
               <Search className="h-4 w-4 text-slate-400" />
             )}

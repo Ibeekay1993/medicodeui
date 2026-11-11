@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { BrandSpinner } from "@/components/BrandSpinner";
 import { Badge } from "@/components/ui/badge";
 import {
   RefreshCw,
@@ -389,7 +390,7 @@ export default function FinanceReportsPage() {
             title="Refresh report"
             disabled={isLoading}
           >
-            <RefreshCw className={cn("h-3.5 w-3.5", isLoading && "animate-spin text-primary")} />
+            {isLoading ? <BrandSpinner className="h-3.5 w-3.5" /> : <RefreshCw className="h-3.5 w-3.5" />}
           </Button>
         </div>
       </div>

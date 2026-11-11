@@ -429,6 +429,8 @@ serve(async (req) => {
           amount: Number(item.amount || 0),
           unit_price: Number(item.unit_price || 0),
           quantity: Number(item.quantity || 1),
+          quantity_requires_review: item.quantity_requires_review !== false,
+          price_requires_review: item.price_requires_review !== false,
           matched_via: item.matched_via || "auto",
           confidence: item.confidence || "high",
         }));

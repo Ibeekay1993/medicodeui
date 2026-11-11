@@ -1,10 +1,11 @@
+import { BrandSpinner } from "@/components/BrandSpinner";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, ShieldCheck, ShieldAlert, Calendar } from "lucide-react";
+import { ShieldCheck, ShieldAlert, Calendar } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 export default function ConsentSettingsCard() {
@@ -66,7 +67,7 @@ export default function ConsentSettingsCard() {
 
       // Sign out and redirect to home after 1.5 seconds
       setTimeout(async () => {
-        await supabase.auth.signOut();
+        await supabase.auth.signOut({ scope: "local" });
         navigate("/");
       }, 1500);
 
@@ -100,7 +101,7 @@ export default function ConsentSettingsCard() {
       <CardContent className="p-4 sm:p-5">
         {loading ? (
           <div className="flex items-center space-x-2 text-xs text-slate-500 py-2">
-            <Loader2 className="h-4 w-4 animate-spin text-brand-700" />
+            <BrandSpinner className="h-4 w-4 animate-spin text-brand-700" />
             <span>Checking consent status...</span>
           </div>
         ) : latestConsent ? (
@@ -136,7 +137,7 @@ export default function ConsentSettingsCard() {
           disabled={loading || revoking || isWithdrawn}
           className="w-full sm:w-auto text-xs font-semibold px-4 h-9 shadow-sm shrink-0"
         >
-          {revoking ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : null}
+          {revoking ? <BrandSpinner className="h-3.5 w-3.5 animate-spin mr-1.5" /> : null}
           Revoke Consent
         </Button>
       </CardFooter>

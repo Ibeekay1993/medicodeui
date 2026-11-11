@@ -1,3 +1,4 @@
+import { BrandSpinner } from "@/components/BrandSpinner";
 import React, { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -6,7 +7,7 @@ import { QRCodeSVG } from "qrcode.react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, CheckCircle2 } from "lucide-react";
+import { CheckCircle2 } from "lucide-react";
 import { isMfaRequiredForUser } from "@/lib/mfa-policy";
 
 export default function MfaSetup() {
@@ -156,13 +157,13 @@ export default function MfaSetup() {
   };
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut();
+    await supabase.auth.signOut({ scope: "local" });
   };
 
   if (loading || checking) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+        <BrandSpinner className="h-8 w-8" label="Checking MFA status…" />
       </div>
     );
   }
@@ -215,7 +216,7 @@ export default function MfaSetup() {
             </div>
           ) : !enrollData ? (
             <div className="flex justify-center p-8">
-              <Loader2 className="h-8 w-8 animate-spin text-slate-300" />
+              <BrandSpinner className="h-8 w-8 animate-spin text-slate-300" />
             </div>
           ) : (
             <div className="space-y-6 flex flex-col items-center">
@@ -240,7 +241,7 @@ export default function MfaSetup() {
                   disabled={isVerifying || verifyCode.length !== 6}
                   className="w-full h-12 rounded-xl text-sm font-black uppercase bg-emerald-600 hover:bg-emerald-700 text-white gap-2"
                 >
-                  {isVerifying ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+                  {isVerifying ? <BrandSpinner className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
                   Verify & Continue
                 </Button>
                 

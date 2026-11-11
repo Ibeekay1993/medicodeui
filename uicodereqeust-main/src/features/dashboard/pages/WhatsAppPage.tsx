@@ -1,8 +1,9 @@
+import { BrandSpinner } from "@/components/BrandSpinner";
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { MessageSquare, Save, Wand2, Loader2, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { MessageSquare, Save, Wand2, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { parsePrescriptionClientFallback } from "@/lib/prescriptionParser";
@@ -212,6 +213,8 @@ export default function WhatsAppPage() {
               amount: Number(item.amount || 0),
               unit_price: Number(item.unit_price || 0),
               quantity: Number(item.quantity || 1),
+              quantity_requires_review: item.quantity_requires_review !== false,
+              price_requires_review: item.price_requires_review !== false,
               matched_via: item.matched_via,
               confidence: item.confidence,
             }));
@@ -231,6 +234,8 @@ export default function WhatsAppPage() {
                 amount: item.price,
                 unit_price: item.unitPrice,
                 quantity: item.quantity,
+                quantity_requires_review: item.quantityNeedsReview !== false,
+                price_requires_review: item.priceNeedsReview !== false,
                 matched_via: item.matched_via,
                 confidence: item.confidence,
               }));
@@ -398,7 +403,7 @@ export default function WhatsAppPage() {
               disabled={isParsing || !rawText.trim()}
               className="h-11 w-full gap-2 rounded-lg bg-slate-800 text-sm font-semibold text-white hover:bg-slate-900"
             >
-              {isParsing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
+              {isParsing ? <BrandSpinner className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
               Extract request details
             </Button>
           </CardContent>
@@ -493,7 +498,7 @@ export default function WhatsAppPage() {
                     disabled={isSaving || !parsedData.hospital_name?.trim()}
                     className="h-11 w-full gap-2 rounded-lg bg-emerald-700 text-sm font-semibold text-white hover:bg-emerald-800 disabled:opacity-50"
                   >
-                    {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                    {isSaving ? <BrandSpinner className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                     Save to Queue
                   </Button>
                 </div>

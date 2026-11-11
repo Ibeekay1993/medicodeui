@@ -1,3 +1,4 @@
+import { BrandSpinner } from "@/components/BrandSpinner";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -12,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { Loader2, Mail, KeyRound, UserCheck, UserX, Trash2 } from "lucide-react";
+import { Mail, KeyRound, UserCheck, UserX, Trash2 } from "lucide-react";
 import { accessStatus } from "@/lib/user-helpers";
 
 // ==========================================
@@ -84,7 +85,7 @@ export function ResetPasswordModal({
             className="rounded-lg bg-[#BA7517] px-5 py-2.5 text-white hover:bg-[#854F0B]"
           >
             {isSendingReset ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
+              <BrandSpinner className="h-4 w-4 animate-spin" />
             ) : (
               <Mail className="h-4 w-4" />
             )}{" "}
@@ -207,7 +208,7 @@ export function AccessStatusModal({
             )}
           >
             {accessActioning ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
+              <BrandSpinner className="h-4 w-4 animate-spin" />
             ) : suspended ? (
               <UserCheck className="h-4 w-4" />
             ) : (
@@ -323,7 +324,7 @@ export function DeleteUserModal({
             className="rounded-lg bg-[#E24B4A] px-5 py-2.5 text-white hover:bg-[#A32D2D]"
           >
             {isDeleting ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
+              <BrandSpinner className="h-4 w-4 animate-spin" />
             ) : (
               <Trash2 className="h-4 w-4" />
             )}{" "}

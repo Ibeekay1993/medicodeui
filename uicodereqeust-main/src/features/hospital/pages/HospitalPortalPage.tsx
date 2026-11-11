@@ -5,6 +5,7 @@ import { useHospitalProfile, useHospitalDashboard, useHospitalAnnouncements } fr
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { BrandSpinner } from "@/components/BrandSpinner";
 import { 
   ShieldCheck, 
   Clock, 
@@ -134,7 +135,7 @@ export default function HospitalPortalPage() {
               disabled={isRefreshing || pageLoading}
               className="h-8.5 px-3 rounded-lg border-slate-200 text-xs font-medium text-slate-700 hover:bg-slate-50 shadow-none"
             >
-              <RefreshCw className={cn("mr-1.5 h-3.5 w-3.5", isRefreshing && "animate-spin text-emerald-600")} />
+              {isRefreshing ? <BrandSpinner className="mr-1.5 h-3.5 w-3.5" /> : <RefreshCw className="mr-1.5 h-3.5 w-3.5" />}
               Sync
             </Button>
             <Button

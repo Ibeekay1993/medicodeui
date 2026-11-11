@@ -8,6 +8,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { BrandSpinner } from "@/components/BrandSpinner";
 import { Badge } from "@/components/ui/badge";
 import { Bell, BellOff, AlertTriangle, CheckCircle2, RefreshCw, Smartphone } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -198,7 +199,7 @@ export default function PushNotificationSettingsCard() {
                   onClick={handleTestNotification}
                   className="text-xs h-9 px-3 text-slate-700 hover:text-slate-900 bg-white border-slate-200 flex-1 sm:flex-none"
                 >
-                  <RefreshCw className={`h-3 w-3 mr-1.5 ${testingPush ? "animate-spin" : ""}`} />
+                  {testingPush ? <BrandSpinner className="mr-1.5 h-3 w-3" /> : <RefreshCw className="mr-1.5 h-3 w-3" />}
                   {testingPush ? "Sending test" : "Test push"}
                 </Button>
                 <Button type="button" variant="ghost" size="sm" onClick={() => handleToggle(false)} disabled={isLoading || testingPush} className="text-xs h-9 px-3 text-slate-600">

@@ -1,8 +1,9 @@
+import { BrandSpinner } from "@/components/BrandSpinner";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Calendar, Loader2 } from "lucide-react";
+import { Calendar } from "lucide-react";
 
 interface ExportCSVDialogProps {
   open: boolean;
@@ -157,7 +158,7 @@ export default function ExportCSVDialog({ open, onOpenChange, onExport, isExport
             >
               {isExporting ? (
                 <>
-                  <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> Exporting…
+                  <BrandSpinner className="h-3.5 w-3.5 mr-1.5 animate-spin" /> Exporting…
                 </>
               ) : (
                 "Download CSV"

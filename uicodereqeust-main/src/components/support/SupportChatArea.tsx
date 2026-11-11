@@ -1,3 +1,4 @@
+import { BrandSpinner } from "@/components/BrandSpinner";
 import { useState, useRef, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -12,19 +13,7 @@ import {
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
-import {
-  ArrowLeft,
-  ChevronLeft,
-  ChevronRight,
-  Send,
-  Loader2,
-  Paperclip,
-  X,
-  FileText,
-  Sparkles,
-  Lock,
-  MessageSquare,
-} from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight, Send, Paperclip, X, FileText, Sparkles, Lock, MessageSquare } from "lucide-react";
 import {
   isRequestSupportTicket,
   buildAiResponse,
@@ -707,7 +696,7 @@ export function SupportChatArea({
                 className="h-9 w-9 p-0 rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-100 shrink-0"
                 title="Ask AI"
               >
-                {aiLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                {aiLoading ? <BrandSpinner className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
               </Button>
 
               <Button
@@ -716,7 +705,7 @@ export function SupportChatArea({
                 disabled={sending || (!replyText.trim() && pendingFiles.length === 0) || selectedClosed}
                 className="h-10 shrink-0 rounded-lg bg-primary px-4 text-white transition-colors hover:bg-primary/90"
               >
-                {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                {sending ? <BrandSpinner className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
               </Button>
             </div>
           </div>

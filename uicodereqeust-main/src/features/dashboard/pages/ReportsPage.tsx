@@ -1,8 +1,9 @@
+import { BrandSpinner } from "@/components/BrandSpinner";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTabVisibilityRefresh } from "@/hooks/use-tab-visibility-refresh";
-import { BarChart3, ShieldAlert, Eye, EyeOff, Loader2, RotateCw } from "lucide-react";
+import { BarChart3, ShieldAlert, Eye, EyeOff, RotateCw } from "lucide-react";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/lib/errors";
 import type * as ExcelJS from "exceljs";
@@ -911,7 +912,7 @@ export default function ReportsPage() {
 
       {(visibleReportState.status === "INITIAL" || visibleReportState.status === "LOADING") && (
         <div role="status" aria-live="polite" className="flex min-h-24 items-center gap-3 rounded-lg border border-slate-200 bg-white px-4 py-5 text-sm text-slate-600">
-          <Loader2 className="h-5 w-5 animate-spin text-brand-700" aria-hidden="true" />
+          <BrandSpinner className="h-5 w-5 animate-spin text-brand-700" aria-hidden="true" />
           <span>Loading authorization report…</span>
         </div>
       )}

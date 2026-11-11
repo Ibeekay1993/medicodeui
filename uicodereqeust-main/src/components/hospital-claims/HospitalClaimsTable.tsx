@@ -1,7 +1,8 @@
+import { BrandSpinner } from "@/components/BrandSpinner";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Loader2, Banknote, ArrowRight } from "lucide-react";
+import { Banknote, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DataPagination } from "@/components/dashboard/DataPagination";
 import { ClaimDraft } from "@/lib/claims-helpers";
@@ -59,7 +60,7 @@ export default function HospitalClaimsTable({
       <div className="overflow-y-auto flex-1 p-0">
         {loading ? (
           <div className="flex items-center justify-center py-20">
-            <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+            <BrandSpinner className="h-6 w-6 animate-spin text-slate-400" />
             <span className="ml-2 text-xs font-semibold text-slate-500">Loading claims ledger…</span>
           </div>
         ) : filteredClaims.length === 0 ? (

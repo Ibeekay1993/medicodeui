@@ -1,3 +1,4 @@
+import { BrandSpinner } from "@/components/BrandSpinner";
 import { useState, useMemo, useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
@@ -16,7 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { HospitalReferralField } from "@/components/HospitalReferralField";
-import { AlertTriangle, ChevronDown, ChevronUp, X, Loader2, Copy, Send, Lock, Unlock, XCircle, CheckCircle2 } from "lucide-react";
+import { AlertTriangle, ChevronDown, ChevronUp, X, Copy, Send, Lock, Unlock, XCircle, CheckCircle2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { areHospitalNamesMatching } from "@/lib/authorizations-helpers";
 import { writeClipboardText } from "@/lib/clipboard";
@@ -845,7 +846,7 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
                         disabled={actions.unlockLoading}
                         className="shrink-0 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-black uppercase tracking-wider gap-1.5 shadow-sm h-9 px-4"
                       >
-                        {actions.unlockLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Unlock className="w-3.5 h-3.5" />}
+                        {actions.unlockLoading ? <BrandSpinner className="w-3.5 h-3.5 animate-spin" /> : <Unlock className="w-3.5 h-3.5" />}
                         Unlock Record
                       </Button>
                     )}
@@ -877,7 +878,7 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
                         disabled={actions.unlockLoading}
                         className="shrink-0 rounded-xl border-amber-300 bg-white hover:bg-amber-100 text-amber-900 text-xs font-black uppercase tracking-wider gap-1.5 h-9 px-4"
                       >
-                        {actions.unlockLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Lock className="w-3.5 h-3.5" />}
+                        {actions.unlockLoading ? <BrandSpinner className="w-3.5 h-3.5 animate-spin" /> : <Lock className="w-3.5 h-3.5" />}
                         Re-lock Record
                       </Button>
                     )}
@@ -920,7 +921,7 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
                         disabled={isResending}
                         title="Resend OTP"
                       >
-                        {isResending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Send className="h-4 w-4 mr-2" />}
+                        {isResending ? <BrandSpinner className="h-4 w-4 mr-2 animate-spin" /> : <Send className="h-4 w-4 mr-2" />}
                         Resend
                       </Button>
                     </div>
@@ -1162,7 +1163,7 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
                           disabled={actions.unlockLoading}
                           className="w-full sm:w-auto h-11 sm:h-12 px-6 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-[11px] sm:text-xs font-black uppercase tracking-widest shadow-md transition-all flex items-center justify-center gap-1.5"
                         >
-                          {actions.unlockLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Unlock className="w-4 h-4" />}
+                          {actions.unlockLoading ? <BrandSpinner className="w-4 h-4 animate-spin" /> : <Unlock className="w-4 h-4" />}
                           Unlock Record
                         </Button>
                       )
@@ -1173,7 +1174,7 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
                           onClick={actions.handleDecline}
                           disabled={actions.processing || !actions.editDecisionNote}
                         >
-                          {actions.processingAction === "decline" ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}
+                          {actions.processingAction === "decline" ? <BrandSpinner className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}
                           {isDecided ? "Update & Decline" : "Decline"}
                         </Button>
                         <Button
@@ -1181,7 +1182,7 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
                           onClick={actions.handleApprove}
                           disabled={actions.processing}
                         >
-                          {actions.processingAction === "approve" ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                          {actions.processingAction === "approve" ? <BrandSpinner className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
                           {isDecided ? "Update & Re-Approve" : "Approve"}
                         </Button>
                       </>

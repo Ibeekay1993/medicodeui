@@ -1,3 +1,4 @@
+import { BrandSpinner } from "@/components/BrandSpinner";
 import { useState } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -6,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, CheckCircle2, AlertOctagon, UserCheck } from "lucide-react";
+import { CheckCircle2, AlertOctagon, UserCheck } from "lucide-react";
 
 interface ReferralProcessDialogProps {
   open: boolean;
@@ -200,7 +201,7 @@ export default function ReferralProcessDialog({
                   className="h-9 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-sm transition-colors"
                 >
                   {isVerifying ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+                    <BrandSpinner className="h-3.5 w-3.5 animate-spin mr-1.5" />
                   ) : (
                     <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />
                   )}
@@ -269,7 +270,7 @@ export default function ReferralProcessDialog({
                   className="h-9 px-4 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-semibold text-xs shadow-sm"
                 >
                   {isDeclining ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+                    <BrandSpinner className="h-3.5 w-3.5 animate-spin mr-1.5" />
                   ) : (
                     <AlertOctagon className="h-3.5 w-3.5 mr-1.5" />
                   )}

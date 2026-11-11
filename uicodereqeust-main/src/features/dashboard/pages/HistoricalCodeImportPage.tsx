@@ -1,5 +1,6 @@
+import { BrandSpinner } from "@/components/BrandSpinner";
 import { useMemo, useState, useEffect, useCallback } from "react";
-import { Upload, FileSpreadsheet, Loader2, CheckCircle2, Trash2, ChevronLeft, ChevronRight, Info } from "lucide-react";
+import { Upload, FileSpreadsheet, CheckCircle2, Trash2, ChevronLeft, ChevronRight, Info } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useImportHistoricalCodes } from "../hooks/useAdminOps";
 import { Button } from "@/components/ui/button";
@@ -537,7 +538,7 @@ export default function HistoricalCodeImportPage() {
                   )}
                 </div>
                 <Button onClick={startImport} disabled={!importMode || importing || analysis.unique === 0} className={`h-11 px-8 rounded-xl text-sm font-bold uppercase tracking-wider text-white transition-colors ${importMode === "wipe" ? "bg-rose-600 hover:bg-rose-700" : "bg-emerald-800 hover:bg-emerald-900"}`}>
-                  {importing ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : null}
+                  {importing ? <BrandSpinner className="mr-2 h-5 w-5 animate-spin" /> : null}
                   {importing ? "Processing..." : importMode ? `Execute ${importModeOptions.find((o) => o.value === importMode)?.label}` : "Select Action"}
                 </Button>
               </div>
@@ -611,7 +612,7 @@ export default function HistoricalCodeImportPage() {
               }}
               className={importMode === "wipe" ? "bg-rose-600 text-white hover:bg-rose-700" : "bg-emerald-800 text-white hover:bg-emerald-900"}
             >
-              {importing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              {importing ? <BrandSpinner className="mr-2 h-4 w-4 animate-spin" /> : null}
               {importMode === "wipe" ? "WIPE & Import" : "Confirm & Import"}
             </AlertDialogAction>
           </AlertDialogFooter>

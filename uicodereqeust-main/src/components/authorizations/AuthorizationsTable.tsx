@@ -1,5 +1,6 @@
+import { BrandSpinner } from "@/components/BrandSpinner";
 import { useState } from "react";
-import { Copy, MessageSquare, Eye, Loader2, LockKeyhole } from "lucide-react";
+import { Copy, MessageSquare, Eye, LockKeyhole } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -114,7 +115,7 @@ export default function AuthorizationsTable({
   if (isLoading) {
     return (
       <Card className="flex min-h-48 items-center justify-center rounded-xl border border-slate-100 bg-white p-8 text-sm text-slate-500">
-        <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Loading authorizations…
+        <BrandSpinner className="mr-2 h-5 w-5 animate-spin" /> Loading authorizations…
       </Card>
     );
   }

@@ -1,3 +1,4 @@
+import { BrandSpinner } from "@/components/BrandSpinner";
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { createClient } from "@supabase/supabase-js";
@@ -7,18 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import {
-  Loader2,
-  User,
-  Lock,
-  Building2,
-  ShieldAlert,
-  Eye,
-  EyeOff,
-  RefreshCw,
-  ArrowRight,
-  Info,
-} from "lucide-react";
+import { User, Lock, Building2, ShieldAlert, Eye, EyeOff, RefreshCw, ArrowRight, Info } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { invitationOtpType } from "@/lib/invitationLinks";
 
@@ -124,7 +114,7 @@ export default function Register() {
         const isExpired = fullErr.toLowerCase().includes("expired") || fullErr.toLowerCase().includes("invalid") || urlErrorCode === "otp_expired";
         setInviteError(
           isExpired
-            ? "This invitation link was already used or has expired. Invitation links are single-use and valid for 7 days. Please contact your administrator to click 'Resend Invite' from the User Management directory."
+            ? "This older invitation link may have expired or already been opened. Ask your administrator to resend it. New invitation links remain valid for seven days and can be reopened until account setup is completed."
             : fullErr
         );
         setSessionResolving(false);
@@ -474,7 +464,7 @@ export default function Register() {
   if (sessionResolving) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <Loader2 className="h-8 w-8 animate-spin text-[#0F6E56]" />
+        <BrandSpinner className="h-8 w-8 animate-spin text-[#0F6E56]" />
       </div>
     );
   }
@@ -737,7 +727,7 @@ export default function Register() {
                   className="h-11 w-full rounded-xl bg-[#0F6E56] hover:bg-[#0a5240] text-sm font-semibold text-white shadow-xs transition-colors disabled:opacity-60"
                 >
                   {loading ? (
-                    <Loader2 className="h-4 w-4 animate-spin mx-auto" />
+                    <BrandSpinner className="h-4 w-4 animate-spin mx-auto" />
                   ) : (
                     "Complete Account Setup"
                   )}

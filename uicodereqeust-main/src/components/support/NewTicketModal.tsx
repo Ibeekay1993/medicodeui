@@ -1,3 +1,4 @@
+import { BrandSpinner } from "@/components/BrandSpinner";
 import { useState, useRef, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -20,7 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Send, Sparkles, X } from "lucide-react";
+import { Send, Sparkles, X } from "lucide-react";
 import { getRouteTags } from "@/lib/support-helpers";
 
 interface NewTicketModalProps {
@@ -477,7 +478,7 @@ export function NewTicketModal({
             >
               {sending ? (
                 <>
-                  <Loader2 className="h-4.5 w-4.5 animate-spin" /> Dispatching...
+                  <BrandSpinner className="h-4.5 w-4.5 animate-spin" /> Dispatching...
                 </>
               ) : (
                 <>

@@ -1,17 +1,7 @@
+import { BrandSpinner } from "@/components/BrandSpinner";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTabVisibilityRefresh } from "@/hooks/use-tab-visibility-refresh";
-import {
-  AlertCircle,
-  CheckCircle2,
-  Database,
-  Download,
-  FileSpreadsheet,
-  FileText,
-  History,
-  Loader2,
-  RefreshCcw,
-  UploadCloud,
-} from "lucide-react";
+import { AlertCircle, CheckCircle2, Database, Download, FileSpreadsheet, FileText, History, RefreshCcw, UploadCloud } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -487,7 +477,7 @@ export default function NhisBeneficiaryUpdatePage() {
                 disabled={!file || extracting || replacing}
                 className="h-9 rounded-xl bg-slate-900 text-xs font-black uppercase tracking-widest"
               >
-                {extracting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Database className="mr-2 h-4 w-4" />}
+                {extracting ? <BrandSpinner className="mr-2 h-4 w-4 animate-spin" /> : <Database className="mr-2 h-4 w-4" />}
                 Start Extraction
               </Button>
               {(file || sourceFileName || summary) && (
@@ -634,7 +624,7 @@ export default function NhisBeneficiaryUpdatePage() {
                     <Download className="mr-2 h-4 w-4" /> Download CSV
                   </Button>
                   <Button onClick={handleExcelDownload} disabled={exportingExcel} variant="outline" className="h-9 rounded-xl text-xs font-black uppercase tracking-widest">
-                    {exportingExcel ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+                    {exportingExcel ? <BrandSpinner className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
                     {exportingExcel ? "Preparing Excel" : "Download Excel"}
                   </Button>
                   <Button
@@ -642,7 +632,7 @@ export default function NhisBeneficiaryUpdatePage() {
                     disabled={(!validationOk && !(incompleteCanBeOverridden && overrideReady)) || replacing}
                     className="h-10 rounded-xl bg-emerald-600 text-xs font-black uppercase tracking-widest hover:bg-emerald-700"
                   >
-                    {replacing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Database className="mr-2 h-4 w-4" />}
+                    {replacing ? <BrandSpinner className="mr-2 h-4 w-4 animate-spin" /> : <Database className="mr-2 h-4 w-4" />}
                     {validationOk ? "Replace Existing List" : "Replace Incomplete List"}
                   </Button>
                   <p className="text-center text-xs font-bold uppercase tracking-widest text-slate-400">

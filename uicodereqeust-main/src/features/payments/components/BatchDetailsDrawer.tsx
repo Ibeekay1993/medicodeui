@@ -1,3 +1,4 @@
+import { BrandSpinner } from "@/components/BrandSpinner";
 import {
   Sheet,
   SheetContent,
@@ -6,7 +7,7 @@ import {
 } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
 import { money } from "@/lib/claims-helpers";
-import { Loader2, FileSpreadsheet, Calendar, User, Hash } from "lucide-react";
+import { FileSpreadsheet, Calendar, User, Hash } from "lucide-react";
 import { useBatchDetails, useBatchClaims } from "../hooks/usePayments";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -55,7 +56,7 @@ export function BatchDetailsDrawer({
 
         {loading ? (
           <div className="flex-1 flex flex-col items-center justify-center gap-3">
-            <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+            <BrandSpinner className="h-6 w-6 animate-spin text-slate-400" />
             <p className="text-xs font-black uppercase tracking-widest text-slate-400">Loading batch details...</p>
           </div>
         ) : batch ? (

@@ -1,3 +1,4 @@
+import { BrandSpinner } from "@/components/BrandSpinner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -7,7 +8,7 @@ import {
   DialogFooter,
   DialogTitle
 } from "@/components/ui/dialog";
-import { Loader2, AlertTriangle } from "lucide-react";
+import { AlertTriangle } from "lucide-react";
 import { ClaimDraft } from "@/lib/claims-helpers";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -138,7 +139,7 @@ export default function ContestDecisionDialog({
           >
             {isSubmitting ? (
               <>
-                <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> Submitting…
+                <BrandSpinner className="h-3.5 w-3.5 animate-spin mr-1.5" /> Submitting…
               </>
             ) : (
               "Submit Contest"

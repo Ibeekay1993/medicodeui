@@ -1,3 +1,4 @@
+import { BrandSpinner } from "@/components/BrandSpinner";
 import { } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,7 +10,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import { Loader2, Plus, Search, X } from "lucide-react";
+import { Plus, Search, X } from "lucide-react";
 
 interface SupportConversationsSidebarProps {
   filteredConversations: any[];
@@ -131,7 +132,7 @@ export function SupportConversationsSidebar({
       <div className="flex-1 overflow-y-auto divide-y divide-slate-100 bg-white">
         {loading ? (
           <div className="flex h-40 items-center justify-center">
-            <Loader2 className="h-6 w-6 animate-spin text-indigo-600" />
+            <BrandSpinner className="h-6 w-6 animate-spin text-indigo-600" />
           </div>
         ) : filteredConversations.length === 0 ? (
           <div className="p-10 text-center text-sm font-semibold text-slate-400">

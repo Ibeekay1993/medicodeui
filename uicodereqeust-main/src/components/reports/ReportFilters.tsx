@@ -1,4 +1,5 @@
-import { Loader2, Download, Calendar, Activity, Filter, Building2, Check, ChevronsUpDown, FileSpreadsheet, FileBarChart2, Receipt } from "lucide-react";
+import { BrandSpinner } from "@/components/BrandSpinner";
+import { Download, Calendar, Activity, Filter, Building2, Check, ChevronsUpDown, FileSpreadsheet, FileBarChart2, Receipt } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -99,7 +100,7 @@ export default function ReportFilters({
                   </CommandItem>
                   {loadingHospitals ? (
                     <div className="flex items-center gap-2 px-3 py-2 text-xs text-slate-400 font-semibold">
-                      <Loader2 className="h-3 w-3 animate-spin text-emerald-500" />
+                      <BrandSpinner className="h-3 w-3 animate-spin text-emerald-500" />
                       Loading...
                     </div>
                   ) : (
@@ -214,7 +215,7 @@ export default function ReportFilters({
               className="h-10 w-full rounded-lg bg-slate-900 px-4 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-slate-800 md:w-auto"
             >
               {isExporting ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                <BrandSpinner className="h-4 w-4 mr-2 animate-spin" />
               ) : (
                 <Download className="h-4 w-4 mr-2" />
               )}

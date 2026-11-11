@@ -1,6 +1,7 @@
+import { BrandSpinner } from "@/components/BrandSpinner";
 import React from "react";
 import { Button } from "@/components/ui/button";
-import { Loader2, CheckCircle, CheckCircle2, XCircle, Trash2 } from "lucide-react";
+import { CheckCircle, CheckCircle2, XCircle, Trash2 } from "lucide-react";
 
 import { Textarea } from "@/components/ui/textarea";
 
@@ -77,7 +78,7 @@ export const ClinicalActionControls = React.memo(function ClinicalActionControls
                 disabled={processing || isAwaitingDeletion}
               >
                 {processingAction === "reassign" ? (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  <BrandSpinner className="h-4 w-4 mr-2 animate-spin" />
                 ) : (
                   <CheckCircle2 className="h-4 w-4 mr-2" />
                 )}
@@ -90,7 +91,7 @@ export const ClinicalActionControls = React.memo(function ClinicalActionControls
               disabled={processing || isAwaitingDeletion}
             >
               {processingAction === "save" ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                <BrandSpinner className="h-4 w-4 mr-2 animate-spin" />
               ) : (
                 <CheckCircle className="h-4 w-4 mr-2" />
               )}
@@ -114,7 +115,7 @@ export const ClinicalActionControls = React.memo(function ClinicalActionControls
               disabled={processing || isAwaitingDeletion}
             >
               {processingAction === "save" ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                <BrandSpinner className="h-4 w-4 mr-2 animate-spin" />
               ) : (
                 <CheckCircle className="h-4 w-4 mr-2" />
               )}
@@ -161,7 +162,7 @@ export const ClinicalActionControls = React.memo(function ClinicalActionControls
                     disabled={processing || isAwaitingDeletion}
                   >
                     {processingAction === "decline" ? (
-                      <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+                      <BrandSpinner className="h-4 w-4 mr-1.5 animate-spin" />
                     ) : (
                       <XCircle className="h-4 w-4 mr-1.5" />
                     )}
@@ -173,7 +174,7 @@ export const ClinicalActionControls = React.memo(function ClinicalActionControls
                     disabled={processing || isAwaitingDeletion}
                   >
                     {processingAction === "approve" ? (
-                      <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+                      <BrandSpinner className="h-4 w-4 mr-1.5 animate-spin" />
                     ) : (
                       <CheckCircle2 className="h-4 w-4 mr-1.5" />
                     )}
@@ -212,7 +213,7 @@ export const ClinicalActionControls = React.memo(function ClinicalActionControls
                   disabled={processing || isAwaitingDeletion}
                 >
                   {processingAction === "decline" ? (
-                    <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+                    <BrandSpinner className="h-3.5 w-3.5 mr-1 animate-spin" />
                   ) : (
                     <XCircle className="h-3.5 w-3.5 mr-1" />
                   )}
@@ -224,7 +225,7 @@ export const ClinicalActionControls = React.memo(function ClinicalActionControls
                   disabled={processing || isAwaitingDeletion}
                 >
                   {processingAction === "approve" ? (
-                    <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+                    <BrandSpinner className="h-3.5 w-3.5 mr-1 animate-spin" />
                   ) : (
                     <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
                   )}

@@ -6,8 +6,106 @@ import {
   itemUnitPrice,
   itemQuantity,
   itemTotal,
+  hasValidItemQuantity,
+  hasValidItemUnitPrice,
+  parseNonNegativeAmount,
+  parsePositiveQuantity,
 } from "@/lib/clinicalUtils";
 import { parsePrescriptionClientFallback } from "@/lib/prescriptionParser";
+
+function normalizeStoredApprovalItem(item: any) {
+  const parsedQuantity = parsePositiveQuantity(item.quantity);
+  const quantity = parsedQuantity ?? 1;
+  const recordedTotal = parseNonNegativeAmount(item.amount ?? item.price);
+  const recordedUnitPrice = parseNonNegativeAmount(item.unit_price ?? item.unitPrice);
+  const unitPrice = recordedUnitPrice ?? (
+    recordedTotal !== null && parsedQuantity !== null
+      ? recordedTotal / parsedQuantity
+      : 0
+  );
+  const calculatedTotal = unitPrice * quantity;
+  const roundedRecordedTotal = recordedTotal === null ? null : Math.round((recordedTotal + Number.EPSILON) * 100) / 100;
+  const roundedCalculatedTotal = Math.round((calculatedTotal + Number.EPSILON) * 100) / 100;
+  const amountMismatch = roundedRecordedTotal !== null && recordedUnitPrice !== null && parsedQuantity !== null
+    && roundedRecordedTotal !== roundedCalculatedTotal;
+
+  return {
+    code: item.code,
+    name: item.name,
+    category: item.category,
+    unitPrice,
+    price: recordedTotal ?? calculatedTotal,
+    quantity,
+    // Legacy approved rows often contain the old default quantity of 1 but
+    // have no confirmation marker. Require staff review before re-approval.
+    quantityNeedsReview: item.quantity_requires_review !== false || parsedQuantity === null,
+    priceNeedsReview: item.price_requires_review === true || recordedUnitPrice === null ||
+      recordedTotal === null || parsedQuantity === null || amountMismatch,
+    frequency: item.frequency || null,
+    duration: item.duration || null,
+    matched_via: item.matched_via,
+    confidence: item.confidence,
+    declined: Boolean(item.declined),
+    decline_reason: item.decline_reason || null,
+  };
+}
+
+function normalizeTariffSearchResult(item: any) {
+  const parsedQuantity = parsePositiveQuantity(item.quantity);
+  const quantity = parsedQuantity ?? 1;
+  const unitPrice = parseNonNegativeAmount(item.unit_price ?? item.unitPrice ?? item.amount ?? item.price);
+
+  return {
+    code: item.code,
+    name: item.name,
+    category: item.category,
+    unitPrice: unitPrice ?? 0,
+    price: (unitPrice ?? 0) * quantity,
+    quantity,
+    quantityNeedsReview: item.quantity_requires_review !== false || parsedQuantity === null,
+    // Search results come directly from the active tariff catalog, so an
+    // absent review marker is safe unless the returned price is invalid.
+    priceNeedsReview: item.price_requires_review === true || unitPrice === null,
+    frequency: item.frequency || null,
+    duration: item.duration || null,
+    matched_via: item.matched_via,
+    matched_text: item.matched_text,
+    confidence: item.confidence,
+  };
+}
+
+function normalizeParsedApprovalItem(item: any) {
+  const parsedQuantity = parsePositiveQuantity(item.quantity);
+  const quantity = parsedQuantity ?? 1;
+  const recordedTotal = parseNonNegativeAmount(item.amount ?? item.price);
+  const recordedUnitPrice = parseNonNegativeAmount(item.unit_price ?? item.unitPrice);
+  const unitPrice = recordedUnitPrice ?? (
+    recordedTotal !== null && parsedQuantity !== null
+      ? recordedTotal / parsedQuantity
+      : null
+  );
+  const amountMismatch = recordedTotal !== null && recordedUnitPrice !== null && parsedQuantity !== null &&
+    Math.round((recordedTotal + Number.EPSILON) * 100) / 100 !==
+      Math.round((recordedUnitPrice * parsedQuantity + Number.EPSILON) * 100) / 100;
+
+  return {
+    code: item.code,
+    name: item.name,
+    category: item.category,
+    price: recordedTotal ?? ((unitPrice ?? 0) * quantity),
+    unitPrice: unitPrice ?? 0,
+    quantity,
+    quantityNeedsReview: item.quantity_requires_review !== false || parsedQuantity === null,
+    // Older parser deployments did not emit this marker. Treat their parsed
+    // prices as unverified until the catalog item is reselected.
+    priceNeedsReview: item.price_requires_review !== false || unitPrice === null || amountMismatch,
+    frequency: item.frequency || null,
+    duration: item.duration || null,
+    matched_via: item.matched_via,
+    matched_text: item.matched_text,
+    confidence: item.confidence,
+  };
+}
 
 export function useTariffSearch(
   open: boolean,
@@ -30,30 +128,10 @@ export function useTariffSearch(
   useEffect(() => {
     if (open && request) {
       const parsedItems = Array.isArray(request.approved_items)
-        ? request.approved_items.map((item: any) => {
-            const quantity = Number(item.quantity || 1);
-            const unitPrice =
-              Number(item.unit_price || item.unitPrice || 0) ||
-              (Number(item.amount || item.price || 0) > 0 && quantity > 0
-                ? Number(item.amount || item.price || 0) / quantity
-                : Number(item.price || 0));
-            return {
-              code: item.code,
-              name: item.name,
-              category: item.category,
-              unitPrice: unitPrice,
-              price: Number(item.amount || (unitPrice * quantity) || 0),
-              quantity: quantity,
-              frequency: item.frequency || null,
-              duration: item.duration || null,
-              matched_via: item.matched_via,
-              confidence: item.confidence,
-              declined: Boolean(item.declined),
-              decline_reason: item.decline_reason || null,
-            };
-          })
+        ? request.approved_items.map(normalizeStoredApprovalItem)
         : [];
       setApprovedItems(parsedItems);
+      setEditingQuantities({});
       setTariffSearch("");
       setTariffOptions([]);
       setParseStatus("");
@@ -98,19 +176,7 @@ export function useTariffSearch(
           if (data && data.error) throw new Error(data.message || "Parse failed");
 
           if (Array.isArray(data?.items)) {
-            parsed = (data.items as any[]).map((item) => ({
-              code: item.code,
-              name: item.name,
-              category: item.category,
-              price: Number(item.amount || item.price || 0),
-              unitPrice: Number(item.unit_price || item.amount || item.price || 0),
-              quantity: Number(item.quantity || 1),
-              frequency: item.frequency || null,
-              duration: item.duration || null,
-              matched_via: item.matched_via,
-              matched_text: item.matched_text,
-              confidence: item.confidence,
-            }));
+            parsed = (data.items as any[]).map(normalizeParsedApprovalItem);
           }
         } catch (edgeErr) {
           console.warn("parse-request-text Edge Function call failed or rejected, falling back to client parser:", edgeErr);
@@ -199,18 +265,7 @@ export function useTariffSearch(
         if (error) throw error;
         if (data && data.error) throw new Error(data.message || "Search failed");
         setTariffOptions(
-          ((data?.results || []) as any[]).map((item) => ({
-            code: item.code,
-            name: item.name,
-            category: item.category,
-            price: Number(item.amount || item.price || 0),
-            unitPrice: Number(item.unit_price || item.amount || item.price || 0),
-            quantity: Number(item.quantity || 1),
-            frequency: item.frequency || null,
-            duration: item.duration || null,
-            matched_via: item.matched_via,
-            confidence: item.confidence,
-          }))
+          ((data?.results || []) as any[]).map(normalizeTariffSearchResult)
         );
       } catch (err) {
         console.error("Tariff search via function failed, trying database fallback:", err);
@@ -230,9 +285,11 @@ export function useTariffSearch(
               code: item.code,
               name: item.name,
               category: item.category,
-              price: Number(item.amount || 0),
-              unitPrice: Number(item.amount || 0),
+              price: parseNonNegativeAmount(item.amount) ?? 0,
+              unitPrice: parseNonNegativeAmount(item.amount) ?? 0,
               quantity: 1,
+              quantityNeedsReview: true,
+              priceNeedsReview: parseNonNegativeAmount(item.amount) === null,
             }))
           );
         } catch (nhiaErr) {
@@ -252,9 +309,11 @@ export function useTariffSearch(
                 code: item.code,
                 name: item.name,
                 category: item.category,
-                price: Number(item.price || 0),
-                unitPrice: Number(item.price || 0),
+                price: parseNonNegativeAmount(item.price) ?? 0,
+                unitPrice: parseNonNegativeAmount(item.price) ?? 0,
                 quantity: 1,
+                quantityNeedsReview: true,
+                priceNeedsReview: parseNonNegativeAmount(item.price) === null,
               }))
             );
           } catch (tariffErr) {
@@ -282,7 +341,15 @@ export function useTariffSearch(
       if (current.some((existing) => existing.code === item.code)) return current;
       const unitPrice = itemUnitPrice(item);
       const quantity = itemQuantity(item);
-      return [...current, { ...item, unitPrice, quantity, price: unitPrice * quantity, matched_via: "manual" }];
+      return [...current, {
+        ...item,
+        unitPrice,
+        quantity,
+        price: unitPrice * quantity,
+        quantityNeedsReview: item.quantityNeedsReview === true || !hasValidItemQuantity(item),
+        priceNeedsReview: item.priceNeedsReview === true || !hasValidItemUnitPrice(item),
+        matched_via: "manual",
+      }];
     });
     setCartCollapsed(false);
   };
@@ -305,26 +372,30 @@ export function useTariffSearch(
   };
 
   const commitQuantity = (code: string | null) => {
-    const raw = editingQuantities[code || ""] ?? "";
-    const parsed = Number(raw);
-    const quantity = Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : 1;
+    const key = code || "";
+    if (!Object.prototype.hasOwnProperty.call(editingQuantities, key)) return;
+
+    const raw = editingQuantities[key];
+    const parsed = parsePositiveQuantity(raw);
     setEditingQuantities((prev) => {
       const next = { ...prev };
-      delete next[code || ""];
+      delete next[key];
       return next;
     });
-    setApprovedItems((current) =>
-      current.map((item) => {
-        if (item.code !== code) return item;
-        const unit = itemUnitPrice(item);
-        return {
-          ...item,
-          unitPrice: unit,
-          quantity,
-          price: unit * quantity,
-        };
-      })
-    );
+    // Blank or invalid drafts are cancelled: preserve the last valid amount.
+    if (parsed === null) return;
+
+    setApprovedItems((current) => current.map((item) => {
+      if (item.code !== code) return item;
+      const unit = itemUnitPrice(item);
+      return {
+        ...item,
+        unitPrice: unit,
+        quantity: parsed,
+        quantityNeedsReview: false,
+        price: unit * parsed,
+      };
+    }));
   };
 
   const changeItemQuantity = (code: string | null, newQuantity: number) => {
@@ -342,6 +413,7 @@ export function useTariffSearch(
           ...item,
           unitPrice: unit,
           quantity,
+          quantityNeedsReview: false,
           price: unit * quantity,
         };
       })

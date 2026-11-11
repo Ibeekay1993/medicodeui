@@ -1,21 +1,10 @@
+import { BrandSpinner } from "@/components/BrandSpinner";
 import { useMemo, useState } from "react";
 import { useTabVisibilityRefresh } from "@/hooks/use-tab-visibility-refresh";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDeleteQueue, useDeleteArchive, useResolveDeleteRequest } from "../hooks/useRequests";
 import { Button } from "@/components/ui/button";
-import {
-  Archive,
-  Calendar,
-  CheckCircle2,
-  FileCheck,
-  Loader2,
-  ShieldAlert,
-  Trash2,
-  XCircle,
-  Clock,
-  AlertTriangle,
-  Banknote,
-} from "lucide-react";
+import { Archive, Calendar, CheckCircle2, FileCheck, ShieldAlert, Trash2, XCircle, Clock, AlertTriangle, Banknote } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import {
@@ -185,7 +174,7 @@ export default function DeleteRequestsPage() {
                   {loading ? (
                     <tr>
                       <td colSpan={7} className="px-3 py-10 text-center text-slate-500">
-                        <Loader2 className="mx-auto mb-2 h-5 w-5 animate-spin text-slate-400" />
+                        <BrandSpinner className="mx-auto mb-2 h-5 w-5 animate-spin text-slate-400" />
                         <span className="text-xs font-medium">Loading deletion requests...</span>
                       </td>
                     </tr>
@@ -223,7 +212,7 @@ export default function DeleteRequestsPage() {
                             size="sm"
                             className="h-7 rounded-md px-2 text-xs"
                           >
-                            {actioningId === row.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <XCircle className="h-3 w-3 mr-1 text-rose-500" />} Reject
+                            {actioningId === row.id ? <BrandSpinner className="h-3 w-3 animate-spin" /> : <XCircle className="h-3 w-3 mr-1 text-rose-500" />} Reject
                           </Button>
                           <Button 
                             onClick={() => setConfirmDeleteTarget(row)} 
@@ -270,7 +259,7 @@ export default function DeleteRequestsPage() {
                 {loadingArchive ? (
                   <tr>
                     <td colSpan={6} className="px-3 py-10 text-center text-slate-500">
-                      <Loader2 className="mx-auto mb-2 h-5 w-5 animate-spin text-slate-400" />
+                      <BrandSpinner className="mx-auto mb-2 h-5 w-5 animate-spin text-slate-400" />
                       <span className="text-xs font-medium">Loading archive...</span>
                     </td>
                   </tr>
@@ -319,7 +308,7 @@ export default function DeleteRequestsPage() {
           <DialogFooter className="gap-2 pt-2">
             <Button onClick={() => setConfirmDeleteTarget(null)} variant="outline" size="sm" className="h-8 rounded-lg text-xs">Cancel</Button>
             <Button onClick={() => approveDelete(confirmDeleteTarget)} disabled={actioningId !== null} size="sm" className="h-8 rounded-lg bg-rose-600 text-white hover:bg-rose-700 text-xs font-semibold">
-              {actioningId !== null ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <CheckCircle2 className="h-3.5 w-3.5 mr-1" />}
+              {actioningId !== null ? <BrandSpinner className="h-3.5 w-3.5 animate-spin mr-1" /> : <CheckCircle2 className="h-3.5 w-3.5 mr-1" />}
               Authorize Deletion
             </Button>
           </DialogFooter>

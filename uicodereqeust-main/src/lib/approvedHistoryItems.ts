@@ -3,6 +3,7 @@ export interface ApprovedHistoryItem {
   code: string | null;
   category: string | null;
   quantity: number | null;
+  quantityNeedsReview: boolean;
   unit: string | null;
   frequency: string | null;
   duration: string | null;
@@ -35,12 +36,17 @@ export function getApprovedHistoryItems(value: unknown): ApprovedHistoryItem[] {
     const parsedQuantity = typeof rawQuantity === "number" || typeof rawQuantity === "string"
       ? Number(rawQuantity)
       : Number.NaN;
+    const quantity = Number.isFinite(parsedQuantity) && parsedQuantity > 0 ? parsedQuantity : null;
 
     return [{
       name,
       code: nonEmptyText(item.code),
       category: nonEmptyText(item.category),
-      quantity: Number.isFinite(parsedQuantity) && parsedQuantity > 0 ? parsedQuantity : null,
+      quantity,
+      // Older approvals predate explicit quantity confirmation. Keep their
+      // recorded value visible, but label it as unverified instead of implying
+      // the system confirmed it.
+      quantityNeedsReview: item.quantity_requires_review !== false || quantity === null,
       unit: nonEmptyText(item.unit) ?? nonEmptyText(item.quantity_unit),
       frequency: nonEmptyText(item.frequency),
       duration: nonEmptyText(item.duration),

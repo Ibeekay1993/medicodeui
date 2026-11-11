@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { ClaimsService } from "../services/claimsService";
 import { Button } from "@/components/ui/button";
+import { BrandSpinner } from "@/components/BrandSpinner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -566,7 +567,7 @@ export default function ClaimsReportsPage() {
                 title="Refresh report"
                 disabled={loading}
               >
-                <RefreshCw className={cn("h-4 w-4", loading && "animate-spin text-primary")} />
+                {loading ? <BrandSpinner className="h-4 w-4" /> : <RefreshCw className="h-4 w-4" />}
               </Button>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -799,7 +800,7 @@ export default function ClaimsReportsPage() {
               {loading && (
                 <tr>
                   <td colSpan={8} className="py-12 text-center text-xs font-medium text-slate-400">
-                    <RefreshCw className="h-5 w-5 animate-spin mx-auto text-primary mb-2" />
+                    <BrandSpinner className="mx-auto mb-2 h-5 w-5" />
                     Loading claims registry...
                   </td>
                 </tr>

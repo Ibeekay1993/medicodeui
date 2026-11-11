@@ -1,4 +1,5 @@
-import { Loader2, Building2, Edit3, Link2, MoreVertical, Power, Trash2, Rocket, RotateCcw } from "lucide-react";
+import { BrandSpinner } from "@/components/BrandSpinner";
+import { Building2, Edit3, Link2, MoreVertical, Power, Trash2, Rocket, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
@@ -46,7 +47,7 @@ export function HospitalList({
   if (loading) {
     return (
       <div className="p-12 text-center text-slate-500 w-full">
-        <Loader2 className="mx-auto mb-3 h-6 w-6 animate-spin text-lime-500" /> Loading hospitals...
+        <BrandSpinner className="mx-auto mb-3 h-6 w-6 animate-spin text-lime-500" /> Loading hospitals...
       </div>
     );
   }

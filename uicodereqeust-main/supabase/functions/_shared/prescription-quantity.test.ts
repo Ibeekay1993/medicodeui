@@ -5,6 +5,7 @@ import {
   extractExplicitQuantity,
   extractFrequency,
   extractUnitQuantity,
+  medicationQuantityNeedsReview,
 } from "./prescription-quantity.ts";
 
 describe("prescription quantity parsing", () => {
@@ -90,6 +91,20 @@ describe("prescription quantity parsing", () => {
 
   it("normal tablet prescription does not trigger unit extraction", () => {
     expect(extractUnitQuantity("Tab metformin 500mg dly x1/12")).toBeNull();
+  });
+
+  it("flags a medication name without supply details for manual quantity confirmation", () => {
+    expect(medicationQuantityNeedsReview("Amlodipine + Valsartan (10/160mg) Tablet")).toBe(true);
+    expect(medicationQuantityNeedsReview("Amlodipine 10mg dly x1/12")).toBe(true);
+    expect(medicationQuantityNeedsReview("1 tab Amlodipine 10mg dly x1/12")).toBe(false);
+    expect(medicationQuantityNeedsReview("Amlodipine 10mg x1/12")).toBe(true);
+    expect(medicationQuantityNeedsReview("Lantus insulin 1 pen")).toBe(false);
+  });
+
+  it("does not assume an unstated 30-day supply from a daily dose", () => {
+    expect(extractDurationDays("1 tab Amlodipine 10mg daily").days).toBe(30);
+    expect(medicationQuantityNeedsReview("1 tab Amlodipine 10mg daily")).toBe(true);
+    expect(medicationQuantityNeedsReview("1 tab Amlodipine 10mg daily for 30 days")).toBe(false);
   });
 
   it("strips (30 TABS EACH) annotation before duration parsing", () => {

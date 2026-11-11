@@ -1,3 +1,4 @@
+import { BrandSpinner } from "@/components/BrandSpinner";
 import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -6,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, ShieldAlert, Mail, ArrowLeft, CheckCircle2, Eye, EyeOff } from "lucide-react";
+import { ShieldAlert, Mail, ArrowLeft, CheckCircle2, Eye, EyeOff } from "lucide-react";
 
 // ---------------------------------------------------------------------------
 // JWT helpers
@@ -293,7 +294,7 @@ export default function ResetPassword() {
   if (sessionResolving) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <Loader2 className="h-8 w-8 animate-spin text-[#0F6E56]" />
+        <BrandSpinner className="h-8 w-8 animate-spin text-[#0F6E56]" />
       </div>
     );
   }
@@ -429,7 +430,7 @@ export default function ResetPassword() {
                     className="h-11 w-full rounded-xl bg-[#0F6E56] hover:bg-[#0a5240] text-sm font-semibold text-white shadow-xs transition-colors disabled:opacity-60"
                   >
                     {submitting ? (
-                      <Loader2 className="h-4 w-4 animate-spin mx-auto" />
+                      <BrandSpinner className="h-4 w-4 animate-spin mx-auto" />
                     ) : (
                       "Save New Password"
                     )}
@@ -489,7 +490,7 @@ export default function ResetPassword() {
                     className="h-11 w-full rounded-xl bg-[#0F6E56] hover:bg-[#0a5240] text-sm font-semibold text-white shadow-xs transition-colors disabled:opacity-60"
                   >
                     {requestLoading ? (
-                      <Loader2 className="h-4 w-4 animate-spin mx-auto" />
+                      <BrandSpinner className="h-4 w-4 animate-spin mx-auto" />
                     ) : (
                       "Send Recovery Link"
                     )}

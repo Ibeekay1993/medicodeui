@@ -1,5 +1,6 @@
+import { BrandSpinner } from "@/components/BrandSpinner";
 import { useState, useRef } from "react";
-import { Upload, FileText, X, CheckCircle2, Loader2 } from "lucide-react";
+import { Upload, FileText, X, CheckCircle2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -125,7 +126,7 @@ export default function DocumentUploadSection({
         >
           {isUploading ? (
             <div className="flex flex-col items-center space-y-3">
-              <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
+              <BrandSpinner className="h-8 w-8 animate-spin text-emerald-600" />
               <div className="w-full max-w-xs bg-slate-200 rounded-full h-1.5 overflow-hidden">
                 <div className="bg-emerald-600 h-full transition-all" style={{ width: `${uploadProgress}%` }} />
               </div>

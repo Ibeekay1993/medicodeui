@@ -1,3 +1,4 @@
+import { BrandSpinner } from "@/components/BrandSpinner";
 import React, { useRef, useState, useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -12,15 +13,7 @@ import {
 } from "@/components/ui/dialog";
 
 import { cn } from "@/lib/utils";
-import {
-  ChevronDown,
-  ChevronUp,
-  Loader2,
-  Zap,
-  Minus,
-  Plus,
-  Search,
-} from "lucide-react";
+import { ChevronDown, ChevronUp, Zap, Minus, Plus, Search, AlertTriangle } from "lucide-react";
 import {
   TariffOption,
   formatNaira,
@@ -98,6 +91,9 @@ export const TreatmentCart = React.memo(function TreatmentCart({
   }, [approvedItems]);
 
   const displayTotal = calculatedTotal;
+  const hasUnconfirmedAmounts = approvedItems.some(
+    (item) => !item.declined && (item.quantityNeedsReview || item.priceNeedsReview)
+  );
 
   const handleConfirmDecline = () => {
     if (declineDialogItem) {
@@ -142,7 +138,7 @@ export const TreatmentCart = React.memo(function TreatmentCart({
               className="h-8 rounded-xl border-slate-200 bg-white px-3 text-xs font-black uppercase tracking-wider text-slate-700 hover:bg-slate-50 shadow-sm disabled:opacity-40 disabled:cursor-not-allowed transition-all"
             >
               {parseLoading ? (
-                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                <BrandSpinner className="mr-1.5 h-3.5 w-3.5 animate-spin" />
               ) : (
                 <Zap className="mr-1.5 h-3.5 w-3.5" />
               )}
@@ -167,7 +163,7 @@ export const TreatmentCart = React.memo(function TreatmentCart({
           {parseStatus && (
             <div className="flex items-center gap-2 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2.5 text-xs font-bold text-slate-600 shadow-sm break-words whitespace-normal flex-wrap">
               {parseLoading ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin text-slate-500 shrink-0" />
+                <BrandSpinner className="h-3.5 w-3.5 animate-spin text-slate-500 shrink-0" />
               ) : (
                 <Zap className="h-3.5 w-3.5 text-slate-500 shrink-0" />
               )}
@@ -195,6 +191,29 @@ export const TreatmentCart = React.memo(function TreatmentCart({
                         )}>
                           {item.name}
                         </p>
+                        {item.quantityNeedsReview && !item.declined && (
+                          <div className="mt-1.5 rounded-md border border-amber-200 bg-amber-50 px-2 py-1.5 text-[11px] font-medium leading-snug text-amber-950">
+                            <p className="flex items-start gap-1.5">
+                              <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                              <span>Quantity is provisional. Check it against the request or prescription before approval.</span>
+                            </p>
+                            {!readOnly && changeItemQuantity && (
+                              <button
+                                type="button"
+                                className="ml-5 mt-1 rounded px-1.5 py-0.5 font-semibold text-amber-950 underline underline-offset-2 hover:bg-amber-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-700"
+                                onClick={() => changeItemQuantity(item.code, item.quantity || 1)}
+                              >
+                                Confirm quantity: {item.quantity}
+                              </button>
+                            )}
+                          </div>
+                        )}
+                        {item.priceNeedsReview && !item.declined && (
+                          <p className="mt-1.5 flex items-start gap-1.5 rounded-md border border-amber-200 bg-amber-50 px-2 py-1.5 text-[11px] font-medium leading-snug text-amber-900">
+                            <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                            <span>Tariff price is missing or inconsistent. Select a verified catalog item before approval.</span>
+                          </p>
+                        )}
                         <div className="flex items-center gap-2 mt-1.5">
                           <Badge
                             variant="outline"
@@ -262,7 +281,11 @@ export const TreatmentCart = React.memo(function TreatmentCart({
                               size="icon"
                               className="h-7 w-7 rounded-lg hover:bg-white hover:shadow-xs transition-all"
                               onClick={() => {
-                                const currentQty = Number(editingQuantities[item.code || ""] ?? item.quantity ?? 1);
+                                const draft = editingQuantities[item.code || ""];
+                                const draftQty = Number(draft);
+                                const currentQty = draft !== undefined && Number.isFinite(draftQty) && draftQty > 0
+                                  ? draftQty
+                                  : Number(item.quantity ?? 1);
                                 const nextQty = Math.max(1, currentQty - 1);
                                 if (changeItemQuantity) {
                                   changeItemQuantity(item.code, nextQty);
@@ -279,20 +302,14 @@ export const TreatmentCart = React.memo(function TreatmentCart({
                               type="text"
                               inputMode="numeric"
                               pattern="[0-9]*"
+                              aria-label={`Quantity for ${item.name}`}
                               value={editingQuantities[item.code || ""] ?? String(item.quantity)}
-                              onChange={(event) => {
-                                const val = event.target.value;
-                                updateApprovedItemQuantity(item.code, val);
-                                const num = Number(val);
-                                if (Number.isFinite(num) && num > 0 && changeItemQuantity) {
-                                  changeItemQuantity(item.code, num);
-                                }
-                              }}
+                              onChange={(event) => updateApprovedItemQuantity(item.code, event.target.value)}
                               onBlur={() => commitQuantity(item.code)}
                               onKeyDown={(event) => {
                                 if (event.key === "Enter") {
                                   event.preventDefault();
-                                  commitQuantity(item.code);
+                                  event.currentTarget.blur();
                                 }
                               }}
                               onFocus={(event) => {
@@ -306,7 +323,11 @@ export const TreatmentCart = React.memo(function TreatmentCart({
                               size="icon"
                               className="h-7 w-7 rounded-lg hover:bg-white hover:shadow-xs transition-all"
                               onClick={() => {
-                                const currentQty = Number(editingQuantities[item.code || ""] ?? item.quantity ?? 1);
+                                const draft = editingQuantities[item.code || ""];
+                                const draftQty = Number(draft);
+                                const currentQty = draft !== undefined && Number.isFinite(draftQty) && draftQty > 0
+                                  ? draftQty
+                                  : Number(item.quantity ?? 1);
                                 const nextQty = currentQty + 1;
                                 if (changeItemQuantity) {
                                   changeItemQuantity(item.code, nextQty);
@@ -326,7 +347,11 @@ export const TreatmentCart = React.memo(function TreatmentCart({
                             "text-xs font-black",
                             item.declined ? "text-rose-500 line-through" : "text-slate-800"
                           )}>
-                            {item.declined ? "Declined" : formatNaira(itemTotal(item))}
+                            {item.declined
+                              ? "Declined"
+                              : item.quantityNeedsReview || item.priceNeedsReview
+                              ? "Confirm to calculate"
+                              : formatNaira(itemTotal(item))}
                           </p>
                           {request?.deletion_status !== "awaiting_admin_approval" && !isHospitalDirected && !readOnly && (
                               <div className="flex items-center justify-end gap-2 mt-1">
@@ -399,10 +424,10 @@ export const TreatmentCart = React.memo(function TreatmentCart({
               </div>
               <div className="flex items-center justify-between border-t border-slate-100 bg-slate-50 px-3 py-2.5">
                 <span className="text-xs font-black uppercase tracking-widest text-slate-700">
-                  Total Approved Amount
+                  {hasUnconfirmedAmounts ? "Approval total" : "Total Approved Amount"}
                 </span>
-                <span className="text-base font-black text-slate-800">
-                  {formatNaira(displayTotal)}
+                <span className={cn("text-base font-black", hasUnconfirmedAmounts ? "text-amber-800" : "text-slate-800")}>
+                  {hasUnconfirmedAmounts ? "Confirm items first" : formatNaira(displayTotal)}
                 </span>
               </div>
             </div>
@@ -429,7 +454,7 @@ export const TreatmentCart = React.memo(function TreatmentCart({
                   disabled={request?.deletion_status === "awaiting_admin_approval" || isHospitalDirected}
                 />
                 {tariffSearchLoading && (
-                  <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-slate-400" />
+                  <BrandSpinner className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-slate-400" />
                 )}
               </div>
 

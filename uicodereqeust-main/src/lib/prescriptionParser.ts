@@ -1,5 +1,10 @@
 import { SupabaseClient } from "@supabase/supabase-js";
 import { TariffOption } from "./clinicalUtils";
+import {
+  calculateMedicationQuantity,
+  extractExplicitQuantity,
+  medicationQuantityNeedsReview,
+} from "../../supabase/functions/_shared/prescription-quantity";
 
 const STANDARD_FIELDS: Record<string, string[]> = {
   patient: ["patient", "patients", "pt", "patient_name", "patient:", "patient name", "patient's name"],
@@ -162,7 +167,10 @@ export function splitTerms(text: string): string[] {
   let normalized = normalizeClinicalText(strippedText);
 
   // Separate joined 'Tab/Cap/Inj' when preceded by alphanumeric/closing paren
-  normalized = normalized.replace(/([0-9a-zA-Z\)])\s+(?=(?:Tab|Cap|Inj)\b)/gi, "$1, ");
+  // Keep a leading unit count attached to its dosage form ("1 tab ...").
+  // A numeric-only prefix is the prescribed dose count, not a boundary between
+  // two treatments. Strengths such as "10mg Tab" still split on the letter.
+  normalized = normalized.replace(/([a-zA-Z\)])\s+(?=(?:Tab|Cap|Inj)\b)/gi, "$1, ");
 
   // Separate joined 'Insulin/Lantus'
   normalized = normalized.replace(
@@ -403,13 +411,17 @@ export async function parsePrescriptionClientFallback(
 
     const frequency = extractFrequency(cleanTerm);
     const duration = extractDurationDays(cleanTerm);
-    const unitPrice = Number(best.amount || 0);
+    const rawUnitPrice = best.amount;
+    const parsedUnitPrice = rawUnitPrice === null || rawUnitPrice === undefined || String(rawUnitPrice).trim() === ""
+      ? null
+      : Number(rawUnitPrice);
+    const unitPriceIsValid = parsedUnitPrice !== null && Number.isFinite(parsedUnitPrice) && parsedUnitPrice >= 0;
+    const unitPrice = unitPriceIsValid ? parsedUnitPrice : 0;
     const isDrug = String(best.category || "").toLowerCase() === "drug";
-
-    let quantity = 1;
-    if (isDrug) {
-      quantity = Math.max(1, Math.ceil(frequency.multiplier * duration.days));
-    }
+    const explicitQuantity = extractExplicitQuantity(cleanTerm);
+    const quantity = isDrug
+      ? calculateMedicationQuantity(cleanTerm, frequency.multiplier)
+      : explicitQuantity ?? 1;
 
     const price = unitPrice * quantity;
 
@@ -420,6 +432,10 @@ export async function parsePrescriptionClientFallback(
       price,
       unitPrice,
       quantity,
+      quantityNeedsReview: isDrug
+        ? medicationQuantityNeedsReview(cleanTerm)
+        : explicitQuantity === null,
+      priceNeedsReview: !unitPriceIsValid,
       frequency: frequency.label,
       duration: duration.label,
       matched_via: "auto",

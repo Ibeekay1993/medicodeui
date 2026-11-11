@@ -1,3 +1,4 @@
+import { BrandSpinner } from "@/components/BrandSpinner";
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -6,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { QRCodeSVG } from "qrcode.react";
-import { ShieldCheck, ShieldAlert, QrCode, Loader2, CheckCircle2 } from "lucide-react";
+import { ShieldCheck, ShieldAlert, QrCode, CheckCircle2 } from "lucide-react";
 
 
 interface MfaSettingsCardProps {
@@ -152,7 +153,7 @@ export default function MfaSettingsCard({ user, fullName, role }: MfaSettingsCar
                   size="sm"
                   className="w-full sm:w-auto h-9 px-4 text-xs font-semibold bg-brand-700 hover:bg-brand-800 text-white gap-1.5 shadow-sm"
                 >
-                  {isEnrolling ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <QrCode className="h-3.5 w-3.5" />}
+                  {isEnrolling ? <BrandSpinner className="h-3.5 w-3.5 animate-spin" /> : <QrCode className="h-3.5 w-3.5" />}
                   Enable 2FA
                 </Button>
               )}
@@ -199,7 +200,7 @@ export default function MfaSettingsCard({ user, fullName, role }: MfaSettingsCar
                     disabled={isVerifying || verifyCode.length !== 6}
                     className="flex-[1.5] h-9 text-xs font-semibold bg-brand-700 hover:bg-brand-800 text-white gap-1"
                   >
-                    {isVerifying ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+                    {isVerifying ? <BrandSpinner className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
                     Confirm
                   </Button>
                 </div>

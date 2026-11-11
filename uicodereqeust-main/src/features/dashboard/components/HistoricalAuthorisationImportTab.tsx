@@ -1,19 +1,6 @@
+import { BrandSpinner } from "@/components/BrandSpinner";
 import { useState, useMemo, useCallback, useEffect } from "react";
-import {
-  Upload,
-  CheckCircle2,
-  AlertTriangle,
-  Loader2,
-  Search,
-  Download,
-  RefreshCw,
-  Info,
-  ShieldCheck,
-  Plus,
-  Trash2,
-  Save,
-  BookmarkCheck,
-} from "lucide-react";
+import { Upload, CheckCircle2, AlertTriangle, Search, Download, RefreshCw, Info, ShieldCheck, Plus, Trash2, Save, BookmarkCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -61,6 +48,7 @@ export function HistoricalAuthorisationImportTab() {
   // Manual tariff adjustment dialog
   const [selectedRecord, setSelectedRecord] = useState<HistoricalReconciledRecord | null>(null);
   const [editingItems, setEditingItems] = useState<HistoricalMatchedItem[]>([]);
+  const [quantityDrafts, setQuantityDrafts] = useState<Record<number, string>>({});
   const [activeSearchIndex, setActiveSearchIndex] = useState<number | null>(null);
   const [tariffSearchQuery, setTariffSearchQuery] = useState("");
 
@@ -619,6 +607,7 @@ export function HistoricalAuthorisationImportTab() {
             },
           ];
     setEditingItems(items);
+    setQuantityDrafts({});
     setActiveSearchIndex(null);
     setTariffSearchQuery("");
   };
@@ -631,6 +620,26 @@ export function HistoricalAuthorisationImportTab() {
         cur.amount = Number(cur.unit_price || 0) * Number(cur.quantity || 1);
       }
       next[index] = cur;
+      return next;
+    });
+  };
+
+  const handleQuantityDraftChange = (index: number, value: string) => {
+    const parts = value.replace(/[^0-9.]/g, "").split(".");
+    const cleaned = parts.length > 1 ? `${parts.shift() || "0"}.${parts.join("")}` : parts[0];
+    setQuantityDrafts((prev) => ({ ...prev, [index]: cleaned }));
+  };
+
+  const commitQuantityDraft = (index: number) => {
+    const draft = quantityDrafts[index];
+    if (draft === undefined) return;
+    const quantity = Number(draft);
+    if (draft !== "" && Number.isFinite(quantity) && quantity > 0) {
+      handleItemFieldChange(index, "quantity", Math.floor(quantity));
+    }
+    setQuantityDrafts((prev) => {
+      const next = { ...prev };
+      delete next[index];
       return next;
     });
   };
@@ -674,6 +683,11 @@ export function HistoricalAuthorisationImportTab() {
 
   const handleRemoveItem = (index: number) => {
     setEditingItems((prev) => prev.filter((_, i) => i !== index));
+    setQuantityDrafts((prev) => Object.fromEntries(
+      Object.entries(prev)
+        .filter(([draftIndex]) => Number(draftIndex) !== index)
+        .map(([draftIndex, value]) => [Number(draftIndex) > index ? Number(draftIndex) - 1 : Number(draftIndex), value])
+    ));
     if (activeSearchIndex === index) {
       setActiveSearchIndex(null);
     }
@@ -822,7 +836,7 @@ export function HistoricalAuthorisationImportTab() {
       {/* Parsing Spinner */}
       {isParsing && (
         <Card className="p-12 text-center border-slate-200">
-          <Loader2 className="h-8 w-8 text-emerald-600 animate-spin mx-auto mb-3" />
+          <BrandSpinner className="h-8 w-8 text-emerald-600 animate-spin mx-auto mb-3" />
           <p className="text-sm font-semibold text-slate-800">Analyzing clinical treatments & matching tariffs…</p>
           <p className="text-xs text-slate-500 mt-1">Querying NHIA 2025 catalog and expanding prescription dosages</p>
         </Card>
@@ -917,7 +931,7 @@ export function HistoricalAuthorisationImportTab() {
               >
                 {isExporting ? (
                   <>
-                    <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                    <BrandSpinner className="h-3.5 w-3.5 mr-1.5 animate-spin" />
                     Generating Advice…
                   </>
                 ) : (
@@ -971,7 +985,7 @@ export function HistoricalAuthorisationImportTab() {
               >
                 {isCommitting ? (
                   <>
-                    <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                    <BrandSpinner className="h-3.5 w-3.5 mr-1.5 animate-spin" />
                     Committing ({commitProgress}%)…
                   </>
                 ) : (
@@ -1337,10 +1351,16 @@ export function HistoricalAuthorisationImportTab() {
                       <div>
                         <label className="text-[11px] font-semibold text-slate-600 block mb-0.5">Quantity</label>
                         <Input
-                          type="number"
-                          min={1}
-                          value={item.quantity}
-                          onChange={(e) => handleItemFieldChange(idx, "quantity", Number(e.target.value))}
+                          type="text"
+                          inputMode="decimal"
+                          aria-label={`Quantity for ${item.name || `item ${idx + 1}`}`}
+                          value={quantityDrafts[idx] ?? String(item.quantity)}
+                          onChange={(e) => handleQuantityDraftChange(idx, e.target.value)}
+                          onBlur={() => commitQuantityDraft(idx)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") e.currentTarget.blur();
+                          }}
+                          onFocus={(e) => e.target.select()}
                           className="h-8 text-xs font-mono"
                         />
                       </div>

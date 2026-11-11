@@ -1,6 +1,7 @@
+import { BrandSpinner } from "@/components/BrandSpinner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { MessageSquare, Loader2 } from "lucide-react";
+import { MessageSquare } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 
 interface SupportChatDialogProps {
@@ -98,7 +99,7 @@ export default function SupportChatDialog({
             >
               {requestChatSending ? (
                 <>
-                  <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                  <BrandSpinner className="h-3.5 w-3.5 mr-1.5 animate-spin" />
                   Sending…
                 </>
               ) : (

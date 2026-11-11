@@ -5,6 +5,7 @@ import type { Database } from "@/integrations/supabase/types";
 import { supabase } from "@/integrations/supabase/client";
 import { isMfaRequiredForUser } from "@/lib/mfa-policy";
 import { Button } from "@/components/ui/button";
+import { BrandSpinner } from "@/components/BrandSpinner";
 
 type AppRole = Database["public"]["Enums"]["app_role"];
 
@@ -63,7 +64,7 @@ export function ProtectedRoute({ children, allowedRoles, fallbackPath, loginPath
   if (loading || mfaChecking) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+        <BrandSpinner className="h-8 w-8" label="Checking access…" />
       </div>
     );
   }

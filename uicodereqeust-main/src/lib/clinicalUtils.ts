@@ -5,6 +5,8 @@ export type TariffOption = {
   price: number;
   unitPrice?: number;
   quantity?: number;
+  quantityNeedsReview?: boolean;
+  priceNeedsReview?: boolean;
   frequency?: string | null;
   duration?: string | null;
   matched_via?: string;
@@ -27,6 +29,26 @@ export function itemUnitPrice(item: TariffOption) {
   return Number(item.unitPrice ?? item.price ?? 0);
 }
 
+export function parsePositiveQuantity(value: unknown): number | null {
+  if (value === null || value === undefined || String(value).trim() === "") return null;
+  const quantity = Number(value);
+  return Number.isFinite(quantity) && quantity > 0 ? quantity : null;
+}
+
+export function parseNonNegativeAmount(value: unknown): number | null {
+  if (value === null || value === undefined || String(value).trim() === "") return null;
+  const amount = Number(value);
+  return Number.isFinite(amount) && amount >= 0 ? amount : null;
+}
+
+export function hasValidItemQuantity(item: TariffOption): boolean {
+  return parsePositiveQuantity(item.quantity) !== null;
+}
+
+export function hasValidItemUnitPrice(item: TariffOption): boolean {
+  return parseNonNegativeAmount(item.unitPrice ?? item.price) !== null;
+}
+
 export function itemQuantity(item: TariffOption) {
   const quantity = Number(item.quantity ?? 1);
   return Number.isFinite(quantity) && quantity > 0 ? quantity : 1;
@@ -34,7 +56,42 @@ export function itemQuantity(item: TariffOption) {
 
 export function itemTotal(item: TariffOption) {
   if (item.declined) return 0;
-  return itemUnitPrice(item) * itemQuantity(item);
+  const unitPrice = itemUnitPrice(item);
+  const quantity = parsePositiveQuantity(item.quantity) ?? 0;
+  const total = unitPrice * quantity;
+  if (!Number.isFinite(total) || unitPrice < 0 || quantity <= 0) return 0;
+  return Math.round((total + Number.EPSILON) * 100) / 100;
+}
+
+/** Return a blocking message when an authorization total is not auditable. */
+export function getApprovalAmountIssue(
+  items: Array<TariffOption & { declined?: boolean }>,
+  expectedTotal: unknown,
+): string | null {
+  const selectedItems = items.filter((item) => !item.declined);
+  if (selectedItems.length === 0) return "Select at least one treatment item before approving.";
+
+  for (const item of selectedItems) {
+    if (item.quantityNeedsReview === true || !hasValidItemQuantity(item)) {
+      return `${item.name}: confirm the quantity from the request or prescription.`;
+    }
+    if (item.priceNeedsReview === true || !hasValidItemUnitPrice(item)) {
+      return `${item.name}: select a catalog item with a valid tariff price.`;
+    }
+  }
+
+  const total = parseNonNegativeAmount(expectedTotal);
+  if (total === null) return "The approval total is not a valid amount.";
+
+  const calculatedTotal = selectedItems.reduce((sum, item) => sum + itemTotal(item), 0);
+  if (!Number.isFinite(calculatedTotal)) return "The calculated approval amount is invalid.";
+  const roundedCalculatedTotal = Math.round((calculatedTotal + Number.EPSILON) * 100) / 100;
+  const roundedExpectedTotal = Math.round((total + Number.EPSILON) * 100) / 100;
+  if (roundedCalculatedTotal !== roundedExpectedTotal) {
+    return "The approval total does not match the selected treatment quantities and tariff prices.";
+  }
+
+  return null;
 }
 
 export function cleanPatientName(name: string) {

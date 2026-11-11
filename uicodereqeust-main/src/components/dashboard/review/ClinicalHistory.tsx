@@ -1,8 +1,9 @@
+import { BrandSpinner } from "@/components/BrandSpinner";
 import { useState } from "react";
 import { format } from "date-fns";
 import { matchesBeneficiaryHistoryRecord } from "@/lib/clinicalUtils";
 import { getApprovedHistoryItems } from "@/lib/approvedHistoryItems";
-import { ChevronDown, ChevronUp, Clock3, Loader2 } from "lucide-react";
+import { ChevronDown, ChevronUp, Clock3 } from "lucide-react";
 
 interface ClinicalHistoryProps {
   request: any;
@@ -227,7 +228,7 @@ export function ClinicalHistory({
             <div className="bg-slate-50 px-2.5 py-1 rounded-full text-[10px] font-bold text-slate-500 flex items-center gap-1.5">
               {checking ? (
                 <>
-                  <Loader2 className="w-3 h-3 animate-spin text-slate-400" />
+                  <BrandSpinner className="w-3 h-3 animate-spin text-slate-400" />
                   <span>SEARCHING...</span>
                 </>
               ) : (
@@ -285,7 +286,7 @@ export function ClinicalHistory({
             <div className="pl-1 pr-1">
               {checking ? (
                 <div className="rounded-xl border border-dashed border-slate-200 p-6 text-center bg-slate-50/50 animate-pulse">
-                  <Loader2 className="w-5 h-5 animate-spin text-emerald-600 mx-auto mb-2" />
+                  <BrandSpinner className="w-5 h-5 animate-spin text-emerald-600 mx-auto mb-2" />
                   <p className="text-[12px] font-bold text-slate-700">Checking patient clinical records...</p>
                   <p className="text-[10px] text-slate-400 mt-0.5">Searching authorization registry for policy and family history</p>
                 </div>

@@ -5,6 +5,7 @@ import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 
 const DashboardHome = lazy(() => import("@/features/dashboard/pages/DashboardHome"));
 const RequestsPage = lazy(() => import("@/features/dashboard/pages/RequestsPage"));
+const FindEnrolleePage = lazy(() => import("@/features/dashboard/pages/FindEnrolleePage"));
 const SupportMessagesPage = lazy(() => import("@/features/dashboard/pages/SupportMessagesPage"));
 const WhatsAppPage = lazy(() => import("@/features/dashboard/pages/WhatsAppPage"));
 const ReportsPage = lazy(() => import("@/features/dashboard/pages/ReportsPage"));
@@ -29,6 +30,7 @@ export function UtilizationRoutes() {
     >
       <Route index element={<DashboardHome />} />
       <Route path="requests" element={<RequestsPage />} />
+      <Route path="enrollees" element={<FindEnrolleePage />} />
       <Route path="messages" element={<SupportMessagesPage />} />
       <Route path="whatsapp" element={<WhatsAppPage />} />
       <Route path="reports" element={<ReportsPage />} />

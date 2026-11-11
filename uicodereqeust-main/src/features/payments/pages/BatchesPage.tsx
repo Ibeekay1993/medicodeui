@@ -1,3 +1,4 @@
+import { BrandSpinner } from "@/components/BrandSpinner";
 import { useState, useMemo } from "react";
 import type * as ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
@@ -25,15 +26,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {
-  Loader2,
-  FolderOpen,
-  Download,
-  CheckCircle,
-  CreditCard,
-  Trash2,
-  FileSpreadsheet,
-} from "lucide-react";
+import { FolderOpen, Download, CheckCircle, CreditCard, Trash2, FileSpreadsheet } from "lucide-react";
 import { BatchDetailsDrawer } from "../components/BatchDetailsDrawer";
 import { MonthYearPicker } from "@/components/ui/MonthYearPicker";
 import { usePaymentBatches, useUpdatePaymentBatchStatus, useDeletePaymentBatch } from "../hooks/usePayments";
@@ -614,7 +607,7 @@ export default function BatchesPage() {
               >
                 {isSubmittingPayment ? (
                   <span className="flex items-center gap-1.5">
-                    <Loader2 className="h-3 w-3 animate-spin" /> Processing...
+                    <BrandSpinner className="h-3 w-3 animate-spin" /> Processing...
                   </span>
                 ) : (
                   "Confirm Settlement"

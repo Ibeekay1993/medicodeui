@@ -1,3 +1,4 @@
+import { BrandSpinner } from "@/components/BrandSpinner";
 import { useState, useEffect, useRef } from "react";
 import { useLocation, useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -12,7 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Loader2, Shield, Eye, EyeOff, AlertTriangle, Mail, CheckCircle2 } from "lucide-react";
+import { Shield, Eye, EyeOff, AlertTriangle, Mail, CheckCircle2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { accessStatus } from "@/lib/user-helpers";
@@ -298,7 +299,7 @@ export default function Login() {
       const resolvedRole = await resolveRole(userId, userEmail);
 
       if (!resolvedRole) {
-        await withAuthTimeout(supabase.auth.signOut()).catch((signOutError) => {
+        await withAuthTimeout(supabase.auth.signOut({ scope: "local" })).catch((signOutError) => {
           console.error("Login: sign-out after missing role timed out", signOutError);
         });
         setError("Your password was accepted, but your account profile could not be loaded. Please contact support.");
@@ -340,7 +341,7 @@ export default function Login() {
     } catch (err: any) {
       if (!authenticationSucceeded) {
         try {
-          await withAuthTimeout(supabase.auth.signOut());
+          await withAuthTimeout(supabase.auth.signOut({ scope: "local" }));
         } catch (signOutError) {
           console.error("Login: sign-out after failed authentication timed out", signOutError);
         }
@@ -467,7 +468,7 @@ export default function Login() {
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-50">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-slate-300 border-t-slate-800" aria-label="Checking session\u2026" />
+        <BrandSpinner className="h-8 w-8" label="Checking session…" />
       </div>
     );
   }
@@ -550,7 +551,7 @@ export default function Login() {
                     className="h-11 w-full rounded-xl bg-[#0F6E56] font-semibold text-white shadow-xs transition-colors hover:bg-[#0a5240] disabled:opacity-60"
                   >
                     {isLoading ? (
-                      <Loader2 className="h-4 w-4 animate-spin mx-auto" />
+                      <BrandSpinner className="h-4 w-4 animate-spin mx-auto" />
                     ) : (
                       "Verify Identity"
                     )}
@@ -562,7 +563,7 @@ export default function Login() {
                     disabled={isLoading}
                     onClick={async () => {
                       setIsLoading(true);
-                      await supabase.auth.signOut();
+                      await supabase.auth.signOut({ scope: "local" });
                       setShowMfa(false);
                       setMfaCode("");
                       setIsLoading(false);
@@ -668,7 +669,7 @@ export default function Login() {
                     className="h-11 w-full rounded-xl bg-[#0F6E56] font-semibold text-sm text-white shadow-xs transition-colors hover:bg-[#0a5240] disabled:opacity-60"
                   >
                     {isLoading ? (
-                      <Loader2 className="h-4 w-4 animate-spin mx-auto" />
+                      <BrandSpinner className="h-4 w-4 animate-spin mx-auto" />
                     ) : isLocked ? (
                       `Locked — wait ${lockCountdown}s`
                     ) : (
@@ -772,7 +773,7 @@ export default function Login() {
                   className="h-10 flex-1 rounded-xl bg-[#0F6E56] hover:bg-[#0a5240] text-xs font-semibold text-white shadow-xs"
                 >
                   {forgotLoading ? (
-                    <Loader2 className="h-4 w-4 animate-spin mx-auto" />
+                    <BrandSpinner className="h-4 w-4 animate-spin mx-auto" />
                   ) : (
                     "Send Reset Link"
                   )}

@@ -1,9 +1,11 @@
+import { BrandSpinner } from "@/components/BrandSpinner";
+import { useState } from "react";
 import type { Dispatch, SetStateAction, RefObject } from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Loader2, Search, Minus, Plus, Trash2, Pill } from "lucide-react";
+import { Search, Minus, Plus, Trash2, Pill } from "lucide-react";
 import Dropdown from "./Dropdown";
 import { TreatmentItem } from "@/lib/new-request-helpers";
 
@@ -32,6 +34,8 @@ export default function TreatmentSection({
   setTreatments,
   treatRef
 }: TreatmentSectionProps) {
+  const [quantityDrafts, setQuantityDrafts] = useState<Record<string, string>>({});
+
   const addTreatment = (item: any) => {
     setTreatments((prev) =>
       prev.find((t) => t.code === item.code) ? prev : [...prev, { ...item, quantity: 1 }]
@@ -42,25 +46,52 @@ export default function TreatmentSection({
 
   const removeTreatment = (code: string) => {
     setTreatments((prev) => prev.filter((t) => t.code !== code));
+    setQuantityDrafts((prev) => {
+      const next = { ...prev };
+      delete next[code];
+      return next;
+    });
   };
 
-  const changeQty = (code: string, d: number) =>
+  const changeQty = (code: string, d: number) => {
+    const draft = quantityDrafts[code];
+    const draftQuantity = Number(draft);
+    setQuantityDrafts((prev) => {
+      const next = { ...prev };
+      delete next[code];
+      return next;
+    });
     setTreatments((prev) =>
-      prev.map((t) => (t.code === code ? { ...t, quantity: Math.max(1, t.quantity + d) } : t))
+      prev.map((t) => {
+        if (t.code !== code) return t;
+        const baseQuantity = draft !== undefined && Number.isFinite(draftQuantity) && draftQuantity > 0
+          ? Math.floor(draftQuantity)
+          : t.quantity;
+        return { ...t, quantity: Math.min(999, Math.max(1, baseQuantity + d)) };
+      })
     );
+  };
 
   const setQty = (code: string, value: string) => {
     const cleaned = value.replace(/[^0-9]/g, "");
-    if (cleaned === "") {
-      setTreatments((prev) => prev.map((t) => (t.code === code ? { ...t, quantity: 1 } : t)));
-    } else {
-      const num = Number(cleaned);
-      if (Number.isFinite(num) && num > 0) {
-        setTreatments((prev) =>
-          prev.map((t) => (t.code === code ? { ...t, quantity: Math.min(999, Math.floor(num)) } : t))
-        );
-      }
+    setQuantityDrafts((prev) => ({ ...prev, [code]: cleaned }));
+  };
+
+  const commitQty = (code: string) => {
+    const draft = quantityDrafts[code];
+    if (draft === undefined) return;
+
+    const num = Number(draft);
+    if (draft !== "" && Number.isFinite(num) && num > 0) {
+      const quantity = Math.min(999, Math.floor(num));
+      setTreatments((prev) => prev.map((t) => (t.code === code ? { ...t, quantity } : t)));
     }
+
+    setQuantityDrafts((prev) => {
+      const next = { ...prev };
+      delete next[code];
+      return next;
+    });
   };
 
   return (
@@ -95,7 +126,7 @@ export default function TreatmentSection({
           />
           <div className="absolute right-3 top-2.5 pointer-events-none">
             {treatLoading ? (
-              <Loader2 className="h-4 w-4 animate-spin text-emerald-600" />
+              <BrandSpinner className="h-4 w-4 animate-spin text-emerald-600" />
             ) : (
               <Search className="h-4 w-4 text-slate-400" />
             )}
@@ -159,16 +190,13 @@ export default function TreatmentSection({
                     type="text"
                     inputMode="numeric"
                     pattern="[0-9]*"
-                    value={t.quantity}
+                    value={quantityDrafts[t.code] ?? String(t.quantity)}
                     aria-label={`Quantity for ${t.name}`}
                     onChange={(e) => setQty(t.code, e.target.value)}
                     onFocus={(e) => e.target.select()}
-                    onBlur={(e) => {
-                      const v = Number(e.target.value);
-                      if (!Number.isFinite(v) || v < 1) setQty(t.code, "1");
-                    }}
+                    onBlur={() => commitQty(t.code)}
                     onKeyDown={(e) => {
-                      if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+                      if (e.key === "Enter") e.currentTarget.blur();
                     }}
                     className="h-6 w-8 text-center font-mono font-bold text-slate-900 text-xs p-0 outline-none tabular-nums border-x border-slate-300"
                   />

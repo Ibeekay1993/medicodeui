@@ -1,5 +1,6 @@
+import { BrandSpinner } from "@/components/BrandSpinner";
 import { useEffect, useState } from "react";
-import { Brain, Check, Clock3, Loader2, RefreshCw, ShieldAlert, X } from "lucide-react";
+import { Brain, Check, Clock3, RefreshCw, ShieldAlert, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
@@ -111,7 +112,7 @@ export default function LearningCentrePage() {
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center py-16 text-slate-500"><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Loading candidates...</div>
+        <div className="flex items-center justify-center py-16 text-slate-500"><BrandSpinner className="mr-2 h-5 w-5 animate-spin" /> Loading candidates...</div>
       ) : candidates.length === 0 ? (
         <div className="med-card flex flex-col items-center justify-center p-12 text-center">
           <Brain className="h-10 w-10 text-slate-300" />

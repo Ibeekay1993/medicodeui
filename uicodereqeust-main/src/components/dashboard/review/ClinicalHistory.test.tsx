@@ -21,6 +21,7 @@ describe("ClinicalHistory approved treatment display", () => {
                 name: "Amlodipine 10mg tablet",
                 category: "Medication",
                 quantity: 30,
+                quantity_requires_review: false,
                 frequency: "Once daily",
                 duration: "30 days",
               },
@@ -38,7 +39,7 @@ describe("ClinicalHistory approved treatment display", () => {
 
     const treatmentList = screen.getByRole("list", { name: "Approved treatment items" });
     expect(within(treatmentList).getByText("Amlodipine 10mg tablet")).toBeVisible();
-    expect(within(treatmentList).getByText("Approved quantity")).toBeVisible();
+    expect(within(treatmentList).getByText("Approved qty")).toBeVisible();
     expect(within(treatmentList).getByText("30")).toBeVisible();
     expect(within(treatmentList).getByText(/Once daily · 30 days/)).toBeVisible();
     expect(within(treatmentList).queryByText("Declined item")).not.toBeInTheDocument();
@@ -72,5 +73,29 @@ describe("ClinicalHistory approved treatment display", () => {
     expect(screen.getByText("Amlodipine requested")).toBeVisible();
     expect(screen.queryByText("Draft cart item")).not.toBeInTheDocument();
     expect(screen.queryByRole("list", { name: "Approved treatment items" })).not.toBeInTheDocument();
+  });
+
+  it("labels legacy quantities without a confirmation marker as recorded and unverified", () => {
+    render(
+      <ClinicalHistory
+        request={{}}
+        visibleHistory={[{
+          id: "legacy-1",
+          patient_name: "Afolayan Kayode",
+          policy_number: "1639554",
+          beneficiary_number: "1639554-1",
+          status: "approved",
+          approved_items: [{ name: "Amlodipine 10mg tablet", quantity: 1 }],
+        }]}
+        historyPage={1}
+        setHistoryPage={() => undefined}
+        requestPatientName="Afolayan Kayode"
+        requestPolicyNumber="1639554"
+        requestBeneficiaryNumber="1639554-1"
+      />,
+    );
+
+    expect(screen.getByText("Recorded qty")).toBeVisible();
+    expect(screen.getByText(/no quantity confirmation marker/i)).toBeVisible();
   });
 });

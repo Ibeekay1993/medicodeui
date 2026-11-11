@@ -7,6 +7,7 @@ import {
   extractDoseMultiplier,
   extractExplicitQuantity,
   extractFrequency,
+  medicationQuantityNeedsReview,
 } from "../_shared/prescription-quantity.ts";
 
 const CLINICAL_ABBREVIATIONS: Record<string, string[]> = {
@@ -670,12 +671,20 @@ serve(async (req) => {
       const frequency = extractFrequency(term);
       const duration = extractDurationDays(term);
       const doseMultiplier = extractDoseMultiplier(term);
-      const unitPrice = Number(item.amount || 0);
+      const rawUnitPrice = item.amount;
+      const parsedUnitPrice = rawUnitPrice === null || rawUnitPrice === undefined || String(rawUnitPrice).trim() === ""
+        ? null
+        : Number(rawUnitPrice);
+      const unitPriceIsValid = parsedUnitPrice !== null && Number.isFinite(parsedUnitPrice) && parsedUnitPrice >= 0;
+      const unitPrice = unitPriceIsValid ? parsedUnitPrice : 0;
       const isDrug = String(item.category || "").toLowerCase() === "drug";
       const explicitQuantity = extractExplicitQuantity(term);
       const quantity = isDrug
         ? calculateMedicationQuantity(term, frequency.multiplier)
         : explicitQuantity ?? 1;
+      const quantityRequiresReview = isDrug
+        ? medicationQuantityNeedsReview(term)
+        : explicitQuantity === null;
       const amount = unitPrice * quantity;
 
       seen.add(item.code);
@@ -687,6 +696,8 @@ serve(async (req) => {
         amount,
         unit_price: unitPrice,
         quantity,
+        quantity_requires_review: quantityRequiresReview,
+        price_requires_review: !unitPriceIsValid,
         dosage_form: item.dosage_form,
         strengths: item.strengths,
         matched_via: expandBrandAliases(term).length ? "brand" : Object.hasOwn(CLINICAL_ABBREVIATIONS, term.toUpperCase()) ? "abbreviation" : "text",

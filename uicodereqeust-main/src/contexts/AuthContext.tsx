@@ -396,7 +396,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       clearPatientAndSessionData();
       handleSession(null);
-      await supabase.auth.signOut();
+      // A normal logout ends this browser/device session only. Supabase's
+      // default is global and would unexpectedly revoke every other device.
+      await supabase.auth.signOut({ scope: "local" });
     } catch (error) {
       console.error("AuthContext signOut failed", error);
     }

@@ -1,4 +1,5 @@
-import { Search, Download, Loader2 } from "lucide-react";
+import { BrandSpinner } from "@/components/BrandSpinner";
+import { Search, Download } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -108,7 +109,7 @@ export default function HospitalClaimsHeader({
             variant="outline"
             className="h-8.5 px-3 rounded-lg border-slate-200 text-xs font-medium text-slate-700 hover:bg-slate-50 shrink-0"
           >
-            {isExporting ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Download className="h-3.5 w-3.5 mr-1.5" />}
+            {isExporting ? <BrandSpinner className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Download className="h-3.5 w-3.5 mr-1.5" />}
             Export CSV
           </Button>
         </div>

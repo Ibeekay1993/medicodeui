@@ -24,7 +24,8 @@ import {
   Users,
   Trash2,
   FileSpreadsheet,
-  Megaphone
+  Megaphone,
+  Search,
 } from "lucide-react";
 import { NavItem } from "@/components/dashboard/NavItem";
 import { SidebarInstallButton } from "@/components/pwa/InstallAppPrompt";
@@ -77,6 +78,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       { name: "Dashboard", href: basePath, icon: Activity },
       { name: "New Request", href: "/dashboard/new-request", icon: Zap, hidden: r !== "hospital" },
       { name: "Authorizations", href: r === "hospital" ? `${basePath}/authorizations` : `${basePath}/requests`, icon: ShieldCheck },
+      { name: "Find Enrollee", href: `${basePath}/enrollees`, icon: Search, hidden: r !== "admin" && r !== "utilization_manager" && r !== "utilization_manager_lead" },
       { name: "Claims Queue", href: `${basePath}/claims`, icon: Banknote, hidden: r === "utilization_manager" || r === "utilization_manager_lead" },
       { name: "Payments", href: `/backoffice/admin/payments/awaiting`, icon: Banknote, hidden: r !== "admin" },
       { name: "Messages", href: `${basePath}/messages`, icon: MessageSquare, badge: actionableMessages },
@@ -102,7 +104,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const navigation = getNavigation();
   const navigationGroups = role === "admin"
     ? [
-        { title: "Workspace", names: ["Dashboard", "Authorizations", "Messages", "WhatsApp Parser"] },
+        { title: "Workspace", names: ["Dashboard", "Authorizations", "Find Enrollee", "Messages", "WhatsApp Parser"] },
         { title: "Claims & finance", names: ["Claims Queue", "Payments", "Claims Report", "Payment Reports", "Pre-Auth Report"] },
         { title: "Organization", names: ["Hospitals", "Users", "Announcements"] },
         { title: "Operations & records", names: ["WhatsApp Access", "Audit Feed", "Delete Requests", "NHIS Update", "Historical Import"] },
@@ -184,6 +186,9 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     }
     if (path.startsWith("/backoffice/admin/requests")) {
       return { title: "Authorizations", description: "Search, review, and audit authorization requests" };
+    }
+    if (path.endsWith("/enrollees")) {
+      return { title: "Find Enrollee", description: "Confirm a member against the NHIS beneficiary register" };
     }
     if (path.startsWith("/backoffice/admin/claims-reports")) {
       return { title: "Claims Reports", description: "Analyze claims and review detailed reports" };

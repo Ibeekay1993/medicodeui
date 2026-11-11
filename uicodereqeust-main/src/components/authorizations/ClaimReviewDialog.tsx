@@ -1,4 +1,5 @@
-import { FileText, Loader2, CheckCircle2, EyeOff, Lock } from "lucide-react";
+import { BrandSpinner } from "@/components/BrandSpinner";
+import { FileText, CheckCircle2, EyeOff, Lock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
@@ -377,7 +378,7 @@ export default function ClaimReviewDialog({
               >
                 {isSubmitting ? (
                   <>
-                    <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+                    <BrandSpinner className="h-3.5 w-3.5 animate-spin mr-1.5" />
                     Submitting Claim…
                   </>
                 ) : (

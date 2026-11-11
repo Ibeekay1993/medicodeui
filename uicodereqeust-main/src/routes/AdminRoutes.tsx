@@ -19,6 +19,7 @@ const WhatsAppPage = lazy(() => import("@/features/dashboard/pages/WhatsAppPage"
 const WhatsAppAccessPage = lazy(() => import("@/features/dashboard/pages/WhatsAppAccessPage"));
 const HospitalsPage = lazy(() => import("@/features/dashboard/pages/HospitalsPage"));
 const UsersPage = lazy(() => import("@/features/dashboard/pages/UsersPage"));
+const FindEnrolleePage = lazy(() => import("@/features/dashboard/pages/FindEnrolleePage"));
 const DeleteRequestsPage = lazy(() => import("@/features/dashboard/pages/DeleteRequestsPage"));
 const NhisBeneficiaryUpdatePage = lazy(() => import("@/features/dashboard/pages/NhisBeneficiaryUpdatePage"));
 const HistoricalCodeImportPage = lazy(() => import("@/features/dashboard/pages/HistoricalCodeImportPage"));
@@ -55,6 +56,7 @@ export function AdminRoutes() {
       <Route path="whatsapp-access" element={<WhatsAppAccessPage />} />
       <Route path="hospitals" element={<HospitalsPage />} />
       <Route path="users" element={<UsersPage />} />
+      <Route path="enrollees" element={<FindEnrolleePage />} />
       <Route path="audit-logs" element={<AuditLogsPage />} />
       <Route path="delete-requests" element={<DeleteRequestsPage />} />
       <Route path="nhis-update" element={<NhisBeneficiaryUpdatePage />} />

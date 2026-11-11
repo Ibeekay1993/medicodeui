@@ -1,5 +1,6 @@
+import { BrandSpinner } from "@/components/BrandSpinner";
 import { Fragment, useMemo, useState } from "react";
-import { Activity, Download, Loader2, MoreVertical, RefreshCw, Search } from "lucide-react";
+import { Activity, Download, MoreVertical, RefreshCw, Search } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { ShieldAlert } from "lucide-react";
 import { useAuditLogs } from "../hooks/useAdminOps";
@@ -175,7 +176,7 @@ export default function AuditLogsPage() {
             </thead>
             <tbody className="divide-y divide-slate-200 text-xs text-slate-600">
               {loading ? (
-                <tr><td colSpan={5} className="px-4 py-12 text-center text-slate-500"><Loader2 className="mx-auto mb-3 h-6 w-6 animate-spin text-lime-500" /> Loading audit trail...</td></tr>
+                <tr><td colSpan={5} className="px-4 py-12 text-center text-slate-500"><BrandSpinner className="mx-auto mb-3 h-6 w-6 animate-spin text-lime-500" /> Loading audit trail...</td></tr>
               ) : paginatedLogs.length === 0 ? (
                 <tr><td colSpan={5} className="px-4 py-12 text-center text-slate-500"><Activity className="mx-auto mb-3 h-7 w-7 text-slate-300" /> No matching audit records.</td></tr>
               ) : paginatedLogs.map((log) => {
@@ -233,7 +234,7 @@ export default function AuditLogsPage() {
         {/* Mobile Card Layout View */}
         <div className="block lg:hidden divide-y divide-slate-100">
           {loading ? (
-            <div className="p-8 text-center text-slate-500"><Loader2 className="mx-auto mb-2 h-5 w-5 animate-spin text-lime-500" /> Loading audit trail...</div>
+            <div className="p-8 text-center text-slate-500"><BrandSpinner className="mx-auto mb-2 h-5 w-5 animate-spin text-lime-500" /> Loading audit trail...</div>
           ) : paginatedLogs.length === 0 ? (
             <div className="p-8 text-center text-slate-400 uppercase tracking-widest text-xs font-bold">No matching audit records</div>
           ) : paginatedLogs.map((log) => {

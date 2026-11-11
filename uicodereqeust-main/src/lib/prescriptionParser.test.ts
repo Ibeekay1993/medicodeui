@@ -24,6 +24,13 @@ describe("prescriptionParser", () => {
     expect(terms[1]).toBe("pregabalin T b.d 75mg x4//52");
   });
 
+  it("preserves a leading tablet or capsule count as part of its prescription", () => {
+    expect(splitTerms("Services: 1 tab Amlodipine 10mg dly x1/12")[0])
+      .toBe("1 tab Amlodipine 10mg dly x1/12");
+    expect(splitTerms("Services: 1 cap pregabalin T b.d 75mg x4//52")[0])
+      .toBe("1 cap pregabalin T b.d 75mg x4//52");
+  });
+
   it("extracts dotted frequency abbreviations like b.d, b.d., o.d", () => {
     expect(extractFrequency("pregabalin T b.d 75mg x4//52").multiplier).toBe(2);
     expect(extractFrequency("pregabalin T b.d 75mg x4//52").label).toBe("twice daily");
@@ -81,7 +88,7 @@ describe("prescriptionParser", () => {
       }),
     };
 
-    const text = "Services: Tab Amlodipine 10mg dly x1/12, pregabalin T b.d 75mg x4//52";
+    const text = "Services: 1 tab Amlodipine 10mg dly x1/12, 1 cap pregabalin T b.d 75mg x4//52";
     const results = await parsePrescriptionClientFallback(text, mockSupabase);
 
     expect(results.length).toBe(2);
@@ -89,11 +96,72 @@ describe("prescriptionParser", () => {
     const amlodipine = results.find((r) => r.code === "NHIA-12-04-03");
     expect(amlodipine).toBeDefined();
     expect(amlodipine?.quantity).toBe(30);
+    expect(amlodipine?.quantityNeedsReview).toBe(false);
     expect(amlodipine?.price).toBe(70 * 30);
 
     const pregabalin = results.find((r) => r.code === "NHIA-05-01-17");
     expect(pregabalin).toBeDefined();
     expect(pregabalin?.quantity).toBe(56);
+    expect(pregabalin?.quantityNeedsReview).toBe(false);
     expect(pregabalin?.price).toBe(228 * 56);
+  });
+
+  it("flags a name-only medication quantity as provisional for reviewer confirmation", async () => {
+    const mockSupabase: any = {
+      from: vi.fn().mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          or: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              limit: vi.fn().mockResolvedValue({
+                data: [{
+                  code: "NHIA-12-04-03",
+                  name: "Amlodipine Tablet (Besylate) 10mg Tab.",
+                  category: "drug",
+                  amount: 70,
+                }],
+                error: null,
+              }),
+            }),
+          }),
+        }),
+      }),
+    };
+
+    const results = await parsePrescriptionClientFallback(
+      "Services: Amlodipine 10mg Tablet",
+      mockSupabase,
+    );
+
+    expect(results).toHaveLength(1);
+    expect(results[0].quantity).toBe(1);
+    expect(results[0].quantityNeedsReview).toBe(true);
+  });
+
+  it("flags a service quantity that was defaulted instead of supplied in the request", async () => {
+    const mockSupabase: any = {
+      from: vi.fn().mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          or: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              limit: vi.fn().mockResolvedValue({
+                data: [{
+                  code: "NHIA-181-006",
+                  name: "Creatinine",
+                  category: "procedure",
+                  amount: 2500,
+                }],
+                error: null,
+              }),
+            }),
+          }),
+        }),
+      }),
+    };
+
+    const results = await parsePrescriptionClientFallback("Services: Creatinine", mockSupabase);
+
+    expect(results).toHaveLength(1);
+    expect(results[0].quantity).toBe(1);
+    expect(results[0].quantityNeedsReview).toBe(true);
   });
 });

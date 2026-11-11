@@ -1,27 +1,11 @@
+import { BrandSpinner } from "@/components/BrandSpinner";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTabVisibilityRefresh } from "@/hooks/use-tab-visibility-refresh";
-import {
-  AlertTriangle,
-  Check,
-  KeyRound,
-  Loader2,
-  Mail,
-  MoreVertical,
-  Pencil,
-  Search,
-  Trash2,
-  UserCheck,
-  UserPlus,
-  UserX,
-  X,
-  ShieldOff,
-  ShieldAlert,
-  ShieldCheck,
-} from "lucide-react";
+import { AlertTriangle, Check, KeyRound, Mail, MoreVertical, Pencil, Search, Trash2, UserCheck, UserPlus, UserX, X, ShieldOff, ShieldAlert, ShieldCheck } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -413,7 +397,7 @@ export default function UsersPage() {
                 </thead>
                 <tbody className="divide-y divide-slate-200 text-xs text-slate-600">
                   {loading && users.length === 0 ? (
-                    <tr><td colSpan={5} className="px-4 py-12 text-center text-slate-500"><Loader2 className="mx-auto mb-3 h-6 w-6 animate-spin text-lime-500" /> Loading users...</td></tr>
+                    <tr><td colSpan={5} className="px-4 py-12 text-center text-slate-500"><BrandSpinner className="mx-auto mb-3 h-6 w-6 animate-spin text-lime-500" /> Loading users...</td></tr>
                   ) : paginatedUsers.length === 0 ? (
                     <tr><td colSpan={5} className="px-4 py-12 text-center text-slate-500">No users found</td></tr>
                   ) : paginatedUsers.map((item) => {
@@ -510,7 +494,7 @@ export default function UsersPage() {
             {/* Mobile Card Layout View */}
             <div className="block lg:hidden divide-y divide-slate-100">
               {loading && users.length === 0 ? (
-                <div className="p-8 text-center text-slate-500"><Loader2 className="mx-auto mb-2 h-5 w-5 animate-spin text-lime-500" /> Loading users...</div>
+                <div className="p-8 text-center text-slate-500"><BrandSpinner className="mx-auto mb-2 h-5 w-5 animate-spin text-lime-500" /> Loading users...</div>
               ) : paginatedUsers.length === 0 ? (
                 <div className="p-8 text-center text-slate-400 uppercase tracking-widest text-xs font-bold">No users found</div>
               ) : paginatedUsers.map((item) => {
@@ -602,7 +586,7 @@ export default function UsersPage() {
       {activeTab === "approvals" && (
         <div className="space-y-3">
           {loadingRequests ? (
-            <div className="med-card flex flex-col items-center justify-center p-16 text-slate-500"><Loader2 className="mb-3 h-6 w-6 animate-spin text-lime-500" /> Loading approval requests...</div>
+            <div className="med-card flex flex-col items-center justify-center p-16 text-slate-500"><BrandSpinner className="mb-3 h-6 w-6 animate-spin text-lime-500" /> Loading approval requests...</div>
           ) : nameRequests.length === 0 ? (
             <div className="med-card p-12 text-center">
               <UserCheck className="mx-auto mb-3 h-8 w-8 text-slate-300" />
@@ -623,8 +607,8 @@ export default function UsersPage() {
                   </div>
                   <div className="mt-3 flex items-center gap-2 text-xs text-slate-500"><AlertTriangle className="h-4 w-4 text-amber-600" /> Submitted {new Date(req.created_at).toLocaleString("en-GB")}</div>
                   <div className="mt-4 flex gap-2 border-t border-slate-100 pt-3">
-                    <Button onClick={() => handleDecideRequest(req.id, "rejected")} disabled={actioningRequest?.id === req.id} variant="outline" className="h-9 flex-1 rounded-lg text-sm">{(actioningRequest?.id === req.id && actioningRequest?.action === "rejected") ? <Loader2 className="h-4 w-4 animate-spin" /> : <X className="h-4 w-4" />} Reject</Button>
-                    <Button onClick={() => handleDecideRequest(req.id, "approved")} disabled={actioningRequest?.id === req.id} className="med-button-primary h-9 flex-[2]">{(actioningRequest?.id === req.id && actioningRequest?.action === "approved") ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />} Approve Change</Button>
+                    <Button onClick={() => handleDecideRequest(req.id, "rejected")} disabled={actioningRequest?.id === req.id} variant="outline" className="h-9 flex-1 rounded-lg text-sm">{(actioningRequest?.id === req.id && actioningRequest?.action === "rejected") ? <BrandSpinner className="h-4 w-4 animate-spin" /> : <X className="h-4 w-4" />} Reject</Button>
+                    <Button onClick={() => handleDecideRequest(req.id, "approved")} disabled={actioningRequest?.id === req.id} className="med-button-primary h-9 flex-[2]">{(actioningRequest?.id === req.id && actioningRequest?.action === "approved") ? <BrandSpinner className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />} Approve Change</Button>
                   </div>
                 </div>
               ))}
@@ -699,7 +683,7 @@ export default function UsersPage() {
               disabled={isUpdatingAccess}
             >
               {isUpdatingAccess
-                ? <Loader2 className="h-4 w-4 animate-spin" />
+                ? <BrandSpinner className="h-4 w-4 animate-spin" />
                 : mfaExemptTarget?.exempt ? "Disable MFA" : "Follow Global Policy"
               }
             </Button>

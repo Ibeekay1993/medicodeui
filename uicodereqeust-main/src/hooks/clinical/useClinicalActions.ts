@@ -10,6 +10,9 @@ import {
   itemQuantity,
   itemTotal,
   itemUnitPrice,
+  getApprovalAmountIssue,
+  parseNonNegativeAmount,
+  parsePositiveQuantity,
   getInitials,
   cleanPatientName,
   parseReferralTreatment,
@@ -167,17 +170,31 @@ export function useClinicalActions({
       );
       setRejectReason("");
       let parsedItems = Array.isArray(request.approved_items)
-        ? request.approved_items.map((item: any) => ({
-            code: item.code,
-            name: item.name,
-            category: item.category,
-            price: Number(item.amount || item.price || 0),
-            unitPrice: Number(item.unit_price || item.unitPrice || item.price || item.amount || 0),
-            quantity: Number(item.quantity || 1),
-            frequency: item.frequency || null,
-            duration: item.duration || null,
-            declined: Boolean(item.declined),
-          }))
+        ? request.approved_items.map((item: any) => {
+            const parsedQuantity = parsePositiveQuantity(item.quantity);
+            const quantity = parsedQuantity ?? 1;
+            const total = parseNonNegativeAmount(item.amount ?? item.price);
+            const recordedUnit = parseNonNegativeAmount(item.unit_price ?? item.unitPrice);
+            const unitPrice = recordedUnit ?? (total !== null && parsedQuantity !== null ? total / parsedQuantity : 0);
+            const roundedTotal = total === null ? null : Math.round((total + Number.EPSILON) * 100) / 100;
+            const roundedCalculated = Math.round((unitPrice * quantity + Number.EPSILON) * 100) / 100;
+            const amountMismatch = roundedTotal !== null && recordedUnit !== null && parsedQuantity !== null
+              && roundedTotal !== roundedCalculated;
+            return {
+              code: item.code,
+              name: item.name,
+              category: item.category,
+              price: total ?? unitPrice * quantity,
+              unitPrice,
+              quantity,
+              quantityNeedsReview: item.quantity_requires_review !== false || parsedQuantity === null,
+              priceNeedsReview: item.price_requires_review === true || recordedUnit === null ||
+                total === null || parsedQuantity === null || amountMismatch,
+              frequency: item.frequency || null,
+              duration: item.duration || null,
+              declined: Boolean(item.declined),
+            };
+          })
         : [];
 
       // Fallback: If approved_items is empty but single tariff was saved
@@ -189,6 +206,8 @@ export function useClinicalActions({
           price: Number(request.approved_tariff_amount || request.total_amount || 0),
           unitPrice: Number(request.approved_tariff_amount || request.total_amount || 0),
           quantity: 1,
+          quantityNeedsReview: true,
+          priceNeedsReview: true,
           frequency: null,
           duration: null,
           declined: false,
@@ -374,6 +393,8 @@ export function useClinicalActions({
           category: item.category,
           unit_price: itemUnitPrice(item),
           quantity: itemQuantity(item),
+          quantity_requires_review: item.quantityNeedsReview === true,
+          price_requires_review: item.priceNeedsReview === true,
           amount: itemTotal(item),
           frequency: item.frequency || null,
           duration: item.duration || null,
@@ -424,6 +445,20 @@ export function useClinicalActions({
         });
         setProcessingAction(null);
         return false;
+      }
+      const referralOnlyApproval = targetStatus === "approved" &&
+        request?.status === "pending_referral" && request?.source === "hospital_portal";
+      if (["approved", "partially_approved"].includes(targetStatus) && !referralOnlyApproval) {
+        const amountIssue = getApprovalAmountIssue(approvedItems, approvedTotal);
+        if (amountIssue) {
+          toast({
+            variant: "destructive",
+            title: "Approval amount needs review",
+            description: amountIssue,
+          });
+          setProcessingAction(null);
+          return false;
+        }
       }
       if (targetStatus === "approved" && nurseDisplayName === "Authorized Staff Member") {
         toast({
@@ -490,6 +525,8 @@ export function useClinicalActions({
           category: item.category,
           unit_price: itemUnitPrice(item),
           quantity: itemQuantity(item),
+          quantity_requires_review: item.quantityNeedsReview === true,
+          price_requires_review: item.priceNeedsReview === true,
           amount: itemTotal(item),
           frequency: item.frequency || null,
           duration: item.duration || null,

@@ -1,3 +1,4 @@
+import { BrandSpinner } from "@/components/BrandSpinner";
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -6,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Trash2, CheckCircle2, Search, Stethoscope, Plus, Minus } from "lucide-react";
+import { Trash2, CheckCircle2, Search, Stethoscope, Plus, Minus } from "lucide-react";
 import { TreatmentItem } from "@/lib/new-request-helpers";
 
 interface ReferralTreatmentFormDialogProps {
@@ -29,6 +30,7 @@ export default function ReferralTreatmentFormDialog({
   const [currentDiagnosis, setCurrentDiagnosis] = useState("");
   const [treatSearch, setTreatSearch] = useState("");
   const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [quantityDrafts, setQuantityDrafts] = useState<Record<string, string>>({});
   const [_searchLoading, setSearchLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -78,18 +80,52 @@ export default function ReferralTreatmentFormDialog({
 
   const handleRemoveItem = (code: string) => {
     setTreatments((prev) => prev.filter((t) => t.code !== code));
+    setQuantityDrafts((prev) => {
+      const next = { ...prev };
+      delete next[code];
+      return next;
+    });
   };
 
   const handleQtyChange = (code: string, delta: number) => {
+    const draft = quantityDrafts[code];
+    const draftQuantity = Number(draft);
+    setQuantityDrafts((prev) => {
+      const next = { ...prev };
+      delete next[code];
+      return next;
+    });
     setTreatments((prev) =>
       prev.map((t) => {
         if (t.code === code) {
-          const next = t.quantity + delta;
+          const baseQuantity = draft !== undefined && Number.isFinite(draftQuantity) && draftQuantity > 0
+            ? Math.floor(draftQuantity)
+            : t.quantity;
+          const next = baseQuantity + delta;
           return { ...t, quantity: next > 0 ? next : 1 };
         }
         return t;
       })
     );
+  };
+
+  const handleQuantityDraftChange = (code: string, value: string) => {
+    const cleaned = value.replace(/[^0-9]/g, "");
+    setQuantityDrafts((prev) => ({ ...prev, [code]: cleaned }));
+  };
+
+  const commitQuantityDraft = (code: string) => {
+    const draft = quantityDrafts[code];
+    if (draft === undefined) return;
+    const quantity = Number(draft);
+    if (draft !== "" && Number.isFinite(quantity) && quantity > 0) {
+      setTreatments((prev) => prev.map((t) => t.code === code ? { ...t, quantity: Math.floor(quantity) } : t));
+    }
+    setQuantityDrafts((prev) => {
+      const next = { ...prev };
+      delete next[code];
+      return next;
+    });
   };
 
   const total = treatments.reduce((sum, item) => sum + item.amount * item.quantity, 0);
@@ -109,6 +145,8 @@ export default function ReferralTreatmentFormDialog({
         category: item.category || item.subcategory || null,
         unit_price: Number(item.amount),
         quantity: Number(item.quantity),
+        quantity_requires_review: false,
+        price_requires_review: false,
         amount: Number(item.amount) * Number(item.quantity),
         frequency: null,
         duration: null,
@@ -274,7 +312,20 @@ export default function ReferralTreatmentFormDialog({
                           >
                             <Minus className="h-3 w-3" />
                           </button>
-                          <span className="px-2 text-xs font-semibold font-mono tabular-nums">{item.quantity}</span>
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            pattern="[0-9]*"
+                            aria-label={`Quantity for ${item.name}`}
+                            value={quantityDrafts[item.code] ?? String(item.quantity)}
+                            onChange={(event) => handleQuantityDraftChange(item.code, event.target.value)}
+                            onBlur={() => commitQuantityDraft(item.code)}
+                            onFocus={(event) => event.target.select()}
+                            onKeyDown={(event) => {
+                              if (event.key === "Enter") event.currentTarget.blur();
+                            }}
+                            className="h-6 w-10 border-x border-slate-200 bg-transparent px-1 text-center text-xs font-semibold font-mono tabular-nums text-slate-900 outline-none focus-visible:ring-2 focus-visible:ring-emerald-600"
+                          />
                           <button
                             type="button"
                             onClick={() => handleQtyChange(item.code, 1)}
@@ -331,7 +382,7 @@ export default function ReferralTreatmentFormDialog({
             >
               {isSubmitting ? (
                 <>
-                  <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+                  <BrandSpinner className="h-3.5 w-3.5 animate-spin mr-1.5" />
                   Submitting…
                 </>
               ) : (

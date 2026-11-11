@@ -1,19 +1,10 @@
+import { BrandSpinner } from "@/components/BrandSpinner";
 import React, { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import {
-  CheckCircle,
-  XCircle,
-  Copy,
-  Trash2,
-  Send,
-  Loader2,
-  Building2,
-  UserCheck,
-  Eye,
-} from "lucide-react";
+import { CheckCircle, XCircle, Copy, Trash2, Send, Building2, UserCheck, Eye } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { writeClipboardText } from "@/lib/clipboard";
 import { getWhatsAppSendErrorMessage } from "@/lib/whatsappSendError";
@@ -507,7 +498,7 @@ export const PostReviewTemplates = React.memo(function PostReviewTemplates({
                   title="Resend OTP"
                 >
                   {isResendingPin ? (
-                    <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                    <BrandSpinner className="mr-1.5 h-3.5 w-3.5 animate-spin" />
                   ) : (
                     <Send className="mr-1.5 h-3.5 w-3.5" />
                   )}
@@ -638,7 +629,7 @@ export const PostReviewTemplates = React.memo(function PostReviewTemplates({
             aria-busy={sendingHospital}
             className="h-11 w-full rounded-xl bg-emerald-700 text-xs font-semibold text-white shadow-none hover:bg-emerald-800 sm:w-auto sm:px-4"
           >
-            {sendingHospital ? <Loader2 className="w-4 h-4 animate-spin" /> : <Building2 className="w-4.5 h-4.5" />}
+            {sendingHospital ? <BrandSpinner className="w-4 h-4 animate-spin" /> : <Building2 className="w-4.5 h-4.5" />}
             {sendingHospital ? "Sending…" : "Resend response to hospital"}
           </Button>
           {!loadingHospitalPhone && !isWhatsAppRequest() && (
@@ -675,7 +666,7 @@ export const PostReviewTemplates = React.memo(function PostReviewTemplates({
             aria-busy={sendingPatient}
             className="h-11 w-full rounded-xl bg-slate-900 text-xs font-semibold text-white shadow-none hover:bg-slate-800 sm:w-auto sm:px-4"
           >
-            {sendingPatient ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserCheck className="w-4 h-4 text-emerald-400" />}
+            {sendingPatient ? <BrandSpinner className="w-4 h-4 animate-spin" /> : <UserCheck className="w-4 h-4 text-emerald-400" />}
             {sendingPatient ? "Sending…" : "Resend patient WhatsApp notice"}
           </Button>
 
@@ -778,7 +769,7 @@ export const PostReviewTemplates = React.memo(function PostReviewTemplates({
             disabled={sendingDecline || loadingHospitalPhone || (!isWhatsAppRequest() && !formatPhoneNumber(hospitalPhone))}
             className="h-12 w-full gap-2 rounded-lg bg-rose-700 text-sm font-semibold text-white transition-colors hover:bg-rose-800"
           >
-            {sendingDecline ? <Loader2 className="w-4.5 h-4.5 animate-spin" /> : <Send className="w-4.5 h-4.5" />}
+            {sendingDecline ? <BrandSpinner className="w-4.5 h-4.5 animate-spin" /> : <Send className="w-4.5 h-4.5" />}
             Send Decline Response via WhatsApp
           </Button>
           {!loadingHospitalPhone && !isWhatsAppRequest() && (

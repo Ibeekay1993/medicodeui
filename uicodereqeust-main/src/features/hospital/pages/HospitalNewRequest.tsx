@@ -400,6 +400,8 @@ export default function HospitalNewRequest() {
       category: item.category || item.subcategory || null,
       unit_price: Number(item.amount),
       quantity: Number(item.quantity),
+      quantity_requires_review: false,
+      price_requires_review: false,
       amount: Number(item.amount) * Number(item.quantity),
       frequency: null,
       duration: null,

@@ -1,9 +1,10 @@
+import { BrandSpinner } from "@/components/BrandSpinner";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAnnouncements, useCreateAnnouncement, useUpdateAnnouncement, useDeleteAnnouncement } from "../hooks/useAnnouncements";
 import { useAuth } from "@/contexts/AuthContext";
-import { Loader2, Plus, Megaphone, Trash2, Edit2, CheckCircle, XCircle } from "lucide-react";
+import { Plus, Megaphone, Trash2, Edit2, CheckCircle, XCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -174,7 +175,7 @@ export default function AnnouncementsPage() {
                 disabled={isSubmitting} 
                 className="h-11 rounded-lg bg-primary px-5 font-semibold text-white hover:bg-primary/90 w-full sm:w-auto"
               >
-                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {isSubmitting && <BrandSpinner className="mr-2 h-4 w-4 animate-spin" />}
                 {isEditing ? "Save Changes" : "Dispatch Broadcast"}
               </Button>
             </div>
@@ -189,7 +190,7 @@ export default function AnnouncementsPage() {
         </div>
         
         {loading ? (
-          <div className="flex items-center justify-center gap-3 rounded-xl border border-slate-200 bg-white p-8 text-sm text-slate-600"><Loader2 className="h-5 w-5 animate-spin text-slate-500" />Loading announcements…</div>
+          <div className="flex items-center justify-center gap-3 rounded-xl border border-slate-200 bg-white p-8 text-sm text-slate-600"><BrandSpinner className="h-5 w-5 animate-spin text-slate-500" />Loading announcements…</div>
         ) : announcements.length === 0 ? (
           <div className="rounded-xl border border-slate-200 bg-white p-8 text-center">
             <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-slate-100">

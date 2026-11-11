@@ -1,19 +1,6 @@
+import { BrandSpinner } from "@/components/BrandSpinner";
 import { useState } from "react";
-import { 
-  Loader2, 
-  Copy, 
-  Building2, 
-  XCircle, 
-  AlertCircle, 
-  CheckCircle2,
-  X,
-  ShieldCheck,
-  ShieldAlert,
-  Unlock,
-  Check,
-  AlertTriangle,
-  FileText,
-} from "lucide-react";
+import { Copy, Building2, XCircle, AlertCircle, CheckCircle2, X, ShieldCheck, ShieldAlert, Unlock, Check, AlertTriangle, FileText } from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -356,7 +343,7 @@ export default function ClaimAuditDrawer({
                 {/* Validation Status Feedback */}
                 {verificationData.loading ? (
                   <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 flex items-center gap-2 justify-center">
-                    <Loader2 className="w-4 h-4 animate-spin text-slate-400" />
+                    <BrandSpinner className="w-4 h-4 animate-spin text-slate-400" />
                     <span className="text-xs font-medium text-slate-500">Cross-verifying pre-authorization records...</span>
                   </div>
                 ) : !verificationData.exists ? (

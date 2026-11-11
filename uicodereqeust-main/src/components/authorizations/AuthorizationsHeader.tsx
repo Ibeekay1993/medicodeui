@@ -1,4 +1,5 @@
-import { Search, Loader2, Download, Plus, Building2, Inbox, Layers } from "lucide-react";
+import { BrandSpinner } from "@/components/BrandSpinner";
+import { Search, Download, Plus, Building2, Inbox, Layers } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -145,7 +146,7 @@ export default function AuthorizationsHeader({
               variant="outline"
               className="h-8.5 px-3 rounded-lg border-slate-200 text-xs font-medium text-slate-700 hover:bg-slate-50 shrink-0"
             >
-              {isExporting ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Download className="h-3.5 w-3.5 mr-1.5" />} 
+              {isExporting ? <BrandSpinner className="h-3.5 w-3.5 mr-1.5" /> : <Download className="h-3.5 w-3.5 mr-1.5" />}
               CSV
             </Button>
 
