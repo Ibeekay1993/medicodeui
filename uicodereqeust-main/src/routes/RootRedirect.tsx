@@ -7,10 +7,11 @@ import { PageLoader } from "@/components/PageLoader";
  * Sends unauthenticated users to /login.
  */
 export function RootRedirect() {
-  const { session, role, loading } = useAuth();
+  const { session, role, loading, accountSetupRequired } = useAuth();
 
   if (loading) return <PageLoader />;
   if (!session) return <Navigate to="/login" replace />;
+  if (accountSetupRequired) return <Navigate to="/complete-account-setup" replace />;
 
   if (!role) {
     console.error("RootRedirect: Session exists but role is null. Redirecting to login.");

@@ -20,6 +20,7 @@ const Login = lazy(() => import("@/pages/Login"));
 const ResetPassword = lazy(() => import("@/pages/ResetPassword"));
 const MfaSetup = lazy(() => import("@/pages/MfaSetup"));
 const Register = lazy(() => import("@/pages/Register"));
+const CompleteProvisionedAccount = lazy(() => import("@/pages/CompleteProvisionedAccount"));
 const NotFound = lazy(() => import("@/pages/NotFound"));
 const PrivacyPolicy = lazy(() => import("@/pages/PrivacyPolicy"));
 const TermsOfService = lazy(() => import("@/pages/TermsOfService"));
@@ -52,6 +53,7 @@ export function AppRoutes() {
             <Route path="/login" element={<Login />} />
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/complete-account-setup" element={<CompleteProvisionedAccount />} />
             <Route path="/privacy-policy" element={<PrivacyPolicy />} />
             <Route path="/terms-of-service" element={<TermsOfService />} />
 

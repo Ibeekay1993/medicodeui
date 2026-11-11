@@ -17,6 +17,7 @@ interface AuthContextValue {
   isClaimsLead: boolean;
   isUtilizationManagerLead: boolean;
   isFinanceLead: boolean;
+  accountSetupRequired: boolean;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
@@ -92,6 +93,7 @@ type ResolvedUserRole = {
   hospitalId: string | null;
   accessStatus: string | null;
   isTeamLead: boolean;
+  accountSetupRequired: boolean;
 };
 
 function resolveUserRole(user: User, touchLastSignIn = true): Promise<ResolvedUserRole> {
@@ -101,7 +103,7 @@ function resolveUserRole(user: User, touchLastSignIn = true): Promise<ResolvedUs
     try {
       const { data: userRoleRow, error: userRoleError } = await supabase
         .from("user_roles")
-        .select("role, full_name, hospital_id, access_status, is_team_lead")
+        .select("role, full_name, hospital_id, access_status, is_team_lead, account_setup_required")
         .eq("user_id", user.id)
         .maybeSingle();
 
@@ -120,6 +122,7 @@ function resolveUserRole(user: User, touchLastSignIn = true): Promise<ResolvedUs
           hospitalId: userRoleRow.hospital_id,
           accessStatus: userRoleRow.access_status || null,
           isTeamLead: Boolean((userRoleRow as any).is_team_lead),
+          accountSetupRequired: userRoleRow.account_setup_required === true,
         };
       }
 
@@ -134,7 +137,7 @@ function resolveUserRole(user: User, touchLastSignIn = true): Promise<ResolvedUs
 
       const { data: retryRow, error: retryError } = await supabase
         .from("user_roles")
-        .select("role, full_name, hospital_id, access_status, is_team_lead")
+        .select("role, full_name, hospital_id, access_status, is_team_lead, account_setup_required")
         .eq("user_id", user.id)
         .maybeSingle();
 
@@ -146,13 +149,14 @@ function resolveUserRole(user: User, touchLastSignIn = true): Promise<ResolvedUs
           hospitalId: retryRow.hospital_id,
           accessStatus: retryRow.access_status || null,
           isTeamLead: Boolean((retryRow as any).is_team_lead),
+          accountSetupRequired: retryRow.account_setup_required === true,
         };
       }
     } catch (error) {
       console.error("AuthContext: failed to resolve user role", error);
     }
 
-    return { role: null, fullName: fallbackName, hospitalId: null, accessStatus: null, isTeamLead: false };
+    return { role: null, fullName: fallbackName, hospitalId: null, accessStatus: null, isTeamLead: false, accountSetupRequired: false };
   })();
 }
 
@@ -163,6 +167,7 @@ function useAuthContextValue(
   fullName: string | null,
   hospitalId: string | null,
   isTeamLead: boolean,
+  accountSetupRequired: boolean,
   loading: boolean,
   signOut: () => Promise<void>,
   refreshProfile: () => Promise<void>
@@ -182,11 +187,12 @@ function useAuthContextValue(
       isClaimsLead,
       isUtilizationManagerLead,
       isFinanceLead,
+      accountSetupRequired,
       loading,
       signOut,
       refreshProfile,
     }),
-    [session, user, role, fullName, hospitalId, isTeamLead, isClaimsLead, isUtilizationManagerLead, isFinanceLead, loading, signOut, refreshProfile]
+    [session, user, role, fullName, hospitalId, isTeamLead, isClaimsLead, isUtilizationManagerLead, isFinanceLead, accountSetupRequired, loading, signOut, refreshProfile]
   );
 }
 
@@ -209,6 +215,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [fullName, setFullName] = useState<string | null>(null);
   const [hospitalId, setHospitalId] = useState<string | null>(null);
   const [isTeamLead, setIsTeamLead] = useState<boolean>(false);
+  const [accountSetupRequired, setAccountSetupRequired] = useState(false);
   const isTeamLeadRef = useRef<boolean>(false);
   const [loading, setLoading] = useState(true);
   const userIdRef = useRef<string | null>(null);
@@ -230,6 +237,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setRole(null);
       setFullName(null);
       setHospitalId(null);
+      setIsTeamLead(false);
+      setAccountSetupRequired(false);
       if (typeof window !== "undefined") {
         window.localStorage.removeItem(lastActivityStorageKey);
         window.sessionStorage.removeItem(sessionStartStorageKey);
@@ -244,6 +253,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const cachedHospitalId = window.sessionStorage.getItem("ronsberger-hosp-" + currentUserId) || null;
     const cachedFullName = window.sessionStorage.getItem("ronsberger-name-" + currentUserId) || null;
     const cachedIsTeamLead = window.sessionStorage.getItem("ronsberger-lead-" + currentUserId) === "true";
+    const cachedAccountSetupRequired = window.sessionStorage.getItem("ronsberger-setup-required-" + currentUserId) === "true";
     const immediateRole = (sameUser ? roleRef.current : null) || cachedRole;
     const immediateHospitalId = (sameUser ? hospitalIdRef.current : null) || cachedHospitalId;
     const immediateFullName = (sameUser ? fullNameRef.current : null) || cachedFullName ||
@@ -271,6 +281,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setRole(null);
         setFullName(null);
         setHospitalId(null);
+        setIsTeamLead(false);
+        setAccountSetupRequired(false);
         window.localStorage.removeItem(lastActivityStorageKey);
         window.sessionStorage.removeItem(sessionStartStorageKey);
         void supabase.auth.signOut({ scope: "local" });
@@ -286,9 +298,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setHospitalId(immediateHospitalId);
       setFullName(immediateFullName);
       setIsTeamLead(immediateIsTeamLead);
+      setAccountSetupRequired(cachedAccountSetupRequired);
       if (!silent) setLoading(false);
 
-      void withAuthTimeout(resolveUserRole(nextSession.user, false)).then((profile) => {
+      const profileRefresh = withAuthTimeout(resolveUserRole(nextSession.user, false)).then((profile) => {
         if (!mountedRef.current || userIdRef.current !== currentUserId) return;
         if (profile.accessStatus && profile.accessStatus !== "active") {
           setSession(null);
@@ -315,21 +328,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setHospitalId(profile.hospitalId);
         setFullName(profile.fullName);
         setIsTeamLead(profile.isTeamLead);
+        setAccountSetupRequired(profile.accountSetupRequired);
         window.sessionStorage.setItem("ronsberger-role-" + currentUserId, profile.role);
         if (profile.hospitalId) window.sessionStorage.setItem("ronsberger-hosp-" + currentUserId, profile.hospitalId);
         else window.sessionStorage.removeItem("ronsberger-hosp-" + currentUserId);
         if (profile.fullName) window.sessionStorage.setItem("ronsberger-name-" + currentUserId, profile.fullName);
         window.sessionStorage.setItem("ronsberger-lead-" + currentUserId, String(profile.isTeamLead));
+        window.sessionStorage.setItem("ronsberger-setup-required-" + currentUserId, String(profile.accountSetupRequired));
       }).catch((error) => {
         console.warn("AuthContext: background role refresh failed; retaining cached role:", error);
       });
+      if (silent) await profileRefresh;
       return;
     }
 
     const profile = await withAuthTimeout(resolveUserRole(nextSession.user)).catch((error) => {
       console.warn("AuthContext: role resolution timed out or failed:", error);
       const fallbackName = (nextSession.user.user_metadata as any)?.full_name || nextSession.user.email || null;
-      return { role: null, fullName: fallbackName, hospitalId: null, accessStatus: null, isTeamLead: false };
+      return { role: null, fullName: fallbackName, hospitalId: null, accessStatus: null, isTeamLead: false, accountSetupRequired: false };
     });
 
     if (!mountedRef.current || userIdRef.current !== currentUserId) return;
@@ -343,6 +359,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setRole(null);
       setFullName(null);
       setHospitalId(null);
+      setIsTeamLead(false);
+      setAccountSetupRequired(false);
       void supabase.auth.signOut({ scope: "local" });
       if (!silent) setLoading(false);
       return;
@@ -366,6 +384,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setRole(null);
       setFullName(null);
       setHospitalId(null);
+      setIsTeamLead(false);
+      setAccountSetupRequired(false);
       window.localStorage.removeItem(lastActivityStorageKey);
       window.sessionStorage.removeItem(sessionStartStorageKey);
       void supabase.auth.signOut({ scope: "local" });
@@ -381,10 +401,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setFullName(effectiveFullName);
     setHospitalId(effectiveHospitalId || null);
     setIsTeamLead(profile.isTeamLead);
+    setAccountSetupRequired(profile.accountSetupRequired);
     if (effectiveRole) window.sessionStorage.setItem("ronsberger-role-" + currentUserId, effectiveRole);
     if (effectiveHospitalId) window.sessionStorage.setItem("ronsberger-hosp-" + currentUserId, effectiveHospitalId);
     if (effectiveFullName) window.sessionStorage.setItem("ronsberger-name-" + currentUserId, effectiveFullName);
     window.sessionStorage.setItem("ronsberger-lead-" + currentUserId, String(profile.isTeamLead));
+    window.sessionStorage.setItem("ronsberger-setup-required-" + currentUserId, String(profile.accountSetupRequired));
     if (!silent) setLoading(false);
   }, []);
   const refreshProfile = useCallback(async () => {
@@ -559,6 +581,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setRole(null);
           setFullName(null);
           setHospitalId(null);
+          setIsTeamLead(false);
+          setAccountSetupRequired(false);
           setLoading(false);
         }
       });
@@ -618,7 +642,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, [handleSession]);
 
-  const value = useAuthContextValue(session, user, role, fullName, hospitalId, isTeamLead, loading, signOut, refreshProfile);
+  const value = useAuthContextValue(session, user, role, fullName, hospitalId, isTeamLead, accountSetupRequired, loading, signOut, refreshProfile);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

@@ -114,6 +114,7 @@ export function getSensitiveActionErrorStatus(error: unknown): number {
   if (
     error.message === "Role not permitted" ||
     error.message === "Account deactivated" ||
+    error.message === "Account setup incomplete" ||
     error.message === "MFA verification is required to perform this action"
   ) return 403;
   if (error.message === "Request not found") return 404;
@@ -163,11 +164,14 @@ export async function validateUser(req: Request, allowedRoles: string[]) {
   // 1. Direct query against canonical user_roles table
   const { data: roleRow, error: roleError } = await service
     .from("user_roles")
-    .select("role, access_status, hospital_id, full_name")
+    .select("role, access_status, account_setup_required, hospital_id, full_name")
     .eq("user_id", user.id)
     .maybeSingle();
 
   if (!roleError && roleRow?.role) {
+    if (roleRow.account_setup_required === true) {
+      throw new Error("Account setup incomplete");
+    }
     if (String(roleRow.access_status || "active").toLowerCase() !== "active") {
       throw new Error("Account deactivated");
     }

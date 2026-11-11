@@ -2257,6 +2257,7 @@ export type Database = {
       }
       user_roles: {
         Row: {
+          account_setup_required: boolean
           access_status: string
           created_at: string
           email: string | null
@@ -2276,6 +2277,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          account_setup_required?: boolean
           access_status?: string
           created_at?: string
           email?: string | null
@@ -2295,6 +2297,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          account_setup_required?: boolean
           access_status?: string
           created_at?: string
           email?: string | null

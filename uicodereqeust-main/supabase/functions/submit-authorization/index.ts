@@ -151,10 +151,15 @@ serve(async (req) => {
 
     const { data: roleRows, error: roleError } = await supabase
       .from("user_roles")
-      .select("role")
+      .select("role, access_status, account_setup_required")
       .eq("user_id", authenticatedUserId)
       .in("role", ["nurse", "admin", "utilization_manager", "utilization_manager_lead"]);
     if (roleError) return bad(500, "staff_role_lookup_failed");
+
+    if ((roleRows || []).some((row: { account_setup_required?: boolean; access_status?: string | null }) =>
+      row.account_setup_required === true || String(row.access_status || "active").toLowerCase() !== "active")) {
+      return bad(403, "account_setup_incomplete");
+    }
 
     submitActor = {
       kind: "user",

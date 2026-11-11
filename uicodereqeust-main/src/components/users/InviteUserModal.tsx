@@ -21,7 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Mail, Search } from "lucide-react";
+import { Eye, EyeOff, Mail, RefreshCw, Search } from "lucide-react";
 import { availableRoles, filterHospitals } from "@/lib/user-helpers";
 import { getSupabaseFunctionErrorMessage } from "@/lib/supabaseFunctionErrors";
 
@@ -31,6 +31,30 @@ interface InviteUserModalProps {
   hospitals: any[];
   loadingHospitals: boolean;
   onSuccess: () => void;
+}
+
+type SetupMode = "secure_invitation" | "temporary_password";
+
+function generateTemporaryPassword() {
+  const upper = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+  const lower = "abcdefghijkmnopqrstuvwxyz";
+  const digits = "23456789";
+  const symbols = "!@#$%*-_+";
+  const all = upper + lower + digits + symbols;
+  const random = new Uint32Array(24);
+  crypto.getRandomValues(random);
+  const chars = [
+    upper[random[0] % upper.length],
+    lower[random[1] % lower.length],
+    digits[random[2] % digits.length],
+    symbols[random[3] % symbols.length],
+    ...Array.from(random.slice(4), (value) => all[value % all.length]),
+  ];
+  for (let index = chars.length - 1; index > 0; index -= 1) {
+    const swapIndex = random[index] % (index + 1);
+    [chars[index], chars[swapIndex]] = [chars[swapIndex], chars[index]];
+  }
+  return chars.join("");
 }
 
 export function InviteUserModal({
@@ -50,6 +74,9 @@ export function InviteUserModal({
     is_team_lead: false,
   });
   const [isInviting, setIsInviting] = useState(false);
+  const [setupMode, setSetupMode] = useState<SetupMode>("secure_invitation");
+  const [temporaryPassword, setTemporaryPassword] = useState("");
+  const [showTemporaryPassword, setShowTemporaryPassword] = useState(false);
   const [inviteHospitalSearch, setInviteHospitalSearch] = useState("");
   const [inviteDropdownOpen, setInviteDropdownOpen] = useState(false);
 
@@ -71,6 +98,9 @@ export function InviteUserModal({
     if (!isOpen) {
       setInviteHospitalSearch("");
       setInviteDropdownOpen(false);
+      setSetupMode("secure_invitation");
+      setTemporaryPassword("");
+      setShowTemporaryPassword(false);
       setNewUser({ email: "", fullName: "", phone: "", role: "utilization_manager", hospital_id: "", is_team_lead: false });
     }
   }, [isOpen]);
@@ -93,6 +123,18 @@ export function InviteUserModal({
       });
       return;
     }
+    if (setupMode === "temporary_password" && (
+      temporaryPassword.length < 12 || temporaryPassword.length > 128 ||
+      !/[a-z]/.test(temporaryPassword) || !/[A-Z]/.test(temporaryPassword) ||
+      !/[0-9]/.test(temporaryPassword) || !/[^A-Za-z0-9]/.test(temporaryPassword)
+    )) {
+      toast({
+        variant: "destructive",
+        title: "Password does not meet requirements",
+        description: "Use 12–128 characters, including uppercase, lowercase, a number, and a symbol.",
+      });
+      return;
+    }
     setIsInviting(true);
     try {
       const { data, error } = await supabase.functions.invoke("invite-user", {
@@ -103,6 +145,8 @@ export function InviteUserModal({
           role: newUser.role,
           hospital_id: newUser.hospital_id || null,
           is_team_lead: newUser.is_team_lead,
+          setup_mode: setupMode,
+          temporary_password: setupMode === "temporary_password" ? temporaryPassword : undefined,
         },
       });
       if (error) {
@@ -113,8 +157,10 @@ export function InviteUserModal({
       }
 
       toast({
-        title: "Invitation Sent",
-        description: `The invitation email has been sent to ${email}.`,
+        title: setupMode === "temporary_password" ? "Account Email Accepted" : "Invitation Email Accepted",
+        description: setupMode === "temporary_password"
+          ? `Brevo accepted the account-details email for ${email}. Portal access stays restricted until the user accepts the required policies. Check Brevo logs to confirm final delivery.`
+          : `Brevo accepted the invitation email for ${email}. Check Brevo logs to confirm final delivery.`,
       });
       onOpenChange(false);
       onSuccess();
@@ -133,12 +179,37 @@ export function InviteUserModal({
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="rounded-xl sm:max-w-[420px]">
         <DialogHeader>
-          <DialogTitle className="text-lg font-semibold">Invite New User</DialogTitle>
+          <DialogTitle className="text-lg font-semibold">Add Portal User</DialogTitle>
           <DialogDescription>
-            A secure registration link will be sent to the user's email address.
+            Create the account details for a team member or send a secure setup link.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-3">
+          <div role="radiogroup" aria-label="Account setup method" className="grid grid-cols-2 gap-1 rounded-xl border border-slate-200 bg-slate-50 p-1">
+            <button
+              type="button"
+              role="radio"
+              aria-checked={setupMode === "secure_invitation"}
+              onClick={() => setSetupMode("secure_invitation")}
+              className={`min-h-10 rounded-lg px-3 text-xs font-semibold transition-colors ${setupMode === "secure_invitation" ? "bg-white text-slate-900 shadow-sm" : "text-slate-600 hover:text-slate-900"}`}
+            >
+              Send setup link
+            </button>
+            <button
+              type="button"
+              role="radio"
+              aria-checked={setupMode === "temporary_password"}
+              onClick={() => setSetupMode("temporary_password")}
+              className={`min-h-10 rounded-lg px-3 text-xs font-semibold transition-colors ${setupMode === "temporary_password" ? "bg-white text-slate-900 shadow-sm" : "text-slate-600 hover:text-slate-900"}`}
+            >
+              Set password
+            </button>
+          </div>
+          <p className="-mt-2 text-xs leading-relaxed text-slate-600">
+            {setupMode === "temporary_password"
+              ? "The user receives their sign-in details by email. They must accept the Terms and Privacy Policy before accessing portal records. Password changes remain optional."
+              : "The user receives a secure seven-day link and chooses their own password during setup."}
+          </p>
           <Input
             type="email"
             value={newUser.email}
@@ -158,6 +229,36 @@ export function InviteUserModal({
             placeholder="Phone number"
             className="h-10 rounded-lg"
           />
+          {setupMode === "temporary_password" && (
+            <div className="space-y-2">
+              <label htmlFor="temporary-account-password" className="text-xs font-semibold text-slate-700">Assigned sign-in password</label>
+              <div className="flex gap-2">
+                <div className="relative min-w-0 flex-1">
+                  <Input
+                    id="temporary-account-password"
+                    type={showTemporaryPassword ? "text" : "password"}
+                    autoComplete="new-password"
+                    value={temporaryPassword}
+                    onChange={(event) => setTemporaryPassword(event.target.value)}
+                    placeholder="At least 12 characters"
+                    className="h-10 rounded-lg pr-10 font-mono"
+                  />
+                  <button
+                    type="button"
+                    aria-label={showTemporaryPassword ? "Hide password" : "Show password"}
+                    onClick={() => setShowTemporaryPassword((visible) => !visible)}
+                    className="absolute inset-y-0 right-2 flex items-center px-1 text-slate-500 hover:text-slate-900"
+                  >
+                    {showTemporaryPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+                <Button type="button" variant="outline" className="h-10 shrink-0 rounded-lg px-3" onClick={() => setTemporaryPassword(generateTemporaryPassword())}>
+                  <RefreshCw className="mr-1.5 h-4 w-4" /> Generate
+                </Button>
+              </div>
+              <p className="text-[11px] leading-relaxed text-slate-500">The account email contains this password. The user must accept the required policies before portal access; changing the password is optional.</p>
+            </div>
+          )}
           <Select
             value={newUser.role}
             onValueChange={(v) => setNewUser({ ...newUser, role: v, is_team_lead: ["hospital", "claims", "finance"].includes(v) ? newUser.is_team_lead : false })}
@@ -286,7 +387,7 @@ export function InviteUserModal({
             ) : (
               <Mail className="h-4 w-4" />
             )}{" "}
-            Send Invitation
+            {setupMode === "temporary_password" ? "Create Account & Email Details" : "Send Invitation"}
           </Button>
         </DialogFooter>
       </DialogContent>

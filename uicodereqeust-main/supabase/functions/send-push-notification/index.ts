@@ -142,6 +142,22 @@ serve(async (req) => {
       );
     }
 
+    const { data: eligibleUsers, error: eligibilityError } = await service
+      .from("user_roles")
+      .select("user_id, role, access_status, account_setup_required")
+      .in("user_id", targetUserIds)
+      .eq("access_status", "active")
+      .eq("account_setup_required", false);
+    if (eligibilityError) throw new Error("Failed to verify notification recipients.");
+    const eligibleByUser = new Map((eligibleUsers || []).map((row) => [row.user_id, row.role]));
+    targetUserIds = targetUserIds.filter((userId) => eligibleByUser.has(userId));
+    if (targetUserIds.length === 0) {
+      return new Response(
+        JSON.stringify({ success: true, message: "No eligible target users found", sent_count: 0 }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     // Query subscriptions for target users
     const { data: subscriptions, error: subError } = await service
       .from("push_subscriptions")
@@ -161,8 +177,7 @@ serve(async (req) => {
 
     const roleByUser = new Map<string, string>();
     if (Array.isArray(target_roles) && target_roles.length > 0) {
-      const { data: roleRows } = await service.from("user_roles").select("user_id, role").in("user_id", targetUserIds);
-      for (const row of roleRows || []) roleByUser.set(row.user_id, row.role);
+      for (const [userId, userRole] of eligibleByUser) roleByUser.set(userId, userRole);
     }
 
     const deadSubscriptionEndpoints: string[] = [];

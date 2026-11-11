@@ -17,7 +17,7 @@ interface ProtectedRouteProps {
 }
 
 export function ProtectedRoute({ children, allowedRoles, fallbackPath, loginPath = "/login" }: ProtectedRouteProps) {
-  const { session, role, loading } = useAuth();
+  const { session, role, loading, accountSetupRequired } = useAuth();
   const location = useLocation();
   const [mfaChecking, setMfaChecking] = useState(true);
   const [mfaStatus, setMfaStatus] = useState<"pass" | "enroll" | "verify" | "error" | null>(null);
@@ -27,6 +27,13 @@ export function ProtectedRoute({ children, allowedRoles, fallbackPath, loginPath
     let active = true;
     async function checkMfa() {
       setMfaChecking(true);
+      if (accountSetupRequired) {
+        if (active) {
+          setMfaStatus("pass");
+          setMfaChecking(false);
+        }
+        return;
+      }
       if (!session || !role) {
         if (active) setMfaChecking(false);
         return;
@@ -59,7 +66,7 @@ export function ProtectedRoute({ children, allowedRoles, fallbackPath, loginPath
     return () => {
       active = false;
     };
-  }, [session, role, mfaRetryKey]);
+  }, [session, role, accountSetupRequired, mfaRetryKey]);
 
   if (loading || mfaChecking) {
     return (
@@ -81,6 +88,10 @@ export function ProtectedRoute({ children, allowedRoles, fallbackPath, loginPath
   if (!role && !loading) {
     console.error("USER ERROR: No role assigned in user_roles table for this ID.");
     return <Navigate to={loginPath} replace />;
+  }
+
+  if (accountSetupRequired) {
+    return <Navigate to="/complete-account-setup" state={{ from: location }} replace />;
   }
 
   if (mfaStatus === "error") {

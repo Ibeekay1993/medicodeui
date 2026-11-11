@@ -43,7 +43,7 @@ function withAuthTimeout<T>(promise: PromiseLike<T>): Promise<T> {
 
 // ---------------------------------------------------------------------------
 export default function Login() {
-  const { session, role, loading } = useAuth();
+  const { session, role, loading, accountSetupRequired } = useAuth();
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -69,6 +69,14 @@ export default function Login() {
   const [forgotSuccess, setForgotSuccess] = useState(false);
   const [forgotError, setForgotError] = useState("");
 
+  useEffect(() => {
+    const searchParams = new URLSearchParams(location.search);
+    if (searchParams.get("mode") === "reset") {
+      setForgotEmail(searchParams.get("email") || "");
+      setForgotOpen(true);
+    }
+  }, [location.search]);
+
   // Brute-force throttle state
   const [failedAttempts, setFailedAttempts] = useState(0);
   const [lockedUntil, setLockedUntil] = useState<number | null>(null);
@@ -90,6 +98,11 @@ export default function Login() {
 
     if (["invite", "signup"].includes(inviteType) && hasInviteTokens) {
       navigate("/register", { replace: true });
+      return;
+    }
+
+    if (session && !loading && accountSetupRequired) {
+      navigate("/complete-account-setup", { replace: true });
       return;
     }
 
@@ -151,7 +164,7 @@ export default function Login() {
         active = false;
       };
     }
-  }, [session, loading, role, navigate, showMfa, fromPath]);
+  }, [session, loading, role, accountSetupRequired, navigate, showMfa, fromPath]);
 
   // ---------------------------------------------------------------------------
   // Lockout countdown ticker

@@ -7,6 +7,8 @@ import { MessageSquare, Save, Wand2, AlertTriangle, CheckCircle2 } from "lucide-
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { parsePrescriptionClientFallback } from "@/lib/prescriptionParser";
+import { resolveParsedTariffPrices } from "@/lib/resolveParsedTariffPrices";
+import type { TariffOption } from "@/lib/clinicalUtils";
 
 const whatsappSamples = [
   {
@@ -199,52 +201,79 @@ export default function WhatsAppPage() {
       }
 
       // Auto-Detect NHIA Items
-      let detectedItems: any[] = [];
+      let parsedItems: TariffOption[] = [];
+      let tariffVerificationFailed = false;
       if (data.treatment) {
         try {
           const { data: parseResult, error: parseError } = await supabase.functions.invoke("parse-request-text", {
             body: { text: data.treatment },
           });
           if (!parseError && parseResult?.items) {
-            detectedItems = parseResult.items.map((item: any) => ({
+            parsedItems = parseResult.items.map((item: any) => ({
               code: item.code,
               name: item.name,
               category: item.category,
-              amount: Number(item.amount || 0),
-              unit_price: Number(item.unit_price || 0),
+              price: Number(item.amount || 0),
+              unitPrice: Number(item.unit_price || 0),
               quantity: Number(item.quantity || 1),
-              quantity_requires_review: item.quantity_requires_review !== false,
-              price_requires_review: item.price_requires_review !== false,
+              quantityNeedsReview: item.quantity_requires_review !== false,
+              priceNeedsReview: item.price_requires_review === true,
               matched_via: item.matched_via,
+              matched_text: item.matched_text,
               confidence: item.confidence,
+              frequency: item.frequency,
+              duration: item.duration,
             }));
           }
         } catch (e) {
           console.error("Auto-detect failed during WhatsApp parse:", e);
         }
 
-        if (detectedItems.length === 0) {
+        if (parsedItems.length === 0) {
           try {
             const fallbackItems = await parsePrescriptionClientFallback(data.treatment, supabase);
             if (fallbackItems.length > 0) {
-              detectedItems = fallbackItems.map((item) => ({
-                code: item.code,
-                name: item.name,
-                category: item.category,
-                amount: item.price,
-                unit_price: item.unitPrice,
-                quantity: item.quantity,
-                quantity_requires_review: item.quantityNeedsReview !== false,
-                price_requires_review: item.priceNeedsReview !== false,
-                matched_via: item.matched_via,
-                confidence: item.confidence,
-              }));
+              parsedItems = fallbackItems;
             }
           } catch (fallbackErr) {
             console.error("Client fallback parse failed:", fallbackErr);
           }
         }
       }
+
+      // Parser output is only a candidate match. Verify every code against the
+      // current active catalog and replace its price with the tariff unit rate.
+      const itemCodes = Array.from(new Set(parsedItems.map((item) => String(item.code || "").trim().toUpperCase()).filter(Boolean)));
+      let activeTariffs: Array<{ code: string | null; name: string | null; category: string | null; amount: unknown }> = [];
+      if (itemCodes.length > 0) {
+        const { data: tariffRows, error: tariffError } = await (supabase as any)
+          .from("nhia_items")
+          .select("code,name,category,amount")
+          .in("code", itemCodes)
+          .eq("is_active", true);
+        if (tariffError) {
+          tariffVerificationFailed = true;
+          console.error("WhatsApp parser could not verify active tariff rows:", tariffError);
+        } else {
+          activeTariffs = (tariffRows || []) as typeof activeTariffs;
+        }
+      }
+      const pricedItems = resolveParsedTariffPrices(parsedItems, activeTariffs);
+      const detectedItems = pricedItems.map((item) => ({
+        code: item.code,
+        name: item.name,
+        category: item.category,
+        amount: item.price,
+        unit_price: item.unitPrice,
+        quantity: item.quantity,
+        quantity_requires_review: item.quantityNeedsReview,
+        price_requires_review: item.priceNeedsReview || tariffVerificationFailed,
+        matched_via: item.matched_via,
+        matched_text: item.matched_text,
+        confidence: item.confidence,
+        frequency: item.frequency,
+        duration: item.duration,
+      }));
       data.approved_items = detectedItems;
 
       if (data.referral_hospital_name) {
@@ -263,7 +292,13 @@ export default function WhatsAppPage() {
       }
 
       setParsedData(data);
-      toast({ title: "Extraction Complete", description: "Direct text extraction was successful." });
+      const unverifiedCount = detectedItems.filter((item) => item.price_requires_review).length;
+      toast({
+        title: unverifiedCount ? "Extraction Complete — Price Review Needed" : "Extraction Complete",
+        description: unverifiedCount
+          ? `${unverifiedCount} item${unverifiedCount === 1 ? "" : "s"} could not be confirmed against an active tariff row. Review or select the exact catalogue item before approval.`
+          : "Direct text extraction was successful. Item prices were verified against the active NHIA catalogue.",
+      });
     } catch (error: any) {
       toast({ variant: "destructive", title: "Parse Error", description: error.message });
     } finally {

@@ -55,11 +55,12 @@ async function authenticate(req: Request): Promise<boolean> {
     });
     const { data: roleRow } = await service
       .from("user_roles")
-      .select("role, access_status")
+      .select("role, access_status, account_setup_required")
       .eq("user_id", user.id)
       .maybeSingle();
     if (!roleRow?.role) return false;
     if (String(roleRow.access_status || "active").toLowerCase() !== "active") return false;
+    if (roleRow.account_setup_required === true) return false;
     return ALLOWED_ROLES.includes(String(roleRow.role));
   }
   // Path B: server-to-server shared secret.
