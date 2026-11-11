@@ -22,7 +22,7 @@ function homeForRole(role: string | null) {
 }
 
 export default function CompleteProvisionedAccount() {
-  const { session, user, role, fullName, hospitalId, loading, accountSetupRequired, refreshProfile } = useAuth();
+  const { session, user, role, fullName, hospitalId, loading, accountSetupRequired, refreshProfile, signOut } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [name, setName] = useState(fullName || String(user?.user_metadata?.full_name || ""));
@@ -30,6 +30,7 @@ export default function CompleteProvisionedAccount() {
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [acceptedPrivacy, setAcceptedPrivacy] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
   const [consentSaved, setConsentSaved] = useState(false);
   const [formError, setFormError] = useState("");
 
@@ -46,6 +47,12 @@ export default function CompleteProvisionedAccount() {
   if (!accountSetupRequired) return <Navigate to={homeForRole(role)} replace />;
 
   const needsHospitalName = role === "hospital" && !hospitalId;
+
+  const handleSignOutForLater = async () => {
+    setSigningOut(true);
+    await signOut();
+    navigate("/login", { replace: true });
+  };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -97,13 +104,24 @@ export default function CompleteProvisionedAccount() {
     <main className="flex min-h-screen items-center justify-center bg-slate-50 px-4 py-8">
       <Card className="w-full max-w-xl border-slate-200 shadow-sm">
         <CardHeader className="space-y-3 pb-4">
-          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
-            <ShieldCheck className="h-6 w-6" aria-hidden="true" />
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
+              <ShieldCheck className="h-6 w-6" aria-hidden="true" />
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={submitting || signingOut}
+              onClick={() => void handleSignOutForLater()}
+              className="min-h-11 shrink-0 px-3 text-xs sm:px-4 sm:text-sm"
+            >
+              {signingOut ? "Signing out…" : "Sign out and finish later"}
+            </Button>
           </div>
           <div>
             <CardTitle className="text-xl font-semibold text-slate-900">Complete account setup</CardTitle>
             <CardDescription className="mt-1 text-sm leading-relaxed text-slate-600">
-              Confirm your profile and accept the required policies before opening portal records.
+              Confirm your profile and accept the required policies before opening portal records. You can sign out and return later with this email and your assigned password.
             </CardDescription>
           </div>
         </CardHeader>

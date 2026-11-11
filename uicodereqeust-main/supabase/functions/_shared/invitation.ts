@@ -44,6 +44,17 @@ export function invitationLinkType(
   return existing?.user_id ? "magiclink" : "invite";
 }
 
+export function invitationAccountAlreadyCompleted(
+  role: { email?: string | null; onboarding_completed?: boolean | null; invite_status?: string | null } | null,
+  intendedEmail: string,
+): boolean {
+  return Boolean(
+    role &&
+    String(role.email || "").trim().toLowerCase() === intendedEmail.trim().toLowerCase() &&
+    (role.onboarding_completed === true || role.invite_status === "completed")
+  );
+}
+
 export function escapeHtml(value: string): string {
   return value.replace(/[&<>"']/g, (character) => {
     switch (character) {

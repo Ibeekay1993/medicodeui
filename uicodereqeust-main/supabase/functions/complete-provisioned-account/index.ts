@@ -78,7 +78,7 @@ serve(async (req) => {
       if (completionError.code === "23505") {
         return reply(409, { error: true, message: "This account conflicts with an existing hospital assignment. Contact your administrator." });
       }
-      return reply(400, { error: true, message: "Account setup could not be completed. Please verify the details and retry." });
+      return reply(503, { error: true, message: "We could not confirm account setup. Retry with this same account; you can safely sign out and return later. Contact your administrator if it keeps failing." });
     }
     const completed = Array.isArray(completion) ? completion[0] : null;
     if (!completed?.role) return reply(400, { error: true, message: "Account setup could not be completed. Please retry." });

@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { User, Lock, Building2, ShieldAlert, Eye, EyeOff, RefreshCw, ArrowRight, Info } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
-import { invitationOtpType } from "@/lib/invitationLinks";
+import { completedInvitationLoginPath, invitationOtpType } from "@/lib/invitationLinks";
 import { getSupabaseFunctionResponseMessage } from "@/lib/supabaseFunctionErrors";
 
 // ---------------------------------------------------------------------------
@@ -91,8 +91,23 @@ export default function Register() {
         const { data: validation, error: validationError } = await supabase.functions.invoke("invitation-validate", {
           body: { token: customToken },
         });
-        if (validationError || validation?.success !== true) {
+        if (validationError) {
           setInviteError(validation?.message || validationError?.message || "This invitation is invalid or has expired. Ask an administrator to resend it.");
+          setSessionResolving(false);
+          return;
+        }
+        if (validation?.success === true && validation?.already_completed === true) {
+          sessionStorage.removeItem("pending_custom_invitation");
+          toast({
+            title: "Account already active",
+            description: "Sign in with your account email and password to continue.",
+          });
+          navigate(completedInvitationLoginPath(validation.email), { replace: true });
+          setSessionResolving(false);
+          return;
+        }
+        if (validation?.success !== true) {
+          setInviteError(validation?.message || "This invitation is invalid or has expired. Ask an administrator to resend it.");
           setSessionResolving(false);
           return;
         }
@@ -222,6 +237,15 @@ export default function Register() {
       }
 
       const statusRow = inviteRows[0];
+      if (statusRow.invite_status === "completed" || statusRow.onboarding_completed === true) {
+        toast({
+          title: "Account already active",
+          description: "Sign in with your account email and password to continue.",
+        });
+        navigate(completedInvitationLoginPath(userEmail), { replace: true });
+        setSessionResolving(false);
+        return;
+      }
       if (statusRow.invite_status !== "pending" || statusRow.onboarding_completed === true) {
         setInviteError(
           "This invitation has already been completed. Please log in using your email and password."

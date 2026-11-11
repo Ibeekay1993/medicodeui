@@ -3,6 +3,7 @@ import {
   brevoAccepted,
   escapeHtml,
   invitationLinkType,
+  invitationAccountAlreadyCompleted,
   invitationRedirectUrl,
   invitationSender,
   InvitationConfigurationError,
@@ -27,6 +28,24 @@ describe("invitation delivery helpers", () => {
     expect(invitationLinkType(null)).toBe("invite");
     expect(invitationLinkType({ user_id: "pending-user", invite_status: "pending" })).toBe("magiclink");
     expect(() => invitationLinkType({ user_id: "active-user", invite_status: "completed" })).toThrow(/completed account setup/i);
+  });
+
+  it("recognizes a completed invitation only for its matching account email", () => {
+    expect(invitationAccountAlreadyCompleted({
+      email: "staff@example.com",
+      invite_status: "completed",
+      onboarding_completed: true,
+    }, "STAFF@example.com")).toBe(true);
+    expect(invitationAccountAlreadyCompleted({
+      email: "other@example.com",
+      invite_status: "completed",
+      onboarding_completed: true,
+    }, "staff@example.com")).toBe(false);
+    expect(invitationAccountAlreadyCompleted({
+      email: "staff@example.com",
+      invite_status: "pending",
+      onboarding_completed: false,
+    }, "staff@example.com")).toBe(false);
   });
 
   it("treats only Brevo 201 responses with a message ID as accepted", () => {

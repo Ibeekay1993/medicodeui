@@ -47,6 +47,7 @@ export default function ResetPassword() {
 
   // In-memory token storage (for recovery link click)
   const [pendingTokens, setPendingTokens] = useState<{ accessToken: string; refreshToken: string } | null>(null);
+  const [pendingUserId, setPendingUserId] = useState<string | null>(null);
   const [hasTokens, setHasTokens] = useState(false);
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [sessionResolving, setSessionResolving] = useState(true);
@@ -122,6 +123,7 @@ export default function ResetPassword() {
         if (!accessToken) {
           setHasTokens(false);
           setPendingTokens(null);
+          setPendingUserId(null);
           setSessionResolving(false);
           return;
         }
@@ -132,6 +134,7 @@ export default function ResetPassword() {
           );
           setHasTokens(false);
           setPendingTokens(null);
+          setPendingUserId(null);
           setSessionResolving(false);
           return;
         }
@@ -143,16 +146,28 @@ export default function ResetPassword() {
           );
           setHasTokens(false);
           setPendingTokens(null);
+          setPendingUserId(null);
+          setSessionResolving(false);
+          return;
+        }
+
+        if (!refreshToken) {
+          setInviteError("This password reset link is incomplete. Request a new password reset link below.");
+          setHasTokens(false);
+          setPendingTokens(null);
+          setPendingUserId(null);
           setSessionResolving(false);
           return;
         }
 
         setPendingTokens({ accessToken, refreshToken });
+        setPendingUserId(userData.user.id);
         setHasTokens(true);
       } catch (e: any) {
         setInviteError("An error occurred while validating your reset link. Please request a new reset link below.");
         setHasTokens(false);
         setPendingTokens(null);
+        setPendingUserId(null);
       } finally {
         setSessionResolving(false);
       }
@@ -171,7 +186,7 @@ export default function ResetPassword() {
   // Submit new password
   // ---------------------------------------------------------------------------
   const onReset = async () => {
-    if (!pendingTokens) {
+    if (!pendingTokens || !pendingUserId) {
       toast({
         variant: "destructive",
         title: "Session Expired",
@@ -204,19 +219,23 @@ export default function ResetPassword() {
     }
 
     try {
-      if (pendingTokens.accessToken && pendingTokens.refreshToken) {
-        const { data: currentSession } = await supabase.auth.getSession().catch(() => ({ data: { session: null } }));
-        if (!currentSession?.session) {
-          const { error: sessionError } = await supabase.auth.setSession({
-            access_token: pendingTokens.accessToken,
-            refresh_token: pendingTokens.refreshToken,
-          });
-          if (sessionError) {
-            throw new Error(
-              sessionError?.message || "Failed to establish password reset session. Please reopen the recovery link."
-            );
-          }
+      const { data: currentSession } = await supabase.auth.getSession();
+      if (currentSession?.session?.user?.id !== pendingUserId) {
+        const { error: sessionError } = await supabase.auth.setSession({
+          access_token: pendingTokens.accessToken,
+          refresh_token: pendingTokens.refreshToken,
+        });
+        if (sessionError) {
+          throw new Error(
+            sessionError?.message || "Failed to establish password reset session. Please reopen the recovery link."
+          );
         }
+        resetSessionApplied = true;
+      }
+
+      const { data: activeUser, error: activeUserError } = await supabase.auth.getUser();
+      if (activeUserError || activeUser?.user?.id !== pendingUserId) {
+        throw new Error("The recovery link does not match the signed-in account. Reopen the reset email and try again.");
       }
 
       resetSessionApplied = true;
@@ -240,6 +259,8 @@ export default function ResetPassword() {
         description: "You can now sign in with your new password.",
       });
       setPendingTokens(null);
+      setPendingUserId(null);
+      setHasTokens(false);
       navigate("/login");
     } catch (e: any) {
       if (resetSessionApplied) {

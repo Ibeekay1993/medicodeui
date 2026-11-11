@@ -1,11 +1,12 @@
-import { fireEvent, render, screen } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
+import { act, fireEvent, render, screen } from "@testing-library/react";
+import { MemoryRouter, useLocation } from "react-router-dom";
 import { beforeEach, vi } from "vitest";
 import CompleteProvisionedAccount from "@/pages/CompleteProvisionedAccount";
 
 const mocks = vi.hoisted(() => ({
   invoke: vi.fn(),
   refreshProfile: vi.fn(),
+  signOut: vi.fn(),
   toast: vi.fn(),
 }));
 
@@ -23,6 +24,7 @@ vi.mock("@/contexts/AuthContext", () => ({
     loading: false,
     accountSetupRequired: true,
     refreshProfile: mocks.refreshProfile,
+    signOut: mocks.signOut,
   }),
 }));
 
@@ -41,8 +43,14 @@ beforeEach(() => {
   });
   mocks.invoke.mockReset();
   mocks.refreshProfile.mockReset();
+  mocks.signOut.mockReset();
   mocks.toast.mockReset();
 });
+
+function CurrentPath() {
+  const { pathname } = useLocation();
+  return <output aria-label="Current route">{pathname}</output>;
+}
 
 describe("CompleteProvisionedAccount", () => {
   it("shows the safe Edge Function response instead of the generic SDK error", async () => {
@@ -58,7 +66,7 @@ describe("CompleteProvisionedAccount", () => {
     });
 
     render(
-      <MemoryRouter>
+      <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <CompleteProvisionedAccount />
       </MemoryRouter>,
     );
@@ -70,5 +78,22 @@ describe("CompleteProvisionedAccount", () => {
 
     expect(await screen.findByRole("alert")).toHaveTextContent(serverMessage);
     expect(screen.queryByText("Edge Function returned a non-2xx status code")).not.toBeInTheDocument();
+  });
+
+  it("lets the user sign out before consent and resume setup later", async () => {
+    render(
+      <MemoryRouter initialEntries={["/complete-account-setup"]} future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+        <CompleteProvisionedAccount />
+        <CurrentPath />
+      </MemoryRouter>,
+    );
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Sign out and finish later" }));
+    });
+
+    expect(mocks.signOut).toHaveBeenCalledOnce();
+    expect(mocks.invoke).not.toHaveBeenCalled();
+    expect(screen.getByLabelText("Current route")).toHaveTextContent("/login");
   });
 });

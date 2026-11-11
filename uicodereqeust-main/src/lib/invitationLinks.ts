@@ -5,3 +5,10 @@ export function invitationOtpType(value?: string | null): InvitationOtpType | nu
   if (value === "invite" || value === "signup" || value === "magiclink") return value;
   return null;
 }
+
+export function completedInvitationLoginPath(email?: string | null): string {
+  const query = new URLSearchParams();
+  if (email?.trim()) query.set("email", email.trim());
+  const search = query.toString();
+  return `/login${search ? `?${search}` : ""}`;
+}

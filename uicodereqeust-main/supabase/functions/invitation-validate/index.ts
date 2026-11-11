@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders, getServiceClient } from "../_shared/auth.ts";
 import { hashInvitationToken } from "../_shared/invitation-token.ts";
+import { invitationAccountAlreadyCompleted } from "../_shared/invitation.ts";
 
 const headers = { ...corsHeaders, "Content-Type": "application/json", "Cache-Control": "no-store" };
 const reply = (status: number, body: Record<string, unknown>) =>
@@ -30,7 +31,7 @@ serve(async (req) => {
       console.error("Invitation validation storage error", { code: invitationError.code });
       return reply(503, { error: true, message: "Invitation verification is temporarily unavailable. Please retry." });
     }
-    if (!invitation || invitation.consumed_at || invitation.revoked_at || Date.parse(invitation.expires_at) <= Date.now()) {
+    if (!invitation) {
       return reply(410, { error: true, message: "This invitation is invalid or has expired. Ask an administrator to resend it." });
     }
 
@@ -43,7 +44,15 @@ serve(async (req) => {
       console.error("Invitation role lookup failed", { code: roleError.code });
       return reply(503, { error: true, message: "Invitation verification is temporarily unavailable. Please retry." });
     }
-    if (!role || String(role.email || "").toLowerCase() !== String(invitation.intended_email).toLowerCase()
+    if (invitationAccountAlreadyCompleted(role, invitation.intended_email)) {
+      return reply(200, {
+        success: true,
+        already_completed: true,
+        email: invitation.intended_email,
+      });
+    }
+    if (invitation.consumed_at || invitation.revoked_at || Date.parse(invitation.expires_at) <= Date.now()
+      || !role || String(role.email || "").toLowerCase() !== String(invitation.intended_email).toLowerCase()
       || role.invite_status !== "pending" || role.onboarding_completed) {
       return reply(410, { error: true, message: "This invitation is no longer active. Ask an administrator to resend it." });
     }
