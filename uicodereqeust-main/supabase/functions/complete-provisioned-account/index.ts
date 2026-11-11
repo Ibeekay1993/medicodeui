@@ -4,6 +4,10 @@ import { corsHeaders, getServiceClient, maskEmail } from "../_shared/auth.ts";
 const headers = { ...corsHeaders, "Content-Type": "application/json", "Cache-Control": "no-store" };
 const reply = (status: number, body: Record<string, unknown>) =>
   new Response(JSON.stringify(body), { status, headers });
+const safeErrorSummary = (value: unknown) => String(value || "unknown error")
+  .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, "[redacted email]")
+  .replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, "[redacted id]")
+  .slice(0, 240);
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -33,18 +37,28 @@ serve(async (req) => {
 
     const { data: role, error: roleError } = await service
       .from("user_roles")
-      .select("role,email,invite_status,onboarding_completed,account_setup_required,hospital_id")
+      .select("role,email,access_status,invite_status,onboarding_completed,account_setup_required,hospital_id")
       .eq("user_id", authData.user.id)
       .maybeSingle();
     if (roleError) {
       console.error("Provisioned-account setup lookup failed", { code: roleError.code });
       return reply(503, { error: true, message: "Account setup is temporarily unavailable. Please retry." });
     }
-    if (!role || role.account_setup_required !== true || role.invite_status !== "pending" || role.onboarding_completed) {
-      return reply(409, { error: true, message: "This account is not awaiting first-time setup." });
-    }
+    if (!role) return reply(404, { error: true, message: "No account setup is available for this sign-in. Contact your administrator." });
     if (String(role.email || "").toLowerCase() !== String(authData.user.email || "").toLowerCase()) {
       return reply(403, { error: true, message: "The signed-in account does not match its assigned email." });
+    }
+    // A client may retry after the database committed but the response was lost.
+    // The completion RPC records consent and marks setup complete atomically, so
+    // this exact terminal state is safe to acknowledge idempotently.
+    if (role.onboarding_completed === true && role.invite_status === "completed" && role.account_setup_required === false) {
+      return reply(200, { success: true, role: role.role, hospital_id: role.hospital_id || null });
+    }
+    if (role.account_setup_required !== true || role.invite_status !== "pending" || role.onboarding_completed) {
+      return reply(409, { error: true, message: "This account is not awaiting first-time setup. Contact your administrator if you still need access." });
+    }
+    if (String(role.access_status || "").toLowerCase() !== "active") {
+      return reply(409, { error: true, message: "This account is currently suspended. Ask your administrator to review or resend the account details." });
     }
     if (role.role === "hospital" && !role.hospital_id && !hospitalName) {
       return reply(400, { error: true, message: "Enter your hospital name to complete account setup." });
@@ -56,7 +70,14 @@ serve(async (req) => {
       p_hospital_name: hospitalName || null,
     });
     if (completionError) {
-      console.error("Provisioned-account setup completion failed", { code: completionError.code });
+      const detail = safeErrorSummary(completionError.message);
+      console.error("Provisioned-account setup completion failed", { code: completionError.code, message: detail });
+      if (completionError.code === "22023" && detail.includes("This account is not awaiting setup.")) {
+        return reply(409, { error: true, message: "This account is no longer awaiting setup. Ask your administrator to resend the account details." });
+      }
+      if (completionError.code === "23505") {
+        return reply(409, { error: true, message: "This account conflicts with an existing hospital assignment. Contact your administrator." });
+      }
       return reply(400, { error: true, message: "Account setup could not be completed. Please verify the details and retry." });
     }
     const completed = Array.isArray(completion) ? completion[0] : null;

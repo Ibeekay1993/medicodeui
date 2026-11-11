@@ -2842,6 +2842,7 @@ export type Database = {
         Returns: string
       }
       get_dashboard_stats: { Args: never; Returns: Json }
+      get_dashboard_finance_stats: { Args: never; Returns: Json }
       get_otp_for_request: {
         Args: { p_request_id: string }
         Returns: {

@@ -44,6 +44,36 @@ const money = (value: number) =>
     maximumFractionDigits: 0,
   }).format(value || 0);
 
+const parseAggregateNumber = (value: unknown) => {
+  if ((typeof value !== "number" && typeof value !== "string") || (typeof value === "string" && !value.trim())) {
+    return Number.NaN;
+  }
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : Number.NaN;
+};
+
+type DashboardFinanceAggregate = {
+  awaiting_count: number;
+  awaiting_value: number;
+  paid_count: number;
+  paid_value: number;
+  draft_batches: number;
+  ready_batches: number;
+  paid_batches: number;
+  total_batches_value: number;
+  admin_claims: {
+    submitted: number;
+    approved: number;
+    partially_approved: number;
+    rejected: number;
+    contested: number;
+    paid: number;
+    claimed_value: number;
+    approved_value: number;
+    declined_value: number;
+  } | null;
+};
+
 export default function DashboardHome() {
   const { role } = useAuth();
   const [stats, setStats] = useState<any>({ total: 0, approved: 0, rejected: 0, pending: 0, hospitals: 0, users: 0, authorizedAmount: 0 });
@@ -58,6 +88,8 @@ export default function DashboardHome() {
     paidBatches: 0,
     totalBatchesValue: 0,
   });
+  const [financeStatsError, setFinanceStatsError] = useState(false);
+  const [claimStatsError, setClaimStatsError] = useState(false);
   const [loading, setLoading] = useState(true);
   const [chartData, setChartData] = useState<any[]>([]);
   const [claimChartData, setClaimChartData] = useState<any[]>([]);
@@ -82,59 +114,79 @@ export default function DashboardHome() {
       const isAdmin = role === "admin";
 
       if (isFinanceRole || isAdmin) {
-        const [awaitingClaimsRes, paidClaimsRes, batchesRes] = await Promise.all([
-          supabase
-            .from("hospital_claims" as any)
-            .select("status,payment_status,contest_deadline,approved_amount,total_amount")
-            .in("status", ["approved", "partially_approved"])
-            .is("payment_batch_id", null)
-            .limit(1000),
-          supabase
-            .from("hospital_claims" as any)
-            .select("approved_amount,total_amount")
-            .eq("status", "paid")
-            .limit(1000),
-          supabase
-            .from("payment_batches" as any)
-            .select("status,total_amount")
-            .limit(500)
-        ]);
+        try {
+          const { data: financeResponse, error: financeError } = await supabase.rpc("get_dashboard_finance_stats");
+          const financeData = financeResponse as unknown as DashboardFinanceAggregate | null;
+          if (financeError || !financeData || typeof financeData !== "object") {
+            console.error("Failed to fetch complete dashboard finance aggregates:", financeError || "Invalid response");
+            setFinanceStatsError(true);
+            if (isAdmin) setClaimStatsError(true);
+          } else {
+            const financeValues = [
+              financeData.awaiting_count,
+              financeData.awaiting_value,
+              financeData.paid_count,
+              financeData.paid_value,
+              financeData.draft_batches,
+              financeData.ready_batches,
+              financeData.paid_batches,
+              financeData.total_batches_value,
+            ].map(parseAggregateNumber);
+            if (financeValues.some((value: number) => !Number.isFinite(value))) {
+              console.error("Dashboard finance aggregate response is incomplete.");
+              setFinanceStatsError(true);
+              if (isAdmin) setClaimStatsError(true);
+            } else {
+              setFinanceStats({
+                awaitingCount: financeValues[0],
+                awaitingValue: financeValues[1],
+                paidCount: financeValues[2],
+                paidValue: financeValues[3],
+                draftBatches: financeValues[4],
+                readyBatches: financeValues[5],
+                paidBatches: financeValues[6],
+                totalBatchesValue: financeValues[7],
+              });
+              setFinanceStatsError(false);
 
-        const awaitingRows = awaitingClaimsRes.data || [];
-        const paidRows = paidClaimsRes.data || [];
-        const batchesRows = batchesRes.data || [];
-
-        const currentDate = new Date();
-        const awaitingList = awaitingRows.filter((c: any) => {
-          return c.status === "approved" || (
-            c.status === "partially_approved" && (
-              c.payment_status === "awaiting_payment" ||
-              (c.contest_deadline && new Date(c.contest_deadline) < currentDate)
-            )
-          );
-        });
-
-        const awaitingCount = awaitingList.length;
-        const awaitingValue = awaitingList.reduce((sum: number, c: any) => sum + Number(c.approved_amount || c.total_amount || 0), 0);
-
-        const paidCount = paidRows.length;
-        const paidValue = paidRows.reduce((sum: number, c: any) => sum + Number(c.approved_amount || c.total_amount || 0), 0);
-
-        const draftBatches = batchesRows.filter((b: any) => b.status === "draft").length;
-        const readyBatches = batchesRows.filter((b: any) => b.status === "ready").length;
-        const paidBatches = batchesRows.filter((b: any) => b.status === "paid").length;
-        const totalBatchesValue = batchesRows.reduce((sum: number, b: any) => sum + Number(b.total_amount || 0), 0);
-
-        setFinanceStats({
-          awaitingCount,
-          awaitingValue,
-          paidCount,
-          paidValue,
-          draftBatches,
-          readyBatches,
-          paidBatches,
-          totalBatchesValue
-        });
+              if (isAdmin) {
+                const adminClaims = financeData.admin_claims;
+                const claimValues = adminClaims && [
+                  adminClaims.submitted,
+                  adminClaims.approved,
+                  adminClaims.partially_approved,
+                  adminClaims.rejected,
+                  adminClaims.contested,
+                  adminClaims.paid,
+                  adminClaims.claimed_value,
+                  adminClaims.approved_value,
+                  adminClaims.declined_value,
+                ].map(parseAggregateNumber);
+                if (!claimValues || claimValues.some((value: number) => !Number.isFinite(value))) {
+                  console.error("Dashboard claims aggregate response is incomplete.");
+                  setClaimStatsError(true);
+                } else {
+                  setClaimStats({
+                    submitted: claimValues[0],
+                    approved: claimValues[1],
+                    partiallyApproved: claimValues[2],
+                    rejected: claimValues[3],
+                    contested: claimValues[4],
+                    paid: claimValues[5],
+                    claimedValue: claimValues[6],
+                    approvedValue: claimValues[7],
+                    declinedValue: claimValues[8],
+                  });
+                  setClaimStatsError(false);
+                }
+              }
+            }
+          }
+        } catch (financeError) {
+          console.error("Dashboard finance aggregate request failed:", financeError);
+          setFinanceStatsError(true);
+          if (isAdmin) setClaimStatsError(true);
+        }
 
         if (isFinanceRole) {
           const { data: financeChart, error: chartError } = await supabase.rpc("dashboard_finance_activity_7d" as any);
@@ -194,6 +246,9 @@ export default function DashboardHome() {
               approvedValue: Number(rpcData.admin_claims.approved_value || 0),
               declinedValue: Number(rpcData.admin_claims.declined_value || 0),
             });
+            setClaimStatsError(false);
+          } else if (isClaimsRole) {
+            setClaimStatsError(true);
           }
           
           const { data: claimChart } = await supabase.rpc("dashboard_claims_activity_7d" as any);
@@ -258,11 +313,13 @@ export default function DashboardHome() {
               approvedValue: Number(rpcData.admin_claims.approved_value || 0),
               declinedValue: Number(rpcData.admin_claims.declined_value || 0),
             });
+            setClaimStatsError(false);
           }
         }
       } else {
         console.warn("get_dashboard_stats RPC failed or not found, falling back to legacy queries:", rpcError);
         if (isClaimsRole) {
+          setClaimStatsError(true);
           const [allClaims, approvedClaims, rejectedClaims, pendingClaims, hospitalsRes, usersRes, historicalClaims] = await Promise.all([
             supabase.from("hospital_claims" as any).select("id", { count: "exact", head: true }),
             supabase.from("hospital_claims" as any).select("id", { count: "exact", head: true }).eq("status", "approved"),
@@ -338,28 +395,6 @@ export default function DashboardHome() {
               : buildLastNDayBuckets(7),
           );
 
-          // In the non-claims fallback path, only admin can see claim stats
-          if (role === "admin") {
-            const { data: claimsData, error: claimsError } = await (supabase as any)
-              .from("hospital_claims")
-              .select("status,total_amount,approved_amount,declined_amount")
-              .limit(1000);
-            if (!claimsError) {
-              const rows = claimsData || [];
-              const statusOf = (row: any) => String(row.status || "").toLowerCase();
-              setClaimStats({
-                submitted: rows.filter((c: any) => ["submitted", "pending", "under_review"].includes(statusOf(c))).length,
-                approved: rows.filter((c: any) => statusOf(c) === "approved").length,
-                partiallyApproved: rows.filter((c: any) => statusOf(c) === "partially_approved").length,
-                rejected: rows.filter((c: any) => ["rejected", "declined", "denied"].includes(statusOf(c))).length,
-                contested: rows.filter((c: any) => ["contested", "under_contest"].includes(statusOf(c))).length,
-                paid: rows.filter((c: any) => statusOf(c) === "paid").length,
-                claimedValue: rows.reduce((sum: number, c: any) => sum + Number(c.total_amount || 0), 0),
-                approvedValue: rows.reduce((sum: number, c: any) => sum + Number(c.approved_amount || 0), 0),
-                declinedValue: rows.reduce((sum: number, c: any) => sum + Number(c.declined_amount || 0), 0),
-              });
-            }
-          }
         }
       }
     }
@@ -428,6 +463,14 @@ export default function DashboardHome() {
     <div className="space-y-4 max-w-full overflow-x-hidden pb-10 animate-in fade-in duration-500">
       {isAdmin && (
         <div className="space-y-4">
+          {(financeStatsError || claimStatsError) && (
+            <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+              <span>Some claim or payment totals could not be confirmed. Incomplete totals are hidden.</span>
+              <button type="button" onClick={() => void fetchStats(true)} className="min-h-11 rounded-md border border-amber-300 bg-white px-4 font-semibold text-amber-950 hover:bg-amber-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-700 focus-visible:ring-offset-2">
+                Retry totals
+              </button>
+            </div>
+          )}
           <section aria-labelledby="authorization-metrics-heading" className="space-y-1 sm:space-y-1.5">
             <div id="authorization-metrics-heading" role="heading" aria-level={2} className="text-[10.5px] sm:text-xs font-bold uppercase tracking-wider text-slate-500">Clinical Authorizations</div>
             <DashboardMetricGrid loading={loading} items={[
@@ -441,20 +484,20 @@ export default function DashboardHome() {
           <section aria-labelledby="claims-metrics-heading" className="space-y-1 sm:space-y-1.5">
             <div id="claims-metrics-heading" role="heading" aria-level={2} className="text-[10.5px] sm:text-xs font-bold uppercase tracking-wider text-slate-500">Claims</div>
             <DashboardMetricGrid loading={loading} items={[
-              { label: "Submitted", value: claimStats.submitted, icon: FileText },
-              { label: "Paid", value: claimStats.paid, icon: CheckCircle2, color: "text-emerald-700" },
-              { label: "Approved value", value: money(claimStats.approvedValue), icon: Banknote },
-              { label: "Contested", value: claimStats.contested, icon: AlertTriangle, color: "text-amber-700" },
+              { label: "Submitted", value: claimStatsError ? "—" : claimStats.submitted, icon: FileText },
+              { label: "Paid", value: claimStatsError ? "—" : claimStats.paid, icon: CheckCircle2, color: "text-emerald-700" },
+              { label: "Approved value", value: claimStatsError ? "—" : money(claimStats.approvedValue), icon: Banknote },
+              { label: "Contested", value: claimStatsError ? "—" : claimStats.contested, icon: AlertTriangle, color: "text-amber-700" },
             ]} />
           </section>
 
           <section aria-labelledby="payments-metrics-heading" className="space-y-1 sm:space-y-1.5">
             <div id="payments-metrics-heading" role="heading" aria-level={2} className="text-[10.5px] sm:text-xs font-bold uppercase tracking-wider text-slate-500">Payments</div>
             <DashboardMetricGrid loading={loading} items={[
-              { label: "Awaiting payment", value: money(financeStats.awaitingValue), icon: Clock, color: "text-amber-700" },
-              { label: "Paid value", value: money(financeStats.paidValue), icon: Banknote },
-              { label: "Settled batches", value: financeStats.paidBatches, icon: Layers },
-              { label: "Total batch value", value: money(financeStats.totalBatchesValue), icon: Wallet },
+              { label: "Awaiting payment", value: financeStatsError ? "—" : money(financeStats.awaitingValue), icon: Clock, color: "text-amber-700" },
+              { label: "Paid value", value: financeStatsError ? "—" : money(financeStats.paidValue), icon: Banknote },
+              { label: "Settled batches", value: financeStatsError ? "—" : financeStats.paidBatches, icon: Layers },
+              { label: "Total batch value", value: financeStatsError ? "—" : money(financeStats.totalBatchesValue), icon: Wallet },
             ]} />
           </section>
         </div>
@@ -462,12 +505,20 @@ export default function DashboardHome() {
 
       {isFinance && (
         <section aria-labelledby="finance-summary-heading" className="space-y-1 sm:space-y-1.5">
+          {financeStatsError && (
+            <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+              <span>Payment totals could not be confirmed. Incomplete totals are hidden.</span>
+              <button type="button" onClick={() => void fetchStats(true)} className="min-h-11 rounded-md border border-amber-300 bg-white px-4 font-semibold text-amber-950 hover:bg-amber-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-700 focus-visible:ring-offset-2">
+                Retry totals
+              </button>
+            </div>
+          )}
           <div id="finance-summary-heading" role="heading" aria-level={2} className="text-[10.5px] sm:text-xs font-bold uppercase tracking-wider text-slate-500">Payment Summary</div>
           <DashboardMetricGrid loading={loading} items={[
-          { label: "Awaiting payment", value: money(financeStats.awaitingValue), icon: Clock, color: "text-amber-700" },
-          { label: "Paid value", value: money(financeStats.paidValue), icon: Banknote },
-          { label: "Settled batches", value: financeStats.paidBatches, icon: Layers },
-          { label: "Total batch value", value: money(financeStats.totalBatchesValue), icon: Wallet },
+          { label: "Awaiting payment", value: financeStatsError ? "—" : money(financeStats.awaitingValue), icon: Clock, color: "text-amber-700" },
+          { label: "Paid value", value: financeStatsError ? "—" : money(financeStats.paidValue), icon: Banknote },
+          { label: "Settled batches", value: financeStatsError ? "—" : financeStats.paidBatches, icon: Layers },
+          { label: "Total batch value", value: financeStatsError ? "—" : money(financeStats.totalBatchesValue), icon: Wallet },
           ]} />
         </section>
       )}
@@ -498,15 +549,23 @@ export default function DashboardHome() {
 
       {isClaims && (
         <section aria-labelledby="claims-summary-heading" className="space-y-1 sm:space-y-1.5">
+          {claimStatsError && (
+            <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+              <span>Claim totals could not be confirmed. Incomplete totals are hidden.</span>
+              <button type="button" onClick={() => void fetchStats(true)} className="min-h-11 rounded-md border border-amber-300 bg-white px-4 font-semibold text-amber-950 hover:bg-amber-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-700 focus-visible:ring-offset-2">
+                Retry totals
+              </button>
+            </div>
+          )}
           <div id="claims-summary-heading" role="heading" aria-level={2} className="text-[10.5px] sm:text-xs font-bold uppercase tracking-wider text-slate-500">Claims Overview</div>
           <DashboardMetricGrid loading={loading} items={[
-          { label: "Submitted", value: claimStats.submitted, icon: FileText },
-          { label: "Approved", value: claimStats.approved, icon: CheckCircle2, color: "text-emerald-700" },
-          { label: "Partially approved", value: claimStats.partiallyApproved, icon: Activity, color: "text-amber-700" },
-          { label: "Rejected", value: claimStats.rejected, icon: XCircle, color: "text-rose-700" },
-          { label: "Contested", value: claimStats.contested, icon: AlertTriangle, color: "text-amber-700" },
-          { label: "Approved value", value: money(claimStats.approvedValue), icon: Banknote },
-          { label: "Savings", value: money(claimStats.declinedValue), icon: Wallet },
+          { label: "Submitted", value: claimStatsError ? "—" : claimStats.submitted, icon: FileText },
+          { label: "Approved", value: claimStatsError ? "—" : claimStats.approved, icon: CheckCircle2, color: "text-emerald-700" },
+          { label: "Partially approved", value: claimStatsError ? "—" : claimStats.partiallyApproved, icon: Activity, color: "text-amber-700" },
+          { label: "Rejected", value: claimStatsError ? "—" : claimStats.rejected, icon: XCircle, color: "text-rose-700" },
+          { label: "Contested", value: claimStatsError ? "—" : claimStats.contested, icon: AlertTriangle, color: "text-amber-700" },
+          { label: "Approved value", value: claimStatsError ? "—" : money(claimStats.approvedValue), icon: Banknote },
+          { label: "Savings", value: claimStatsError ? "—" : money(claimStats.declinedValue), icon: Wallet },
           ]} />
         </section>
       )}
