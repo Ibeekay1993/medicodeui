@@ -13,6 +13,11 @@ import {
 } from "@/lib/clinicalUtils";
 import { parsePrescriptionClientFallback } from "@/lib/prescriptionParser";
 import { resolveParsedTariffPrices } from "@/lib/resolveParsedTariffPrices";
+import {
+  findExactActiveTariffMatch,
+  findExactActiveTariffNameMatch,
+  type SearchTariffResult,
+} from "@/lib/exactActiveTariffMatch";
 
 function normalizeStoredApprovalItem(item: any) {
   const parsedQuantity = parsePositiveQuantity(item.quantity);
@@ -198,6 +203,12 @@ export function useTariffSearch(
         let tariffLookupFailed = false;
         if (parsed.length > 0) {
           const codes = Array.from(new Set(parsed.map((item) => String(item.code || "").trim().toUpperCase()).filter(Boolean)));
+          const activeTariffs: Array<{
+            code: string | null;
+            name: string | null;
+            category: string | null;
+            amount: unknown;
+          }> = [];
           try {
             const { data, error } = await (supabase as any)
               .from("nhia_items")
@@ -205,17 +216,59 @@ export function useTariffSearch(
               .in("code", codes)
               .eq("is_active", true);
             if (error) throw error;
-            parsed = resolveParsedTariffPrices(parsed, (data || []) as Array<{
-              code: string | null;
-              name: string | null;
-              category: string | null;
-              amount: unknown;
-            }>);
+            activeTariffs.push(...((data || []) as typeof activeTariffs));
           } catch (catalogErr) {
-            console.error("Could not verify detected prices against the active NHIA tariff catalogue:", catalogErr);
-            tariffLookupFailed = true;
-            parsed = resolveParsedTariffPrices(parsed, []);
+            console.warn("Direct active NHIA catalogue lookup failed; retrying missing codes through the catalogue search function:", catalogErr);
           }
+
+          // Some authenticated sessions can invoke the catalog search function
+          // while direct table reads return no rows. Retry only missing codes
+          // through that service-backed search and accept exact code matches.
+          const foundCodes = new Set(activeTariffs.map((tariff) => String(tariff.code || "").trim().toUpperCase()));
+          const missingCodes = codes.filter((code) => !foundCodes.has(code));
+          const parsedByCode = new Map(parsed.map((item) => [String(item.code || "").trim().toUpperCase(), item]));
+          const catalogCodeAliases = new Map<string, string>();
+          const lookupResults = await Promise.all(missingCodes.map(async (code) => {
+            try {
+              const item = parsedByCode.get(code);
+              const findCatalogResult = async (query: string) => {
+                const { data, error } = await supabase.functions.invoke("search-nhia", { body: { query } });
+                if (error || data?.success !== true || !Array.isArray(data.results)) return null;
+                const results = data.results as SearchTariffResult[];
+                return findExactActiveTariffMatch(code, results) || (item
+                  ? findExactActiveTariffNameMatch(item.name, item.category, results)
+                  : null);
+              };
+              const match = await findCatalogResult(code) || (item ? await findCatalogResult(item.name) : null);
+              if (!match) return null;
+              return {
+                requestedCode: code,
+                code: String(match.code),
+                name: typeof match.name === "string" ? match.name : null,
+                category: typeof match.category === "string" ? match.category : null,
+                amount: match.amount,
+              };
+            } catch (lookupError) {
+              console.warn("Exact NHIA tariff code lookup failed:", code, lookupError);
+              return null;
+            }
+          }));
+          for (const result of lookupResults) {
+            if (result) {
+              activeTariffs.push(result);
+              if (result.code) catalogCodeAliases.set(result.requestedCode, result.code);
+            }
+          }
+          const recoveredCodes = new Set(activeTariffs.flatMap((tariff) => {
+            const code = String(tariff.code || "").trim().toUpperCase();
+            return [code, ...Array.from(catalogCodeAliases.entries()).filter(([, target]) => target.toUpperCase() === code).map(([source]) => source)];
+          }));
+          tariffLookupFailed = codes.some((code) => !recoveredCodes.has(code));
+          parsed = parsed.map((item) => {
+            const alias = catalogCodeAliases.get(String(item.code || "").trim().toUpperCase());
+            return alias ? { ...item, code: alias, matched_via: "catalog_exact_name" } : item;
+          });
+          parsed = resolveParsedTariffPrices(parsed, activeTariffs);
         }
 
         setApprovedItems((current) => {

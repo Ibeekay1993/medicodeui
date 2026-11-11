@@ -155,12 +155,15 @@ export function InviteUserModal({
       if (data?.error || data?.success !== true || data?.email_sent !== true) {
         throw new Error(data?.message || "Invitation email was not accepted. Please retry.");
       }
+      if (data.setup_mode !== setupMode) {
+        throw new Error("The email was accepted, but its setup type could not be confirmed. Update the account email service before relying on this delivery, then resend if needed.");
+      }
 
       toast({
         title: setupMode === "temporary_password" ? "Account Email Accepted" : "Invitation Email Accepted",
         description: setupMode === "temporary_password"
-          ? `Brevo accepted the account-details email for ${email}. Portal access stays restricted until the user accepts the required policies. Check Brevo logs to confirm final delivery.`
-          : `Brevo accepted the invitation email for ${email}. Check Brevo logs to confirm final delivery.`,
+          ? `The account-details email was accepted for delivery to ${email}. Portal access stays restricted until the user accepts the required policies.`
+          : `The setup-link email was accepted for delivery to ${email}. The link remains valid for seven days.`,
       });
       onOpenChange(false);
       onSuccess();
@@ -177,7 +180,7 @@ export function InviteUserModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="rounded-xl sm:max-w-[420px]">
+      <DialogContent className="max-h-[calc(100dvh-1rem)] overflow-y-auto overscroll-contain rounded-xl p-4 sm:max-w-[420px] sm:p-6">
         <DialogHeader>
           <DialogTitle className="text-lg font-semibold">Add Portal User</DialogTitle>
           <DialogDescription>

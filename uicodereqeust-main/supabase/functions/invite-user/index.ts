@@ -142,7 +142,7 @@ serve(async (req) => {
     // Validate sender and redirect before creating or changing any account.
     const brevoApiKey = Deno.env.get("BREVO_API_KEY")?.trim();
     if (!brevoApiKey) {
-      throw new InvitationHttpError("Invitation email service is not configured. Ask an administrator to verify BREVO_API_KEY.", 503);
+      throw new InvitationHttpError("Account email service is not configured. Ask an administrator to review its settings.", 503);
     }
     let brevoSender: { name: string; email: string };
     let redirectTo: string;
@@ -452,7 +452,7 @@ serve(async (req) => {
           }),
       });
     } catch {
-      throw new InvitationHttpError("Could not connect to Brevo. The pending account is preserved; retry after the email service recovers.", 502);
+      throw new InvitationHttpError("Could not send the account email. The pending account is preserved; retry after the email service recovers.", 502);
     }
 
     const brevoData = await brevoResponse.json().catch(() => null);
@@ -463,8 +463,8 @@ serve(async (req) => {
       console.error("Invitation email rejected by Brevo", { status: brevoResponse.status, providerCode });
       throw new InvitationHttpError(
         brevoResponse.status === 401 || brevoResponse.status === 403
-          ? "Brevo rejected its API credentials. Verify BREVO_API_KEY in the production Edge Function environment."
-          : "Brevo did not accept the invitation email. Verify the noreply sender and Brevo transactional-email settings, then retry.",
+          ? "The account email service rejected its credentials. Ask an administrator to review the email service settings."
+          : "The account email was not accepted. Ask an administrator to review the sender and email service settings, then retry.",
         502,
       );
     }
@@ -502,12 +502,10 @@ serve(async (req) => {
     return new Response(JSON.stringify({ 
       success: true, 
       email_sent: true,
-      email_provider: "brevo",
-      email_provider_status: "accepted",
-      email_provider_message_id: providerMessageId,
+      setup_mode: setupMode,
       message: isTemporaryPasswordSetup
-        ? "Brevo accepted the account details email. Confirm final delivery in Brevo logs."
-        : "Brevo accepted the invitation email. Confirm final delivery in Brevo logs.",
+        ? "The account details email was accepted for delivery. Confirm the user can access the sign-in page."
+        : "The setup-link email was accepted for delivery. Confirm the user received it.",
     }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

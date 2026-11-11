@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { User, Lock, Building2, ShieldAlert, Eye, EyeOff, RefreshCw, ArrowRight, Info } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { invitationOtpType } from "@/lib/invitationLinks";
+import { getSupabaseFunctionResponseMessage } from "@/lib/supabaseFunctionErrors";
 
 // ---------------------------------------------------------------------------
 // JWT helpers
@@ -308,7 +309,11 @@ export default function Register() {
           },
         });
         if (activationError || activation?.success !== true) {
-          throw new Error(activation?.message || activationError?.message || "Account setup could not be completed. Please retry.");
+          throw new Error(await getSupabaseFunctionResponseMessage(
+            activation,
+            activationError,
+            "Account setup could not be completed. Please retry.",
+          ));
         }
 
         sessionStorage.removeItem("pending_custom_invitation");

@@ -301,7 +301,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         <nav className="flex-1 px-3 space-y-1.5 overflow-y-auto" role="navigation" aria-label="Main navigation">
           {navigationGroups.map((group) => (
             <div key={group.title || "main-navigation"} className="space-y-1.5">
-              {group.title && isSidebarExpanded && <p className="px-4 pt-3 pb-1 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500">{group.title}</p>}
+              {group.title && isSidebarExpanded && <p className="px-4 pt-3 pb-1 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">{group.title}</p>}
               {group.items.map((item) => (
                 <NavItem
                   key={item.name}
@@ -418,7 +418,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           <div className="flex-1 overflow-y-auto p-4 space-y-1">
             {navigationGroups.map((group) => (
               <div key={group.title || "main-navigation"} className="space-y-1">
-                {group.title && <p className="px-4 pt-3 pb-1 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500">{group.title}</p>}
+                {group.title && <p className="px-4 pt-3 pb-1 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">{group.title}</p>}
                 {group.items.map((item) => (
                   <SheetClose asChild key={item.name}>
                     <NavItem

@@ -17,3 +17,15 @@ export async function getSupabaseFunctionErrorMessage(error: unknown, fallback: 
   }
   return fallback;
 }
+
+export async function getSupabaseFunctionResponseMessage(
+  data: unknown,
+  error: unknown,
+  fallback: string,
+): Promise<string> {
+  if (data && typeof data === "object" && "message" in data) {
+    const message = (data as { message?: unknown }).message;
+    if (typeof message === "string" && message.trim()) return message;
+  }
+  return getSupabaseFunctionErrorMessage(error, fallback);
+}

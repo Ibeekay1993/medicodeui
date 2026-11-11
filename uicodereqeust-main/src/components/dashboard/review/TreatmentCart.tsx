@@ -192,26 +192,25 @@ export const TreatmentCart = React.memo(function TreatmentCart({
                           {item.name}
                         </p>
                         {item.quantityNeedsReview && !item.declined && (
-                          <div className="mt-1.5 rounded-md border border-amber-200 bg-amber-50 px-2 py-1.5 text-[11px] font-medium leading-snug text-amber-950">
-                            <p className="flex items-start gap-1.5">
-                              <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                              <span>Quantity is provisional. Check it against the request or prescription before approval.</span>
-                            </p>
+                          <div className="mt-1 flex min-h-8 flex-wrap items-center gap-x-1.5 gap-y-0.5 rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-[11px] font-medium leading-tight text-amber-950">
+                            <AlertTriangle className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                            <span className="min-w-0 flex-1">Provisional · verify against request or prescription</span>
                             {!readOnly && changeItemQuantity && (
                               <button
                                 type="button"
-                                className="ml-5 mt-1 rounded px-1.5 py-0.5 font-semibold text-amber-950 underline underline-offset-2 hover:bg-amber-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-700"
+                                className="min-h-7 shrink-0 rounded px-1.5 font-semibold text-amber-950 underline underline-offset-2 hover:bg-amber-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-700"
+                                aria-label={`Confirm quantity ${item.quantity} against the request or prescription`}
                                 onClick={() => changeItemQuantity(item.code, item.quantity || 1)}
                               >
-                                Confirm quantity: {item.quantity}
+                                Confirm {item.quantity}
                               </button>
                             )}
                           </div>
                         )}
                         {item.priceNeedsReview && !item.declined && (
-                          <p className="mt-1.5 flex items-start gap-1.5 rounded-md border border-amber-200 bg-amber-50 px-2 py-1.5 text-[11px] font-medium leading-snug text-amber-900">
+                          <p className="mt-1 flex items-start gap-1.5 rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-[11px] font-medium leading-snug text-amber-900">
                             <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                            <span>Tariff price is missing or inconsistent. Select a verified catalog item before approval.</span>
+                            <span>Price not verified. Select an active catalogue item before approval.</span>
                           </p>
                         )}
                         <div className="flex items-center gap-2 mt-1.5">
