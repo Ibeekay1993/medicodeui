@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { getSupabaseFunctionResponseMessage } from "@/lib/supabaseFunctionErrors";
 
 function homeForRole(role: string | null) {
   if (role === "hospital") return "/dashboard";
@@ -72,8 +73,13 @@ export default function CompleteProvisionedAccount() {
           acceptedPrivacy,
         },
       });
-      if (error) throw new Error(data?.message || error.message || "Account setup could not be completed.");
-      if (data?.success !== true) throw new Error(data?.message || "Account setup could not be completed.");
+      if (error || data?.success !== true) {
+        throw new Error(await getSupabaseFunctionResponseMessage(
+          data,
+          error,
+          "The account setup service could not complete the request. Please retry or contact your administrator.",
+        ));
+      }
 
       await refreshProfile();
       toast({ title: "Account ready", description: "Your consent is recorded. You can now access the portal." });
