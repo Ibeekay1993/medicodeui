@@ -12,6 +12,7 @@ import {
   parsePositiveQuantity,
 } from "@/lib/clinicalUtils";
 import { parsePrescriptionClientFallback } from "@/lib/prescriptionParser";
+import { resolveParsedTariffPrices } from "@/lib/resolveParsedTariffPrices";
 
 function normalizeStoredApprovalItem(item: any) {
   const parsedQuantity = parsePositiveQuantity(item.quantity);
@@ -194,6 +195,29 @@ export function useTariffSearch(
           }
         }
 
+        let tariffLookupFailed = false;
+        if (parsed.length > 0) {
+          const codes = Array.from(new Set(parsed.map((item) => String(item.code || "").trim().toUpperCase()).filter(Boolean)));
+          try {
+            const { data, error } = await (supabase as any)
+              .from("nhia_items")
+              .select("code,name,category,amount")
+              .in("code", codes)
+              .eq("is_active", true);
+            if (error) throw error;
+            parsed = resolveParsedTariffPrices(parsed, (data || []) as Array<{
+              code: string | null;
+              name: string | null;
+              category: string | null;
+              amount: unknown;
+            }>);
+          } catch (catalogErr) {
+            console.error("Could not verify detected prices against the active NHIA tariff catalogue:", catalogErr);
+            tariffLookupFailed = true;
+            parsed = resolveParsedTariffPrices(parsed, []);
+          }
+        }
+
         setApprovedItems((current) => {
           const retained = options?.replaceAuto
             ? current.filter((item) => item.matched_via === "manual")
@@ -204,9 +228,12 @@ export function useTariffSearch(
         if (parsed.length > 0) {
           setCartCollapsed(false);
         }
+        const hasUnverifiedPrice = parsed.some((item) => item.priceNeedsReview === true);
         setParseStatus(
-          parsed.length
-            ? `${parsed.length} item${parsed.length === 1 ? "" : "s"} detected automatically.`
+          parsed.length && (tariffLookupFailed || hasUnverifiedPrice)
+            ? `${parsed.length} item${parsed.length === 1 ? "" : "s"} detected, but one or more prices could not be confirmed from the active NHIA catalogue. Approval stays blocked until resolved.`
+            : parsed.length
+            ? `${parsed.length} item${parsed.length === 1 ? "" : "s"} detected and priced from the active NHIA catalogue.`
             : "No NHIA match detected yet. Search and add manually if needed."
         );
       } catch (err) {
@@ -294,36 +321,11 @@ export function useTariffSearch(
           );
         } catch (nhiaErr) {
           console.error("nhia_items fallback query failed:", nhiaErr);
-          try {
-            const escaped = query.replace(/[%_,]/g, " ");
-            const { data, error: tariffError } = await supabase
-              .from("clinical_tariffs" as any)
-              .select("code,name,category,price")
-              .or(`code.ilike.%${escaped}%,name.ilike.%${escaped}%`)
-              .limit(100);
-
-            if (tariffError) throw tariffError;
-
-            setTariffOptions(
-              ((data || []) as any[]).map((item) => ({
-                code: item.code,
-                name: item.name,
-                category: item.category,
-                price: parseNonNegativeAmount(item.price) ?? 0,
-                unitPrice: parseNonNegativeAmount(item.price) ?? 0,
-                quantity: 1,
-                quantityNeedsReview: true,
-                priceNeedsReview: parseNonNegativeAmount(item.price) === null,
-              }))
-            );
-          } catch (tariffErr) {
-            console.error("clinical_tariffs fallback query failed:", tariffErr);
-            toast({
-              variant: "destructive",
-              title: "Search Failed",
-              description: "Could not retrieve matching catalog items from the database.",
-            });
-          }
+          toast({
+            variant: "destructive",
+            title: "NHIA tariff catalogue unavailable",
+            description: "Could not retrieve matching active NHIA catalogue items. Search again when the catalogue connection is restored.",
+          });
         }
       } finally {
         setTariffSearchLoading(false);
