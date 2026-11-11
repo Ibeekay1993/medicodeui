@@ -378,15 +378,23 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           </div>
         </main>
 
-        <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 flex justify-around pb-[env(safe-area-inset-bottom)] z-50">
-          {navigation.filter(item => item.name !== "Settings").slice(0, 5).map((item) => (
-            <NavItem
+        <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 flex border-t border-slate-200 bg-white pb-[env(safe-area-inset-bottom)]" aria-label="Quick navigation">
+          {navigation.filter(item => item.name !== "Settings").slice(0, 5).map((item, index) => (
+            <div
               key={item.name}
-              item={item}
-              isActive={isActiveRoute(item.href)}
-              onClick={() => navigate(item.href)}
-              variant="bottom"
-            />
+              className={cn(
+                "min-w-0 flex-1",
+                index === 3 && "hidden min-[360px]:block",
+                index === 4 && "hidden min-[420px]:block"
+              )}
+            >
+              <NavItem
+                item={item}
+                isActive={isActiveRoute(item.href)}
+                onClick={() => navigate(item.href)}
+                variant="bottom"
+              />
+            </div>
           ))}
         </nav>
       </div>

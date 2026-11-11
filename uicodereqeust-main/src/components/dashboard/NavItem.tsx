@@ -93,7 +93,7 @@ export function NavItem({ item, isActive, onClick, variant, expanded = true }: N
       onClick={onClick}
       aria-current={isActive ? "page" : undefined}
       className={cn(
-        "flex flex-col items-center justify-center w-full py-2 gap-1 transition-colors",
+        "flex min-w-0 flex-col items-center justify-center w-full px-0.5 py-2 gap-1 transition-colors",
         isActive ? "text-brand-700" : "text-slate-400 hover:text-slate-600"
       )}
     >
@@ -105,7 +105,7 @@ export function NavItem({ item, isActive, onClick, variant, expanded = true }: N
           </span>
         )}
       </div>
-      <span className="text-xs font-medium leading-none">{label}</span>
+      <span className="whitespace-nowrap text-[11px] font-medium leading-none">{label}</span>
     </button>
   );
 }
