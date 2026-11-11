@@ -27,6 +27,25 @@ export const accessStatus = (user: any) => {
   return "active";
 };
 
+/**
+ * Status for the admin user list. Pending invitations are intentionally
+ * suspended until activation, so accessStatus() must remain the source for
+ * login/access enforcement while this helper presents the invitation state.
+ */
+export const userListStatus = (user: any) => {
+  const inviteStatus = String(user?.invite_status || "").toLowerCase();
+  if (!user?.onboarding_completed && inviteStatus === "pending") return "onboarding";
+  if (!user?.onboarding_completed && inviteStatus === "expired") return "expired";
+  if (inviteStatus === "revoked") return "revoked";
+  return accessStatus(user);
+};
+
+export const userListStatusLabel = (status: string) => {
+  if (status === "onboarding") return "Invitation Pending";
+  if (status === "expired") return "Invitation Expired";
+  return status.charAt(0).toUpperCase() + status.slice(1);
+};
+
 export const roleLabel = (value?: string | null, isTeamLead = false) => {
   if (isTeamLead && value === "hospital") return "Hospital Admin Lead";
   if (value === "claims_lead" || (isTeamLead && value === "claims")) return "Claims Lead (Head of Claims)";

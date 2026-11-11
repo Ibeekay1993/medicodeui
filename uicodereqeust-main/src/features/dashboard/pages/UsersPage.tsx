@@ -38,6 +38,8 @@ import {
   roleOptions,
   prettyDate,
   accessStatus,
+  userListStatus,
+  userListStatusLabel,
   roleLabel,
 } from "@/lib/user-helpers";
 import { InviteUserModal } from "@/components/users/InviteUserModal";
@@ -201,7 +203,7 @@ export default function UsersPage() {
 
   const filtered = useMemo(() => users.filter((item) => {
     const hospitalName = item.hospital_name || hospitals.find((hospital) => hospital.id === item.hospital_id)?.name || "";
-    const haystack = [item.full_name, item.email, item.phone, roleLabel(item.role, item.is_team_lead), hospitalName, accessStatus(item)].join(" ").toLowerCase();
+    const haystack = [item.full_name, item.email, item.phone, roleLabel(item.role, item.is_team_lead), hospitalName, userListStatus(item), item.invite_status].join(" ").toLowerCase();
     const matchesSearch = haystack.includes(search.toLowerCase());
     const matchesRole = roleFilter === "all" || item.role === roleFilter;
     return matchesSearch && matchesRole;
@@ -401,8 +403,9 @@ export default function UsersPage() {
                   ) : paginatedUsers.length === 0 ? (
                     <tr><td colSpan={5} className="px-4 py-12 text-center text-slate-500">No users found</td></tr>
                   ) : paginatedUsers.map((item) => {
-                    const status = accessStatus(item);
-                    const suspended = ["suspended", "revoked", "inactive"].includes(status);
+                    const status = userListStatus(item);
+                    const pendingInvitation = status === "onboarding" || status === "expired";
+                    const suspended = ["suspended", "revoked", "inactive"].includes(accessStatus(item));
                     const linkedHospital = item.hospital_name || hospitals.find((hospital) => hospital.id === item.hospital_id)?.name || (item.role === "hospital" ? "No hospital assigned" : "Ronsberger HMO Operations");
                     return (
                       <tr key={item.id} className="group transition hover:bg-slate-50/50 h-14">
@@ -433,8 +436,8 @@ export default function UsersPage() {
                         </td>
                         <td className="px-4 py-2.5 leading-normal">
                           <div className="flex items-center gap-1.5">
-                            <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", status === "active" ? "bg-emerald-500" : status === "onboarding" ? "bg-amber-500" : "bg-rose-500")} />
-                            <span className="text-xs font-medium text-slate-700">{status.charAt(0).toUpperCase() + status.slice(1)}</span>
+                            <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", status === "active" ? "bg-emerald-500" : status === "onboarding" || status === "expired" ? "bg-amber-500" : "bg-rose-500")} />
+                            <span className="text-xs font-medium text-slate-700">{userListStatusLabel(status)}</span>
                           </div>
                           <div className="text-xs text-slate-400 mt-1 pl-3">Active: {prettyDate(item.last_sign_in || (status === "active" ? item.updated_at : null))}</div>
                         </td>
@@ -449,7 +452,7 @@ export default function UsersPage() {
                               <DropdownMenuItem onClick={() => setEditingUser(item)} className="cursor-pointer text-slate-700 hover:text-slate-900 focus:bg-slate-50 focus:text-slate-900 rounded-lg text-xs font-medium py-2">
                                 <Pencil className="mr-2 h-3.5 w-3.5 text-slate-400" /> Edit User
                               </DropdownMenuItem>
-                              {status === "onboarding" ? (
+                              {pendingInvitation ? (
                                 <DropdownMenuItem onClick={() => handleResendInvite(item)} disabled={resendingUserId === item.id} className="cursor-pointer text-slate-700 hover:text-slate-900 focus:bg-slate-50 focus:text-slate-900 rounded-lg text-xs font-medium py-2">
                                   <Mail className="mr-2 h-3.5 w-3.5 text-slate-400" /> Resend Invite
                                 </DropdownMenuItem>
@@ -458,10 +461,12 @@ export default function UsersPage() {
                                   <KeyRound className="mr-2 h-3.5 w-3.5 text-slate-400" /> Reset Password
                                 </DropdownMenuItem>
                               )}
-                              <DropdownMenuItem onClick={() => setAccessTarget(item)} className="cursor-pointer text-slate-700 hover:text-slate-900 focus:bg-slate-50 focus:text-slate-900 rounded-lg text-xs font-medium py-2">
-                                {suspended ? <UserCheck className="mr-2 h-3.5 w-3.5 text-slate-400" /> : <UserX className="mr-2 h-3.5 w-3.5 text-slate-400" />}
-                                {suspended ? "Restore Access" : "Suspend Access"}
-                              </DropdownMenuItem>
+                              {!pendingInvitation && (
+                                <DropdownMenuItem onClick={() => setAccessTarget(item)} className="cursor-pointer text-slate-700 hover:text-slate-900 focus:bg-slate-50 focus:text-slate-900 rounded-lg text-xs font-medium py-2">
+                                  {suspended ? <UserCheck className="mr-2 h-3.5 w-3.5 text-slate-400" /> : <UserX className="mr-2 h-3.5 w-3.5 text-slate-400" />}
+                                  {suspended ? "Restore Access" : "Suspend Access"}
+                                </DropdownMenuItem>
+                              )}
                               {item.role !== "hospital" && (
                                 <DropdownMenuItem
                                   onClick={() => { setMfaExemptTarget({ user: item, exempt: item.mfa_exempt !== true }); }}
@@ -498,8 +503,9 @@ export default function UsersPage() {
               ) : paginatedUsers.length === 0 ? (
                 <div className="p-8 text-center text-slate-400 uppercase tracking-widest text-xs font-bold">No users found</div>
               ) : paginatedUsers.map((item) => {
-                const status = accessStatus(item);
-                const suspended = ["suspended", "revoked", "inactive"].includes(status);
+                const status = userListStatus(item);
+                const pendingInvitation = status === "onboarding" || status === "expired";
+                const suspended = ["suspended", "revoked", "inactive"].includes(accessStatus(item));
                 const linkedHospital = item.hospital_name || hospitals.find((hospital) => hospital.id === item.hospital_id)?.name || (item.role === "hospital" ? "No hospital assigned" : "Ronsberger HMO Operations");
                 return (
                   <div key={item.id} className="p-4 transition-colors hover:bg-slate-50/50">
@@ -507,6 +513,14 @@ export default function UsersPage() {
                       <div className="min-w-0 flex-1 space-y-1">
                       <span className="flex flex-wrap items-center gap-2 break-words text-base font-semibold leading-snug text-slate-900">
                         {item.full_name || "Unnamed User"}
+                        <span className={cn(
+                          "inline-flex rounded-full border px-2 py-0.5 text-[10px] font-semibold",
+                          status === "active" ? "border-emerald-200 bg-emerald-50 text-emerald-700" :
+                            status === "onboarding" || status === "expired" ? "border-amber-200 bg-amber-50 text-amber-800" :
+                              "border-rose-200 bg-rose-50 text-rose-700"
+                        )}>
+                          {userListStatusLabel(status)}
+                        </span>
                         {item.mfa_exempt === true && (
                           <span className="inline-flex items-center gap-1 rounded border border-amber-100 bg-amber-50 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-widest text-amber-600">
                             <ShieldAlert className="h-3 w-3" /> MFA Off
@@ -531,7 +545,7 @@ export default function UsersPage() {
                           <DropdownMenuItem onClick={() => setEditingUser(item)} className="cursor-pointer text-slate-700 hover:text-slate-900 focus:bg-slate-50 focus:text-slate-900 rounded-lg text-xs font-medium py-2">
                             <Pencil className="mr-2 h-3.5 w-3.5 text-slate-400" /> Edit User
                           </DropdownMenuItem>
-                          {status === "onboarding" ? (
+                          {pendingInvitation ? (
                             <DropdownMenuItem onClick={() => handleResendInvite(item)} disabled={resendingUserId === item.id} className="cursor-pointer text-slate-700 hover:text-slate-900 focus:bg-slate-50 focus:text-slate-900 rounded-lg text-xs font-medium py-2">
                               <Mail className="mr-2 h-3.5 w-3.5 text-slate-400" /> Resend Invite
                             </DropdownMenuItem>
@@ -540,10 +554,12 @@ export default function UsersPage() {
                               <KeyRound className="mr-2 h-3.5 w-3.5 text-slate-400" /> Reset Password
                             </DropdownMenuItem>
                           )}
-                          <DropdownMenuItem onClick={() => setAccessTarget(item)} className="cursor-pointer text-slate-700 hover:text-slate-900 focus:bg-slate-50 focus:text-slate-900 rounded-lg text-xs font-medium py-2">
-                            {suspended ? <UserCheck className="mr-2 h-3.5 w-3.5 text-slate-400" /> : <UserX className="mr-2 h-3.5 w-3.5 text-slate-400" />}
-                            {suspended ? "Restore Access" : "Suspend Access"}
-                          </DropdownMenuItem>
+                          {!pendingInvitation && (
+                            <DropdownMenuItem onClick={() => setAccessTarget(item)} className="cursor-pointer text-slate-700 hover:text-slate-900 focus:bg-slate-50 focus:text-slate-900 rounded-lg text-xs font-medium py-2">
+                              {suspended ? <UserCheck className="mr-2 h-3.5 w-3.5 text-slate-400" /> : <UserX className="mr-2 h-3.5 w-3.5 text-slate-400" />}
+                              {suspended ? "Restore Access" : "Suspend Access"}
+                            </DropdownMenuItem>
+                          )}
                           {item.role !== "hospital" && (
                             <DropdownMenuItem
                               onClick={() => { setMfaExemptTarget({ user: item, exempt: item.mfa_exempt !== true }); }}
