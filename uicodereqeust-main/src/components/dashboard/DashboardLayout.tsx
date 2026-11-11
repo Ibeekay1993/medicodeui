@@ -102,18 +102,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   };
 
   const navigation = getNavigation();
-  const navigationGroups = role === "admin"
-    ? [
-        { title: "Workspace", names: ["Dashboard", "Authorizations", "Find Enrollee", "Messages", "WhatsApp Parser"] },
-        { title: "Claims & finance", names: ["Claims Queue", "Payments", "Claims Report", "Payment Reports", "Pre-Auth Report"] },
-        { title: "Organization", names: ["Hospitals", "Users", "Announcements"] },
-        { title: "Operations & records", names: ["WhatsApp Access", "Audit Feed", "Delete Requests", "NHIS Update", "Historical Import"] },
-        { title: "Account", names: ["Settings"] },
-      ].map((group) => ({
-        ...group,
-        items: navigation.filter((item) => group.names.includes(item.name)),
-      })).filter((group) => group.items.length > 0)
-    : [{ title: "", names: navigation.map((item) => item.name), items: navigation }];
+  const navigationGroups = [{ title: "", names: navigation.map((item) => item.name), items: navigation }];
 
   const isActiveRoute = (href?: string | null) => {
     if (!href || typeof href !== "string") return false;
