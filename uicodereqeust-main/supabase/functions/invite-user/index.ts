@@ -305,6 +305,11 @@ serve(async (req) => {
     // SHA-256 digest. Opening /register validates it but does not consume it.
     let invitationTokenHash: string | null = null;
     let actionLink = "https://app.ronsbergerhmo.io/login";
+    if (setupMode === "temporary_password") {
+      const loginUrl = new URL("https://app.ronsbergerhmo.io/login");
+      loginUrl.searchParams.set("email", normalizedEmail);
+      actionLink = loginUrl.toString();
+    }
     if (setupMode === "secure_invitation") {
       const invitationToken = createInvitationToken();
       invitationTokenHash = await hashInvitationToken(invitationToken);
@@ -359,7 +364,7 @@ serve(async (req) => {
               ? "Ronsberger HMO - Your account details"
               : "Ronsberger HMO - You have been invited",
             textContent: isTemporaryPasswordSetup
-              ? `Hello, ${intendedName}. Your Ronsberger HMO portal account is ready. Sign in at https://app.ronsbergerhmo.io/login with ${normalizedEmail} and the password provided by your administrator: ${temporaryPassword}. On first sign-in, accept the Terms of Service and Privacy Policy before accessing any portal records. Changing this password is optional. If you choose to change it later, start here: https://app.ronsbergerhmo.io/login?mode=reset. Do not forward this email.`
+              ? `Hello, ${intendedName}. Your Ronsberger HMO portal account is ready. Sign in at ${actionLink} with the password provided by your administrator: ${temporaryPassword}. The email address is prefilled; the password is not. On first sign-in, accept the Terms of Service and Privacy Policy before accessing any portal records. Changing this password is optional. If you choose to change it later, start here: https://app.ronsbergerhmo.io/login?mode=reset. Do not forward this email.`
               : `Hello, ${intendedName}. You have been invited to the Ronsberger HMO Administrative Portal as ${displayRole}. Set up your account here: ${actionLink}. This personal invitation link expires in 7 days.`,
             htmlContent: `<!DOCTYPE html>
 <html>
@@ -409,8 +414,8 @@ serve(async (req) => {
             </p>
             ${isTemporaryPasswordSetup ? `
             <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:20px;border:1px solid #dbe4ee;border-radius:10px;overflow:hidden;">
-              <tr><td style="padding:12px 16px;background:#f8fafc;font-size:12px;color:#64748b;">Sign-in email</td><td style="padding:12px 16px;color:#172033;font-weight:700;word-break:break-word;">${escapeHtml(normalizedEmail)}</td></tr>
-              <tr><td style="padding:12px 16px;border-top:1px solid #dbe4ee;background:#f8fafc;font-size:12px;color:#64748b;">Password provided by your administrator</td><td style="padding:12px 16px;border-top:1px solid #dbe4ee;color:#172033;font-weight:700;word-break:break-all;">${safeTemporaryPassword}</td></tr>
+              <tr><td style="padding:12px 16px;background:#f8fafc;font-size:12px;color:#64748b;">Sign-in email</td><td style="padding:12px 16px;color:#172033;font-weight:700;word-break:break-word;user-select:all;-webkit-user-select:all;">${escapeHtml(normalizedEmail)}</td></tr>
+              <tr><td style="padding:12px 16px;border-top:1px solid #dbe4ee;background:#f8fafc;font-size:12px;color:#64748b;">Password provided by your administrator</td><td style="padding:12px 16px;border-top:1px solid #dbe4ee;color:#172033;font-weight:700;word-break:break-all;user-select:all;-webkit-user-select:all;">${safeTemporaryPassword}</td></tr>
             </table>` : ""}
             <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
               <tr>
@@ -420,6 +425,7 @@ serve(async (req) => {
               </tr>
             </table>
             ${isTemporaryPasswordSetup ? `
+            <p style="color:#64748b;font-size:12px;line-height:1.5;margin:0 0 20px;text-align:center;">On a phone, press and hold a value to copy it.</p>
             <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:16px;">
               <tr><td style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:12px 16px;"><p style="color:#1e3a8a;font-size:12px;font-weight:600;margin:0;">This email contains your sign-in password. Keep it private. Portal access stays restricted until you accept the required policies. Changing the password is optional.</p></td></tr>
             </table>` : `

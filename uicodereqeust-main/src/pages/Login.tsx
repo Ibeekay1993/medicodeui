@@ -18,6 +18,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { accessStatus } from "@/lib/user-helpers";
 import { isMfaRequiredForUser } from "@/lib/mfa-policy";
+import { getPrefilledLoginEmail } from "@/lib/loginPrefill";
 import type { Database } from "@/integrations/supabase/types";
 
 type AppRole = Database["public"]["Enums"]["app_role"];
@@ -71,8 +72,10 @@ export default function Login() {
 
   useEffect(() => {
     const searchParams = new URLSearchParams(location.search);
+    const prefilledEmail = getPrefilledLoginEmail(location.search);
+    if (prefilledEmail) setEmail(prefilledEmail);
     if (searchParams.get("mode") === "reset") {
-      setForgotEmail(searchParams.get("email") || "");
+      setForgotEmail(prefilledEmail);
       setForgotOpen(true);
     }
   }, [location.search]);

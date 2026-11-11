@@ -21,9 +21,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Eye, EyeOff, Mail, RefreshCw, Search } from "lucide-react";
+import { Copy, Eye, EyeOff, Mail, RefreshCw, Search } from "lucide-react";
 import { availableRoles, filterHospitals } from "@/lib/user-helpers";
 import { getSupabaseFunctionErrorMessage } from "@/lib/supabaseFunctionErrors";
+import { writeClipboardText } from "@/lib/clipboard";
 
 interface InviteUserModalProps {
   isOpen: boolean;
@@ -81,6 +82,19 @@ export function InviteUserModal({
   const [inviteDropdownOpen, setInviteDropdownOpen] = useState(false);
 
   const inviteHospitalRef = useRef<HTMLDivElement>(null);
+
+  const copyAccountValue = async (label: string, value: string) => {
+    try {
+      await writeClipboardText(value);
+      toast({ title: `${label} copied`, description: "Ready to paste." });
+    } catch {
+      toast({
+        variant: "destructive",
+        title: "Could not copy",
+        description: "Clipboard access is unavailable in this browser.",
+      });
+    }
+  };
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -213,13 +227,26 @@ export function InviteUserModal({
               ? "The user receives their sign-in details by email. They must accept the Terms and Privacy Policy before accessing portal records. Password changes remain optional."
               : "The user receives a secure seven-day link and chooses their own password during setup."}
           </p>
-          <Input
-            type="email"
-            value={newUser.email}
-            onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
-            placeholder="name@company.com"
-            className="h-10 rounded-lg"
-          />
+          <div className="relative">
+            <Input
+              type="email"
+              value={newUser.email}
+              onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
+              placeholder="name@company.com"
+              className="h-10 rounded-lg pr-10"
+            />
+            {newUser.email.trim() && (
+              <button
+                type="button"
+                onClick={() => void copyAccountValue("Email", newUser.email.trim())}
+                aria-label="Copy email address"
+                title="Copy email address"
+                className="absolute inset-y-0 right-1 flex w-8 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700"
+              >
+                <Copy className="h-4 w-4" aria-hidden="true" />
+              </button>
+            )}
+          </div>
           <Input
             value={newUser.fullName}
             onChange={(e) => setNewUser({ ...newUser, fullName: e.target.value })}
@@ -244,16 +271,28 @@ export function InviteUserModal({
                     value={temporaryPassword}
                     onChange={(event) => setTemporaryPassword(event.target.value)}
                     placeholder="At least 12 characters"
-                    className="h-10 rounded-lg pr-10 font-mono"
+                    className="h-10 rounded-lg pr-16 font-mono"
                   />
-                  <button
-                    type="button"
-                    aria-label={showTemporaryPassword ? "Hide password" : "Show password"}
-                    onClick={() => setShowTemporaryPassword((visible) => !visible)}
-                    className="absolute inset-y-0 right-2 flex items-center px-1 text-slate-500 hover:text-slate-900"
-                  >
-                    {showTemporaryPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
+                  <div className="absolute inset-y-0 right-1 flex items-center gap-0.5">
+                    <button
+                      type="button"
+                      aria-label="Copy assigned password"
+                      title="Copy assigned password"
+                      onClick={() => void copyAccountValue("Assigned password", temporaryPassword)}
+                      disabled={!temporaryPassword}
+                      className="flex h-8 w-8 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 disabled:opacity-40"
+                    >
+                      <Copy className="h-4 w-4" aria-hidden="true" />
+                    </button>
+                    <button
+                      type="button"
+                      aria-label={showTemporaryPassword ? "Hide password" : "Show password"}
+                      onClick={() => setShowTemporaryPassword((visible) => !visible)}
+                      className="flex h-8 w-8 items-center justify-center rounded-md text-slate-500 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700"
+                    >
+                      {showTemporaryPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
                 </div>
                 <Button type="button" variant="outline" className="h-10 shrink-0 rounded-lg px-3" onClick={() => setTemporaryPassword(generateTemporaryPassword())}>
                   <RefreshCw className="mr-1.5 h-4 w-4" /> Generate
