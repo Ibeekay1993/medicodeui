@@ -6,7 +6,7 @@
    - skipWaiting + clients.claim for seamless version transitions
    ===================================================================== */
 
-const SW_VERSION = "ronsberger-sw-v5";
+const SW_VERSION = "ronsberger-sw-v6";
 const STATIC_CACHE = SW_VERSION + "-static";
 const RUNTIME_CACHE = SW_VERSION + "-runtime";
 
@@ -74,14 +74,42 @@ self.addEventListener("fetch", (event) => {
 });
 
 async function cacheFirst(request) {
-  const cached = await caches.match(request);
-  if (cached) return cached;
+  // Only consult this worker version's static cache. A generic caches.match()
+  // can return entries from unrelated or superseded caches.
+  const cache = await caches.open(STATIC_CACHE);
+  const cached = await cache.match(request);
+  if (cached && hasExpectedAssetType(request, cached)) return cached;
+  if (cached) await cache.delete(request);
+
   const response = await fetch(request);
-  if (response.ok) {
-    const cache = await caches.open(STATIC_CACHE);
-    cache.put(request, response.clone());
-  }
+  // SPA hosts may answer a missing asset URL with index.html and status 200.
+  // Never cache that HTML (or any other wrong MIME type) as a CSS/JS bundle.
+  if (hasExpectedAssetType(request, response)) await cache.put(request, response.clone());
   return response;
+}
+
+function hasExpectedAssetType(request, response) {
+  if (!response.ok) return false;
+
+  const pathname = new URL(request.url).pathname.toLowerCase();
+  const contentType = (response.headers.get("content-type") || "")
+    .split(";", 1)[0]
+    .trim()
+    .toLowerCase();
+
+  if (pathname.endsWith(".css")) return contentType === "text/css";
+
+  if (pathname.endsWith(".js") || pathname.endsWith(".mjs")) {
+    return [
+      "text/javascript",
+      "application/javascript",
+      "text/ecmascript",
+      "application/ecmascript",
+      "application/x-javascript",
+    ].includes(contentType);
+  }
+
+  return true;
 }
 
 async function networkFirst(request) {
