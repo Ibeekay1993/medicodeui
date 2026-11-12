@@ -104,7 +104,7 @@ async function fetchPaymentAdviceRecords(filters: FilterState): Promise<PaymentA
   while (true) {
     let query = supabase
       .from("authorization_requests")
-      .select("*")
+      .select("id,created_at,request_id,patient_name,patient_phone,patient_email,policy_number,diagnosis,treatment,hospital_id,hospital_name,requesting_hospital_id,requesting_hospital_name,referring_hospital_id,referring_hospital_name,referred_hospital_id,referred_hospital_name,claiming_hospital_id,claiming_hospital_name,source,authorization_code,status,total_amount,approved_items,rejection_reason,decision_reason,decided_at,decided_by,approved_by,treatment_submitted_at,urgency,authorized_by_name,is_historical")
       .in("status", ["approved", "partially_approved", "referral_approved", "referral_accepted", "authorization_approved"])
       .order("decided_at", { ascending: true })
       .order("id", { ascending: true });
@@ -413,7 +413,7 @@ export default function ReportsPage() {
       const statusPredicate = getReportStatusPredicate(filterSnapshot.statusFilter);
       const dateRange = buildDateFilter(filterSnapshot.dateFilter, filterSnapshot.startDate, filterSnapshot.endDate);
       const allData = await fetchAllReportPages<any>(async ({ from, to }) => {
-        let q = supabase.from("authorization_requests").select("*")
+        let q = supabase.from("authorization_requests").select("id,created_at,request_id,patient_name,patient_phone,patient_email,policy_number,diagnosis,treatment,hospital_id,hospital_name,requesting_hospital_id,requesting_hospital_name,referring_hospital_id,referring_hospital_name,referred_hospital_id,referred_hospital_name,claiming_hospital_id,claiming_hospital_name,source,authorization_code,status,total_amount,approved_items,rejection_reason,decision_reason,decided_at,decided_by,approved_by,treatment_submitted_at,urgency,authorized_by_name,is_historical")
           .order("created_at", { ascending: false })
           .order("id", { ascending: true });
 

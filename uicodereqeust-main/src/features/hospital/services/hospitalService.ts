@@ -30,7 +30,7 @@ export class HospitalService {
     if (hospitalId) {
       const { data, error } = await supabase
         .from("hospitals")
-        .select("*")
+        .select("id,name,code,onboarding_started_at")
         .eq("id", hospitalId)
         .maybeSingle();
       if (error) throw error;
@@ -40,7 +40,7 @@ export class HospitalService {
     if (userId && email) {
       const { data, error } = await supabase
         .from("hospitals")
-        .select("*")
+        .select("id,name,code,onboarding_started_at")
         .or(`user_id.eq.${userId},email.eq.${email}`)
         .maybeSingle();
       if (error) throw error;
@@ -54,7 +54,7 @@ export class HospitalService {
       if (healed?.[0]) {
         const { data: retry } = await supabase
           .from("hospitals")
-          .select("*")
+          .select("id,name,code,onboarding_started_at")
           .or(`user_id.eq.${userId},email.eq.${email}`)
           .maybeSingle();
         return retry || null;
@@ -188,7 +188,7 @@ export class HospitalService {
 
     let query = supabase
       .from("authorization_requests")
-      .select("*", { count: "exact" })
+      .select("id,created_at,patient_name,beneficiary_number,patient_email,patient_phone,policy_number,diagnosis,treatment,clinical_notes,urgency,status,source,authorization_code,request_id,total_amount,approved_items,decided_at,decision_reason,authorized_by_name,nurse_initials,is_historical,is_unlocked,deletion_status,hospital_id,hospital_name,requesting_hospital_id,requesting_hospital_name,referring_hospital_id,referring_hospital_name,referred_hospital_id,referred_hospital_name,claiming_hospital_id,claiming_hospital_name,treatment_submitted_at,whatsapp_message_id", { count: "exact" })
       .eq("is_historical", false)
       .gte("created_at", hospital.onboarding_started_at);
 
@@ -278,7 +278,7 @@ export class HospitalService {
 
     let query: any = supabase
       .from('hospital_claims' as any)
-      .select('*', { count: 'exact' })
+      .select('id,claim_number,patient_name,policy_number,auth_code,diagnosis,hospital_id,hospital_name,claiming_hospital_id,claiming_hospital_name,request_id,status,total_amount,approved_amount,created_at,submitted_at,approved_at,contest_deadline,declined_amount,under_contest_amount,payment_status,payment_batch_id,notes,contest_note,contest_documents,line_items,approved_items,referring_hospital_id,referring_hospital_name,referred_hospital_id,referred_hospital_name,requesting_hospital_id,requesting_hospital_name', { count: 'exact' })
       .gte('created_at', hospital.onboarding_started_at)
       .or(orQuery.join(','));
 

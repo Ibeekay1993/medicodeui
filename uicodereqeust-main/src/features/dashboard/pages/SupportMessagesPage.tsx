@@ -19,9 +19,11 @@ import {
 } from "@/lib/support-helpers";
 import { readJson, supportLocalKey, writeJson } from "@/lib/message-keys";
 import { formatRelativeTime } from "@/lib/relative-time";
+import { normalizeEnrolleeSearchTerm } from "@/lib/enrolleeSearch";
+import { REQUEST_REVIEW_COLUMNS } from "@/features/dashboard/constants/requestReviewColumns";
 
 export default function SupportMessagesPage() {
-  const { user, role } = useAuth();
+  const { user, role, hospitalId } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -42,6 +44,9 @@ export default function SupportMessagesPage() {
   const [messages, setMessages] = useState<any[]>([]);
   const [authRequests, setAuthRequests] = useState<any[]>([]);
   const [claims, setClaims] = useState<any[]>([]);
+  const [matchedRequest, setMatchedRequest] = useState<any | null>(null);
+  const [matchedClaim, setMatchedClaim] = useState<any | null>(null);
+  const caseSearchSequence = useRef({ request: 0, claim: 0 });
   const [loading, setLoading] = useState(false);
   const [newTicketOpen, setNewTicketOpen] = useState(false);
   const [mobileSubView, setMobileSubView] = useState<string>("LIST");
@@ -60,17 +65,7 @@ export default function SupportMessagesPage() {
     try {
       let q = supabase
         .from("support_conversations" as any)
-        .select(`
-          *,
-          linked_request_id,
-          request_reference,
-          request_metadata,
-          ticket_type,
-          request_ticket_status,
-          hospitals (
-            name
-          )
-        `);
+        .select("id,ticket_number,subject,status,created_at,updated_at,department,priority,auto_close_at,closed_at,closed_reason,first_response_at,last_message_at,linked_request_id,request_reference,nurse_alert_seen_at,nurse_alerted_at,nurse_user_id,assigned_at,assigned_by,assigned_to,created_by,hospital_id,hospital_user_id,sla_due_at,tags,ticket_type,request_ticket_status,hospitals(name)");
         
       if (isHospital) {
         const { data: hospital } = await supabase
@@ -130,49 +125,57 @@ export default function SupportMessagesPage() {
   }, [isInternal]);
 
   // 3. Fetch Authorization Requests & Claims
-  const loadAuthAndClaims = useCallback(async () => {
-    try {
-      let hospitalId: string | null = null;
-      if (isHospital) {
-        const { data: hospital } = await supabase
-          .from("hospitals")
-          .select("id")
-          .eq("user_id", user?.id)
-          .maybeSingle();
-        if (hospital) {
-          hospitalId = String((hospital as any)?.id ?? "");
-        }
-      }
-
-      // Expand the linked-data window so older tickets still resolve their auth/claim context.
-      // Fetch requests
-      let qAuth = supabase
-        .from("authorization_requests")
-        .select("id, request_id, patient_name, policy_number, diagnosis, treatment, clinical_notes, decision_reason, status, authorization_code, estimated_cost, created_at, updated_at, hospital_id, hospital_name, requesting_hospital_id, requesting_hospital_name, referring_hospital_id, referring_hospital_name, referred_hospital_id, referred_hospital_name, claiming_hospital_id, claiming_hospital_name, submitted_by, decided_by, decided_at");
-      
-      if (isHospital && hospitalId) {
-        qAuth = qAuth.eq("hospital_id", hospitalId);
-      }
-      const { data: auths, error: authErr } = await qAuth.order("created_at", { ascending: false }).limit(600);
-      if (!authErr) setAuthRequests(auths || []);
-
-      // Fetch claims
-      let qClaims = supabase
-        .from("hospital_claims" as any)
-        .select("id, hospital_name, claim_number, auth_code, patient_name, policy_number, diagnosis, total_amount, status, created_at, request_id");
-      
-      if (isHospital && hospitalId) {
-        qClaims = qClaims.eq("hospital_id", hospitalId);
-      }
-      const { data: clms, error: clmsErr } = await qClaims.order("created_at", { ascending: false }).limit(600);
-      if (!clmsErr) setClaims(clms || []);
-    } catch (e) {
-      console.error("Error loading clinical data:", e);
+  const loadAuthAndClaims = useCallback(async (searchText: string, type: "request" | "claim") => {
+    const term = normalizeEnrolleeSearchTerm(searchText);
+    const sequence = ++caseSearchSequence.current[type];
+    if (term.length < 3) {
+      if (type === "request") setAuthRequests([]);
+      else setClaims([]);
+      return;
     }
-  }, [isHospital, user?.id]);
+
+    if (isHospital && !hospitalId) {
+      if (type === "request") setAuthRequests([]);
+      else setClaims([]);
+      return;
+    }
+
+    if (type === "request") setAuthRequests([]);
+    else setClaims([]);
+
+    try {
+      const pattern = `%${term}%`;
+      if (type === "request") {
+        let query = supabase
+          .from("authorization_requests")
+          .select("id,request_id,patient_name,diagnosis,status,authorization_code")
+          .or(`patient_name.ilike.${pattern},diagnosis.ilike.${pattern},treatment.ilike.${pattern},authorization_code.ilike.${pattern},request_id.ilike.${pattern}`)
+          .order("created_at", { ascending: false })
+          .limit(20);
+        if (isHospital && hospitalId) query = query.eq("hospital_id", hospitalId);
+        const { data, error } = await query;
+        if (error) throw error;
+        if (sequence === caseSearchSequence.current.request) setAuthRequests(data || []);
+      } else {
+        let query = supabase
+          .from("hospital_claims" as any)
+          .select("id,hospital_id,hospital_name,claim_number,auth_code,patient_name,policy_number,diagnosis,total_amount,status,created_at,request_id")
+          .or(`patient_name.ilike.${pattern},diagnosis.ilike.${pattern},claim_number.ilike.${pattern},auth_code.ilike.${pattern}`)
+          .order("created_at", { ascending: false })
+          .limit(20);
+        if (isHospital && hospitalId) query = query.eq("hospital_id", hospitalId);
+        const { data, error } = await query;
+        if (error) throw error;
+        if (sequence === caseSearchSequence.current.claim) setClaims(data || []);
+      }
+    } catch (error) {
+      if (sequence !== caseSearchSequence.current[type]) return;
+      console.error("Support case search failed:", error);
+      toast({ variant: "destructive", title: "Case search failed", description: "Could not search the authorized records. Try again." });
+    }
+  }, [hospitalId, isHospital, toast]);
 
   const handleReviewUpdated = () => {
-    loadAuthAndClaims();
     loadConversations();
     if (selected?.id) loadMessages(selected.id);
   };
@@ -181,7 +184,7 @@ export default function SupportMessagesPage() {
   const loadMessages = useCallback(async (conversationId: string) => {
     const { data, error } = await supabase
       .from("support_messages" as any)
-      .select("*")
+      .select("id,conversation_id,sender_id,sender_role,sender_name,body,attachment_name,attachment_url,created_at,is_internal,message_type,read_by")
       .eq("conversation_id", conversationId)
       .order("created_at", { ascending: true });
     if (error) {
@@ -213,9 +216,8 @@ export default function SupportMessagesPage() {
     if (user?.id && role) {
       loadConversations(true);
       loadAgents();
-      loadAuthAndClaims();
     }
-  }, [user?.id, role, loadConversations, loadAgents, loadAuthAndClaims]);
+  }, [user?.id, role, loadConversations, loadAgents]);
 
   useTabVisibilityRefresh(() => loadConversations(false), Boolean(user?.id && role));
 
@@ -250,61 +252,44 @@ useEffect(() => {
     return () => clearTimeout(timeout);
   }, [selected?.id]);
 
-  const selectedRequestMetadata = useMemo(() => {
-    if (!selected?.request_metadata) return null;
-    if (typeof selected.request_metadata === "string") {
-      try {
-        return JSON.parse(selected.request_metadata);
-      } catch {
-        return null;
-      }
-    }
-    return selected.request_metadata;
-  }, [selected?.request_metadata]);
-
   const linkedRequestId = useMemo(() => {
-    return selected?.linked_request_id || selectedRequestMetadata?.request_uuid || getRouteTags(selected).find((t: string) => t.startsWith("request:"))?.split(":")?.[1];
-  }, [selected, selectedRequestMetadata?.request_uuid]);
+    return selected?.linked_request_id || getRouteTags(selected).find((t: string) => t.startsWith("request:"))?.split(":")?.[1];
+  }, [selected]);
 
   const linkedClaimId = useMemo(() => {
     return getRouteTags(selected).find((t: string) => t.startsWith("claim:"))?.split(":")?.[1];
   }, [selected]);
 
-  const matchedRequest = useMemo(() => {
-    if (linkedRequestId) {
-      const byId = authRequests.find((r) => r.id === linkedRequestId);
-      if (byId) return byId;
-    }
+  useEffect(() => {
+    let cancelled = false;
+    setMatchedRequest(null);
+    if (!linkedRequestId) return () => { cancelled = true; };
 
-    if (selectedRequestMetadata?.request_uuid) {
-      const byMetadataId = authRequests.find((r) => r.id === selectedRequestMetadata.request_uuid);
-      if (byMetadataId) return byMetadataId;
-    }
+    supabase
+      .from("authorization_requests")
+      .select(REQUEST_REVIEW_COLUMNS)
+      .eq("id", linkedRequestId)
+      .maybeSingle()
+      .then(({ data, error }) => {
+        if (!cancelled && !error && data) setMatchedRequest(data);
+      });
+    return () => { cancelled = true; };
+  }, [linkedRequestId]);
 
-    const metadataReference = String(selectedRequestMetadata?.request_id || selectedRequestMetadata?.authorization_code || selected?.request_reference || "").toLowerCase();
-    if (metadataReference) {
-      const byReference = authRequests.find((r) =>
-        String(r.id || "").toLowerCase() === metadataReference ||
-        String(r.request_id || "").toLowerCase() === metadataReference ||
-        String(r.authorization_code || "").toLowerCase() === metadataReference
-      );
-      if (byReference) return byReference;
-    }
-
-    if (selectedRequestMetadata) {
-      return {
-        ...selectedRequestMetadata,
-        id: selectedRequestMetadata.request_uuid || linkedRequestId || selectedRequestMetadata.request_uuid,
-        request_uuid: selectedRequestMetadata.request_uuid || linkedRequestId,
-        request_id: selectedRequestMetadata.request_id || selected?.request_reference,
-        authorization_code: selectedRequestMetadata.authorization_code,
-        hospital_name: selectedRequestMetadata.hospital_name || selectedRequestMetadata.hospital,
-        status: selectedRequestMetadata.status || "pending",
-      };
-    }
-
-    return null;
-  }, [linkedRequestId, selectedRequestMetadata, selected?.request_reference, authRequests]);
+  useEffect(() => {
+    let cancelled = false;
+    setMatchedClaim(null);
+    if (!linkedClaimId) return () => { cancelled = true; };
+    supabase
+      .from("hospital_claims" as any)
+      .select("id,claim_number,auth_code,patient_name,policy_number,diagnosis,total_amount,status,created_at,hospital_name,request_id")
+      .eq("id", linkedClaimId)
+      .maybeSingle()
+      .then(({ data, error }) => {
+        if (!cancelled && !error && data) setMatchedClaim(data);
+      });
+    return () => { cancelled = true; };
+  }, [linkedClaimId]);
 
   const reviewRequest = matchedRequest;
 
@@ -312,31 +297,14 @@ useEffect(() => {
     if (reviewRequestOpen && !reviewRequest) setReviewRequestOpen(false);
   }, [reviewRequest, reviewRequestOpen]);
 
-  const matchedClaim = useMemo(() => {
-    if (!linkedClaimId) return null;
-    return claims.find((c) => c.id === linkedClaimId);
-  }, [linkedClaimId, claims]);
-
   // Filter conversations list items
   const filteredConversations = useMemo(() => {
     return conversations.filter((item) => {
       const itemTags = getRouteTags(item);
-      const reqId = itemTags.find((t: string) => t.startsWith("request:"))?.split(":")?.[1];
-      const matchedReq = reqId ? authRequests.find((r) => r.id === reqId) : null;
-      
-      const claimId = itemTags.find((t: string) => t.startsWith("claim:"))?.split(":")?.[1];
-      const matchedClm = claimId ? claims.find((c) => c.id === claimId) : null;
-
-      const extraSearchText = matchedReq 
-        ? `${matchedReq.authorization_code || ""} ${matchedReq.policy_number || ""} ${matchedReq.patient_name || ""}` 
-        : matchedClm 
-          ? `${matchedClm.policy_number || ""} ${matchedClm.patient_name || ""}` 
-          : "";
-
-      const matchesSearch = `${item.ticket_number || ""} ${item.subject || ""} ${item.department || ""} ${item.priority || ""} ${item.last_message || ""} ${itemTags.join(" ")} ${extraSearchText}`.toLowerCase().includes(search.toLowerCase());
+      const matchesSearch = `${item.ticket_number || ""} ${item.subject || ""} ${item.department || ""} ${item.priority || ""} ${item.request_reference || ""} ${itemTags.join(" ")}`.toLowerCase().includes(search.toLowerCase());
       if (!matchesSearch) return false;
 
-      const route = conversationRoute(item, user?.id, authRequests, claims);
+      const route = conversationRoute(item, user?.id);
 
       if ((role === "utilization_manager" || role === "utilization_manager_lead") && !route.isNurse) return false;
       if (role === "claims" && !route.isClaims) return false;
@@ -365,7 +333,7 @@ useEffect(() => {
       }
       return true;
     });
-  }, [conversations, search, filter, categoryFilter, role, user?.id, authRequests, claims]);
+  }, [conversations, search, filter, categoryFilter, role, user?.id]);
 
   const updateConversation = async (updates: Record<string, any>) => {
     if (!selected?.id) return;
@@ -425,10 +393,8 @@ useEffect(() => {
     
     if (type === "request") {
       filteredTags.push(`request:${id}`);
-      const req = authRequests.find((r) => r.id === id);
-      if (req?.authorization_code) {
-        filteredTags.push(`code:${req.authorization_code}`);
-      }
+      const req = authRequests.find((request) => request.id === id);
+      if (req?.authorization_code) filteredTags.push(`code:${req.authorization_code}`);
       try {
         const { data: linkedConversation, error: linkError } = await supabase.rpc("link_support_conversation_to_request" as any, {
           _conversation_id: selected.id,
@@ -445,31 +411,7 @@ useEffect(() => {
         tags: filteredTags,
         linked_request_id: id,
         request_reference: req?.authorization_code || req?.request_id || id,
-        request_metadata: {
-          request_id: req?.request_id,
-          request_uuid: id,
-          patient_name: req?.patient_name,
-          policy_number: req?.policy_number,
-          diagnosis: req?.diagnosis,
-          treatment: req?.treatment,
-          clinical_notes: req?.clinical_notes,
-          decision_reason: req?.decision_reason,
-          status: req?.status,
-          authorization_code: req?.authorization_code,
-          hospital: req?.hospital_name,
-          hospital_id: req?.hospital_id,
-          requesting_hospital_id: req?.requesting_hospital_id,
-          requesting_hospital_name: req?.requesting_hospital_name,
-          referring_hospital_id: req?.referring_hospital_id,
-          referring_hospital_name: req?.referring_hospital_name,
-          referred_hospital_id: req?.referred_hospital_id,
-          referred_hospital_name: req?.referred_hospital_name,
-          claiming_hospital_id: req?.claiming_hospital_id,
-          claiming_hospital_name: req?.claiming_hospital_name,
-          date_created: req?.created_at,
-          decided_at: req?.decided_at,
-          decided_by: req?.decided_by,
-        },
+        request_metadata: {},
         ticket_type: "request_support",
         request_ticket_status: "open",
       };
@@ -514,11 +456,11 @@ const updateClaimStatus = async (status: "approved" | "rejected" | "paid" | "und
       // 2. Draft system announcement
       let systemAnnouncement = "";
       if (status === "approved") {
-        systemAnnouncement = `FINANCIAL CLAIM AUDIT COMPLETED\n\nThe Claims Officer has VERIFIED the tariffs for claim number **${matchedClaim.claim_number}** (Patient: ${matchedClaim.patient_name}).\n\nClaim Audit: APPROVED / TARIFF VERIFIED\nEstimated Value: ?${Number(matchedClaim.total_amount || 0).toLocaleString()}\n\nThis dispute has been successfully assessed and is now resolved and closed. Payment disburse command initiated.`;
+        systemAnnouncement = `FINANCIAL CLAIM AUDIT COMPLETED\n\nThe Claims Officer has VERIFIED the tariffs for claim number **${matchedClaim.claim_number}**.\n\nClaim Audit: APPROVED / TARIFF VERIFIED\nEstimated Value: NGN ${Number(matchedClaim.total_amount || 0).toLocaleString()}\n\nThis dispute has been successfully assessed and is now resolved and closed. Payment disburse command initiated.`;
       } else if (status === "paid") {
-        systemAnnouncement = `FINANCIAL CLAIM DISBURSED\n\nThe Claims Officer has DISBURSED the payment for claim number **${matchedClaim.claim_number}** (Patient: ${matchedClaim.patient_name}).\n\nPayment Status: DISBURSED / PAID\nDisbursement Amount: ?${Number(matchedClaim.total_amount || 0).toLocaleString()}\n\nReimbursement is completed. The dispute is now resolved and closed.`;
+        systemAnnouncement = `FINANCIAL CLAIM DISBURSED\n\nThe Claims Officer has DISBURSED the payment for claim number **${matchedClaim.claim_number}**.\n\nPayment Status: DISBURSED / PAID\nDisbursement Amount: NGN ${Number(matchedClaim.total_amount || 0).toLocaleString()}\n\nReimbursement is completed. The dispute is now resolved and closed.`;
       } else if (status === "rejected") {
-        systemAnnouncement = `FINANCIAL CLAIM AUDIT COMPLETED\n\nThe Claims Officer has REJECTED the claim number **${matchedClaim.claim_number}** (Patient: ${matchedClaim.patient_name}).\n\nClaim Status: REJECTED\n\nThis dispute is now closed. Please check details or resubmit documentation if necessary.`;
+        systemAnnouncement = `FINANCIAL CLAIM AUDIT COMPLETED\n\nThe Claims Officer has REJECTED the claim number **${matchedClaim.claim_number}**.\n\nClaim Status: REJECTED\n\nThis dispute is now closed. Please check details or resubmit documentation if necessary.`;
       } else {
         systemAnnouncement = `FINANCIAL CLAIM UNDER AUDIT\n\nThe claim number **${matchedClaim.claim_number}** is now placed under intensive audit review.\n\nStatus: UNDER REVIEW\n\nSupport representatives will continue updating you here.`;
       }
@@ -612,6 +554,7 @@ const updateClaimStatus = async (status: "approved" | "rejected" | "paid" | "und
         matchedClaim={matchedClaim}
         authRequests={authRequests}
         claims={claims}
+        onSearchCases={loadAuthAndClaims}
         rightCollapsed={rightCollapsed}
         setRightCollapsed={setRightCollapsed}
         setMobileSubView={setMobileSubView}
@@ -678,6 +621,7 @@ const updateClaimStatus = async (status: "approved" | "rejected" | "paid" | "und
         conversations={conversations}
         authRequests={authRequests}
         claims={claims}
+        onSearchCases={loadAuthAndClaims}
         onSuccess={(conv) => {
           setSelected(conv);
           setMobileSubView("CHAT");

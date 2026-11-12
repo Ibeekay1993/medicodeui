@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -14,6 +14,7 @@ interface SupportDetailsSidebarProps {
   matchedClaim: any | null;
   authRequests: any[];
   claims: any[];
+  onSearchCases: (search: string, type: "request" | "claim") => Promise<void>;
   rightCollapsed: boolean;
   setRightCollapsed: (c: boolean) => void;
   setMobileSubView: (v: string) => void;
@@ -32,6 +33,7 @@ export function SupportDetailsSidebar({
   matchedClaim,
   authRequests,
   claims,
+  onSearchCases,
   rightCollapsed,
   setRightCollapsed,
   setMobileSubView,
@@ -43,6 +45,13 @@ export function SupportDetailsSidebar({
 }: SupportDetailsSidebarProps) {
   const [linkSearchTerm, setLinkSearchTerm] = useState("");
   const [activeLinkType, setActiveLinkType] = useState<"request" | "claim">("request");
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void onSearchCases(linkSearchTerm, activeLinkType);
+    }, 250);
+    return () => window.clearTimeout(timer);
+  }, [activeLinkType, linkSearchTerm, onSearchCases]);
 
   const filteredRequestsForLinking = useMemo(() => {
     return authRequests.filter(

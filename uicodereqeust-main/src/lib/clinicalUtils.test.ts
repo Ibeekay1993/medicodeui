@@ -38,44 +38,44 @@ describe("approval amount calculations", () => {
 
 describe("beneficiary identity matching", () => {
   it("normalizes order, titles, punctuation, spacing, and diacritics without dropping name components", () => {
-    expect(normalizePatientNameForMatch("Afolayan Kayode")).toBe(
-      normalizePatientNameForMatch("Kayode Afolayan"),
+    expect(normalizePatientNameForMatch("Sample Person")).toBe(
+      normalizePatientNameForMatch("Person Sample"),
     );
-    expect(normalizePatientNameForMatch("Mr. Afolayan Kayode")).toBe(
-      normalizePatientNameForMatch("Afolayan Kayode"),
+    expect(normalizePatientNameForMatch("Mr. Sample Person")).toBe(
+      normalizePatientNameForMatch("Sample Person"),
     );
-    expect(normalizePatientNameForMatch("Prof.   Kayode, Afolayan")).toBe(
-      normalizePatientNameForMatch("Afolayan Kayode"),
+    expect(normalizePatientNameForMatch("Prof.   Person, Sample")).toBe(
+      normalizePatientNameForMatch("Sample Person"),
     );
-    expect(normalizePatientNameForMatch("Afolayan Marie Kayode")).toBe(
-      normalizePatientNameForMatch("Kayode Marie Afolayan"),
+    expect(normalizePatientNameForMatch("Sample Marie Person")).toBe(
+      normalizePatientNameForMatch("Person Marie Sample"),
     );
-    expect(normalizePatientNameForMatch("Afoláyan Kayode")).toBe(
-      normalizePatientNameForMatch("Kayode Afolayan"),
+    expect(normalizePatientNameForMatch("Sámple Person")).toBe(
+      normalizePatientNameForMatch("Person Sample"),
     );
-    expect(normalizePatientNameForMatch("Afolayan Kayode")).not.toBe(
-      normalizePatientNameForMatch("Afolayan Marie Kayode"),
+    expect(normalizePatientNameForMatch("Sample Person")).not.toBe(
+      normalizePatientNameForMatch("Sample Marie Person"),
     );
-    expect(normalizePatientNameForMatch("Afolayan Kayode")).not.toBe(
-      normalizePatientNameForMatch("Afolayan Kayodeh"),
+    expect(normalizePatientNameForMatch("Sample Person")).not.toBe(
+      normalizePatientNameForMatch("Sample Persons"),
     );
   });
 
   it("uses an exact beneficiary number with compatible normalized name evidence", () => {
     const rows = [
-      { id: "principal", full_name: "Afolayan Kayode", beneficiary_number: "1639554-1" },
-      { id: "dependent", full_name: "Afolayan Marie Kayode", beneficiary_number: "1639554-2" },
+      { id: "principal", full_name: "Sample Person", beneficiary_number: "1001001-1" },
+      { id: "dependent", full_name: "Sample Marie Person", beneficiary_number: "1001001-2" },
     ];
 
-    expect(resolveBeneficiaryIdentityMatch(rows, "Mr. Kayode Afolayan", "1639554-01")).toEqual({
+    expect(resolveBeneficiaryIdentityMatch(rows, "Mr. Person Sample", "1001001-01")).toEqual({
       status: "exact",
       member: rows[0],
     });
-    expect(resolveBeneficiaryIdentityMatch(rows, "Afolayan Kayode", "1639554-2")).toEqual({
+    expect(resolveBeneficiaryIdentityMatch(rows, "Sample Person", "1001001-2")).toEqual({
       status: "conflict",
       member: null,
     });
-    expect(resolveBeneficiaryIdentityMatch(rows, "Afolayan Kayode", "1639554-9")).toEqual({
+    expect(resolveBeneficiaryIdentityMatch(rows, "Sample Person", "1001001-9")).toEqual({
       status: "conflict",
       member: null,
     });
@@ -83,51 +83,51 @@ describe("beneficiary identity matching", () => {
 
   it("requires a unique complete name match when no member number is available", () => {
     const rows = [
-      { id: "one", full_name: "Afolayan Kayode", beneficiary_number: "1639554-1" },
-      { id: "two", full_name: "Afolayan Marie Kayode", beneficiary_number: "1639554-2" },
+      { id: "one", full_name: "Sample Person", beneficiary_number: "1001001-1" },
+      { id: "two", full_name: "Sample Marie Person", beneficiary_number: "1001001-2" },
     ];
-    expect(resolveBeneficiaryIdentityMatch(rows, "Kayode Afolayan").status).toBe("exact");
-    expect(resolveBeneficiaryIdentityMatch(rows, "Afolayan Kayodeh").status).toBe("none");
+    expect(resolveBeneficiaryIdentityMatch(rows, "Person Sample").status).toBe("exact");
+    expect(resolveBeneficiaryIdentityMatch(rows, "Sample Persons").status).toBe("none");
     expect(resolveBeneficiaryIdentityMatch([
-      { id: "one", full_name: "Afolayan Kayode" },
-      { id: "two", full_name: "Kayode Afolayan" },
-    ], "Afolayan Kayode").status).toBe("ambiguous");
+      { id: "one", full_name: "Sample Person" },
+      { id: "two", full_name: "Person Sample" },
+    ], "Sample Person").status).toBe("ambiguous");
   });
 
   it("normalizes padded dependant suffixes and compares policy families without substring collisions", () => {
-    expect(normalizeBeneficiaryNumber("1639554-02")).toBe("1639554-2");
-    expect(recordMatchesPolicy({ policy_number: "1639554-2" }, "1639554")).toBe(true);
-    expect(recordMatchesPolicy({ policy_number: "11639554-2" }, "1639554")).toBe(false);
-    expect(recordMatchesPolicy({ policy_number: "1639554" }, "1639554-2")).toBe(true);
+    expect(normalizeBeneficiaryNumber("1001001-02")).toBe("1001001-2");
+    expect(recordMatchesPolicy({ policy_number: "1001001-2" }, "1001001")).toBe(true);
+    expect(recordMatchesPolicy({ policy_number: "91001001-2" }, "1001001")).toBe(false);
+    expect(recordMatchesPolicy({ policy_number: "1001001" }, "1001001-2")).toBe(true);
   });
 
   it("shows reversed-name legacy history only when the verified policy roster identifies one member", () => {
     const family = [
-      { id: "one", full_name: "Afolayan Kayode", beneficiary_number: "1639554-1" },
-      { id: "two", full_name: "Afolayan Marie Kayode", beneficiary_number: "1639554-2" },
+      { id: "one", full_name: "Sample Person", beneficiary_number: "1001001-1" },
+      { id: "two", full_name: "Sample Marie Person", beneficiary_number: "1001001-2" },
     ];
     const identity = {
-      patientName: "Mr. Kayode Afolayan",
-      policyNumber: "1639554",
-      beneficiaryNumber: "1639554-1",
+      patientName: "Mr. Person Sample",
+      policyNumber: "1001001",
+      beneficiaryNumber: "1001001-1",
     };
 
     expect(matchesBeneficiaryHistoryRecord({
-      policy_number: "1639554",
-      patient_name: "Afolayan, Kayode",
+      policy_number: "1001001",
+      patient_name: "Sample, Person",
     }, identity, family, false)).toBe(true);
     expect(matchesBeneficiaryHistoryRecord({
-      policy_number: "1639554",
-      beneficiary_number: "1639554-2",
-      patient_name: "Afolayan Kayode",
+      policy_number: "1001001",
+      beneficiary_number: "1001001-2",
+      patient_name: "Sample Person",
     }, identity, family, false)).toBe(false);
     expect(matchesBeneficiaryHistoryRecord({
-      policy_number: "11639554-1",
-      patient_name: "Afolayan Kayode",
+      policy_number: "91001001-1",
+      patient_name: "Sample Person",
     }, identity, family, true)).toBe(false);
     expect(matchesBeneficiaryHistoryRecord({
-      policy_number: "1639554",
-      patient_name: "Kayode Afolayan",
+      policy_number: "1001001",
+      patient_name: "Person Sample",
     }, identity, [family[0], { ...family[0], id: "duplicate" }], false)).toBe(false);
   });
 });

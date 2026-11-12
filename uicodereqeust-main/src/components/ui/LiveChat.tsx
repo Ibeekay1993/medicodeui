@@ -39,7 +39,7 @@ export function LiveChat() {
   const loadMessages = async (conversationId: string) => {
     const { data, error } = await supabase
       .from("support_messages" as any)
-      .select("*")
+      .select("id,conversation_id,sender_id,sender_role,sender_name,body,attachment_name,attachment_url,created_at,is_internal,message_type,read_by")
       .eq("conversation_id", conversationId)
       .order("created_at", { ascending: true });
     if (error) {
@@ -55,7 +55,7 @@ export function LiveChat() {
     try {
       const { data: existing } = await supabase
         .from("support_conversations" as any)
-        .select("*")
+        .select("id,ticket_number,subject,status,updated_at,last_message,last_message_at,department,priority,request_reference")
         .eq("created_by", user.id)
         .in("status", ["new", "open", "pending", "pending_customer_response", "waiting_internal_action", "reopened"])
         .order("created_at", { ascending: false })

@@ -274,7 +274,7 @@ export default function HospitalPortalPage() {
           <CardHeader className="py-2.5 px-3.5 border-b border-slate-100 flex flex-row items-center justify-between">
             <div className="flex items-center gap-2">
               <Layers className="h-4 w-4 text-emerald-600" />
-              <CardTitle className="text-xs font-bold uppercase tracking-wider text-slate-800">
+              <CardTitle className="text-sm font-semibold normal-case tracking-normal text-slate-900">
                 Recent Authorizations
               </CardTitle>
             </div>
@@ -396,7 +396,7 @@ export default function HospitalPortalPage() {
           <CardHeader className="py-2.5 px-3.5 border-b border-slate-100 flex flex-row items-center justify-between">
             <div className="flex items-center gap-2">
               <Receipt className="h-4 w-4 text-slate-700" />
-              <CardTitle className="text-xs font-bold uppercase tracking-wider text-slate-800">
+              <CardTitle className="text-sm font-semibold normal-case tracking-normal text-slate-900">
                 Claims &amp; Settlements
               </CardTitle>
             </div>

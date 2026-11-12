@@ -153,7 +153,7 @@ export function AdminOverview({
       value: count(auth.otherStatuses),
       detail: authStatusBreakdownError ? "Status names unavailable" : "See status breakdown below",
       show: authCountsValid && Number.isFinite(auth.otherStatuses) && auth.otherStatuses > 0,
-      to: `${basePath}/requests`,
+      to: `${basePath}/requests?status=all`,
     },
     {
       label: "Contested claims",

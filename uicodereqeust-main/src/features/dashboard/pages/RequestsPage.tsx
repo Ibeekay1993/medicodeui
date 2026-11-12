@@ -6,6 +6,7 @@ import type { Database } from "@/integrations/supabase/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { RequestList } from "@/components/dashboard/requests/RequestList";
 import { ACTION_REQUIRED_AUTHORIZATION_STATUSES } from "@/features/dashboard/constants/requestStatuses";
+import { REQUEST_REVIEW_COLUMNS } from "@/features/dashboard/constants/requestReviewColumns";
 
 type RequestRow = Database["public"]["Tables"]["authorization_requests"]["Row"];
 import { Card } from "@/components/ui/card";
@@ -44,7 +45,9 @@ export default function RequestsPage() {
   const [statusFilter, setStatusFilter] = useState(() =>
     searchParams.get("status") === "action_required"
       ? "action_required"
-      : sessionStorage.getItem("req_status_filter") || "action_required",
+      : searchParams.get("status") === "all"
+        ? "all"
+        : sessionStorage.getItem("req_status_filter") || "action_required",
   );
   const [dateFilter, _setDateFilter] = useState(() => sessionStorage.getItem("req_date_filter") || "all");
   const [currentPage, setCurrentPage] = useState(() => {
@@ -71,15 +74,25 @@ export default function RequestsPage() {
     setCurrentPage(1);
     setSearchParams((current) => {
       const next = new URLSearchParams(current);
-      if (value === "action_required") next.set("status", "action_required");
-      else next.delete("status");
+      next.set("status", value);
+      return next;
+    }, { replace: true });
+  };
+
+  const handleStatusFilterChange = (value: string) => {
+    setStatusFilter(value);
+    setCurrentPage(1);
+    setSearchParams((current) => {
+      const next = new URLSearchParams(current);
+      next.set("status", value);
       return next;
     }, { replace: true });
   };
 
   useEffect(() => {
-    if (searchParams.get("status") === "action_required") {
-      setStatusFilter("action_required");
+    const requestedStatus = searchParams.get("status");
+    if (requestedStatus === "action_required" || requestedStatus === "all") {
+      setStatusFilter(requestedStatus);
       setCurrentPage(1);
     }
   }, [searchParams]);
@@ -117,7 +130,7 @@ export default function RequestsPage() {
       let q = supabase
         .from("authorization_requests")
         // Only list fields are loaded here; request details load on demand in the modal.
-        .select("id,request_id,patient_name,policy_number,diagnosis,status,source,hospital_name,requesting_hospital_name,referred_hospital_name,authorization_code,urgency,created_at,updated_at,decided_at,treatment_submitted_at,approved_by,decided_by,nurse_initials,authorized_by_name,authorized_by_email,claiming_hospital_name,referring_hospital_name,is_historical,is_unlocked,deletion_status,patient_phone,patient_email,hospital_id,requesting_hospital_id,referred_hospital_id,claiming_hospital_id,approved_items")
+        .select("id,request_id,patient_name,policy_number,diagnosis,status,source,hospital_name,requesting_hospital_name,referred_hospital_name,authorization_code,urgency,created_at,updated_at,decided_at,treatment_submitted_at,approved_by,decided_by,nurse_initials,authorized_by_name,authorized_by_email,claiming_hospital_name,referring_hospital_name,is_historical,is_unlocked,deletion_status,hospital_id,requesting_hospital_id,referred_hospital_id,claiming_hospital_id")
         // created_at has a production index. Sorting all 75k+ requests by updated_at
         // caused PostgreSQL to choose a sequential scan and sort before applying LIMIT.
         .order("created_at", { ascending: false });
@@ -183,7 +196,7 @@ export default function RequestsPage() {
     let cancelled = false;
     supabase
       .from("authorization_requests")
-      .select("*")
+      .select(REQUEST_REVIEW_COLUMNS)
       .eq("id", reviewIdFromUrl)
       .maybeSingle()
       .then(({ data, error }) => {
@@ -224,7 +237,7 @@ export default function RequestsPage() {
       //    approved_items is included in the queue query so saved cart details render immediately.
       supabase
         .from("authorization_requests")
-        .select("*")
+        .select(REQUEST_REVIEW_COLUMNS)
         .eq("id", r.id)
         .maybeSingle()
         .then(({ data, error }) => {
@@ -272,7 +285,7 @@ export default function RequestsPage() {
       const openId = selectedRequest.id;
       supabase
         .from("authorization_requests")
-        .select("*")
+        .select(REQUEST_REVIEW_COLUMNS)
         .eq("id", openId)
         .maybeSingle()
         .then(({ data }) => {
@@ -494,7 +507,7 @@ export default function RequestsPage() {
 
         <div className="grid w-full min-w-0 grid-cols-1 gap-2 sm:flex sm:flex-wrap sm:items-center sm:justify-end lg:w-auto">
           {statusFilter !== 'action_required' && (
-            <Select value={statusFilter} onValueChange={(val: any) => { setStatusFilter(val); setCurrentPage(1); }}>
+            <Select value={statusFilter} onValueChange={handleStatusFilterChange}>
               <SelectTrigger className="h-11 w-full rounded-lg border border-slate-200 bg-white text-xs font-medium text-slate-700 sm:h-9 sm:w-40">
                 <SelectValue placeholder="Filter by Status" />
               </SelectTrigger>

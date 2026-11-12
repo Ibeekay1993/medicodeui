@@ -30,6 +30,7 @@ interface NewTicketModalProps {
   conversations: any[];
   authRequests: any[];
   claims: any[];
+  onSearchCases: (search: string, type: "request" | "claim") => Promise<void>;
   onSuccess: (conv: any) => void;
 }
 
@@ -38,6 +39,7 @@ export function NewTicketModal({
   onOpenChange,
   conversations,
   authRequests,
+  onSearchCases,
   onSuccess,
 }: NewTicketModalProps) {
   const { user, role } = useAuth();
@@ -52,6 +54,15 @@ export function NewTicketModal({
     linkType: "none",
     linkedId: "",
   });
+  const [caseSearchTerm, setCaseSearchTerm] = useState("");
+
+  useEffect(() => {
+    if (!isOpen || newTicket.department !== "Authorization" || newTicket.linkType === "none") return;
+    const timer = window.setTimeout(() => {
+      void onSearchCases(caseSearchTerm, "request");
+    }, 250);
+    return () => window.clearTimeout(timer);
+  }, [caseSearchTerm, isOpen, newTicket.department, newTicket.linkType, onSearchCases]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -66,8 +77,10 @@ export function NewTicketModal({
         linkedId: "",
       });
       setPendingFiles([]);
+      setCaseSearchTerm("");
+      void onSearchCases("", "request");
     }
-  }, [isOpen]);
+  }, [isOpen, onSearchCases]);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -161,31 +174,7 @@ export function NewTicketModal({
           const r = authRequests.find((req) => req.id === newTicket.linkedId);
           updates.linked_request_id = newTicket.linkedId;
           updates.request_reference = r?.authorization_code || r?.request_id || newTicket.linkedId;
-          updates.request_metadata = {
-            request_id: r?.request_id,
-            request_uuid: newTicket.linkedId,
-            patient_name: r?.patient_name,
-            policy_number: r?.policy_number,
-            diagnosis: r?.diagnosis,
-            treatment: r?.treatment,
-            clinical_notes: r?.clinical_notes,
-            decision_reason: r?.decision_reason,
-            status: r?.status,
-            authorization_code: r?.authorization_code,
-            hospital: r?.hospital_name,
-            hospital_id: r?.hospital_id,
-            requesting_hospital_id: r?.requesting_hospital_id,
-            requesting_hospital_name: r?.requesting_hospital_name,
-            referring_hospital_id: r?.referring_hospital_id,
-            referring_hospital_name: r?.referring_hospital_name,
-            referred_hospital_id: r?.referred_hospital_id,
-            referred_hospital_name: r?.referred_hospital_name,
-            claiming_hospital_id: r?.claiming_hospital_id,
-            claiming_hospital_name: r?.claiming_hospital_name,
-            date_created: r?.created_at,
-            decided_at: r?.decided_at,
-            decided_by: r?.decided_by,
-          };
+          updates.request_metadata = {};
           updates.ticket_type = "request_support";
           updates.request_ticket_status = "open";
         }
@@ -381,6 +370,13 @@ export function NewTicketModal({
 
               {newTicket.linkType !== "none" && (
                 <div className="space-y-2">
+                  <Input
+                    value={caseSearchTerm}
+                    onChange={(event) => setCaseSearchTerm(event.target.value)}
+                    placeholder="Search patient, authorization code, or diagnosis"
+                    aria-label="Search authorization cases to link"
+                    className="h-9 rounded-lg text-sm"
+                  />
                   <Select
                     value={newTicket.linkedId}
                     onValueChange={(val) => setNewTicket({ ...newTicket, linkedId: val })}

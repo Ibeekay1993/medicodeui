@@ -4,14 +4,14 @@ import { parseCsvText, parseXlsxBuffer } from "./spreadsheetImport";
 
 describe("spreadsheet import", () => {
   it("parses quoted CSV fields, escaped quotes, and embedded newlines", () => {
-    expect(parseCsvText('\uFEFFname,note\r\n"Afolayan, Kayode","said ""hello""\nagain"\r\n')).toEqual([
+    expect(parseCsvText('\uFEFFname,note\r\n"Sample, Person","said ""hello""\nagain"\r\n')).toEqual([
       ["name", "note"],
-      ["Afolayan, Kayode", 'said "hello"\nagain'],
+      ["Sample, Person", 'said "hello"\nagain'],
     ]);
   });
 
   it("rejects malformed CSV with an unclosed quoted field", () => {
-    expect(() => parseCsvText('name,note\nAfolayan,"unfinished')).toThrow("unclosed quoted field");
+    expect(() => parseCsvText('name,note\nSample,"unfinished')).toThrow("unclosed quoted field");
   });
 
   it("reads xlsx workbooks through ExcelJS", async () => {

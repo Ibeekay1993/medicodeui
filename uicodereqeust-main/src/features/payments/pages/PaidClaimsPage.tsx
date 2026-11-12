@@ -245,8 +245,8 @@ export default function PaidClaimsPage() {
                       {c.claim_number}
                     </td>
                     <td className="border-y border-slate-100 bg-white px-3 py-3 shadow-sm">
-                      <div className="text-sm font-black text-slate-950 uppercase truncate leading-snug">{c.patient_name}</div>
-                      <div className="text-xs font-bold text-slate-400 tracking-wider font-mono mt-0.5">{c.policy_number}</div>
+                      <div className="break-words text-sm font-semibold normal-case leading-snug text-slate-900 [overflow-wrap:anywhere]">{c.patient_name}</div>
+                      <div className="mt-0.5 font-mono text-xs font-medium text-slate-600">{c.policy_number}</div>
                     </td>
                     <td className="border-y border-slate-100 bg-white px-3 py-3 shadow-sm">
                       <div className="font-semibold text-slate-700 truncate">{c.hospital_name}</div>

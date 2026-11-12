@@ -30,7 +30,10 @@ export class ClaimsService {
   }): Promise<{ claims: ClaimDraft[]; total: number }> {
     let query = supabase
       .from("hospital_claims")
-      .select("*", { count: "exact" });
+      .select(
+        "id,claim_number,patient_name,policy_number,auth_code,diagnosis,hospital_id,hospital_name,claiming_hospital_id,claiming_hospital_name,request_id,status,total_amount,approved_amount,approved_at,created_at,submitted_at,contest_deadline,contest_documents,contest_note,contest_submitted_at,contest_resolved_at,under_contest_amount,declined_amount,payment_status,payment_batch_id,paid_at,notes,audit_summary,audit_items,audit_note,audited_at,audited_by,approved_items,original_amount,line_items,referring_hospital_id,referring_hospital_name,referred_hospital_id,referred_hospital_name,requesting_hospital_id,requesting_hospital_name,updated_at",
+        { count: "exact" },
+      );
 
     if (hospitalId !== "all") {
       query = query.eq("hospital_id", hospitalId);
@@ -64,7 +67,7 @@ export class ClaimsService {
       throw error;
     }
     
-    const claims: ClaimDraft[] = (data || []).map((claim) => ({
+    const claims: ClaimDraft[] = ((data || []) as unknown as ClaimDraft[]).map((claim) => ({
       ...claim,
       line_items: Array.isArray(claim.line_items) ? claim.line_items : [],
     }));
@@ -90,7 +93,7 @@ export class ClaimsService {
   static async verifyClaimAuthorization(authCode: string) {
     const { data, error } = await supabase
       .from("authorization_requests")
-      .select("*")
+      .select("id,authorization_code,patient_name,policy_number,claiming_hospital_name,hospital_name,referred_hospital_name,requesting_hospital_name,total_amount,status,approved_items")
       .eq("authorization_code", authCode)
       .maybeSingle();
 

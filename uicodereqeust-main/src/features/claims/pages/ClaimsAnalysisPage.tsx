@@ -470,7 +470,7 @@ export default function ClaimsAnalysisPage() {
                        ["Rejected", hospital.rejected, "bg-rose-50 text-rose-700 border border-rose-100/50"]
                      ].map(([label, count, color]) => (
                        <div key={label} className={cn("rounded-lg p-1.5", color as string)}>
-                         <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">{label}</p>
+                         <p className="text-xs font-medium normal-case tracking-normal text-slate-500">{label}</p>
                          <p className="font-mono text-xs font-bold mt-0.5">{count}</p>
                        </div>
                      ))}

@@ -53,11 +53,11 @@ describe("Historical Reconciliation Engine", () => {
 
   it("reconciles single drug prescription with correct unit price and total amount", () => {
     const rawRow: HistoricalRawRow = {
-      date: "2026-07-02",
+      date: "2025-01-15",
       hospital: "UNIVERSITY OF IBADAN HEALTH SERVICES (JAJA HEALTH CLINIC)",
-      patient_name: "DARAMOLA FOLARIN",
-      policy_number: "1639633",
-      authorization_code: "R/AO/19062671BD",
+      patient_name: "Sample Patient 01",
+      policy_number: "1000001",
+      authorization_code: "TEST-AUTH-001",
       diagnosis: "HYPERTENSION",
       treatment: "Tab losartan 50mg dly x 1/12 (30 TABLETS)",
       status: "APPROVED",
@@ -67,7 +67,7 @@ describe("Historical Reconciliation Engine", () => {
     const reconciled = reconcileHistoricalRow(rawRow, 1, mockTariffs, mockHospitals);
 
     expect(reconciled.status).toBe("approved");
-    expect(reconciled.authorization_code).toBe("R/AO/19062671BD");
+    expect(reconciled.authorization_code).toBe("TEST-AUTH-001");
     expect(reconciled.hospital_name).toContain("JAJA");
     expect(reconciled.approved_items.length).toBe(1);
     expect(reconciled.approved_items[0].code).toBe("NHIA-12-04-49");
@@ -80,11 +80,11 @@ describe("Historical Reconciliation Engine", () => {
 
   it("reconciles optical package with direct ophthalmoscopy included (4 items, total ₦31,000)", () => {
     const rawRow: HistoricalRawRow = {
-      date: "2026-07-02",
+      date: "2025-01-15",
       hospital: "UNIVERSITY OF IBADAN HEALTH SERVICES (JAJA HEALTH CLINIC)",
-      patient_name: "Olatunbosun Julius",
-      policy_number: "2556961",
-      authorization_code: "R/AO/19062678BD",
+      patient_name: "Sample Patient 02",
+      policy_number: "1000002",
+      authorization_code: "TEST-AUTH-002",
       diagnosis: "Presbyopia",
       treatment: "consultation, manual refraction, direct ophthalmoscopy, glasses",
       status: "APPROVED",
@@ -105,10 +105,10 @@ describe("Historical Reconciliation Engine", () => {
 
   it("reconciles Indapamide 1.5mg at ₦310 (NHIA-12-04-31) and Indapamide SR at ₦363 (NHIA-12-03-15)", () => {
     const normalRow: HistoricalRawRow = {
-      date: "2026-07-02",
+      date: "2025-01-15",
       hospital: "JAJA HEALTH CLINIC",
-      patient_name: "Adetoye Daniel",
-      policy_number: "12345",
+      patient_name: "Sample Patient 03",
+      policy_number: "1000003",
       authorization_code: "AUTH1",
       diagnosis: "HTN",
       treatment: "Tab Indapamide 1.5mg x 1/12",
@@ -122,10 +122,10 @@ describe("Historical Reconciliation Engine", () => {
     expect(reconciledNormal.approved_items[0].amount).toBe(9300.0);
 
     const srRow: HistoricalRawRow = {
-      date: "2026-07-02",
+      date: "2025-01-15",
       hospital: "JAJA HEALTH CLINIC",
-      patient_name: "Adetoye Daniel",
-      policy_number: "12345",
+      patient_name: "Sample Patient 03",
+      policy_number: "1000003",
       authorization_code: "AUTH2",
       diagnosis: "HTN",
       treatment: "Tab Indapamide 1.5mg SR x 1/12",
@@ -141,10 +141,10 @@ describe("Historical Reconciliation Engine", () => {
 
   it("reconciles Clopidogrel 75mg at ₦190 (NHIA-11-03-04) and Tamsulosin at ₦439 (NHIA-17-08-03)", () => {
     const clopidogrelRow: HistoricalRawRow = {
-      date: "2026-07-02",
+      date: "2025-01-15",
       hospital: "JAJA HEALTH CLINIC",
       patient_name: "Test Patient",
-      policy_number: "12345",
+      policy_number: "1000003",
       authorization_code: "AUTH3",
       diagnosis: "HTN",
       treatment: "Clopidogrel 75mg dly x1/12",
@@ -158,7 +158,7 @@ describe("Historical Reconciliation Engine", () => {
     expect(reconciledClop.approved_items[0].amount).toBe(5700.0);
 
     const tamsulosinRow: HistoricalRawRow = {
-      date: "2026-07-02",
+      date: "2025-01-15",
       hospital: "JAJA HEALTH CLINIC",
       patient_name: "Test Patient 2",
       policy_number: "12346",
@@ -177,10 +177,10 @@ describe("Historical Reconciliation Engine", () => {
 
   it("handles declined requests with zero approved amount and declined item flag", () => {
     const rawRow: HistoricalRawRow = {
-      date: "2026-07-03",
+      date: "2025-01-16",
       hospital: "UNIVERSITY OF IBADAN HEALTH SERVICES (JAJA HEALTH CLINIC)",
-      patient_name: "Akpan Matthew",
-      policy_number: "2173737",
+      patient_name: "Sample Patient 04",
+      policy_number: "1000004",
       authorization_code: "",
       diagnosis: "?BPH",
       treatment: "E/U/CR",
@@ -198,11 +198,11 @@ describe("Historical Reconciliation Engine", () => {
 
   it("correctly attributes referral claiming hospital to UCH", () => {
     const rawRow: HistoricalRawRow = {
-      date: "2026-07-02",
+      date: "2025-01-15",
       hospital: "UNIVERSITY OF IBADAN HEALTH SERVICES (JAJA HEALTH CLINIC) referral to University College Hospital",
-      patient_name: "OLUYEMISI SHITTU",
-      policy_number: "2872895",
-      authorization_code: "R/AO/19062673BD",
+      patient_name: "Sample Patient 05",
+      policy_number: "1000005",
+      authorization_code: "TEST-AUTH-003",
       diagnosis: "nephropathy",
       treatment: "FOLLOW UP",
       status: "APPROVED",
@@ -221,11 +221,11 @@ describe("Historical Reconciliation Engine", () => {
 
   it("resolves direct UCH hospital row without referral to UCH as primary hospital", () => {
     const rawRow: HistoricalRawRow = {
-      date: "2026-07-10",
+      date: "2025-01-17",
       hospital: "UNIVERSITY COLLEGE HOSPITAL",
-      patient_name: "Oloyede Babatunde",
-      policy_number: "8240836",
-      authorization_code: "R/AO/190626193BD",
+      patient_name: "Sample Patient 06",
+      policy_number: "1000006",
+      authorization_code: "TEST-AUTH-004",
       diagnosis: "BPH",
       treatment: "Specialist Review",
       status: "APPROVED",
@@ -241,10 +241,10 @@ describe("Historical Reconciliation Engine", () => {
 
   it("differentiates consultation / initial consultation (NHIA-010-001 @ ₦4000) from follow-up / review (NHIA-010-002 @ ₦2600)", () => {
     const consultRow: HistoricalRawRow = {
-      date: "2026-07-02",
+      date: "2025-01-15",
       hospital: "UNIVERSITY OF IBADAN HEALTH SERVICES (JAJA HEALTH CLINIC)",
       patient_name: "TEST PATIENT 1",
-      policy_number: "1111111",
+      policy_number: "1000007",
       authorization_code: "AUTH001",
       diagnosis: "General",
       treatment: "Specialist Initial Consultation",
@@ -256,10 +256,10 @@ describe("Historical Reconciliation Engine", () => {
     expect(reconciledConsult.approved_items[0].code).toBe("NHIA-010-001");
 
     const reviewRow: HistoricalRawRow = {
-      date: "2026-07-02",
+      date: "2025-01-15",
       hospital: "UNIVERSITY OF IBADAN HEALTH SERVICES (JAJA HEALTH CLINIC)",
       patient_name: "TEST PATIENT 2",
-      policy_number: "2222222",
+      policy_number: "1000008",
       authorization_code: "AUTH002",
       diagnosis: "Follow-up",
       treatment: "FOLLOW UP REVIEW",
@@ -273,7 +273,7 @@ describe("Historical Reconciliation Engine", () => {
 
   it("accurately parses historical date strings like 2-Jul-26 and 2026-07-24 into July 2026 UTC", () => {
     const iso1 = parseHistoricalDate("2-Jul-26");
-    expect(iso1).toBe("2026-07-02T12:00:00.000Z");
+    expect(iso1).toBe("2025-01-15T12:00:00.000Z");
 
     const iso2 = parseHistoricalDate("24-Jul-2026");
     expect(iso2).toBe("2026-07-24T12:00:00.000Z");
@@ -284,11 +284,11 @@ describe("Historical Reconciliation Engine", () => {
 
   it("strictly prefers single-entity Losartan over combo Losartan+Amlodipine when single drug is prescribed", () => {
     const rawRow: HistoricalRawRow = {
-      date: "2026-07-02",
+      date: "2025-01-15",
       hospital: "UNIVERSITY OF IBADAN HEALTH SERVICES (JAJA HEALTH CLINIC)",
-      patient_name: "DARAMOLA FOLARIN",
-      policy_number: "1639633",
-      authorization_code: "R/AO/19062671BD",
+      patient_name: "Sample Patient 01",
+      policy_number: "1000001",
+      authorization_code: "TEST-AUTH-001",
       diagnosis: "HYPERTENSION",
       treatment: "Tab losartan 50mg dly x 1/12 (30 TABLETS)",
       status: "APPROVED",
@@ -304,11 +304,11 @@ describe("Historical Reconciliation Engine", () => {
 
   it("normalizes 1g to 1000mg and matches exact Metformin 1000mg tariff", () => {
     const rawRow: HistoricalRawRow = {
-      date: "2026-07-02",
+      date: "2025-01-15",
       hospital: "UNIVERSITY OF IBADAN HEALTH SERVICES (JAJA HEALTH CLINIC)",
-      patient_name: "ALAWODE OLUBUNMI",
-      policy_number: "123456",
-      authorization_code: "R/AO/19062672BD",
+      patient_name: "Sample Patient 07",
+      policy_number: "10000036",
+      authorization_code: "TEST-AUTH-005",
       diagnosis: "DIABETES",
       treatment: "metformin 1g dly x 1/12",
       status: "APPROVED",
@@ -323,11 +323,11 @@ describe("Historical Reconciliation Engine", () => {
 
   it("prefers tablet formulation over topical gel when prescription specifies Tab", () => {
     const rawRow: HistoricalRawRow = {
-      date: "2026-07-02",
+      date: "2025-01-15",
       hospital: "UNIVERSITY OF IBADAN HEALTH SERVICES (JAJA HEALTH CLINIC)",
-      patient_name: "OLORUNNISOMO",
-      policy_number: "998877",
-      authorization_code: "R/AO/19062699BD",
+      patient_name: "Sample Patient 08",
+      policy_number: "1000010",
+      authorization_code: "TEST-AUTH-006",
       diagnosis: "ARTHRITIS",
       treatment: "tab diclofenac 50mg bd x 2/52 (14 tabs)",
       status: "APPROVED",
@@ -342,11 +342,11 @@ describe("Historical Reconciliation Engine", () => {
 
   it("strictly picks the 10mg tariff for Atorvastatin 10mg and not 40mg or 20mg", () => {
     const rawRow: HistoricalRawRow = {
-      date: "2026-07-02",
+      date: "2025-01-15",
       hospital: "UNIVERSITY OF IBADAN HEALTH SERVICES (JAJA HEALTH CLINIC)",
-      patient_name: "SANNI ADETUTU",
-      policy_number: "1637962",
-      authorization_code: "R/AO/19062672BD",
+      patient_name: "Sample Patient 09",
+      policy_number: "1000011",
+      authorization_code: "TEST-AUTH-005",
       diagnosis: "Hypertension , dyslipidaemia",
       treatment: "Tab Atorvastatin 10mg nocte x 1/12 (30 tabs each )",
       status: "APPROVED",
@@ -364,11 +364,11 @@ describe("Historical Reconciliation Engine", () => {
 
   it("calculates 60 tablets for Tab metformin 1g BD x1/12 (not 120)", () => {
     const rawRow: HistoricalRawRow = {
-      date: "2026-07-02",
+      date: "2025-01-15",
       hospital: "UNIVERSITY OF IBADAN HEALTH SERVICES (JAJA HEALTH CLINIC)",
-      patient_name: "Okunlola Justina",
-      policy_number: "2872766",
-      authorization_code: "R/AO/19062691BD",
+      patient_name: "Sample Patient 10",
+      policy_number: "1000012",
+      authorization_code: "TEST-AUTH-007",
       diagnosis: "Diabetes mellitus, Hypertension",
       treatment: "Tab metformin 1g BD x1/12",
       status: "APPROVED",
@@ -391,11 +391,11 @@ describe("Historical Reconciliation Engine", () => {
 
   it("prices Electrolytes, Urea and Creatinine at the official NHIA sum of ₦9,000.00", () => {
     const rawRow: HistoricalRawRow = {
-      date: "2026-07-02",
+      date: "2025-01-15",
       hospital: "UNIVERSITY OF IBADAN HEALTH SERVICES (JAJA HEALTH CLINIC)",
-      patient_name: "Alawode Olusola",
-      policy_number: "2872373",
-      authorization_code: "R/AO/19062686BD",
+      patient_name: "Sample Patient 11",
+      policy_number: "1000013",
+      authorization_code: "TEST-AUTH-008",
       diagnosis: "HTN + DM + BPH",
       treatment: "HBA1C, E/U/CR, PSA.",
       status: "APPROVED",
@@ -410,14 +410,14 @@ describe("Historical Reconciliation Engine", () => {
   });
 
   it("resolves RPD/denture dental procedures (Jaja source) to UCH as claiming hospital (Row 154 fix)", () => {
-    // Row 154: Elizabeth Ajibade – Removably partial denture (RPD)
+    // Synthetic row: Removably partial denture (RPD)
     // Hospital in Excel = Jaja, but procedure is a UCH dental dept procedure
     const rawRow: HistoricalRawRow = {
-      date: "16/07/2026",
+      date: "2025-01-18",
       hospital: "UNIVERSITY OF IBADAN HEALTH SERVICES (JAJA HEALTH CLINIC)",
-      patient_name: "Elizabeth Ajibade",
-      policy_number: "1458576",
-      authorization_code: "R/AO/190626221BD",
+      patient_name: "Sample Patient 12",
+      policy_number: "1000014",
+      authorization_code: "TEST-AUTH-009",
       diagnosis: "Kennedy class III Modifications I space on upper arch 54+2",
       treatment: "Removably partial denture (RPD)",
       status: "APPROVED",

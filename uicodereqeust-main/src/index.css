@@ -619,3 +619,25 @@ with their own background keep their own foreground pairing. */
 ):is([class~="text-indigo-500"], [class~="text-indigo-600"]) {
   color: #3730a3;
 }
+
+/* Back-office surfaces follow the admin overview's calm, compact treatment. */
+.app-main [data-dashboard-surface="card"] {
+  border-radius: 12px;
+  border-color: #e2e8f0;
+  box-shadow: none;
+}
+
+.app-main table {
+  font-variant-numeric: tabular-nums;
+}
+
+.app-main table thead th {
+  color: #475569;
+  font-weight: 600;
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+.app-main table tbody tr:not(:last-child) {
+  border-bottom-color: #f1f5f9;
+}

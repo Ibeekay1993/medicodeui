@@ -4,7 +4,7 @@ export class SupportService {
   static async getConversations() {
     const { data, error } = await supabase
       .from("support_conversations")
-      .select("*")
+      .select("id,ticket_number,subject,status,created_at,updated_at,department,priority,last_message_at,linked_request_id,request_reference,ticket_type,request_ticket_status,tags,assigned_to,hospital_id,created_by")
       .order("updated_at", { ascending: false });
     if (error) throw error;
     return data || [];
@@ -13,7 +13,7 @@ export class SupportService {
   static async getConversation(id: string) {
     const { data, error } = await supabase
       .from("support_conversations")
-      .select("*")
+      .select("id,ticket_number,subject,status,created_at,updated_at,department,priority,last_message,last_message_at,linked_request_id,request_reference,ticket_type,request_ticket_status,tags,assigned_to,hospital_id,created_by")
       .eq("id", id)
       .single();
     if (error) throw error;
@@ -23,7 +23,7 @@ export class SupportService {
   static async getMessages(conversationId: string) {
     const { data, error } = await supabase
       .from("support_messages")
-      .select("*")
+      .select("id,conversation_id,sender_id,sender_role,sender_name,body,attachment_name,attachment_url,created_at,is_internal,message_type,read_by")
       .eq("conversation_id", conversationId)
       .order("created_at", { ascending: true });
     if (error) throw error;

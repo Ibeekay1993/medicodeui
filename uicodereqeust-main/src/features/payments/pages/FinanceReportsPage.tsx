@@ -423,7 +423,7 @@ export default function FinanceReportsPage() {
       {/* ── Compact Settlement Summary Cards ── */}
       <section aria-labelledby="finance-summary-heading" className="space-y-2.5">
         <div className="flex items-center justify-between">
-          <h3 id="finance-summary-heading" className="text-xs font-bold uppercase tracking-wider text-slate-500">
+          <h3 id="finance-summary-heading" className="text-sm font-semibold normal-case tracking-normal text-slate-900">
             Payment &amp; Settlement Summary
           </h3>
           <span className="text-xs font-semibold text-slate-600">

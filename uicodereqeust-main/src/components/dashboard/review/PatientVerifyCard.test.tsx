@@ -6,7 +6,7 @@ describe("PatientVerifyCard family roster", () => {
   it("clearly tells staff where the family list is and shows every member when opened", () => {
     render(
       <PatientVerifyCard
-        request={{ policy_number: "2870618" }}
+        request={{ policy_number: "1001001" }}
         checking={false}
         patientMatchStatus="exact"
         matchedMemberId="principal"
@@ -15,22 +15,22 @@ describe("PatientVerifyCard family roster", () => {
         familyMembers={[
           {
             id: "principal",
-            full_name: "UGWU REGINA",
+            full_name: "Sample Principal",
             member_type: "PRINCIPAL",
-            beneficiary_number: "2870618-1",
-            policy_number: "2870618",
+            beneficiary_number: "1001001-1",
+            policy_number: "1001001",
           },
           {
             id: "dependent",
-            surname: "UGWU",
-            first_name: "CHINEDU",
+            surname: "Sample",
+            first_name: "Dependent",
             member_type: "DEPENDENT",
-            beneficiary_number: "2870618-2",
-            policy_number: "2870618",
+            beneficiary_number: "1001001-2",
+            policy_number: "1001001",
           },
         ]}
         earlyRefill={null}
-        requestPolicyNumber="2870618"
+        requestPolicyNumber="1001001"
       />,
     );
 
@@ -45,9 +45,9 @@ describe("PatientVerifyCard family roster", () => {
     expect(detailsButton).toHaveAttribute("aria-label", "Hide family member names for 2 members");
     expect(within(detailsButton).getByText("Hide member names")).toBeVisible();
     const familyRoster = screen.getByRole("region", { name: "Family members on this policy" });
-    expect(within(familyRoster).getByText("UGWU REGINA")).toBeInTheDocument();
-    expect(within(familyRoster).getByText("UGWU CHINEDU")).toBeInTheDocument();
+    expect(within(familyRoster).getByText("Sample Principal")).toBeInTheDocument();
+    expect(within(familyRoster).getByText("Sample Dependent")).toBeInTheDocument();
     expect(within(familyRoster).getAllByText("Request")).toHaveLength(1);
-    expect(within(familyRoster).getAllByText("UGWU REGINA")).toHaveLength(1);
+    expect(within(familyRoster).getAllByText("Sample Principal")).toHaveLength(1);
   });
 });

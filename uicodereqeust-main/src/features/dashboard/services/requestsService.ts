@@ -20,7 +20,7 @@ export class RequestsService {
 
     let q = supabase
       .from("authorization_requests")
-      .select("*", { count: "exact" })
+      .select("id,request_id,patient_name,policy_number,diagnosis,status,source,hospital_name,requesting_hospital_name,referred_hospital_name,authorization_code,urgency,created_at,updated_at,decided_at,treatment_submitted_at,approved_by,decided_by,nurse_initials,authorized_by_name,claiming_hospital_name,referring_hospital_name,is_historical,is_unlocked,deletion_status,hospital_id,requesting_hospital_id,referred_hospital_id,claiming_hospital_id", { count: "exact" })
       .order("created_at", { ascending: false });
 
     if (role === "claims") {
@@ -53,7 +53,7 @@ export class RequestsService {
   static async getDeleteQueue() {
     const { data, error } = await supabase
       .from("authorization_requests")
-      .select("*")
+      .select("id,request_id,patient_name,hospital_name,created_at,deletion_requested_at,deletion_reason,deletion_status,status,urgency,total_amount,authorization_code")
       .eq("deletion_status", "awaiting_admin_approval")
       .order("deletion_requested_at", { ascending: false });
     if (error) throw error;
@@ -63,7 +63,7 @@ export class RequestsService {
   static async getDeleteArchive() {
     const { data, error } = await supabase
       .from("archived_deleted_authorizations")
-      .select("*")
+      .select("id,original_request_id,authorization_code,patient_name,hospital_name,deleted_at,deletion_reason,deleted_claims_count")
       .order("deleted_at", { ascending: false });
     if (error) throw error;
     return data || [];

@@ -10,9 +10,9 @@ describe("ClinicalHistory approved treatment display", () => {
         visibleHistory={[
           {
             id: "approved-1",
-            patient_name: "Afolayan Kayode",
-            policy_number: "1639554",
-            beneficiary_number: "1639554-1",
+            patient_name: "Sample Person",
+            policy_number: "TEST-1001",
+            beneficiary_number: "TEST-1001-1",
             status: "approved",
             treatment: "NHIA-12-04-05 - raw treatment summary",
             approved_items: [
@@ -31,9 +31,9 @@ describe("ClinicalHistory approved treatment display", () => {
         ]}
         historyPage={1}
         setHistoryPage={() => undefined}
-        requestPatientName="Afolayan Kayode"
-        requestPolicyNumber="1639554"
-        requestBeneficiaryNumber="1639554-1"
+        requestPatientName="Sample Person"
+        requestPolicyNumber="TEST-1001"
+        requestBeneficiaryNumber="TEST-1001-1"
       />,
     );
 
@@ -53,9 +53,9 @@ describe("ClinicalHistory approved treatment display", () => {
         visibleHistory={[
           {
             id: "pending-1",
-            patient_name: "Afolayan Kayode",
-            policy_number: "1639554",
-            beneficiary_number: "1639554-1",
+            patient_name: "Sample Person",
+            policy_number: "TEST-1001",
+            beneficiary_number: "TEST-1001-1",
             status: "pending",
             treatment: "Amlodipine requested",
             approved_items: [{ name: "Draft cart item", quantity: 30 }],
@@ -63,9 +63,9 @@ describe("ClinicalHistory approved treatment display", () => {
         ]}
         historyPage={1}
         setHistoryPage={() => undefined}
-        requestPatientName="Afolayan Kayode"
-        requestPolicyNumber="1639554"
-        requestBeneficiaryNumber="1639554-1"
+        requestPatientName="Sample Person"
+        requestPolicyNumber="TEST-1001"
+        requestBeneficiaryNumber="TEST-1001-1"
       />,
     );
 
@@ -81,17 +81,17 @@ describe("ClinicalHistory approved treatment display", () => {
         request={{}}
         visibleHistory={[{
           id: "legacy-1",
-          patient_name: "Afolayan Kayode",
-          policy_number: "1639554",
-          beneficiary_number: "1639554-1",
+          patient_name: "Sample Person",
+          policy_number: "TEST-1001",
+          beneficiary_number: "TEST-1001-1",
           status: "approved",
           approved_items: [{ name: "Amlodipine 10mg tablet", quantity: 1 }],
         }]}
         historyPage={1}
         setHistoryPage={() => undefined}
-        requestPatientName="Afolayan Kayode"
-        requestPolicyNumber="1639554"
-        requestBeneficiaryNumber="1639554-1"
+        requestPatientName="Sample Person"
+        requestPolicyNumber="TEST-1001"
+        requestBeneficiaryNumber="TEST-1001-1"
       />,
     );
 
