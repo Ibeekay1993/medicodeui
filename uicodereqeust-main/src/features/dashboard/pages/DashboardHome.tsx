@@ -10,17 +10,12 @@ import {
   Banknote,
   Building2,
   CheckCircle2,
-  Clock,
   FileText,
   LayoutDashboard,
   MessageSquare,
   ShieldCheck,
   TrendingUp,
   Users,
-  XCircle,
-  AlertTriangle,
-  Layers,
-  Wallet,
   Activity,
 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";

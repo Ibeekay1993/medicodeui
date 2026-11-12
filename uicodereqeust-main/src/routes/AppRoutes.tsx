@@ -50,6 +50,7 @@ export function AppRoutes() {
         
             {/* Protected Dashboard Base Routes */}
             <Route path="/" element={<RootRedirect />} />
+            <Route path="/backoffice" element={<RootRedirect />} />
             <Route path="/login" element={<Login />} />
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/register" element={<Register />} />

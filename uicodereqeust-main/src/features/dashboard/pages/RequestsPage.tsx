@@ -290,6 +290,7 @@ export default function RequestsPage() {
         .maybeSingle()
         .then(({ data }) => {
           if (data) {
+            const updatedRequest = data as unknown as Record<string, unknown>;
             // Update the open modal state
             setSelectedRequest(data);
             // Patch the item in-place inside the cached queue list (zero extra DB call)
@@ -300,7 +301,7 @@ export default function RequestsPage() {
                 return {
                   ...oldData,
                   rows: oldData.rows.map((row: any) =>
-                    row.id === openId ? { ...row, ...data } : row
+                    row.id === openId ? { ...row, ...updatedRequest } : row
                   ),
                 };
               }

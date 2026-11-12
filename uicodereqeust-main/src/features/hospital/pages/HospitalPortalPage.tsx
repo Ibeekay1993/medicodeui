@@ -8,11 +8,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { BrandSpinner } from "@/components/BrandSpinner";
 import { 
-  ShieldCheck, 
-  Clock, 
-  XCircle, 
-  TrendingUp, 
-  Banknote,
   Plus,
   AlertCircle,
   RefreshCw,

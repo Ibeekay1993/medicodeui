@@ -23,7 +23,7 @@ import {
   getNotificationPermission,
   subscribeToPushNotifications,
   unsubscribeFromPushNotifications,
-  getExistingSubscription,
+  getRegisteredPushSubscription,
 } from "@/lib/pushNotifications";
 
 const PUSH_ELIGIBLE_ROLES = ["admin", "utilization_manager", "utilization_manager_lead"];
@@ -33,18 +33,36 @@ export function PushNotificationPrompt() {
   const { toast } = useToast();
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isCheckingStatus, setIsCheckingStatus] = useState(true);
+  const [setupIncomplete, setSetupIncomplete] = useState(false);
+  const [setupError, setSetupError] = useState<string | null>(null);
   const [permission, setPermission] = useState<NotificationPermission>("default");
   const [open, setOpen] = useState(false);
 
   const isSupported = isPushNotificationSupported();
-  const isEligible = role && PUSH_ELIGIBLE_ROLES.includes(role as string);
+  const isEligible = Boolean(role && PUSH_ELIGIBLE_ROLES.includes(role as string));
 
-  // Check current subscription state on mount
-  useEffect(() => {
-    if (!isSupported || !isEligible) return;
+  const checkStatus = useCallback(async () => {
+    if (!isSupported || !isEligible || !user?.id) return;
+    setIsCheckingStatus(true);
     setPermission(getNotificationPermission());
-    getExistingSubscription().then((sub) => setIsSubscribed(!!sub));
-  }, [isSupported, isEligible]);
+    try {
+      const status = await getRegisteredPushSubscription(user.id);
+      setIsSubscribed(status.registered);
+      setSetupIncomplete(Boolean(status.subscription) && !status.registered);
+      setSetupError(status.error || null);
+    } catch (error) {
+      setIsSubscribed(false);
+      setSetupIncomplete(false);
+      setSetupError(error instanceof Error ? error.message : "Could not verify this device's notification setup.");
+    } finally {
+      setIsCheckingStatus(false);
+    }
+  }, [isSupported, isEligible, user?.id]);
+
+  useEffect(() => {
+    void checkStatus();
+  }, [checkStatus]);
 
   const handleEnable = useCallback(async () => {
     if (!user?.id) return;
@@ -53,6 +71,8 @@ export function PushNotificationPrompt() {
     setIsLoading(false);
     if (result.success) {
       setIsSubscribed(true);
+      setSetupIncomplete(false);
+      setSetupError(null);
       setPermission("granted");
       setOpen(false);
       toast({
@@ -60,6 +80,7 @@ export function PushNotificationPrompt() {
         description: "You will now receive alerts even when the app is closed.",
       });
     } else {
+      setSetupError(result.error || "Please check your browser settings and try again.");
       toast({
         title: "Could not enable notifications",
         description: result.error || "Please check your browser settings.",
@@ -75,6 +96,8 @@ export function PushNotificationPrompt() {
     setIsLoading(false);
     if (result.success) {
       setIsSubscribed(false);
+      setSetupIncomplete(false);
+      setSetupError(null);
       setOpen(false);
       toast({
         title: "Push Notifications Disabled",
@@ -100,6 +123,7 @@ export function PushNotificationPrompt() {
           size="icon"
           className="relative h-8 w-8 rounded-lg"
           aria-label={isSubscribed ? "Push notifications enabled" : "Enable push notifications"}
+          disabled={isCheckingStatus || isLoading}
         >
           {isSubscribed ? (
             <Bell className="h-4 w-4 text-brand-700" />
@@ -124,7 +148,7 @@ export function PushNotificationPrompt() {
               <BellOff className="h-5 w-5 text-slate-400 shrink-0" />
             )}
             <h4 className="text-sm font-semibold text-slate-900">
-              {isSubscribed ? "Push Notifications Active" : "Enable Push Notifications"}
+              {isSubscribed ? "Push Notifications Active" : setupError ? "Notification status unavailable" : "Enable Push Notifications"}
             </h4>
           </div>
 
@@ -132,9 +156,17 @@ export function PushNotificationPrompt() {
             <div className="rounded-md bg-amber-50 p-3 text-xs text-amber-800">
               Notifications are <strong>blocked</strong> in your browser settings. Open Chrome Settings → Site Settings → Notifications and allow this site, then reload.
             </div>
+          ) : setupError ? (
+            <div className="rounded-md bg-rose-50 p-3 text-xs text-rose-700" role="status">
+              We could not verify this device is registered to your account. {setupError}
+            </div>
           ) : isSubscribed ? (
             <p className="text-xs text-slate-500 leading-relaxed">
               You will receive a native phone/desktop notification whenever a new authorization request is submitted — even when this app is closed.
+            </p>
+          ) : setupIncomplete ? (
+            <p className="text-xs text-amber-800 leading-relaxed">
+              This browser has a notification subscription that is not registered to your account. Enable notifications again to repair it.
             </p>
           ) : (
             <p className="text-xs text-slate-500 leading-relaxed">
@@ -149,7 +181,7 @@ export function PushNotificationPrompt() {
                   variant="outline"
                   size="sm"
                   className="flex-1 text-xs"
-                  disabled={isLoading}
+                  disabled={isLoading || isCheckingStatus}
                   onClick={handleDisable}
                 >
                   {isLoading ? "Disabling…" : "Turn Off"}
@@ -158,10 +190,10 @@ export function PushNotificationPrompt() {
                 <Button
                   size="sm"
                   className="flex-1 text-xs bg-brand-700 hover:bg-brand-800 text-white"
-                  disabled={isLoading}
+                  disabled={isLoading || isCheckingStatus}
                   onClick={handleEnable}
                 >
-                  {isLoading ? "Enabling…" : "Enable Notifications"}
+                  {isLoading ? "Enabling…" : setupIncomplete ? "Repair Notifications" : "Enable Notifications"}
                 </Button>
               )}
             </div>
