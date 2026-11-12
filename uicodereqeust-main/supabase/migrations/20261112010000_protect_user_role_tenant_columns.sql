@@ -73,7 +73,7 @@ CREATE TRIGGER protect_user_role_tenant_columns
 COMMIT;
 
 -- ============================================================================
--- Manual check on STAGING before and after applying (replace the uuids):
+-- Manual authorization check (replace the uuids):
 --   SET ROLE authenticated;
 --   SET request.jwt.claim.sub = '<a hospital user id>';
 --   UPDATE public.user_roles SET hospital_id = '<another hospital id>'
