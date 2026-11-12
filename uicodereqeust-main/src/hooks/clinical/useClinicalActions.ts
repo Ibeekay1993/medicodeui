@@ -187,7 +187,7 @@ export function useClinicalActions({
               price: total ?? unitPrice * quantity,
               unitPrice,
               quantity,
-              quantityNeedsReview: item.quantity_requires_review !== false || parsedQuantity === null,
+              quantityNeedsReview: false,
               priceNeedsReview: item.price_requires_review === true || recordedUnit === null ||
                 total === null || parsedQuantity === null || amountMismatch,
               frequency: item.frequency || null,
@@ -206,7 +206,7 @@ export function useClinicalActions({
           price: Number(request.approved_tariff_amount || request.total_amount || 0),
           unitPrice: Number(request.approved_tariff_amount || request.total_amount || 0),
           quantity: 1,
-          quantityNeedsReview: true,
+          quantityNeedsReview: false,
           priceNeedsReview: true,
           frequency: null,
           duration: null,
@@ -381,6 +381,10 @@ export function useClinicalActions({
     if (
       open &&
       request &&
+      // The queue initially opens a lightweight row. Do not let its missing
+      // diagnosis/treatment fields overwrite the full database record while
+      // the modal's detail request is still in flight.
+      Object.prototype.hasOwnProperty.call(request, "approved_items") &&
       !DECIDED_STATUSES.includes(request.status) &&
       !approvalResult &&
       !declineResult
@@ -437,6 +441,15 @@ export function useClinicalActions({
 
   const persistRequestUpdate = useCallback(
     async (targetStatus: string, officialLabel: string, options?: { closeAfter?: boolean }) => {
+      if (!Object.prototype.hasOwnProperty.call(request || {}, "approved_items")) {
+        toast({
+          variant: "destructive",
+          title: "Request details are still loading",
+          description: "Wait for the diagnosis and treatment details to finish loading, then try again.",
+        });
+        setProcessingAction(null);
+        return false;
+      }
       if (request?.deletion_status === "awaiting_admin_approval") {
         toast({
           variant: "destructive",

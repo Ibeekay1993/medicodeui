@@ -136,6 +136,14 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
   const isHospitalDirected = ["hospital_portal", "hospital", "portal"].includes(request?.source);
   const requestPatientName = cleanPatientName(request?.patient_name || "");
   const requestPolicyNumber = String(request?.policy_number || "").trim();
+  const requestDetailsLoaded = Boolean(
+    request && Object.prototype.hasOwnProperty.call(request, "approved_items")
+  );
+  const isPending = ["pending", "pending_referral", "pending_authorization", "info_provided"].includes(request?.status || "");
+  const isDecided = !isPending;
+  const isLocked = isDecided && !request?.is_unlocked;
+  const isDeletionLocked = request?.deletion_status === "awaiting_admin_approval";
+  const canManageClinicalCart = requestDetailsLoaded && role !== "hospital" && !isLocked && !isDeletionLocked;
 
   const formattedNotes = useMemo(() => {
     const sourceNotes = request?.decision_reason || request?.clinical_notes;
@@ -311,6 +319,7 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
   };
   // 2. Add local state for editTreatment
   const [editTreatment, setEditTreatment] = useState("");
+  const [recoveredDiagnosis, setRecoveredDiagnosis] = useState<{ requestId: string; text: string } | null>(null);
 
   useEffect(() => {
     if (open && request) {
@@ -318,37 +327,38 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
     }
   }, [open, request]);
 
-  // Fallback for WhatsApp requests where treatment field is empty in DB:
-  // fetch the raw WhatsApp message body and extract Services/Treatment lines.
+  // Recover missing WhatsApp diagnosis/treatment values from the source message.
   useEffect(() => {
     if (!open || !request) return;
-    if (request.treatment?.trim()) return; // already has treatment
     if (request.source !== "whatsapp") return; // only WhatsApp requests need this
+    const needsDiagnosis = !request.diagnosis?.trim();
+    const needsTreatment = !request.treatment?.trim() && !extractTreatmentText(request);
+    if (!needsDiagnosis && !needsTreatment) return;
     const msgId = request.whatsapp_message_id;
     if (!msgId) return;
 
-    supabase
-      .from("whatsapp_messages")
-      .select("message_body")
-      .or(`message_id.eq.${msgId},id.eq.${msgId}`)
-      .maybeSingle()
-      .then(({ data }) => {
-        const body = data?.message_body;
-        if (!body || typeof body !== "string") return;
-        const lines = body.split(/\r?\n/);
-        const serviceLines: string[] = [];
-        for (const line of lines) {
-          if (/^\s*(?:services?|drugs?|treatment|procedure|investigation)\s*:/i.test(line)) {
-            const val = line.replace(/^\s*[\w\s]+:\s*/i, "").trim();
-            if (val) serviceLines.push(val);
-          }
-        }
-        if (serviceLines.length > 0) {
-          setEditTreatment(serviceLines.join(", "));
-        }
-      }, () => { /* silently ignore */ });
+    let cancelled = false;
+    const recoverClinicalText = async () => {
+      const { data, error } = await supabase.functions.invoke("get-whatsapp-clinical-details", {
+        body: { request_id: request.id },
+      });
+      if (error) throw error;
+      if (cancelled || !data) return;
+
+      const diagnosis = typeof data.diagnosis === "string" ? data.diagnosis.trim() : "";
+      if (needsDiagnosis && diagnosis) setRecoveredDiagnosis({ requestId: request.id, text: diagnosis });
+
+      const treatment = typeof data.treatment === "string" ? data.treatment.trim() : "";
+      if (needsTreatment && treatment) {
+        setEditTreatment((current) => cancelled || current.trim() ? current : treatment);
+      }
+    };
+    void recoverClinicalText().catch((error) => {
+      if (!cancelled) console.warn("Could not recover missing WhatsApp clinical details from the source message:", error);
+    });
+    return () => { cancelled = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, request?.id, request?.source, request?.whatsapp_message_id, request?.treatment]);
+  }, [open, request?.id, request?.source, request?.whatsapp_message_id, request?.diagnosis, request?.treatment, request?.clinical_notes]);
 
   useEffect(() => {
     if (!open || !request) return;
@@ -365,7 +375,7 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
   }, [open, request?.id]);
 
   // 3. Initialize manual/auto tariff search hook
-  const tariffSearch = useTariffSearch(open, editTreatment, request, !isHospitalDirected && role !== "hospital");
+  const tariffSearch = useTariffSearch(open, editTreatment, request, canManageClinicalCart && !isHospitalDirected);
 
   // 3. Initialize decision & saving actions hook
   const actions = useClinicalActions({
@@ -379,6 +389,30 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
     editTreatment,
     setEditTreatment,
   });
+
+  useEffect(() => {
+    if (
+      !open ||
+      !requestDetailsLoaded ||
+      !request ||
+      request.source !== "whatsapp" ||
+      request.diagnosis?.trim() ||
+      !recoveredDiagnosis ||
+      recoveredDiagnosis.requestId !== request.id ||
+      !recoveredDiagnosis.text.trim() ||
+      actions.editDiagnosis.trim()
+    ) return;
+    actions.setEditDiagnosis(recoveredDiagnosis.text);
+  }, [
+    open,
+    requestDetailsLoaded,
+    request?.id,
+    request?.source,
+    request?.diagnosis,
+    recoveredDiagnosis,
+    actions.editDiagnosis,
+    actions.setEditDiagnosis,
+  ]);
   const visibleOtpValue = otpValue || actions.arrivalOtp || actions.treatmentOtp;
 
   useEffect(() => {
@@ -443,9 +477,6 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
   }, [verification.sheetHistory, verification.localHistory, targetPolicy]);
 
   const allowDelete = canDeleteRequestRecord(request);
-  const isPending = ["pending", "pending_referral", "pending_authorization", "info_provided"].includes(request?.status || "");
-  const isDecided = !isPending;
-  const isLocked = isDecided && !request?.is_unlocked;
   const authorizationSlaMinutes = request && (isPending || request.decided_at)
     ? getAuthorizationSlaMinutes(request)
     : null;
@@ -976,10 +1007,10 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
                   
                   <textarea 
                     className="w-full p-2.5 border border-slate-200 rounded-lg text-xs sm:text-[13px] font-semibold text-slate-900 bg-white min-h-[60px] focus:outline-none focus:ring-2 focus:ring-slate-500/30 placeholder:text-slate-400 disabled:opacity-80"
-                    placeholder="Diagnosis..."
+                    placeholder={requestDetailsLoaded ? "Diagnosis..." : "Loading diagnosis..."}
                     value={actions.editDiagnosis}
                     onChange={(e) => actions.setEditDiagnosis(e.target.value)}
-                    readOnly={isLocked || request?.deletion_status === "awaiting_admin_approval" || role === "hospital" || !!request?.referred_hospital_name}
+                    readOnly={!requestDetailsLoaded || isLocked || isDeletionLocked || role === "hospital" || !!request?.referred_hospital_name}
                   />
 
                   <div className="text-[11px] sm:text-xs font-bold text-slate-700 uppercase tracking-wide flex flex-wrap items-center gap-2 pt-2 border-t border-slate-200">
@@ -989,14 +1020,14 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
                   
                   <textarea 
                     className="w-full p-2.5 border border-slate-200 rounded-lg text-xs sm:text-[13px] font-semibold text-slate-900 bg-white min-h-[76px] focus:outline-none focus:ring-2 focus:ring-slate-500/30 placeholder:text-slate-400 disabled:opacity-80"
-                    placeholder="Treatment Plan..."
+                    placeholder={requestDetailsLoaded ? "Treatment Plan..." : "Loading treatment..."}
                     value={actions.editTreatment}
                     onChange={(e) => actions.setEditTreatment(e.target.value)}
                     onBlur={() => {
-                      if (isLocked || role === "hospital") return;
+                      if (!canManageClinicalCart) return;
                       void tariffSearch.parseTreatmentText({ replaceAuto: true, quiet: true });
                     }}
-                    readOnly={isLocked || request?.deletion_status === "awaiting_admin_approval" || role === "hospital"}
+                    readOnly={!requestDetailsLoaded || isHospitalDirected || isLocked || isDeletionLocked}
                   />
                   
                   {/* Referral details container */}
@@ -1084,7 +1115,7 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
 
                 <div className="bg-white rounded-[1.2rem] sm:rounded-[1.5rem] border border-slate-100 shadow-sm p-4 sm:p-5 relative overflow-hidden group mb-3">
                   {/* Treatment Cart Component */}
-                  <TreatmentCart
+                  {requestDetailsLoaded ? <TreatmentCart
                     request={request}
                     approvedItems={tariffSearch.approvedItems}
                     removeApprovedItem={tariffSearch.removeApprovedItem}
@@ -1110,8 +1141,13 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
                     addApprovedItem={tariffSearch.addApprovedItem}
                     cartCollapsed={tariffSearch.cartCollapsed}
                     setCartCollapsed={tariffSearch.setCartCollapsed}
-                    readOnly={isLocked}
-                  />
+                    readOnly={!requestDetailsLoaded || isHospitalDirected || isLocked || isDeletionLocked}
+                  /> : (
+                    <div role="status" className="flex min-h-20 items-center justify-center gap-2 rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-5 text-xs font-medium text-slate-600">
+                      <BrandSpinner className="h-4 w-4 animate-spin text-slate-500" />
+                      Loading diagnosis, treatment and saved clinical items…
+                    </div>
+                  )}
                 </div>
 
                 {/* Decision Section */}
@@ -1172,7 +1208,7 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
                         <Button
                           className="w-full sm:w-auto sm:flex-1 h-11 sm:h-12 px-6 rounded-xl bg-red-600 hover:bg-red-700 text-white text-[11px] sm:text-xs font-black uppercase tracking-widest shadow-md transition-all flex items-center justify-center gap-1.5"
                           onClick={actions.handleDecline}
-                          disabled={actions.processing || !actions.editDecisionNote}
+                          disabled={!requestDetailsLoaded || actions.processing || !actions.editDecisionNote}
                         >
                           {actions.processingAction === "decline" ? <BrandSpinner className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}
                           {isDecided ? "Update & Decline" : "Decline"}
@@ -1180,7 +1216,7 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
                         <Button
                           className="w-full sm:w-auto sm:flex-1 h-11 sm:h-12 px-6 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] sm:text-xs font-black uppercase tracking-widest shadow-md transition-all flex items-center justify-center gap-1.5"
                           onClick={actions.handleApprove}
-                          disabled={actions.processing}
+                          disabled={!requestDetailsLoaded || actions.processing}
                         >
                           {actions.processingAction === "approve" ? <BrandSpinner className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
                           {isDecided ? "Update & Re-Approve" : "Approve"}

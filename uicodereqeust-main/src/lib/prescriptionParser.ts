@@ -434,7 +434,7 @@ export async function parsePrescriptionClientFallback(
       quantity,
       quantityNeedsReview: isDrug
         ? medicationQuantityNeedsReview(cleanTerm)
-        : explicitQuantity === null,
+        : false,
       priceNeedsReview: !unitPriceIsValid,
       frequency: frequency.label,
       duration: duration.label,

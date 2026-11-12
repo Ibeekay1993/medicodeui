@@ -216,7 +216,7 @@ export default function WhatsAppPage() {
               price: Number(item.amount || 0),
               unitPrice: Number(item.unit_price || 0),
               quantity: Number(item.quantity || 1),
-              quantityNeedsReview: item.quantity_requires_review !== false,
+              quantityNeedsReview: false,
               priceNeedsReview: item.price_requires_review === true,
               matched_via: item.matched_via,
               matched_text: item.matched_text,

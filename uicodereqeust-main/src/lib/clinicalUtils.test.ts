@@ -27,10 +27,10 @@ describe("approval amount calculations", () => {
     expect(hasValidItemUnitPrice({ code: "S1", name: "Service", category: "procedure", price: Number.NaN, quantity: 1 })).toBe(false);
   });
 
-  it("blocks provisional quantities, missing treatment lines, and totals that do not reconcile", () => {
+  it("uses the displayed quantity, requires an item, and reconciles the tariff total", () => {
     const confirmed = [{ code: "D1", name: "Drug", category: "drug", price: 2100, unitPrice: 70, quantity: 30 }];
     expect(getApprovalAmountIssue(confirmed, 2100)).toBeNull();
-    expect(getApprovalAmountIssue([{ ...confirmed[0], quantityNeedsReview: true }], 70)).toContain("confirm the quantity");
+    expect(getApprovalAmountIssue([{ ...confirmed[0], quantityNeedsReview: true }], 2100)).toBeNull();
     expect(getApprovalAmountIssue([], 0)).toContain("at least one treatment item");
     expect(getApprovalAmountIssue(confirmed, 70)).toContain("does not match");
   });

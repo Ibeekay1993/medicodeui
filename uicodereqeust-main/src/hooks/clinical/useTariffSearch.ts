@@ -6,7 +6,6 @@ import {
   itemUnitPrice,
   itemQuantity,
   itemTotal,
-  hasValidItemQuantity,
   hasValidItemUnitPrice,
   parseNonNegativeAmount,
   parsePositiveQuantity,
@@ -42,9 +41,8 @@ function normalizeStoredApprovalItem(item: any) {
     unitPrice,
     price: recordedTotal ?? calculatedTotal,
     quantity,
-    // Legacy approved rows often contain the old default quantity of 1 but
-    // have no confirmation marker. Require staff review before re-approval.
-    quantityNeedsReview: item.quantity_requires_review !== false || parsedQuantity === null,
+    // Staff review the parsed quantity against the source request before approval.
+    quantityNeedsReview: false,
     priceNeedsReview: item.price_requires_review === true || recordedUnitPrice === null ||
       recordedTotal === null || parsedQuantity === null || amountMismatch,
     frequency: item.frequency || null,
@@ -68,7 +66,7 @@ function normalizeTariffSearchResult(item: any) {
     unitPrice: unitPrice ?? 0,
     price: (unitPrice ?? 0) * quantity,
     quantity,
-    quantityNeedsReview: item.quantity_requires_review !== false || parsedQuantity === null,
+    quantityNeedsReview: false,
     // Search results come directly from the active tariff catalog, so an
     // absent review marker is safe unless the returned price is invalid.
     priceNeedsReview: item.price_requires_review === true || unitPrice === null,
@@ -101,7 +99,7 @@ function normalizeParsedApprovalItem(item: any) {
     price: recordedTotal ?? ((unitPrice ?? 0) * quantity),
     unitPrice: unitPrice ?? 0,
     quantity,
-    quantityNeedsReview: item.quantity_requires_review !== false || parsedQuantity === null,
+    quantityNeedsReview: false,
     // Older parser deployments did not emit this marker. Treat their parsed
     // prices as unverified until the catalog item is reselected.
     priceNeedsReview: item.price_requires_review !== false || unitPrice === null || amountMismatch,
@@ -148,9 +146,12 @@ export function useTariffSearch(
 
   useEffect(() => {
     if (approvedItems.length === 0 && !parseStatus) {
-      setCartCollapsed(true);
+      // Keep the cart open when there is treatment text to review or search.
+      // Otherwise an empty hospital-submitted request looked as though its
+      // treatment items had failed to load, while all controls were hidden.
+      setCartCollapsed(!editTreatment.trim());
     }
-  }, [approvedItems.length, parseStatus]);
+  }, [approvedItems.length, parseStatus, editTreatment]);
 
   const normalizeParseText = (value: string) =>
     value
@@ -368,7 +369,7 @@ export function useTariffSearch(
               price: parseNonNegativeAmount(item.amount) ?? 0,
               unitPrice: parseNonNegativeAmount(item.amount) ?? 0,
               quantity: 1,
-              quantityNeedsReview: true,
+              quantityNeedsReview: false,
               priceNeedsReview: parseNonNegativeAmount(item.amount) === null,
             }))
           );
@@ -401,7 +402,7 @@ export function useTariffSearch(
         unitPrice,
         quantity,
         price: unitPrice * quantity,
-        quantityNeedsReview: item.quantityNeedsReview === true || !hasValidItemQuantity(item),
+        quantityNeedsReview: false,
         priceNeedsReview: item.priceNeedsReview === true || !hasValidItemUnitPrice(item),
         matched_via: "manual",
       }];

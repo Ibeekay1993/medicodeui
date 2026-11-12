@@ -92,7 +92,7 @@ export const TreatmentCart = React.memo(function TreatmentCart({
 
   const displayTotal = calculatedTotal;
   const hasUnconfirmedAmounts = approvedItems.some(
-    (item) => !item.declined && (item.quantityNeedsReview || item.priceNeedsReview)
+    (item) => !item.declined && item.priceNeedsReview
   );
 
   const handleConfirmDecline = () => {
@@ -120,7 +120,7 @@ export const TreatmentCart = React.memo(function TreatmentCart({
               ? "Review approved clinical codes, quantities, and pricing."
               : cartCollapsed
               ? "Tap arrow to view cart and auto-detect controls"
-              : "Auto-detect and align clinical codes, quantities, and pricing."}
+              : "Check each item and quantity against the submitted request before approval."}
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0 self-start sm:self-auto w-full sm:w-auto">
@@ -191,22 +191,6 @@ export const TreatmentCart = React.memo(function TreatmentCart({
                         )}>
                           {item.name}
                         </p>
-                        {item.quantityNeedsReview && !item.declined && (
-                          <div className="mt-1 flex min-h-8 flex-wrap items-center gap-x-1.5 gap-y-0.5 rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-[11px] font-medium leading-tight text-amber-950">
-                            <AlertTriangle className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                            <span className="min-w-0 flex-1">Provisional · verify against request or prescription</span>
-                            {!readOnly && changeItemQuantity && (
-                              <button
-                                type="button"
-                                className="min-h-7 shrink-0 rounded px-1.5 font-semibold text-amber-950 underline underline-offset-2 hover:bg-amber-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-700"
-                                aria-label={`Confirm quantity ${item.quantity} against the request or prescription`}
-                                onClick={() => changeItemQuantity(item.code, item.quantity || 1)}
-                              >
-                                Confirm {item.quantity}
-                              </button>
-                            )}
-                          </div>
-                        )}
                         {item.priceNeedsReview && !item.declined && (
                           <p className="mt-1 flex items-start gap-1.5 rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-[11px] font-medium leading-snug text-amber-900">
                             <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
@@ -256,7 +240,7 @@ export const TreatmentCart = React.memo(function TreatmentCart({
                                 updateDeclineReason?.(item.code, e.target.value)
                               }
                               className="h-7 text-xs font-bold rounded-lg border-rose-200 focus:border-rose-400 focus:ring-rose-400/20 bg-rose-50/10 placeholder:text-rose-300 placeholder:font-normal text-rose-800 focus:ring-1"
-                              disabled={request?.deletion_status === "awaiting_admin_approval" || isHospitalDirected}
+                              disabled={readOnly || request?.deletion_status === "awaiting_admin_approval" || isHospitalDirected}
                             />
                           </div>
                         )}
@@ -293,7 +277,7 @@ export const TreatmentCart = React.memo(function TreatmentCart({
                                   commitQuantity(item.code);
                                 }
                               }}
-                              disabled={item.declined || request?.deletion_status === "awaiting_admin_approval" || isHospitalDirected}
+                              disabled={readOnly || item.declined || request?.deletion_status === "awaiting_admin_approval" || isHospitalDirected}
                             >
                               <Minus className="h-3.5 w-3.5" />
                             </Button>
@@ -315,7 +299,7 @@ export const TreatmentCart = React.memo(function TreatmentCart({
                                 event.target.select();
                               }}
                               className="h-7 w-10 border-0 bg-transparent text-center font-black text-xs p-0 outline-none focus:ring-0 cursor-text text-slate-900"
-                              disabled={item.declined || request?.deletion_status === "awaiting_admin_approval" || isHospitalDirected}
+                              disabled={readOnly || item.declined || request?.deletion_status === "awaiting_admin_approval" || isHospitalDirected}
                             />
                             <Button
                               variant="ghost"
@@ -335,7 +319,7 @@ export const TreatmentCart = React.memo(function TreatmentCart({
                                   commitQuantity(item.code);
                                 }
                               }}
-                              disabled={item.declined || request?.deletion_status === "awaiting_admin_approval" || isHospitalDirected}
+                              disabled={readOnly || item.declined || request?.deletion_status === "awaiting_admin_approval" || isHospitalDirected}
                             >
                               <Plus className="h-3.5 w-3.5" />
                             </Button>

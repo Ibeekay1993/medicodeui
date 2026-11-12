@@ -56,6 +56,8 @@ const APPROVED_AUTHORIZATION_STATUSES = new Set([
 ]);
 const REJECTED_AUTHORIZATION_STATUSES = new Set([
   "rejected",
+  "declined",
+  "denied",
   "referral_declined",
   "referral_expired",
   "accepted_referral_expired",
@@ -88,6 +90,15 @@ const parseActivityRows = (rows: any[] | null | undefined) => {
     };
   });
   return parsed.every(Boolean) ? parsed : null;
+};
+
+const groupLegacyRejectedStatuses = (rows: AuthorizationStatusCount[]) => {
+  const counts = new Map<string, number>();
+  for (const row of rows) {
+    const status = ["declined", "denied"].includes(row.status) ? "rejected" : row.status;
+    counts.set(status, (counts.get(status) || 0) + row.count);
+  }
+  return Array.from(counts, ([status, count]) => ({ status, count }));
 };
 
 type DashboardFinanceAggregate = {
@@ -160,6 +171,7 @@ export default function DashboardHome() {
   const [recentDashboardRecordsError, setRecentDashboardRecordsError] = useState(false);
   const [authorizedAmountError, setAuthorizedAmountError] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [refreshingStats, setRefreshingStats] = useState(false);
   const [chartData, setChartData] = useState<any[]>([]);
   const [claimChartData, setClaimChartData] = useState<any[]>([]);
   const [chartErrors, setChartErrors] = useState({ authorization: false, claims: false, finance: false });
@@ -168,6 +180,7 @@ export default function DashboardHome() {
   const { toast } = useToast();
 
   const lastFetchedRef = useRef(0);
+  const activeStatsFetchesRef = useRef(0);
 
   const fetchStats = useCallback(async (force = false, silent = false) => {
     const now = Date.now();
@@ -177,11 +190,14 @@ export default function DashboardHome() {
     }
     lastFetchedRef.current = now;
 
+    activeStatsFetchesRef.current += 1;
+    setRefreshingStats(true);
     if (!silent) setLoading(true);
     try {
       const isClaimsRole = role === "claims" || role === "claims_lead";
       const isFinanceRole = role === "finance";
       const isAdmin = role === "admin";
+      let exactAuthorizationStatusCounts: AuthorizationStatusCount[] | null = null;
 
       if (isClaimsRole || isFinanceRole) {
         try {
@@ -286,7 +302,9 @@ export default function DashboardHome() {
             console.error("Authorization status breakdown could not be confirmed:", statusBreakdownResult.error || "Invalid response");
             setAuthorizationStatusCountsError(true);
           } else {
-            setAuthorizationStatusCounts(parsedStatusCounts);
+            const groupedStatusCounts = groupLegacyRejectedStatuses(parsedStatusCounts);
+            exactAuthorizationStatusCounts = groupedStatusCounts;
+            setAuthorizationStatusCounts(groupedStatusCounts);
             setAuthorizationStatusCountsError(false);
           }
         } catch (actionCountError) {
@@ -477,10 +495,15 @@ export default function DashboardHome() {
             rpcData.hospitals,
             rpcData.users,
           ].map(parseAggregateNumber);
-          const [liveTotal, liveApproved, liveRejected, historical, hospitals, users] = authValues;
+          const [liveTotal, liveApproved, rpcLiveRejected, historical, hospitals, users] = authValues;
+          const liveRejected = exactAuthorizationStatusCounts
+            ? exactAuthorizationStatusCounts
+                .filter((row) => REJECTED_AUTHORIZATION_STATUSES.has(row.status))
+                .reduce((sum, row) => sum + row.count, 0)
+            : rpcLiveRejected;
           const authorizedAmount = parseAggregateNumber(rpcData.auth?.approved_amount);
           const authCountsValid =
-            authValues.every((value) => Number.isFinite(value) && value >= 0) &&
+            [liveTotal, liveApproved, liveRejected, historical, hospitals, users].every((value) => Number.isFinite(value) && value >= 0) &&
             liveApproved + liveRejected <= liveTotal;
           if (authCountsValid) {
             setStats({
@@ -566,7 +589,7 @@ export default function DashboardHome() {
           const [totalRes, approvedRes, rejectedRes, hospitalsRes, usersRes, authChartRes, claimChartRes2, historicalAuths] = await Promise.all([
             supabase.from("authorization_requests").select("id", { count: "exact", head: true }).or("status.is.null,status.neq.deferred"),
             supabase.from("authorization_requests").select("id", { count: "exact", head: true }).in("status", ["approved", "partially_approved", "authorization_approved", "referral_approved", "referral_accepted"]),
-            supabase.from("authorization_requests").select("id", { count: "exact", head: true }).in("status", ["rejected", "referral_declined", "referral_expired", "accepted_referral_expired"]),
+            supabase.from("authorization_requests").select("id", { count: "exact", head: true }).in("status", ["rejected", "declined", "denied", "referral_declined", "referral_expired", "accepted_referral_expired"]),
             supabase.from("hospitals").select("id", { count: "exact", head: true }),
             supabase.from("user_roles").select("id", { count: "exact", head: true }),
             supabase.rpc("dashboard_live_activity_7d" as any),
@@ -632,6 +655,8 @@ export default function DashboardHome() {
       toast({ variant: "destructive", title: "Error", description: getErrorMessage(error, "Unable to load dashboard") });
     } finally {
       setLoading(false);
+      activeStatsFetchesRef.current = Math.max(0, activeStatsFetchesRef.current - 1);
+      setRefreshingStats(activeStatsFetchesRef.current > 0);
     }
   }, [role, toast]);
 
@@ -734,7 +759,7 @@ export default function DashboardHome() {
 
   return (
     <div className="space-y-4 max-w-full overflow-x-hidden pb-10 animate-in fade-in duration-500">
-      {!isAdmin && !isClaims && !isFinance && (statsError || authorizationStatsError || actionRequiredCountError || authorizationStatusCountsError) && (
+      {!isAdmin && !isClaims && !isFinance && !loading && !refreshingStats && (statsError || authorizationStatsError || actionRequiredCountError || authorizationStatusCountsError) && (
         <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
           <span>Dashboard totals could not be confirmed. Incomplete totals are hidden.</span>
           <button type="button" onClick={() => void fetchStats(true)} className="min-h-11 rounded-md border border-amber-300 bg-white px-4 font-semibold text-amber-950 hover:bg-amber-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-700 focus-visible:ring-offset-2">
@@ -744,7 +769,7 @@ export default function DashboardHome() {
       )}
       {isAdmin && (
         <div className="space-y-4">
-          {(statsError || authorizationStatsError || actionRequiredCountError || !statusBreakdownConsistent || authorizedAmountError || financeStatsError || claimStatsError) && (
+          {!loading && !refreshingStats && (statsError || authorizationStatsError || actionRequiredCountError || !statusBreakdownConsistent || authorizedAmountError || financeStatsError || claimStatsError) && (
             <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
               <span>Some dashboard totals or status details could not be confirmed. Retry to refresh the dashboard.</span>
               <button type="button" onClick={() => void fetchStats(true)} className="min-h-11 rounded-md border border-amber-300 bg-white px-4 font-semibold text-amber-950 hover:bg-amber-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-700 focus-visible:ring-offset-2">
@@ -758,7 +783,7 @@ export default function DashboardHome() {
             authError={authorizationStatsError}
             authAmountError={authorizedAmountError}
             authPendingError={actionRequiredCountError}
-            authStatusBreakdownError={!statusBreakdownConsistent}
+            authStatusBreakdownError={!loading && !refreshingStats && !statusBreakdownConsistent}
             authStatusCounts={authorizationStatusCounts}
             claimsError={claimStatsError}
             paymentsError={financeStatsError}

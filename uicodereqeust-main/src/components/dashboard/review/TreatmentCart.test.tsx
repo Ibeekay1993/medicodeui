@@ -1,9 +1,9 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { TreatmentCart } from "@/components/dashboard/review/TreatmentCart";
 
-describe("TreatmentCart quantity review notice", () => {
-  it("keeps the provisional quantity warning compact and confirms the displayed amount", () => {
+describe("TreatmentCart manual quantity review", () => {
+  it("calculates the amount and leaves quantity verification to the approver", () => {
     const changeItemQuantity = vi.fn();
 
     render(
@@ -19,7 +19,8 @@ describe("TreatmentCart quantity review notice", () => {
             code: "NHIA-12-04-05",
             name: "Amlodipine 10mg tablet",
             category: "drug",
-            price: 250,
+            price: 7500,
+            unitPrice: 250,
             quantity: 30,
             quantityNeedsReview: true,
           },
@@ -40,13 +41,9 @@ describe("TreatmentCart quantity review notice", () => {
       />,
     );
 
-    expect(screen.getByText("Provisional · verify against request or prescription")).toBeInTheDocument();
-    const confirmButton = screen.getByRole("button", {
-      name: "Confirm quantity 30 against the request or prescription",
-    });
-    expect(confirmButton).toHaveTextContent("Confirm 30");
-
-    fireEvent.click(confirmButton);
-    expect(changeItemQuantity).toHaveBeenCalledWith("NHIA-12-04-05", 30);
+    expect(screen.getByText("Check each item and quantity against the submitted request before approval.")).toBeInTheDocument();
+    expect(screen.queryByText(/Provisional/)).not.toBeInTheDocument();
+    expect(screen.getByText("Total Approved Amount")).toBeInTheDocument();
+    expect(changeItemQuantity).not.toHaveBeenCalled();
   });
 });

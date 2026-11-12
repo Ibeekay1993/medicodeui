@@ -685,7 +685,7 @@ serve(async (req) => {
         : explicitQuantity ?? 1;
       const quantityRequiresReview = isDrug
         ? medicationQuantityNeedsReview(term)
-        : explicitQuantity === null;
+        : false;
       const amount = unitPrice * quantity;
 
       seen.add(item.code);

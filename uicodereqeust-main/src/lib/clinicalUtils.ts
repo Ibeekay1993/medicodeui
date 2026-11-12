@@ -72,7 +72,7 @@ export function getApprovalAmountIssue(
   if (selectedItems.length === 0) return "Select at least one treatment item before approving.";
 
   for (const item of selectedItems) {
-    if (item.quantityNeedsReview === true || !hasValidItemQuantity(item)) {
+    if (!hasValidItemQuantity(item)) {
       return `${item.name}: confirm the quantity from the request or prescription.`;
     }
     if (item.priceNeedsReview === true || !hasValidItemUnitPrice(item)) {

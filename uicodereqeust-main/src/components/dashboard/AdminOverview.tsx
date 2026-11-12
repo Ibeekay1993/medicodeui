@@ -319,7 +319,7 @@ export function AdminOverview({
                   ) : (
                     <>
                       <p className="mb-3 text-xs leading-relaxed text-slate-600">
-                        Exact counts for each request status. Deferred records are excluded from active totals; referral statuses follow the existing approved-count reporting rule.
+                        Exact counts by workflow status. Declined and denied legacy statuses are grouped under Rejected; deferred records are excluded from active totals.
                       </p>
                       <ul className="grid grid-cols-1 gap-x-4 gap-y-1.5 sm:grid-cols-2 lg:grid-cols-1 2xl:grid-cols-2">
                         {authStatusCounts.map((row) => {

@@ -16,6 +16,11 @@ enabled = true
 verify_jwt = false
 entrypoint = "./functions/whatsapp-worker/index.ts"
 
+[functions.get-whatsapp-clinical-details]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/get-whatsapp-clinical-details/index.ts"
+
 [functions.process-authorization]
 enabled = true
 verify_jwt = false
