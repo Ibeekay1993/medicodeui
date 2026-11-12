@@ -3,6 +3,7 @@ import { useTabVisibilityRefresh } from "@/hooks/use-tab-visibility-refresh";
 import { useAuth } from "@/contexts/AuthContext";
 import { useHospitalProfile, useHospitalDashboard, useHospitalAnnouncements } from "../hooks/useHospitalDashboard";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
+import { RoleDashboardOverview } from "@/components/dashboard/RoleDashboardOverview";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { BrandSpinner } from "@/components/BrandSpinner";
@@ -48,6 +49,19 @@ const STATUS_SOLID: Record<string, string> = {
 const solidBadgeClass = (status?: string | null) =>
   STATUS_SOLID[String(status || "").toLowerCase()] ?? "bg-slate-500 text-white border-transparent";
 
+const formatCompactNaira = (value: number) => new Intl.NumberFormat("en-NG", {
+  style: "currency",
+  currency: "NGN",
+  notation: "compact",
+  maximumFractionDigits: 1,
+}).format(value || 0);
+
+const formatFullNaira = (value: number) => new Intl.NumberFormat("en-NG", {
+  style: "currency",
+  currency: "NGN",
+  maximumFractionDigits: 0,
+}).format(value || 0);
+
 export default function HospitalPortalPage() {
   const { user, hospitalId } = useAuth();
   const navigate = useNavigate();
@@ -57,7 +71,8 @@ export default function HospitalPortalPage() {
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
 
   const { data: hospital, isLoading: profileLoading } = useHospitalProfile(hospitalId || undefined, user?.id, user?.email);
-  const { data: dashboardData, isLoading: dashboardLoading, refetch: refreshDashboard } = useHospitalDashboard(hospital);
+  const { data: dashboardData, isLoading: dashboardLoading, isError: dashboardQueryError, isRefetchError: dashboardRefetchError, refetch: refreshDashboard } = useHospitalDashboard(hospital);
+  const dashboardError = dashboardQueryError || dashboardRefetchError;
   const { data: announcements = [] } = useHospitalAnnouncements();
 
   const metrics = dashboardData?.metrics || { 
@@ -75,9 +90,9 @@ export default function HospitalPortalPage() {
     totalClaimedValue: 0,
   };
 
-  const approachingDeadlineClaims = dashboardData?.approachingDeadlineClaims || [];
-  const recentAuthorizations = dashboardData?.recentAuthorizations || [];
-  const recentClaims = dashboardData?.recentClaims || [];
+  const approachingDeadlineClaims = dashboardError ? [] : dashboardData?.approachingDeadlineClaims || [];
+  const recentAuthorizations = dashboardError ? [] : dashboardData?.recentAuthorizations || [];
+  const recentClaims = dashboardError ? [] : dashboardData?.recentClaims || [];
   const pageLoading = profileLoading || dashboardLoading;
 
   useEffect(() => {
@@ -93,8 +108,12 @@ export default function HospitalPortalPage() {
     if (hospital) {
       setIsRefreshing(true);
       try {
-        await refreshDashboard();
-        toast({ title: "Metrics Updated", description: "Ledger data synchronized." });
+        const result = await refreshDashboard();
+        if (result.isError) {
+          toast({ variant: "destructive", title: "Refresh failed", description: "Hospital dashboard totals could not be confirmed. Retry in a moment." });
+        } else {
+          toast({ title: "Metrics updated", description: "Facility dashboard data synchronized." });
+        }
       } finally {
         setIsRefreshing(false);
       }
@@ -209,130 +228,44 @@ export default function HospitalPortalPage() {
         </div>
       )}
 
-      {/* 4. Professional KPI Grid (Clean, High Density, No Micro-Copy Slop) */}
-      <section aria-labelledby="kpi-heading" className="space-y-1.5">
-        <div className="flex items-center justify-between px-0.5">
-          <h2 id="kpi-heading" className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
-            Authorization &amp; Financial Ledger
-          </h2>
-          <span className="text-[10px] font-semibold text-slate-600">
-            Real-time Aggregation
-          </span>
-        </div>
-        
-        <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-2.5">
-          
-          {/* 1. Authorized Care Value */}
-          <Card className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm flex flex-col justify-between min-h-[80px]">
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-xs font-bold text-slate-700">Authorized Care</span>
-              <TrendingUp className="h-3.5 w-3.5 text-emerald-600" />
-            </div>
-            <div>
-              <p 
-                className="font-mono text-sm sm:text-base font-bold text-slate-900 tabular-nums leading-tight truncate"
-                title={`₦${Number(metrics.totalValue || 0).toLocaleString("en-NG")}`}
-              >
-                ₦{Number(metrics.totalValue || 0).toLocaleString("en-NG")}
-              </p>
-              <p className="text-[11px] font-bold text-emerald-700 truncate mt-0.5">
-                {metrics.approvedCount.toLocaleString()} approved
-              </p>
-            </div>
-          </Card>
-
-          {/* 2. Awaiting Payout */}
-          <Card className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm flex flex-col justify-between min-h-[80px]">
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-xs font-bold text-slate-700">Awaiting Payout</span>
-              <Banknote className="h-3.5 w-3.5 text-amber-600" />
-            </div>
-            <div>
-              <p 
-                className="font-mono text-sm sm:text-base font-bold text-amber-700 tabular-nums leading-tight truncate"
-                title={`₦${Number(metrics.pendingPayout || 0).toLocaleString("en-NG")}`}
-              >
-                ₦{Number(metrics.pendingPayout || 0).toLocaleString("en-NG")}
-              </p>
-              <p className="text-[11px] font-semibold text-slate-600 truncate mt-0.5">
-                {metrics.awaitingPaymentCount || 0} in queue
-              </p>
-            </div>
-          </Card>
-
-          {/* 3. Settled Funds */}
-          <Card className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm flex flex-col justify-between min-h-[80px]">
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-xs font-bold text-slate-700">Settled Funds</span>
-              <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
-            </div>
-            <div>
-              <p 
-                className="font-mono text-sm sm:text-base font-bold text-slate-900 tabular-nums leading-tight truncate"
-                title={`₦${Number(metrics.paidClaims || 0).toLocaleString("en-NG")}`}
-              >
-                ₦{Number(metrics.paidClaims || 0).toLocaleString("en-NG")}
-              </p>
-              <p className="text-[11px] font-semibold text-slate-600 truncate mt-0.5">
-                {metrics.paidCount || 0} disbursed
-              </p>
-            </div>
-          </Card>
-
-          {/* 4. In Claims Audit */}
-          <Card className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm flex flex-col justify-between min-h-[80px]">
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-xs font-bold text-slate-700">In Claims Audit</span>
-              <Clock className="h-3.5 w-3.5 text-sky-600" />
-            </div>
-            <div>
-              <p 
-                className="font-mono text-sm sm:text-base font-bold text-slate-900 tabular-nums leading-tight truncate"
-                title={`₦${Number(metrics.inAuditValue || 0).toLocaleString("en-NG")}`}
-              >
-                ₦{Number(metrics.inAuditValue || 0).toLocaleString("en-NG")}
-              </p>
-              <p className="text-[11px] font-bold text-sky-700 truncate mt-0.5">
-                {metrics.inAuditCount || 0} under review
-              </p>
-            </div>
-          </Card>
-
-          {/* 5. Pending Review */}
-          <Card className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm flex flex-col justify-between min-h-[80px]">
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-xs font-bold text-slate-700">Pending Review</span>
-              <Clock className="h-3.5 w-3.5 text-amber-500" />
-            </div>
-            <div>
-              <p className="font-mono text-sm sm:text-base font-bold text-slate-900 tabular-nums leading-tight">
-                {metrics.pendingCount.toLocaleString()}
-              </p>
-              <p className="text-[11px] font-semibold text-slate-600 truncate mt-0.5">
-                Awaiting decision
-              </p>
-            </div>
-          </Card>
-
-          {/* 6. Declined Auths */}
-          <Card className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm flex flex-col justify-between min-h-[80px]">
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-xs font-bold text-slate-700">Declined Auths</span>
-              <XCircle className="h-3.5 w-3.5 text-rose-600" />
-            </div>
-            <div>
-              <p className="font-mono text-sm sm:text-base font-bold text-slate-900 tabular-nums leading-tight">
-                {metrics.deniedCount.toLocaleString()}
-              </p>
-              <p className="text-[11px] font-bold text-rose-600 truncate mt-0.5">
-                Declined requests
-              </p>
-            </div>
-          </Card>
-
-        </div>
-      </section>
-
+      <RoleDashboardOverview
+        title="Facility overview"
+        loading={dashboardLoading}
+        error={dashboardError}
+        onRetry={() => void refreshDashboard()}
+        metrics={[
+          {
+            label: 'Authorized care',
+            value: dashboardError ? '—' : formatCompactNaira(metrics.totalValue),
+            detail: dashboardError ? undefined : `${metrics.approvedCount.toLocaleString('en-NG')} approved`,
+            fullValue: dashboardError ? undefined : formatFullNaira(metrics.totalValue),
+          },
+          {
+            label: 'Awaiting payout',
+            value: dashboardError ? '—' : formatCompactNaira(metrics.pendingPayout),
+            detail: dashboardError ? undefined : `${metrics.awaitingPaymentCount.toLocaleString('en-NG')} claims`,
+            fullValue: dashboardError ? undefined : formatFullNaira(metrics.pendingPayout),
+          },
+          {
+            label: 'Claims under review',
+            value: dashboardError ? '—' : metrics.inAuditCount.toLocaleString('en-NG'),
+            detail: dashboardError ? undefined : formatCompactNaira(metrics.inAuditValue),
+            fullValue: dashboardError ? undefined : formatFullNaira(metrics.inAuditValue),
+          },
+        ]}
+        attention={dashboardError ? [] : [
+          ...(metrics.pendingCount > 0 ? [{ label: 'Authorization requests awaiting a decision', value: metrics.pendingCount.toLocaleString('en-NG'), to: '/dashboard/authorizations' }] : []),
+          ...(metrics.inAuditCount > 0 ? [{ label: 'Claims under review', value: metrics.inAuditCount.toLocaleString('en-NG'), to: '/dashboard/claims' }] : []),
+          ...(metrics.awaitingPaymentCount > 0 ? [{ label: 'Claims awaiting payment', value: metrics.awaitingPaymentCount.toLocaleString('en-NG'), detail: formatCompactNaira(metrics.pendingPayout), to: '/dashboard/claims' }] : []),
+          ...(approachingDeadlineClaims.length > 0 ? [{ label: 'Claims nearing contest deadline', value: approachingDeadlineClaims.length.toLocaleString('en-NG'), to: '/dashboard/claims' }] : []),
+        ]}
+        steps={[
+          { label: 'Approved requests', value: dashboardError ? '—' : metrics.approvedCount.toLocaleString('en-NG'), detail: dashboardError ? undefined : formatCompactNaira(metrics.totalValue) },
+          { label: 'Awaiting decision', value: dashboardError ? '—' : metrics.pendingCount.toLocaleString('en-NG') },
+          { label: 'Claims in review', value: dashboardError ? '—' : metrics.inAuditCount.toLocaleString('en-NG') },
+          { label: 'Paid claims', value: dashboardError ? '—' : metrics.paidCount.toLocaleString('en-NG'), detail: dashboardError ? undefined : formatCompactNaira(metrics.paidClaims) },
+        ]}
+      />
       {/* 5. Live Data Ledgers (Solid Badges, Compact Tables) */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-3.5">
         
@@ -368,8 +301,8 @@ export default function HospitalPortalPage() {
               <tbody className="divide-y divide-slate-100">
                 {recentAuthorizations.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="py-8 text-center text-xs font-bold uppercase tracking-wider text-slate-600">
-                      No authorization requests found.
+                    <td colSpan={5} className="py-8 text-center text-xs font-medium text-slate-600">
+                      {dashboardError ? "Authorization activity is unavailable. Retry the dashboard to reload it." : dashboardLoading ? "Loading authorization activity…" : "No authorization requests found."}
                     </td>
                   </tr>
                 ) : (
@@ -490,8 +423,8 @@ export default function HospitalPortalPage() {
               <tbody className="divide-y divide-slate-100">
                 {recentClaims.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="py-8 text-center text-xs font-bold uppercase tracking-wider text-slate-600">
-                      No claims submitted yet.
+                    <td colSpan={5} className="py-8 text-center text-xs font-medium text-slate-600">
+                      {dashboardError ? "Claims activity is unavailable. Retry the dashboard to reload it." : dashboardLoading ? "Loading claims activity…" : "No claims submitted yet."}
                     </td>
                   </tr>
                 ) : (

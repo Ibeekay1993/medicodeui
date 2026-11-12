@@ -89,147 +89,70 @@ export class HospitalService {
       };
     }
 
-    // 1. High-precision database-side aggregation RPC (Elon Musk standard: exact, zero slop)
-    try {
-      const { data: rpcMetrics, error: rpcError } = await (supabase.rpc as any)(
-        'get_hospital_dashboard_metrics',
-        { p_hospital_id: hosp.id }
-      );
-      if (!rpcError && rpcMetrics) {
-        const recentAuthorizations = Array.isArray(rpcMetrics.recentAuthorizations)
-          ? rpcMetrics.recentAuthorizations.filter((item: any) => isHospitalRequestVisible(item, hosp))
-          : [];
-        const recentClaims = Array.isArray(rpcMetrics.recentClaims)
-          ? rpcMetrics.recentClaims.filter((item: any) => isHospitalRequestVisible(item, hosp))
-          : [];
-
-        return {
-          metrics: {
-            approvedCount: Number(rpcMetrics.approvedCount || 0),
-            pendingCount: Number(rpcMetrics.pendingCount || 0),
-            deniedCount: Number(rpcMetrics.deniedCount || 0),
-            totalValue: Number(rpcMetrics.totalValue || 0),
-            inAuditCount: Number(rpcMetrics.inAuditCount || 0),
-            inAuditValue: Number(rpcMetrics.inAuditValue || 0),
-            awaitingPaymentCount: Number(rpcMetrics.awaitingPaymentCount || 0),
-            pendingPayout: Number(rpcMetrics.pendingPayout || 0),
-            paidCount: Number(rpcMetrics.paidCount || 0),
-            paidClaims: Number(rpcMetrics.paidClaims || 0),
-            totalClaimsCount: Number(rpcMetrics.totalClaimsCount || 0),
-            totalClaimedValue: Number(rpcMetrics.totalClaimedValue || 0),
-          },
-          approachingDeadlineClaims: Array.isArray(rpcMetrics.approachingDeadlineClaims)
-            ? rpcMetrics.approachingDeadlineClaims.filter((item: any) => isHospitalRequestVisible(item, hosp))
-            : [],
-          recentAuthorizations,
-          recentClaims,
-        };
-      }
-    } catch {
-      // Fallback below
+    const { data: rpcMetrics, error } = await (supabase.rpc as any)(
+      'get_hospital_dashboard_metrics',
+      { p_hospital_id: hosp.id },
+    );
+    if (error || !rpcMetrics || typeof rpcMetrics !== 'object') {
+      console.error('Hospital dashboard aggregation failed.', error || 'Invalid response');
+      throw new Error('Hospital dashboard data could not be confirmed. Retry to refresh it.');
     }
 
-    // 2. Mathematically precise client-side fallback query
-    const authQuery = [
-      `hospital_id.eq.${hosp.id}`,
-      `requesting_hospital_id.eq.${hosp.id}`,
-      `referring_hospital_id.eq.${hosp.id}`,
-      `referred_hospital_id.eq.${hosp.id}`,
-      `claiming_hospital_id.eq.${hosp.id}`,
-    ];
-
-    const claimQuery = [
-      `hospital_id.eq.${hosp.id}`,
-      `claiming_hospital_id.eq.${hosp.id}`,
-    ];
-
-    const [authRes, claimsRes] = await Promise.all([
-      supabase
-        .from('authorization_requests')
-        .select('id, request_id, patient_name, policy_number, diagnosis, authorization_code, status, total_amount, referred_hospital_id, hospital_id, claimed, claim_status, is_unlocked, created_at, deletion_status, is_historical, source')
-        .or(authQuery.join(','))
-        .order('created_at', { ascending: false })
-        .limit(1000),
-      supabase
-        .from('hospital_claims' as any)
-        .select('id, claim_number, auth_code, patient_name, policy_number, status, payment_status, approved_amount, total_amount, declined_amount, contest_deadline, created_at')
-        .or(claimQuery.join(','))
-        .order('created_at', { ascending: false })
-        .limit(1000),
-    ]);
-
-    if (authRes.error) throw authRes.error;
-    if (claimsRes.error) throw claimsRes.error;
-
-    // Filter out deleted or awaiting delete records and keep newly onboarded portals on a clean slate.
-    const auths = (authRes.data || []).filter((d: any) => 
-      d.deletion_status !== 'awaiting_admin_approval' &&
-      !['deleted', 'awaiting_delete', 'withdrawn'].includes(String(d.status || '').toLowerCase()) &&
-      isHospitalRequestVisible(d, hosp)
-    );
-    const claims = (claimsRes.data || []).filter((c: any) => isHospitalRequestVisible(c, hosp));
-
-    const approvedList = auths.filter((d: any) => 
-      ['approved', 'authorization_approved', 'partially_approved'].includes(String(d.status || '').toLowerCase())
-    );
-    const pendingList = auths.filter((d: any) => [
-      'pending', 'pending_referral', 'referral_approved', 'referral_accepted', 'pending_authorization', 'info_provided'
-    ].includes(String(d.status || '').toLowerCase()));
-    const deniedList = auths.filter((d: any) => 
-      ['rejected', 'referral_declined', 'referral_expired'].includes(String(d.status || '').toLowerCase())
-    );
-
-    // Sum ONLY approved care amounts for treating facility
-    const totalApprovedValue = approvedList
-      .filter((d: any) => !(d.referred_hospital_id && d.hospital_id === hosp.id && d.referred_hospital_id !== hosp.id))
-      .reduce((sum: number, d: any) => sum + (Number(d.total_amount) || 0), 0);
-
-    const inAuditClaims = claims.filter((c: any) => 
-      ['submitted', 'under_review', 'pending'].includes(String(c.status || '').toLowerCase())
-    );
-    const awaitingPayClaims = claims.filter((c: any) => 
-      ['approved', 'partially_approved'].includes(String(c.status || '').toLowerCase()) &&
-      String(c.payment_status || '').toLowerCase() !== 'paid'
-    );
-    const paidList = claims.filter((c: any) => 
-      String(c.status || '').toLowerCase() === 'paid' || 
-      String(c.payment_status || '').toLowerCase() === 'paid'
-    );
-
-    const metrics = {
-      approvedCount: approvedList.length,
-      pendingCount: pendingList.length,
-      deniedCount: deniedList.length,
-      totalValue: totalApprovedValue,
-      inAuditCount: inAuditClaims.length,
-      inAuditValue: inAuditClaims.reduce((sum: number, c: any) => sum + (Number(c.total_amount) || 0), 0),
-      awaitingPaymentCount: awaitingPayClaims.length,
-      pendingPayout: awaitingPayClaims.reduce((sum: number, c: any) => sum + (Number(c.approved_amount || c.total_amount) || 0), 0),
-      paidCount: paidList.length,
-      paidClaims: paidList.reduce((sum: number, c: any) => sum + (Number(c.approved_amount || c.total_amount) || 0), 0),
-      totalClaimsCount: claims.length,
-      totalClaimedValue: claims.reduce((sum: number, c: any) => sum + (Number(c.total_amount) || 0), 0),
-    };
-
-    const now = new Date();
-    const fiveDaysFromNow = new Date();
-    fiveDaysFromNow.setDate(now.getDate() + 5);
-
-    const approachingDeadlineClaims = claims.filter((c: any) => {
-      if (String(c.status).toLowerCase() !== 'partially_approved') return false;
-      if (!c.contest_deadline) return false;
-      const deadline = new Date(c.contest_deadline);
-      return deadline > now && deadline <= fiveDaysFromNow;
+    const metricFields = [
+      'approvedCount',
+      'pendingCount',
+      'deniedCount',
+      'totalValue',
+      'inAuditCount',
+      'inAuditValue',
+      'awaitingPaymentCount',
+      'pendingPayout',
+      'paidCount',
+      'paidClaims',
+      'totalClaimsCount',
+      'totalClaimedValue',
+    ] as const;
+    const metricValues = metricFields.map((field) => {
+      const value = rpcMetrics[field];
+      if ((typeof value !== 'number' && typeof value !== 'string') || (typeof value === 'string' && !value.trim())) {
+        return Number.NaN;
+      }
+      return Number(value);
     });
+    if (metricValues.some((value) => !Number.isFinite(value) || value < 0)) {
+      console.error('Hospital dashboard aggregation returned incomplete metrics.');
+      throw new Error('Hospital dashboard data could not be confirmed. Retry to refresh it.');
+    }
+
+    if (
+      !Array.isArray(rpcMetrics.approachingDeadlineClaims) ||
+      !Array.isArray(rpcMetrics.recentAuthorizations) ||
+      !Array.isArray(rpcMetrics.recentClaims)
+    ) {
+      console.error('Hospital dashboard aggregation returned incomplete activity lists.');
+      throw new Error('Hospital dashboard data could not be confirmed. Retry to refresh it.');
+    }
 
     return {
-      metrics,
-      approachingDeadlineClaims,
-      recentAuthorizations: auths.slice(0, 6),
-      recentClaims: claims.slice(0, 6),
+      metrics: {
+        approvedCount: metricValues[0],
+        pendingCount: metricValues[1],
+        deniedCount: metricValues[2],
+        totalValue: metricValues[3],
+        inAuditCount: metricValues[4],
+        inAuditValue: metricValues[5],
+        awaitingPaymentCount: metricValues[6],
+        pendingPayout: metricValues[7],
+        paidCount: metricValues[8],
+        paidClaims: metricValues[9],
+        totalClaimsCount: metricValues[10],
+        totalClaimedValue: metricValues[11],
+      },
+      approachingDeadlineClaims: rpcMetrics.approachingDeadlineClaims.filter((item: any) => isHospitalRequestVisible(item, hosp)),
+      recentAuthorizations: rpcMetrics.recentAuthorizations.filter((item: any) => isHospitalRequestVisible(item, hosp)),
+      recentClaims: rpcMetrics.recentClaims.filter((item: any) => isHospitalRequestVisible(item, hosp)),
     };
   }
-
   static async getAnnouncements() {
     const { data, error } = await supabase
       .from("hmo_announcements")

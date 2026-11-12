@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { ACTION_REQUIRED_AUTHORIZATION_STATUSES } from "@/features/dashboard/constants/requestStatuses";
 
 export class RequestsService {
   static async getRequests({
@@ -27,7 +28,7 @@ export class RequestsService {
     }
 
     if (statusFilter === "action_required") {
-      q = q.in("status", ["pending", "otp_pending", "awaiting_details"]);
+      q = q.in("status", [...ACTION_REQUIRED_AUTHORIZATION_STATUSES]);
     } else if (statusFilter !== "all") {
       q = q.eq("status", statusFilter as any);
     }

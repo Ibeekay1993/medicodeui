@@ -52,16 +52,16 @@ export function NavItem({ item, isActive, onClick, variant, expanded = true }: N
         aria-label={item.name}
         aria-current={isActive ? "page" : undefined}
         className={cn(
-          "w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 group relative text-left",
+          "w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 group relative text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900",
           isActive
             ? "bg-white text-slate-900 shadow-elevation-3 border-l-[3px] border-brand-700"
-            : "text-slate-300 hover:bg-white/10 hover:text-white",
+            : "text-slate-200 hover:bg-white/10 hover:text-white",
           !expanded && "justify-center px-0"
         )}
       >
-        <Icon className={cn("h-4 w-4 shrink-0", isActive ? "text-brand-700" : "text-slate-300 group-hover:text-white")} />
+        <Icon className={cn("h-4 w-4 shrink-0", isActive ? "text-brand-700" : "text-slate-200 group-hover:text-white")} />
         {expanded && (
-          <span className={cn("whitespace-nowrap text-sm", isActive ? "font-semibold text-slate-950" : "font-medium text-slate-300 group-hover:text-white")}>
+          <span className={cn("whitespace-nowrap text-sm", isActive ? "font-semibold text-slate-950" : "font-medium text-slate-200 group-hover:text-white")}>
             {label}
           </span>
         )}
@@ -77,10 +77,10 @@ export function NavItem({ item, isActive, onClick, variant, expanded = true }: N
         aria-current={isActive ? "page" : undefined}
         className={cn(
           "w-full flex items-center gap-4 px-4 py-3.5 rounded-xl text-sm font-medium transition-all text-left",
-          isActive ? "bg-white text-slate-900 shadow-elevation-3" : "text-slate-300 hover:bg-white/10 hover:text-white"
+          isActive ? "bg-white text-slate-900 shadow-elevation-3" : "text-slate-200 hover:bg-white/10 hover:text-white"
         )}
       >
-        <Icon className={cn("h-4 w-4", isActive ? "text-brand-700" : "text-slate-300")} />
+        <Icon className={cn("h-4 w-4", isActive ? "text-brand-700" : "text-slate-200")} />
         {label}
         {(item.badge ?? 0) > 0 && <BadgePill count={item.badge ?? 0} tone={isActive ? "active" : "inactive"} />}
       </button>

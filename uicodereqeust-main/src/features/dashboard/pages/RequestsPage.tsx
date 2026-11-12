@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { RequestList } from "@/components/dashboard/requests/RequestList";
+import { ACTION_REQUIRED_AUTHORIZATION_STATUSES } from "@/features/dashboard/constants/requestStatuses";
 
 type RequestRow = Database["public"]["Tables"]["authorization_requests"]["Row"];
 import { Card } from "@/components/ui/card";
@@ -40,7 +41,11 @@ export default function RequestsPage() {
   const reviewIdFromUrl = searchParams.get("review");
   const [search, setSearch] = useState(() => sessionStorage.getItem("req_search") || "");
   const [selectedRequest, setSelectedRequest] = useState<any | null>(null);
-  const [statusFilter, setStatusFilter] = useState(() => sessionStorage.getItem("req_status_filter") || "action_required");
+  const [statusFilter, setStatusFilter] = useState(() =>
+    searchParams.get("status") === "action_required"
+      ? "action_required"
+      : sessionStorage.getItem("req_status_filter") || "action_required",
+  );
   const [dateFilter, _setDateFilter] = useState(() => sessionStorage.getItem("req_date_filter") || "all");
   const [currentPage, setCurrentPage] = useState(() => {
     const val = sessionStorage.getItem("req_page");
@@ -60,6 +65,24 @@ export default function RequestsPage() {
   const isMobile = useIsMobile();
   const rowsPerPage = isMobile ? 30 : 50;
   const { toast } = useToast();
+
+  const handleQueueTabChange = (value: string) => {
+    setStatusFilter(value);
+    setCurrentPage(1);
+    setSearchParams((current) => {
+      const next = new URLSearchParams(current);
+      if (value === "action_required") next.set("status", "action_required");
+      else next.delete("status");
+      return next;
+    }, { replace: true });
+  };
+
+  useEffect(() => {
+    if (searchParams.get("status") === "action_required") {
+      setStatusFilter("action_required");
+      setCurrentPage(1);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     sessionStorage.setItem("req_search", search);
@@ -100,7 +123,7 @@ export default function RequestsPage() {
         .order("created_at", { ascending: false });
       if (search) q = q.or(`patient_name.ilike.%${search}%,policy_number.ilike.%${search}%,request_id.ilike.%${search}%,authorization_code.ilike.%${search}%`);
       if (statusFilter === "action_required") {
-        q = q.in("status", ["pending", "pending_referral", "pending_authorization", "info_provided"]);
+        q = q.in("status", [...ACTION_REQUIRED_AUTHORIZATION_STATUSES]);
       } else if (statusFilter !== "all") {
         q = q.eq("status", statusFilter);
       }
@@ -135,7 +158,7 @@ export default function RequestsPage() {
   const requests = useMemo(() => {
     const raw = data?.rows || [];
     if (statusFilter !== "all") return raw;
-    const pendingStatuses = ["pending", "pending_referral", "pending_authorization", "info_provided"];
+    const pendingStatuses: readonly string[] = ACTION_REQUIRED_AUTHORIZATION_STATUSES;
     return [...raw].sort((a, b) => {
       const aPending = pendingStatuses.includes(a.status);
       const bPending = pendingStatuses.includes(b.status);
@@ -461,7 +484,7 @@ export default function RequestsPage() {
       <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
         <div className="flex min-w-0 flex-col items-stretch justify-between gap-3 lg:flex-row lg:items-center lg:gap-4">
           <div className="w-full min-w-0 lg:w-auto">
-            <Tabs value={statusFilter === 'action_required' ? 'action_required' : 'all'} onValueChange={(val) => { setStatusFilter(val); setCurrentPage(1); }} className="w-full min-w-0 lg:w-auto">
+            <Tabs value={statusFilter === 'action_required' ? 'action_required' : 'all'} onValueChange={handleQueueTabChange} className="w-full min-w-0 lg:w-auto">
               <TabsList aria-label="Filter authorization requests" className="grid h-auto w-full grid-cols-2 rounded-xl bg-slate-100 p-1 shadow-inner ring-1 ring-inset ring-slate-200 sm:h-11 lg:w-auto lg:min-w-[280px]">
                 <TabsTrigger value="action_required" className="h-11 w-full overflow-hidden whitespace-nowrap rounded-lg px-1.5 py-0 text-center text-[11px] font-bold tracking-tight text-slate-600 transition-all duration-150 data-[state=active]:bg-slate-900 data-[state=active]:text-white data-[state=active]:shadow-sm data-[state=active]:ring-1 data-[state=active]:ring-slate-700/10 data-[state=inactive]:bg-transparent data-[state=inactive]:text-slate-600 data-[state=inactive]:hover:bg-slate-200/80 sm:h-9 sm:px-3 sm:text-xs">Action Needed</TabsTrigger>
                 <TabsTrigger value="all" className="h-11 w-full overflow-hidden whitespace-nowrap rounded-lg px-1.5 py-0 text-center text-[11px] font-bold tracking-tight text-slate-600 transition-all duration-150 data-[state=active]:bg-slate-900 data-[state=active]:text-white data-[state=active]:shadow-sm data-[state=active]:ring-1 data-[state=active]:ring-slate-700/10 data-[state=inactive]:bg-transparent data-[state=inactive]:text-slate-600 data-[state=inactive]:hover:bg-slate-200/80 sm:h-9 sm:px-3 sm:text-xs">All Requests</TabsTrigger>

@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Card } from "@/components/ui/card";
-import { DashboardMetricGrid } from "@/components/dashboard/DashboardMetricGrid";
 import { AdminOverview } from "@/components/dashboard/AdminOverview";
+import { RoleDashboardOverview, type RoleDashboardRecord } from "@/components/dashboard/RoleDashboardOverview";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { ACTION_REQUIRED_AUTHORIZATION_STATUSES } from "@/features/dashboard/constants/requestStatuses";
 import {
   ArrowUpRight,
   Banknote,
@@ -27,7 +28,6 @@ import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { getErrorMessage } from "@/lib/errors";
 import { useTabVisibilityRefresh } from "@/hooks/use-tab-visibility-refresh";
-import { buildLastNDayBuckets } from "@/lib/chart-date-utils";
 import {
   Area,
   AreaChart,
@@ -45,12 +45,54 @@ const money = (value: number) =>
     maximumFractionDigits: 0,
   }).format(value || 0);
 
+const compactMoney = (value: number) => new Intl.NumberFormat("en-NG", {
+  style: "currency",
+  currency: "NGN",
+  notation: "compact",
+  maximumFractionDigits: 1,
+}).format(value || 0);
+
+const APPROVED_AUTHORIZATION_STATUSES = new Set([
+  "approved",
+  "partially_approved",
+  "authorization_approved",
+  "referral_approved",
+  "referral_accepted",
+]);
+const REJECTED_AUTHORIZATION_STATUSES = new Set([
+  "rejected",
+  "referral_declined",
+  "referral_expired",
+  "accepted_referral_expired",
+]);
+
+type AuthorizationStatusCount = { status: string; count: number };
+
 const parseAggregateNumber = (value: unknown) => {
   if ((typeof value !== "number" && typeof value !== "string") || (typeof value === "string" && !value.trim())) {
     return Number.NaN;
   }
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : Number.NaN;
+};
+
+const parseActivityRows = (rows: any[] | null | undefined) => {
+  if (!Array.isArray(rows)) return null;
+  const parsed = rows.map((row: any) => {
+    const volume = parseAggregateNumber(row?.volume);
+    const approved = parseAggregateNumber(row?.approved ?? row?.amount);
+    if (typeof row?.day !== "string" || !Number.isFinite(volume) || volume < 0 || !Number.isFinite(approved) || approved < 0) {
+      return null;
+    }
+    return {
+      dateStr: row.day,
+      name: typeof row.day_label === "string" ? row.day_label : row.day,
+      tickLabel: typeof row.day_label === "string" ? row.day_label.split(" ").slice(1).join(" ") || row.day : row.day,
+      volume,
+      approved,
+    };
+  });
+  return parsed.every(Boolean) ? parsed : null;
 };
 
 type DashboardFinanceAggregate = {
@@ -115,10 +157,17 @@ export default function DashboardHome() {
   const [claimStatsError, setClaimStatsError] = useState(false);
   const [statsError, setStatsError] = useState(false);
   const [authorizationStatsError, setAuthorizationStatsError] = useState(false);
+  const [actionRequiredCount, setActionRequiredCount] = useState(0);
+  const [actionRequiredCountError, setActionRequiredCountError] = useState(false);
+  const [authorizationStatusCounts, setAuthorizationStatusCounts] = useState<AuthorizationStatusCount[]>([]);
+  const [authorizationStatusCountsError, setAuthorizationStatusCountsError] = useState(false);
+  const [recentDashboardRecords, setRecentDashboardRecords] = useState<RoleDashboardRecord[]>([]);
+  const [recentDashboardRecordsError, setRecentDashboardRecordsError] = useState(false);
   const [authorizedAmountError, setAuthorizedAmountError] = useState(false);
   const [loading, setLoading] = useState(true);
   const [chartData, setChartData] = useState<any[]>([]);
   const [claimChartData, setClaimChartData] = useState<any[]>([]);
+  const [chartErrors, setChartErrors] = useState({ authorization: false, claims: false, finance: false });
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
@@ -138,6 +187,124 @@ export default function DashboardHome() {
       const isClaimsRole = role === "claims" || role === "claims_lead";
       const isFinanceRole = role === "finance";
       const isAdmin = role === "admin";
+
+      if (isClaimsRole || isFinanceRole) {
+        try {
+          const recentQuery = isClaimsRole
+            ? supabase
+                .from("hospital_claims" as any)
+                .select("id, claim_number, status, total_amount, created_at")
+                .order("created_at", { ascending: false })
+                .limit(5)
+            : (supabase as any)
+                .from("payment_batches")
+                .select("id, batch_reference, status, total_amount, created_at")
+                .order("created_at", { ascending: false })
+                .limit(5);
+          const { data, error } = await recentQuery;
+          if (error) throw error;
+          const route = isClaimsRole ? "/backoffice/claims/all" : "/backoffice/finance/payments/batches";
+          setRecentDashboardRecords(((data || []) as any[]).map((row) => {
+            const amount = parseAggregateNumber(row.total_amount);
+            const timestamp = row.created_at ? new Date(row.created_at) : null;
+            const createdLabel = timestamp && Number.isFinite(timestamp.getTime())
+              ? `Created ${timestamp.toLocaleDateString("en-NG", { day: "numeric", month: "short", year: "numeric" })}`
+              : "Creation date unavailable";
+            return {
+              id: String(row.id),
+              title: String(isClaimsRole ? row.claim_number || "Claim record" : row.batch_reference || "Payment batch"),
+              detail: createdLabel,
+              status: String(row.status || "unknown"),
+              amount: Number.isFinite(amount) && amount >= 0 ? compactMoney(amount) : undefined,
+              to: route,
+            };
+          }));
+          setRecentDashboardRecordsError(false);
+        } catch (recentError) {
+          console.error("Recent dashboard records could not be fetched:", recentError);
+          setRecentDashboardRecords([]);
+          setRecentDashboardRecordsError(true);
+        }
+      } else if (!isAdmin) {
+        try {
+          const { data, error } = await supabase
+            .from("authorization_requests")
+            .select("id, request_id, status, total_amount, created_at")
+            .in("status", [...ACTION_REQUIRED_AUTHORIZATION_STATUSES])
+            .order("created_at", { ascending: false })
+            .limit(5);
+          if (error) throw error;
+          setRecentDashboardRecords(((data || []) as any[]).map((row) => {
+            const timestamp = row.created_at ? new Date(row.created_at) : null;
+            const createdLabel = timestamp && Number.isFinite(timestamp.getTime())
+              ? `Submitted ${timestamp.toLocaleDateString("en-NG", { day: "numeric", month: "short", year: "numeric" })}`
+              : "Submission date unavailable";
+            const amount = parseAggregateNumber(row.total_amount);
+            return {
+              id: String(row.id),
+              title: String(row.request_id || "Authorization request"),
+              detail: createdLabel,
+              status: String(row.status || "unknown"),
+              amount: Number.isFinite(amount) && amount >= 0 ? compactMoney(amount) : undefined,
+              to: "/backoffice/utilization-manager/requests?status=action_required",
+            };
+          }));
+          setRecentDashboardRecordsError(false);
+        } catch (recentError) {
+          console.error("Recent authorization requests could not be fetched:", recentError);
+          setRecentDashboardRecords([]);
+          setRecentDashboardRecordsError(true);
+        }
+      } else {
+        setRecentDashboardRecords([]);
+        setRecentDashboardRecordsError(false);
+      }
+
+      // Keep the dashboard's attention count identical to the Action Needed tab.
+      // A head-only exact count evaluates the complete RLS-visible result set.
+      if (!isClaimsRole && !isFinanceRole) {
+        try {
+          const [actionCountResult, statusBreakdownResult] = await Promise.all([
+            supabase
+              .from("authorization_requests")
+              .select("id", { count: "exact", head: true })
+              .in("status", [...ACTION_REQUIRED_AUTHORIZATION_STATUSES]),
+            supabase.rpc("get_dashboard_authorization_status_breakdown" as any),
+          ]);
+          const { count: actionCount, error: actionCountError } = actionCountResult;
+          if (actionCountError || typeof actionCount !== "number" || !Number.isFinite(actionCount) || actionCount < 0) {
+            console.error("Failed to fetch exact action-required authorization count:", actionCountError || "Invalid count");
+            setActionRequiredCountError(true);
+          } else {
+            setActionRequiredCount(actionCount);
+            setActionRequiredCountError(false);
+          }
+          const rawStatusCounts = statusBreakdownResult.data;
+          const parsedStatusCounts = Array.isArray(rawStatusCounts)
+            ? rawStatusCounts.map((row: any) => ({ status: String(row?.status ?? ""), count: parseAggregateNumber(row?.count) }))
+            : null;
+          if (
+            statusBreakdownResult.error ||
+            !parsedStatusCounts ||
+            parsedStatusCounts.some((row) => !row.status || !Number.isFinite(row.count) || row.count < 0)
+          ) {
+            console.error("Authorization status breakdown could not be confirmed:", statusBreakdownResult.error || "Invalid response");
+            setAuthorizationStatusCountsError(true);
+          } else {
+            setAuthorizationStatusCounts(parsedStatusCounts);
+            setAuthorizationStatusCountsError(false);
+          }
+        } catch (actionCountError) {
+          console.error("Action-required authorization count request failed:", actionCountError);
+          setActionRequiredCountError(true);
+          setAuthorizationStatusCountsError(true);
+        }
+      } else {
+        setActionRequiredCount(0);
+        setActionRequiredCountError(false);
+        setAuthorizationStatusCounts([]);
+        setAuthorizationStatusCountsError(false);
+      }
 
       if (isFinanceRole || isAdmin) {
         try {
@@ -216,20 +383,10 @@ export default function DashboardHome() {
 
         if (isFinanceRole) {
           const { data: financeChart, error: chartError } = await supabase.rpc("dashboard_finance_activity_7d" as any);
-          if (chartError) {
-            console.error("Failed to fetch dashboard_finance_activity_7d:", chartError);
-          }
-          setChartData(
-            financeChart?.length
-              ? financeChart.map((row: any) => ({
-                  dateStr: row.day,
-                  name: row.day_label,
-                  tickLabel: row.day_label?.split(" ").slice(1).join(" ") || row.day,
-                  volume: Number(row.volume) || 0,
-                  approved: Number(row.amount) || 0,
-                }))
-              : buildLastNDayBuckets(7),
-          );
+          const rows = parseActivityRows(financeChart as any[] | null);
+          if (chartError || !rows) console.error("Failed to fetch dashboard_finance_activity_7d:", chartError || "Invalid chart response");
+          setChartErrors((current) => ({ ...current, finance: Boolean(chartError || !rows) }));
+          setChartData(chartError || !rows ? [] : rows);
         }
       }
 
@@ -312,18 +469,10 @@ export default function DashboardHome() {
             }
           }
           
-          const { data: claimChart } = await supabase.rpc("dashboard_claims_activity_7d" as any);
-          setChartData(
-            claimChart?.length
-              ? claimChart.map((row: any) => ({
-                  dateStr: row.day,
-                  name: row.day_label,
-                  tickLabel: row.day_label?.split(" ").slice(1).join(" ") || row.day,
-                  volume: Number(row.volume) || 0,
-                  approved: Number(row.approved) || 0,
-                }))
-              : buildLastNDayBuckets(7),
-          );
+          const { data: claimChart, error: claimChartError } = await supabase.rpc("dashboard_claims_activity_7d" as any);
+          const claimRows = parseActivityRows(claimChart as any[] | null);
+          setChartErrors((current) => ({ ...current, claims: Boolean(claimChartError || !claimRows) }));
+          setChartData(claimChartError || !claimRows ? [] : claimRows);
         } else {
           const authValues = [
             rpcData.auth?.total,
@@ -361,28 +510,15 @@ export default function DashboardHome() {
             supabase.rpc("dashboard_live_activity_7d" as any),
             supabase.rpc("dashboard_claims_activity_7d" as any),
           ]);
-          setChartData(
-            chartRes.data?.length
-              ? chartRes.data.map((row: any) => ({
-                  dateStr: row.day,
-                  name: row.day_label,
-                  tickLabel: row.day_label?.split(" ").slice(1).join(" ") || row.day,
-                  volume: Number(row.volume) || 0,
-                  approved: Number(row.approved) || 0,
-                }))
-              : buildLastNDayBuckets(7),
-          );
-          setClaimChartData(
-            claimChartRes.data?.length
-              ? claimChartRes.data.map((row: any) => ({
-                  dateStr: row.day,
-                  name: row.day_label,
-                  tickLabel: row.day_label?.split(" ").slice(1).join(" ") || row.day,
-                  volume: Number(row.volume) || 0,
-                  approved: Number(row.approved) || 0,
-                }))
-              : buildLastNDayBuckets(7),
-          );
+          const authRows = parseActivityRows(chartRes.data as any[] | null);
+          const claimsRows = parseActivityRows(claimChartRes.data as any[] | null);
+          setChartErrors((current) => ({
+            ...current,
+            authorization: Boolean(chartRes.error || !authRows),
+            claims: Boolean(claimChartRes.error || !claimsRows),
+          }));
+          setChartData(chartRes.error || !authRows ? [] : authRows);
+          setClaimChartData(claimChartRes.error || !claimsRows ? [] : claimsRows);
 
         }
       } else {
@@ -426,18 +562,11 @@ export default function DashboardHome() {
           setAuthorizationStatsError(false);
           setAuthorizedAmountError(true);
 
-          const { data: claimChart } = await supabase.rpc("dashboard_claims_activity_7d" as any);
-          const claimRows = claimChart?.length
-            ? claimChart.map((row: any) => ({
-                dateStr: row.day,
-                name: row.day_label,
-                tickLabel: row.day_label?.split(" ").slice(1).join(" ") || row.day,
-                volume: Number(row.volume) || 0,
-                approved: Number(row.approved) || 0,
-              }))
-            : buildLastNDayBuckets(7);
-          setChartData(claimRows);
-          setClaimChartData(claimRows);
+          const { data: claimChart, error: claimChartError } = await supabase.rpc("dashboard_claims_activity_7d" as any);
+          const claimRows = parseActivityRows(claimChart as any[] | null);
+          setChartErrors((current) => ({ ...current, claims: Boolean(claimChartError || !claimRows) }));
+          setChartData(claimChartError || !claimRows ? [] : claimRows);
+          setClaimChartData(claimChartError || !claimRows ? [] : claimRows);
         } else {
           const [totalRes, approvedRes, rejectedRes, hospitalsRes, usersRes, authChartRes, claimChartRes2, historicalAuths] = await Promise.all([
             supabase.from("authorization_requests").select("id", { count: "exact", head: true }).or("status.is.null,status.neq.deferred"),
@@ -480,28 +609,15 @@ export default function DashboardHome() {
           setStatsError(!allStatsAvailable);
           setAuthorizationStatsError(!authCountsAvailable);
           setAuthorizedAmountError(true);
-          setChartData(
-            authChartRes.data?.length
-              ? authChartRes.data.map((row: any) => ({
-                  dateStr: row.day,
-                  name: row.day_label,
-                  tickLabel: row.day_label?.split(" ").slice(1).join(" ") || row.day,
-                  volume: Number(row.volume) || 0,
-                  approved: Number(row.approved) || 0,
-                }))
-              : buildLastNDayBuckets(7),
-          );
-          setClaimChartData(
-            claimChartRes2.data?.length
-              ? claimChartRes2.data.map((row: any) => ({
-                  dateStr: row.day,
-                  name: row.day_label,
-                  tickLabel: row.day_label?.split(" ").slice(1).join(" ") || row.day,
-                  volume: Number(row.volume) || 0,
-                  approved: Number(row.approved) || 0,
-                }))
-              : buildLastNDayBuckets(7),
-          );
+          const authRows = parseActivityRows(authChartRes.data as any[] | null);
+          const claimsRows = parseActivityRows(claimChartRes2.data as any[] | null);
+          setChartErrors((current) => ({
+            ...current,
+            authorization: Boolean(authChartRes.error || !authRows),
+            claims: Boolean(claimChartRes2.error || !claimsRows),
+          }));
+          setChartData(authChartRes.error || !authRows ? [] : authRows);
+          setClaimChartData(claimChartRes2.error || !claimsRows ? [] : claimsRows);
 
         }
       }
@@ -512,6 +628,12 @@ export default function DashboardHome() {
       setStatsError(true);
       setAuthorizationStatsError(role !== "claims" && role !== "claims_lead" && role !== "finance");
       setAuthorizedAmountError(role === "admin");
+      setChartErrors({
+        authorization: role !== "claims" && role !== "claims_lead" && role !== "finance",
+        claims: role === "admin" || role === "claims" || role === "claims_lead",
+        finance: role === "finance",
+      });
+      setAuthorizationStatusCountsError(role !== "claims" && role !== "claims_lead" && role !== "finance");
       toast({ variant: "destructive", title: "Error", description: getErrorMessage(error, "Unable to load dashboard") });
     } finally {
       setLoading(false);
@@ -528,7 +650,7 @@ export default function DashboardHome() {
   const isClaims = role === "claims" || role === "claims_lead";
   const isFinance = role === "finance";
   const isUtilizationManager = role === "utilization_manager" || role === "utilization_manager_lead";
-  const isNurseOrOther = role !== "admin" && role !== "claims" && role !== "finance";
+  const isNurseOrOther = !isAdmin && !isClaims && !isFinance;
 
   const actionBase = location.pathname.replace(/\/$/, "");
   const actionStyle = { color: "text-slate-600", bg: "bg-slate-100" };
@@ -540,12 +662,12 @@ export default function DashboardHome() {
     { name: "Claims Reports", desc: "Analyze claims and export detailed reports", href: `${actionBase}/claims-reports`, icon: LayoutDashboard, ...actionStyle },
   ];
   const nurseActions = [
-    { name: "Authorization queue", desc: "Review pending requests", href: `${actionBase}/requests`, icon: FileText, ...actionStyle },
+    { name: "Authorization queue", desc: "Review pending requests", href: `${actionBase}/requests?status=action_required`, icon: FileText, ...actionStyle },
     { name: "Clinical inbox", desc: "Triage incoming clinical requests", href: `${actionBase}/whatsapp`, icon: MessageSquare, ...actionStyle },
     { name: "Pre-Auth Report", desc: "Download authorization codes", href: `${actionBase}/reports`, icon: LayoutDashboard, ...actionStyle },
   ];
   const managerActions = [
-    { name: "Authorization queue", desc: "Review requests awaiting a decision", href: `${actionBase}/requests`, icon: ShieldCheck, ...actionStyle },
+    { name: "Authorization queue", desc: "Review requests awaiting a decision", href: `${actionBase}/requests?status=action_required`, icon: ShieldCheck, ...actionStyle },
     { name: "SLA report", desc: "Review decision times and team performance", href: `${actionBase}/reports`, icon: Activity, ...actionStyle },
     { name: "Clinical inbox", desc: "Open incoming clinical requests", href: `${actionBase}/whatsapp`, icon: MessageSquare, ...actionStyle },
     { name: "Messages", desc: "Reply to hospitals and staff", href: `${actionBase}/messages`, icon: FileText, ...actionStyle },
@@ -565,15 +687,59 @@ export default function DashboardHome() {
     ? adminActions
     : isUtilizationManager
       ? managerActions
-    : role === "claims"
+    : isClaims
       ? claimsActions
       : role === "finance"
         ? financeActions
         : nurseActions;
 
+  const authLiveTotal = Math.max(0, stats.total - stats.historical);
+  const statusCountTotal = authorizationStatusCounts
+    .filter((row) => row.status !== "deferred")
+    .reduce((sum, row) => sum + row.count, 0);
+  const statusGroupCount = (statuses: ReadonlySet<string> | readonly string[]) => {
+    const statusSet = new Set(statuses);
+    return authorizationStatusCounts
+      .filter((row) => statusSet.has(row.status))
+      .reduce((sum, row) => sum + row.count, 0);
+  };
+  const statusBreakdownConsistent =
+    !authorizationStatusCountsError &&
+    authorizationStatusCounts.every((row) => Number.isSafeInteger(row.count) && row.count >= 0) &&
+    statusCountTotal === authLiveTotal &&
+    statusGroupCount(APPROVED_AUTHORIZATION_STATUSES) === stats.approved &&
+    statusGroupCount(REJECTED_AUTHORIZATION_STATUSES) === stats.rejected &&
+    statusGroupCount(ACTION_REQUIRED_AUTHORIZATION_STATUSES) === actionRequiredCount;
+  const getOtherAuthorizationStatuses = () => statusBreakdownConsistent
+    ? authorizationStatusCounts.filter((row) =>
+        !ACTION_REQUIRED_AUTHORIZATION_STATUSES.includes(row.status as (typeof ACTION_REQUIRED_AUTHORIZATION_STATUSES)[number]) &&
+        !APPROVED_AUTHORIZATION_STATUSES.has(row.status) &&
+        !REJECTED_AUTHORIZATION_STATUSES.has(row.status) &&
+        row.status !== "deferred",
+      )
+    : [];
+  const otherAuthorizationStatuses = statusBreakdownConsistent
+    ? getOtherAuthorizationStatuses().reduce((sum, row) => sum + row.count, 0)
+    : Math.max(0, authLiveTotal - stats.approved - stats.rejected - actionRequiredCount);
+  const otherAuthorizationStatusDetail = statusBreakdownConsistent
+    ? getOtherAuthorizationStatuses().filter((row) => row.count > 0)
+        .map((row) => `${row.status === "(blank)" ? "Blank status" : row.status.replace(/_/g, " ")} ${row.count.toLocaleString("en-NG")}`)
+        .join(" · ")
+    : "Status names unavailable";
+  const referralWorkflowCount = statusBreakdownConsistent
+    ? statusGroupCount(["referral_approved", "referral_accepted"])
+    : 0;
+  const roleAuthCountsError = statsError || authorizationStatsError || actionRequiredCountError;
+  const roleAuthError = roleAuthCountsError || !statusBreakdownConsistent;
+  const roleClaimsError = statsError || claimStatsError;
+  const roleFinanceError = financeStatsError;
+  const staffChartError = isFinance ? chartErrors.finance : isClaims ? chartErrors.claims : chartErrors.authorization;
+  const formatCount = (value: number, hasError: boolean) =>
+    hasError || !Number.isFinite(value) ? "—" : value.toLocaleString("en-NG");
+
   return (
     <div className="space-y-4 max-w-full overflow-x-hidden pb-10 animate-in fade-in duration-500">
-      {!isAdmin && (statsError || authorizationStatsError) && (
+      {!isAdmin && !isClaims && !isFinance && (statsError || authorizationStatsError || actionRequiredCountError || authorizationStatusCountsError) && (
         <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
           <span>Dashboard totals could not be confirmed. Incomplete totals are hidden.</span>
           <button type="button" onClick={() => void fetchStats(true)} className="min-h-11 rounded-md border border-amber-300 bg-white px-4 font-semibold text-amber-950 hover:bg-amber-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-700 focus-visible:ring-offset-2">
@@ -583,9 +749,9 @@ export default function DashboardHome() {
       )}
       {isAdmin && (
         <div className="space-y-4">
-          {(statsError || authorizationStatsError || authorizedAmountError || financeStatsError || claimStatsError) && (
+          {(statsError || authorizationStatsError || actionRequiredCountError || !statusBreakdownConsistent || authorizedAmountError || financeStatsError || claimStatsError) && (
             <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
-              <span>Some dashboard totals could not be confirmed. Incomplete totals are hidden.</span>
+              <span>Some dashboard totals or status details could not be confirmed. Retry to refresh the dashboard.</span>
               <button type="button" onClick={() => void fetchStats(true)} className="min-h-11 rounded-md border border-amber-300 bg-white px-4 font-semibold text-amber-950 hover:bg-amber-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-700 focus-visible:ring-offset-2">
                 Retry totals
               </button>
@@ -596,12 +762,17 @@ export default function DashboardHome() {
             basePath={actionBase}
             authError={authorizationStatsError}
             authAmountError={authorizedAmountError}
+            authPendingError={actionRequiredCountError}
+            authStatusBreakdownError={!statusBreakdownConsistent}
+            authStatusCounts={authorizationStatusCounts}
             claimsError={claimStatsError}
             paymentsError={financeStatsError}
             auth={{
               total: stats.total,
               approved: stats.approved,
               rejected: stats.rejected,
+              pending: actionRequiredCount,
+              otherStatuses: otherAuthorizationStatuses,
               historical: stats.historical,
               authorizedAmount: stats.authorizedAmount,
             }}
@@ -623,70 +794,130 @@ export default function DashboardHome() {
       )}
 
       {isFinance && (
-        <section aria-labelledby="finance-summary-heading" className="space-y-1 sm:space-y-1.5">
-          {financeStatsError && (
-            <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
-              <span>Payment totals could not be confirmed. Incomplete totals are hidden.</span>
-              <button type="button" onClick={() => void fetchStats(true)} className="min-h-11 rounded-md border border-amber-300 bg-white px-4 font-semibold text-amber-950 hover:bg-amber-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-700 focus-visible:ring-offset-2">
-                Retry totals
-              </button>
-            </div>
-          )}
-          <div id="finance-summary-heading" role="heading" aria-level={2} className="text-[10.5px] sm:text-xs font-bold uppercase tracking-wider text-slate-500">Payment Summary</div>
-          <DashboardMetricGrid loading={loading} items={[
-          { label: "Awaiting payment", value: financeStatsError ? "—" : money(financeStats.awaitingValue), icon: Clock, color: "text-amber-700" },
-          { label: "Paid value", value: financeStatsError ? "—" : money(financeStats.paidValue), icon: Banknote },
-          { label: "Settled batches", value: financeStatsError ? "—" : financeStats.paidBatches, icon: Layers },
-          { label: "Total batch value", value: financeStatsError ? "—" : money(financeStats.totalBatchesValue), icon: Wallet },
-          ]} />
-        </section>
+        <RoleDashboardOverview
+          title="Payments overview"
+          loading={loading}
+          error={roleFinanceError}
+          onRetry={() => void fetchStats(true)}
+          metrics={[
+            { label: "Awaiting payment", value: formatCount(financeStats.awaitingCount, roleFinanceError), detail: roleFinanceError ? undefined : compactMoney(financeStats.awaitingValue), fullValue: roleFinanceError ? undefined : money(financeStats.awaitingValue) },
+            { label: "Paid value", value: roleFinanceError ? "—" : compactMoney(financeStats.paidValue), detail: "Disbursed claims", fullValue: roleFinanceError ? undefined : money(financeStats.paidValue) },
+            { label: "Payment batches", value: formatCount(financeStats.paidBatches + financeStats.readyBatches + financeStats.draftBatches, roleFinanceError), detail: roleFinanceError ? undefined : `${compactMoney(financeStats.totalBatchesValue)} total value`, fullValue: roleFinanceError ? undefined : money(financeStats.totalBatchesValue) },
+          ]}
+          attention={roleFinanceError || financeStats.awaitingCount <= 0 ? [] : [
+            { label: "Approved claims awaiting payment", value: formatCount(financeStats.awaitingCount, roleFinanceError), detail: compactMoney(financeStats.awaitingValue), to: `${actionBase}/payments/awaiting` },
+          ]}
+          steps={[
+            { label: "Awaiting payment", value: formatCount(financeStats.awaitingCount, roleFinanceError), detail: roleFinanceError ? undefined : compactMoney(financeStats.awaitingValue) },
+            { label: "Paid claims", value: formatCount(financeStats.paidCount, roleFinanceError), detail: roleFinanceError ? undefined : compactMoney(financeStats.paidValue) },
+            { label: "Settled batches", value: formatCount(financeStats.paidBatches, roleFinanceError) },
+          ]}
+          recentRecords={{
+            title: "Recent payment batches",
+            viewAllHref: `${actionBase}/payments/batches`,
+            loading,
+            error: recentDashboardRecordsError,
+            items: recentDashboardRecords,
+          }}
+        />
       )}
 
       {isUtilizationManager && (
-        <section aria-labelledby="manager-summary-heading" className="space-y-1 sm:space-y-1.5">
-          <div id="manager-summary-heading" role="heading" aria-level={2} className="text-[10.5px] sm:text-xs font-bold uppercase tracking-wider text-slate-500">Authorization Workload</div>
-          <DashboardMetricGrid loading={loading} columns="grid-cols-2" items={[
-            { label: "Total requests", value: statsError ? "—" : stats.total, icon: FileText },
-            { label: "Action needed", value: statsError ? "—" : stats.pending, icon: Clock, color: "text-amber-700" },
-            { label: "Approved", value: statsError ? "—" : stats.approved, icon: CheckCircle2, color: "text-emerald-700" },
-            { label: "Rejected", value: statsError ? "—" : stats.rejected, icon: XCircle, color: "text-rose-700" },
-          ]} />
-        </section>
+        <RoleDashboardOverview
+          title="Authorization workload"
+          loading={loading}
+          error={roleAuthError}
+          onRetry={() => void fetchStats(true)}
+          metrics={[
+            { label: "Action needed", value: formatCount(actionRequiredCount, actionRequiredCountError), detail: "In the review queue" },
+            { label: "Total requests", value: formatCount(stats.total, statsError), detail: "Including historical records" },
+            { label: "Approval rate", value: roleAuthError || authLiveTotal === 0 ? "—" : `${((stats.approved / authLiveTotal) * 100).toFixed(1)}%`, detail: "Of live requests" },
+          ]}
+          attention={[
+            ...(!actionRequiredCountError && actionRequiredCount > 0 ? [
+              { label: "Authorization requests awaiting a decision", value: formatCount(actionRequiredCount, false), to: `${actionBase}/requests?status=action_required` },
+            ] : []),
+            ...(otherAuthorizationStatuses > 0 ? [
+              { label: "Requests in other workflow statuses", value: formatCount(otherAuthorizationStatuses, roleAuthCountsError), detail: otherAuthorizationStatusDetail, to: `${actionBase}/requests` },
+            ] : []),
+          ]}
+          steps={[
+            { label: "Total requests", value: formatCount(stats.total, statsError) },
+            { label: "Approved", value: formatCount(stats.approved, authorizationStatsError) },
+            { label: "Referral in progress", value: formatCount(referralWorkflowCount, !statusBreakdownConsistent), detail: "Referral approved or accepted" },
+            { label: "Rejected", value: formatCount(stats.rejected, authorizationStatsError) },
+            { label: "Other statuses", value: formatCount(otherAuthorizationStatuses, roleAuthCountsError), detail: otherAuthorizationStatusDetail },
+          ]}
+          recentRecords={{
+            title: "Recent action-needed requests",
+            viewAllHref: `${actionBase}/requests?status=action_required`,
+            loading,
+            error: recentDashboardRecordsError,
+            items: recentDashboardRecords,
+          }}
+        />
       )}
 
       {isNurseOrOther && !isUtilizationManager && (
-        <section aria-labelledby="requests-summary-heading" className="space-y-1 sm:space-y-1.5">
-          <div id="requests-summary-heading" role="heading" aria-level={2} className="text-[10.5px] sm:text-xs font-bold uppercase tracking-wider text-slate-500">Request Summary</div>
-          <DashboardMetricGrid loading={loading} items={[
-            { label: "Total requests", value: statsError ? "—" : stats.total, icon: FileText },
-            { label: "Facilities", value: statsError ? "—" : stats.hospitals, icon: Building2 },
-            { label: "Approved", value: statsError ? "—" : stats.approved, icon: CheckCircle2, color: "text-emerald-700" },
-            { label: "Rejected", value: statsError ? "—" : stats.rejected, icon: XCircle, color: "text-rose-700" },
-          ]} />
-        </section>
+        <RoleDashboardOverview
+          title="Request overview"
+          loading={loading}
+          error={roleAuthError}
+          onRetry={() => void fetchStats(true)}
+          metrics={[
+            { label: "Action needed", value: formatCount(actionRequiredCount, actionRequiredCountError), detail: "In the review queue" },
+            { label: "Total requests", value: formatCount(stats.total, statsError) },
+            { label: "Approved", value: formatCount(stats.approved, authorizationStatsError) },
+          ]}
+          attention={actionRequiredCountError || actionRequiredCount <= 0 ? [] : [
+            { label: "Authorization requests awaiting a decision", value: formatCount(actionRequiredCount, false), to: `${actionBase}/requests?status=action_required` },
+          ]}
+          steps={[
+            { label: "Approved", value: formatCount(stats.approved, authorizationStatsError) },
+            { label: "Referral in progress", value: formatCount(referralWorkflowCount, !statusBreakdownConsistent), detail: "Referral approved or accepted" },
+            { label: "Rejected", value: formatCount(stats.rejected, authorizationStatsError) },
+            { label: "Facilities", value: formatCount(stats.hospitals, statsError) },
+            { label: "Other statuses", value: formatCount(otherAuthorizationStatuses, roleAuthCountsError), detail: otherAuthorizationStatusDetail },
+          ]}
+          recentRecords={{
+            title: "Recent action-needed requests",
+            viewAllHref: `${actionBase}/requests?status=action_required`,
+            loading,
+            error: recentDashboardRecordsError,
+            items: recentDashboardRecords,
+          }}
+        />
       )}
 
       {isClaims && (
-        <section aria-labelledby="claims-summary-heading" className="space-y-1 sm:space-y-1.5">
-          {claimStatsError && (
-            <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
-              <span>Claim totals could not be confirmed. Incomplete totals are hidden.</span>
-              <button type="button" onClick={() => void fetchStats(true)} className="min-h-11 rounded-md border border-amber-300 bg-white px-4 font-semibold text-amber-950 hover:bg-amber-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-700 focus-visible:ring-offset-2">
-                Retry totals
-              </button>
-            </div>
-          )}
-          <div id="claims-summary-heading" role="heading" aria-level={2} className="text-[10.5px] sm:text-xs font-bold uppercase tracking-wider text-slate-500">Claims Overview</div>
-          <DashboardMetricGrid loading={loading} items={[
-          { label: "Submitted", value: claimStatsError ? "—" : claimStats.submitted, icon: FileText },
-          { label: "Approved", value: claimStatsError ? "—" : claimStats.approved, icon: CheckCircle2, color: "text-emerald-700" },
-          { label: "Partially approved", value: claimStatsError ? "—" : claimStats.partiallyApproved, icon: Activity, color: "text-amber-700" },
-          { label: "Rejected", value: claimStatsError ? "—" : claimStats.rejected, icon: XCircle, color: "text-rose-700" },
-          { label: "Contested", value: claimStatsError ? "—" : claimStats.contested, icon: AlertTriangle, color: "text-amber-700" },
-          { label: "Approved value", value: claimStatsError ? "—" : money(claimStats.approvedValue), icon: Banknote },
-          { label: "Savings", value: claimStatsError ? "—" : money(claimStats.declinedValue), icon: Wallet },
-          ]} />
-        </section>
+        <RoleDashboardOverview
+          title="Claims overview"
+          loading={loading}
+          error={roleClaimsError}
+          onRetry={() => void fetchStats(true)}
+          metrics={[
+            { label: "Submitted", value: formatCount(claimStats.submitted, roleClaimsError), detail: "Claims in the workflow" },
+            { label: "Approved", value: formatCount(claimStats.approved, roleClaimsError) },
+            { label: "Contested", value: formatCount(claimStats.contested, roleClaimsError) },
+          ]}
+          attention={roleClaimsError ? [] : [
+            ...(claimStats.contested > 0 ? [{ label: "Contested claims", value: formatCount(claimStats.contested, false), to: `${actionBase}/all` }] : []),
+            ...(claimStats.submitted > 0 ? [{ label: "Submitted claims to review", value: formatCount(claimStats.submitted, false), to: `${actionBase}/all` }] : []),
+          ]}
+          steps={[
+            { label: "Submitted", value: formatCount(claimStats.submitted, roleClaimsError) },
+            { label: "Approved", value: formatCount(claimStats.approved, roleClaimsError), detail: roleClaimsError ? undefined : compactMoney(claimStats.approvedValue) },
+            { label: "Paid", value: formatCount(claimStats.paid, roleClaimsError) },
+            { label: "Rejected", value: formatCount(claimStats.rejected, roleClaimsError) },
+          ]}
+          recentRecords={{
+            title: "Recent claims",
+            viewAllHref: `${actionBase}/all`,
+            loading,
+            error: recentDashboardRecordsError,
+            items: recentDashboardRecords,
+          }}
+        />
       )}
       {/* ── CHART SECTION ── */}
       {role === "admin" ? (
@@ -708,6 +939,11 @@ export default function DashboardHome() {
               {loading ? (
                 <div className="w-full h-full animate-pulse bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-center">
                   <span className="text-sm font-medium text-slate-400">Loading chart data...</span>
+                </div>
+              ) : chartErrors.authorization ? (
+                <div className="flex h-full flex-col items-center justify-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 text-center">
+                  <span className="text-sm text-amber-900">Authorization activity could not be loaded.</span>
+                  <button type="button" onClick={() => void fetchStats(true)} className="min-h-11 px-3 text-sm font-semibold text-amber-950 underline underline-offset-2">Retry</button>
                 </div>
               ) : chartData.length === 0 ? (
                 <div className="w-full h-full bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-center">
@@ -758,6 +994,11 @@ export default function DashboardHome() {
                 <div className="w-full h-full animate-pulse bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-center">
                   <span className="text-sm font-medium text-slate-400">Loading chart data...</span>
                 </div>
+              ) : chartErrors.claims ? (
+                <div className="flex h-full flex-col items-center justify-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 text-center">
+                  <span className="text-sm text-amber-900">Claims activity could not be loaded.</span>
+                  <button type="button" onClick={() => void fetchStats(true)} className="min-h-11 px-3 text-sm font-semibold text-amber-950 underline underline-offset-2">Retry</button>
+                </div>
               ) : claimChartData.length === 0 ? (
                 <div className="w-full h-full bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-center">
                   <span className="text-sm font-medium text-slate-400">No claims data available</span>
@@ -801,7 +1042,7 @@ export default function DashboardHome() {
                     <Banknote className="h-4 w-4 text-amber-700" strokeWidth={1.5} />
                     Payment Activity
                   </>
-                ) : role === "claims" ? (
+                ) : isClaims ? (
                   <>
                     <Banknote className="h-4 w-4 text-amber-700" strokeWidth={1.5} />
                     Claims Activity
@@ -816,7 +1057,7 @@ export default function DashboardHome() {
               <p className="mt-1 text-sm text-slate-500">
                 {role === "finance"
                   ? "Payment activity · last 7 days"
-                  : role === "claims"
+                  : isClaims
                   ? "Claims activity · last 7 days"
                   : isUtilizationManager
                     ? "Requests by issue date · last 7 days"
@@ -824,12 +1065,22 @@ export default function DashboardHome() {
               </p>
             </div>
             <div className="h-[300px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
+              {loading ? (
+                <div className="flex h-full items-center justify-center rounded-xl border border-slate-100 bg-slate-50 text-sm text-slate-500">Loading activity…</div>
+              ) : staffChartError ? (
+                <div className="flex h-full flex-col items-center justify-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 text-center">
+                  <span className="text-sm text-amber-900">Activity could not be loaded.</span>
+                  <button type="button" onClick={() => void fetchStats(true)} className="min-h-11 px-3 text-sm font-semibold text-amber-950 underline underline-offset-2">Retry</button>
+                </div>
+              ) : chartData.length === 0 ? (
+                <div className="flex h-full items-center justify-center rounded-xl border border-slate-100 bg-slate-50 text-sm text-slate-500">No activity in the last 7 days.</div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                   <defs>
                     <linearGradient id="colorVolume" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor={role === "claims" || role === "finance" ? "#BA7517" : "#1D9E75"} stopOpacity={0.16} />
-                      <stop offset="95%" stopColor={role === "claims" || role === "finance" ? "#BA7517" : "#1D9E75"} stopOpacity={0} />
+                      <stop offset="5%" stopColor={isClaims || isFinance ? "#BA7517" : "#1D9E75"} stopOpacity={0.16} />
+                      <stop offset="95%" stopColor={isClaims || isFinance ? "#BA7517" : "#1D9E75"} stopOpacity={0} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
@@ -844,12 +1095,12 @@ export default function DashboardHome() {
                     formatter={(value: any, name: string) => {
                       const formattedName =
                         name === "volume"
-                          ? (role === "finance" ? "Paid claims" : isUtilizationManager ? "Requests" : "Submitted volume")
+                          ? (isFinance ? "Paid claims" : isUtilizationManager ? "Requests" : "Submitted volume")
                           : name === "approved"
-                          ? (role === "finance" ? "Paid value" : isUtilizationManager ? "Approved" : "Approved volume")
+                          ? (isFinance ? "Paid value" : isUtilizationManager ? "Approved" : "Approved volume")
                           : name;
                       const formattedValue =
-                        role === "finance" && name === "approved"
+                        isFinance && name === "approved"
                           ? money(Number(value))
                           : typeof value === "number"
                           ? value.toLocaleString()
@@ -858,9 +1109,10 @@ export default function DashboardHome() {
                     }}
                   />
                   <Area type="monotone" dataKey="volume" stroke="#CBD5E1" fill="transparent" strokeWidth={2} />
-                  <Area type="monotone" dataKey="approved" stroke={role === "claims" || role === "finance" ? "#BA7517" : "#1D9E75"} fillOpacity={1} fill="url(#colorVolume)" strokeWidth={3} />
+                  <Area type="monotone" dataKey="approved" stroke={isClaims || isFinance ? "#BA7517" : "#1D9E75"} fillOpacity={1} fill="url(#colorVolume)" strokeWidth={3} />
                 </AreaChart>
-              </ResponsiveContainer>
+                </ResponsiveContainer>
+              )}
             </div>
           </Card>
 
