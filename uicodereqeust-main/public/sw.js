@@ -6,7 +6,7 @@
    - skipWaiting + clients.claim for seamless version transitions
    ===================================================================== */
 
-const SW_VERSION = "ronsberger-sw-v6";
+const SW_VERSION = "ronsberger-sw-v7";
 const STATIC_CACHE = SW_VERSION + "-static";
 const RUNTIME_CACHE = SW_VERSION + "-runtime";
 
@@ -65,6 +65,14 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
+  // Always request the active deployment's CSS. A previous cache entry can
+  // have a plausible text/css header while containing stale or broken rules.
+  // Keep a validated copy only for offline fallback.
+  if (url.pathname.toLowerCase().endsWith(".css")) {
+    event.respondWith(networkFirstStylesheet(request));
+    return;
+  }
+
   if (IMMUTABLE_EXTENSIONS.some((ext) => url.pathname.endsWith(ext))) {
     event.respondWith(cacheFirst(request));
     return;
@@ -86,6 +94,27 @@ async function cacheFirst(request) {
   // Never cache that HTML (or any other wrong MIME type) as a CSS/JS bundle.
   if (hasExpectedAssetType(request, response)) await cache.put(request, response.clone());
   return response;
+}
+
+async function networkFirstStylesheet(request) {
+  const cache = await caches.open(STATIC_CACHE);
+
+  try {
+    // `reload` bypasses the browser HTTP cache as well as this service
+    // worker's cache-first path, so a deployment cannot reuse stale CSS.
+    const response = await fetch(request, { cache: "reload" });
+    if (hasExpectedAssetType(request, response)) {
+      await cache.put(request, response.clone());
+      return response;
+    }
+
+    const cached = await cache.match(request);
+    return cached && hasExpectedAssetType(request, cached) ? cached : response;
+  } catch (error) {
+    const cached = await cache.match(request);
+    if (cached && hasExpectedAssetType(request, cached)) return cached;
+    throw error;
+  }
 }
 
 function hasExpectedAssetType(request, response) {
