@@ -123,8 +123,7 @@ serve(async (req) => {
     if (WORKER_SHARED_SECRET) {
       const workerSecret = req.headers.get("x-worker-secret") || "";
       const matchesWorker = constantTimeEqual(workerSecret, WORKER_SHARED_SECRET);
-      const matchesProvided = Boolean(MEDAUTH_API_KEY) && constantTimeEqual(provided, MEDAUTH_API_KEY);
-      if (!matchesWorker && !matchesProvided) {
+      if (!matchesWorker) {
         return bad(401, "invalid_api_key");
       }
     }

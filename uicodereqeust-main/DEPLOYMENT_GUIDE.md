@@ -80,6 +80,7 @@ Do not enable the archived AWS Lambda/SQS worker while the Supabase worker is pr
 
 - Use SSH keys and a dedicated deployment account; do not deploy as root.
 - Rotate any credential that has ever appeared in Git history.
+- Configure security response headers at Cloudflare or the production web server; HTML meta tags do not set `X-Frame-Options` or `X-Content-Type-Options`. Start CSP in report-only mode, collect the real frontend/API/worker origins, then enforce a reviewed policy. Enable HSTS only after every affected hostname is confirmed HTTPS-only; do not use `preload` until the domain and all subdomains meet the preload requirements.
 - Keep repository secrets in Coolify/CI secret storage.
 - Restrict VPS firewall ingress to required ports and trusted administration sources.
 - Use Cloudflare SSL/TLS in Full (strict) mode with a valid origin certificate.

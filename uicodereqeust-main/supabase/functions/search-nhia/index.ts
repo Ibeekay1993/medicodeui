@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders, getServiceClient, validateUser } from "../_shared/auth.ts";
+import { quotePostgrestFilterValue } from "../_shared/postgrest-filter.ts";
 
 const CLINICAL_ABBREVIATIONS: Record<string, string[]> = {
   ECG: ["Electrocardiography (ECG)", "Electrocardiography (E C G)"],
@@ -163,7 +164,7 @@ serve(async (req) => {
     if (!query) throw new Error("Query required");
 
     const supabase = getServiceClient();
-    const searchTerm = String(query).trim();
+    const searchTerm = String(query).trim().slice(0, 120);
     const searchLower = searchTerm.toLowerCase();
     const searchUpper = searchTerm.toUpperCase();
     const expandedTerms = [
@@ -183,11 +184,11 @@ serve(async (req) => {
     };
 
     const { data: exact } = await addCategory(
-      supabase.from("nhia_items").select("*").or(`code.ilike.${searchTerm},code.ilike.%${searchTerm}%`).eq("is_active", true) as unknown as QueryBuilder
+      supabase.from("nhia_items").select("*").or(`code.ilike.${quotePostgrestFilterValue(searchTerm)},code.ilike.${quotePostgrestFilterValue(`%${searchTerm}%`)}`).eq("is_active", true) as unknown as QueryBuilder
     ) as unknown as { data: NHIAItem[] | null };
 
     const { data: nameMatch } = await addCategory(
-      supabase.from("nhia_items").select("*").or(`name.ilike.%${searchTerm}%,subcategory.ilike.%${searchTerm}%`).eq("is_active", true) as unknown as QueryBuilder
+      supabase.from("nhia_items").select("*").or(`name.ilike.${quotePostgrestFilterValue(`%${searchTerm}%`)},subcategory.ilike.${quotePostgrestFilterValue(`%${searchTerm}%`)}`).eq("is_active", true) as unknown as QueryBuilder
     ) as unknown as { data: NHIAItem[] | null };
 
     const { data: arrayMatch } = await addCategory(
@@ -205,7 +206,7 @@ serve(async (req) => {
         addCategory(
           supabase.from("nhia_items")
             .select("code,name,amount,category,subcategory")
-            .or(`name.ilike.%${term}%,code.ilike.%${term}%,subcategory.ilike.%${term}%`)
+            .or(`name.ilike.${quotePostgrestFilterValue(`%${term}%`)},code.ilike.${quotePostgrestFilterValue(`%${term}%`)},subcategory.ilike.${quotePostgrestFilterValue(`%${term}%`)}`)
             .eq("is_active", true)
             .limit(100) as unknown as QueryBuilder
         ) as unknown as { data: NHIAItem[] | null },
@@ -240,7 +241,13 @@ serve(async (req) => {
       const { data: partialMatches } = await supabase
         .from("nhia_items")
         .select("code,name,amount,category,subcategory")
-        .or(`name.ilike.%${searchTerm}%,subcategory.ilike.%${searchTerm}%,common_abbreviations.cs.{${searchUpper}}`)
+        .or([
+          `name.ilike.${quotePostgrestFilterValue(`%${searchTerm}%`)}`,
+          `subcategory.ilike.${quotePostgrestFilterValue(`%${searchTerm}%`)}`,
+          ...(/^[A-Z0-9_-]{1,32}$/.test(searchUpper)
+            ? [`common_abbreviations.cs.{${searchUpper}}`]
+            : []),
+        ].join(","))
         .eq("is_active", true)
         .limit(200);
       

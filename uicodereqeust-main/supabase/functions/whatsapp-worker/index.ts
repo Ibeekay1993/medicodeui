@@ -4,6 +4,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { quotePostgrestFilterValue } from "../_shared/postgrest-filter.ts";
 import {
   buildContext,
   brainGuard,
@@ -960,7 +961,10 @@ async function getProviderInformation(
     .eq("is_active", true)
     .order("name", { ascending: true })
     .limit(6);
-  if (term) query = query.or(`name.ilike.%${term}%,state.ilike.%${term}%`);
+  if (term) {
+    const pattern = quotePostgrestFilterValue(`%${term.slice(0, 120)}%`);
+    query = query.or(`name.ilike.${pattern},state.ilike.${pattern}`);
+  }
   const { data, error } = await query;
   if (error) {
     log("provider_lookup", messageId, "error", { error: error.message });

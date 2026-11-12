@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders, getServiceClient, validateUser } from "../_shared/auth.ts";
+import { quotePostgrestFilterValue } from "../_shared/postgrest-filter.ts";
 import {
   calculateMedicationQuantity,
   extractDurationDays,
@@ -570,7 +571,7 @@ async function findBestItem(supabase: SupabaseClient, term: string) {
     const { data: codeRows } = await supabase
       .from("nhia_items")
       .select("*")
-      .or(`code.ilike.${cleanCode},code.ilike.%${cleanCode}%`)
+      .or(`code.ilike.${quotePostgrestFilterValue(cleanCode)},code.ilike.${quotePostgrestFilterValue(`%${cleanCode}%`)}`)
       .eq("is_active", true)
       .limit(50);
     addRows(codeRows);
@@ -579,7 +580,7 @@ async function findBestItem(supabase: SupabaseClient, term: string) {
   const { data: exactCode } = await supabase
     .from("nhia_items")
     .select("*")
-    .or(`code.ilike.${term},code.ilike.%${term}%`)
+    .or(`code.ilike.${quotePostgrestFilterValue(term)},code.ilike.${quotePostgrestFilterValue(`%${term}%`)}`)
     .eq("is_active", true)
     .limit(50);
   addRows(exactCode);
@@ -603,7 +604,7 @@ async function findBestItem(supabase: SupabaseClient, term: string) {
     const { data } = await supabase
       .from("nhia_items")
       .select("*")
-      .or(`name.ilike.%${query}%,code.ilike.%${query}%`)
+      .or(`name.ilike.${quotePostgrestFilterValue(`%${query}%`)},code.ilike.${quotePostgrestFilterValue(`%${query}%`)}`)
       .eq("is_active", true)
       .limit(50);
     addRows(data);

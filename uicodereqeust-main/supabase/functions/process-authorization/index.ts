@@ -7,6 +7,7 @@ import {
   sanitizeString,
   validateUser,
 } from "../_shared/auth.ts";
+import { escapeLikePatternLiteral } from "../_shared/postgrest-filter.ts";
 
 type ApprovedItem = {
   code?: string | null;
@@ -61,7 +62,7 @@ async function findHospitalIdByName(supabase: ReturnType<typeof getServiceClient
     const { data, error } = await supabase
       .from("hospitals")
       .select("id, name")
-      .ilike("name", `%${name.trim()}%`)
+      .ilike("name", `%${escapeLikePatternLiteral(name.trim())}%`)
       .limit(5);
 
     if (error || !data || data.length === 0) return null;
@@ -72,8 +73,8 @@ async function findHospitalIdByName(supabase: ReturnType<typeof getServiceClient
         return h.id;
       }
     }
-    // Fallback to first result
-    return data[0].id;
+    // Do not map an unmatched hospital name to an arbitrary partial result.
+    return null;
   } catch (err) {
     console.error("Error looking up hospital by name:", err);
     return null;
@@ -128,11 +129,19 @@ serve(async (req) => {
     }
 
     const supabase = getServiceClient();
-    const { data: requestRow, error: requestError } = await supabase
-      .from("authorization_requests")
-      .select("id,status,authorization_code,patient_name,patient_email,policy_number,hospital_id,hospital_name,requesting_hospital_id,requesting_hospital_name,referring_hospital_id,referring_hospital_name,referred_hospital_id,referred_hospital_name")
-      .or(`id.eq.${requestId},request_id.eq.${requestId}`)
-      .maybeSingle();
+    const requestSelect = "id,status,authorization_code,patient_name,patient_email,policy_number,hospital_id,hospital_name,requesting_hospital_id,requesting_hospital_name,referring_hospital_id,referring_hospital_name,referred_hospital_id,referred_hospital_name";
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(requestId);
+    let requestLookup = isUuid
+      ? await supabase.from("authorization_requests").select(requestSelect).eq("id", requestId).maybeSingle()
+      : await supabase.from("authorization_requests").select(requestSelect).eq("request_id", requestId).maybeSingle();
+    if (isUuid && !requestLookup.error && !requestLookup.data) {
+      requestLookup = await supabase
+        .from("authorization_requests")
+        .select(requestSelect)
+        .eq("request_id", requestId)
+        .maybeSingle();
+    }
+    const { data: requestRow, error: requestError } = requestLookup;
 
     if (requestError) throw requestError;
     if (!requestRow) throw new Error("Authorization request not found");

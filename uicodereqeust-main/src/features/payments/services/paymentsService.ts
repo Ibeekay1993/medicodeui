@@ -107,6 +107,15 @@ export class PaymentsService {
   }
 
   static async uploadBatchEvidence(batchId: string, file: File): Promise<string> {
+    const allowedTypes = new Set(["image/jpeg", "image/png", "application/pdf"]);
+    const maxSizeBytes = 5 * 1024 * 1024;
+    if (!allowedTypes.has(file.type)) {
+      throw new Error("Choose a JPG, PNG, or PDF receipt.");
+    }
+    if (file.size <= 0 || file.size > maxSizeBytes) {
+      throw new Error("Receipt files must be between 1 byte and 5 MB.");
+    }
+
     const safeName = file.name.split(/[\\/]/).pop()?.replace(/[^a-zA-Z0-9._-]/g, "_") || "receipt";
     const filePath = `${batchId}/${crypto.randomUUID()}-${safeName}`;
     

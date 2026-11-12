@@ -15,7 +15,8 @@ export default defineConfig(({ command, mode }) => {
 
   return {
     server: {
-      host: "::",
+      // Keep the development server local; never expose Vite's dev endpoints to the network.
+      host: "127.0.0.1",
       port: 8080,
       hmr: {
         overlay: false,

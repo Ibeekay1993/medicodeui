@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { DashboardMetricGrid } from "@/components/dashboard/DashboardMetricGrid";
+import { AdminOverview } from "@/components/dashboard/AdminOverview";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -74,9 +75,31 @@ type DashboardFinanceAggregate = {
   } | null;
 };
 
+type DashboardStats = {
+  total: number;
+  approved: number;
+  rejected: number;
+  pending: number;
+  hospitals: number;
+  users: number;
+  authorizedAmount: number;
+  historical: number;
+};
+
+const EMPTY_DASHBOARD_STATS: DashboardStats = {
+  total: 0,
+  approved: 0,
+  rejected: 0,
+  pending: 0,
+  hospitals: 0,
+  users: 0,
+  authorizedAmount: 0,
+  historical: 0,
+};
+
 export default function DashboardHome() {
   const { role } = useAuth();
-  const [stats, setStats] = useState<any>({ total: 0, approved: 0, rejected: 0, pending: 0, hospitals: 0, users: 0, authorizedAmount: 0 });
+  const [stats, setStats] = useState<DashboardStats>(EMPTY_DASHBOARD_STATS);
   const [claimStats, setClaimStats] = useState<any>({ submitted: 0, approved: 0, partiallyApproved: 0, rejected: 0, contested: 0, paid: 0, claimedValue: 0, approvedValue: 0, declinedValue: 0 });
   const [financeStats, setFinanceStats] = useState<any>({
     awaitingCount: 0,
@@ -90,6 +113,9 @@ export default function DashboardHome() {
   });
   const [financeStatsError, setFinanceStatsError] = useState(false);
   const [claimStatsError, setClaimStatsError] = useState(false);
+  const [statsError, setStatsError] = useState(false);
+  const [authorizationStatsError, setAuthorizationStatsError] = useState(false);
+  const [authorizedAmountError, setAuthorizedAmountError] = useState(false);
   const [loading, setLoading] = useState(true);
   const [chartData, setChartData] = useState<any[]>([]);
   const [claimChartData, setClaimChartData] = useState<any[]>([]);
@@ -132,7 +158,7 @@ export default function DashboardHome() {
               financeData.paid_batches,
               financeData.total_batches_value,
             ].map(parseAggregateNumber);
-            if (financeValues.some((value: number) => !Number.isFinite(value))) {
+            if (financeValues.some((value: number) => !Number.isFinite(value) || value < 0)) {
               console.error("Dashboard finance aggregate response is incomplete.");
               setFinanceStatsError(true);
               if (isAdmin) setClaimStatsError(true);
@@ -162,7 +188,7 @@ export default function DashboardHome() {
                   adminClaims.approved_value,
                   adminClaims.declined_value,
                 ].map(parseAggregateNumber);
-                if (!claimValues || claimValues.some((value: number) => !Number.isFinite(value))) {
+                if (!claimValues || claimValues.some((value: number) => !Number.isFinite(value) || value < 0)) {
                   console.error("Dashboard claims aggregate response is incomplete.");
                   setClaimStatsError(true);
                 } else {
@@ -224,31 +250,66 @@ export default function DashboardHome() {
 
         if (rpcData && !rpcError) {
         if (isClaimsRole) {
-          setStats({
-            total: (rpcData.claims?.total || 0) + (rpcData.historical_claims || 0),
-            approved: (rpcData.claims?.approved || 0) + (rpcData.historical_claims || 0),
-            rejected: rpcData.claims?.rejected || 0,
-            pending: rpcData.claims?.pending || 0,
-            hospitals: rpcData.hospitals || 0,
-            users: rpcData.users || 0,
-            authorizedAmount: Number(rpcData.auth?.approved_amount || 0),
-          });
-
-          if (rpcData.admin_claims) {
-            setClaimStats({
-              submitted: rpcData.admin_claims.submitted || 0,
-              approved: rpcData.admin_claims.approved || 0,
-              partiallyApproved: rpcData.admin_claims.partially_approved || 0,
-              rejected: rpcData.admin_claims.rejected || 0,
-              contested: rpcData.admin_claims.contested || 0,
-              paid: rpcData.admin_claims.paid || 0,
-              claimedValue: Number(rpcData.admin_claims.claimed_value || 0),
-              approvedValue: Number(rpcData.admin_claims.approved_value || 0),
-              declinedValue: Number(rpcData.admin_claims.declined_value || 0),
+          const claimValues = [
+            rpcData.claims?.total,
+            rpcData.claims?.approved,
+            rpcData.claims?.rejected,
+            rpcData.historical_claims,
+            rpcData.hospitals,
+            rpcData.users,
+          ].map(parseAggregateNumber);
+          const [liveTotal, liveApproved, liveRejected, historical, hospitals, users] = claimValues;
+          const claimCountsValid =
+            claimValues.every((value) => Number.isFinite(value) && value >= 0) &&
+            liveApproved + liveRejected <= liveTotal;
+          if (claimCountsValid) {
+            setStats({
+              total: liveTotal + historical,
+              approved: liveApproved,
+              rejected: liveRejected,
+              pending: liveTotal - liveApproved - liveRejected,
+              hospitals,
+              users,
+              authorizedAmount: 0,
+              historical,
             });
-            setClaimStatsError(false);
-          } else if (isClaimsRole) {
-            setClaimStatsError(true);
+            setStatsError(false);
+          } else {
+            setStats(EMPTY_DASHBOARD_STATS);
+            setStatsError(true);
+          }
+          setAuthorizationStatsError(false);
+          setAuthorizedAmountError(false);
+
+          if (isClaimsRole) {
+            const claimSummary = rpcData.admin_claims;
+            const claimValues = claimSummary && [
+              claimSummary.submitted,
+              claimSummary.approved,
+              claimSummary.partially_approved,
+              claimSummary.rejected,
+              claimSummary.contested,
+              claimSummary.paid,
+              claimSummary.claimed_value,
+              claimSummary.approved_value,
+              claimSummary.declined_value,
+            ].map(parseAggregateNumber);
+            if (!claimValues || claimValues.some((value: number) => !Number.isFinite(value) || value < 0)) {
+              setClaimStatsError(true);
+            } else {
+              setClaimStats({
+                submitted: claimValues[0],
+                approved: claimValues[1],
+                partiallyApproved: claimValues[2],
+                rejected: claimValues[3],
+                contested: claimValues[4],
+                paid: claimValues[5],
+                claimedValue: claimValues[6],
+                approvedValue: claimValues[7],
+                declinedValue: claimValues[8],
+              });
+              setClaimStatsError(false);
+            }
           }
           
           const { data: claimChart } = await supabase.rpc("dashboard_claims_activity_7d" as any);
@@ -264,15 +325,37 @@ export default function DashboardHome() {
               : buildLastNDayBuckets(7),
           );
         } else {
-          setStats({
-            total: (rpcData.auth?.total || 0) + (rpcData.historical_auths || 0),
-            approved: (rpcData.auth?.approved || 0) + (rpcData.historical_auths || 0),
-            rejected: rpcData.auth?.rejected || 0,
-            pending: rpcData.auth?.pending || 0,
-            hospitals: rpcData.hospitals || 0,
-            users: rpcData.users || 0,
-            authorizedAmount: Number(rpcData.auth?.approved_amount || 0),
-          });
+          const authValues = [
+            rpcData.auth?.total,
+            rpcData.auth?.approved,
+            rpcData.auth?.rejected,
+            rpcData.historical_auths,
+            rpcData.hospitals,
+            rpcData.users,
+          ].map(parseAggregateNumber);
+          const [liveTotal, liveApproved, liveRejected, historical, hospitals, users] = authValues;
+          const authorizedAmount = parseAggregateNumber(rpcData.auth?.approved_amount);
+          const authCountsValid =
+            authValues.every((value) => Number.isFinite(value) && value >= 0) &&
+            liveApproved + liveRejected <= liveTotal;
+          if (authCountsValid) {
+            setStats({
+              total: liveTotal + historical,
+              approved: liveApproved,
+              rejected: liveRejected,
+              pending: liveTotal - liveApproved - liveRejected,
+              hospitals,
+              users,
+              authorizedAmount: Number.isFinite(authorizedAmount) ? authorizedAmount : 0,
+              historical,
+            });
+            setStatsError(false);
+          } else {
+            setStats(EMPTY_DASHBOARD_STATS);
+            setStatsError(true);
+          }
+          setAuthorizationStatsError(!authCountsValid);
+          setAuthorizedAmountError(!Number.isFinite(authorizedAmount));
 
           const [chartRes, claimChartRes] = await Promise.all([
             supabase.rpc("dashboard_live_activity_7d" as any),
@@ -301,43 +384,47 @@ export default function DashboardHome() {
               : buildLastNDayBuckets(7),
           );
 
-          if (role === "admin" && rpcData.admin_claims) {
-            setClaimStats({
-              submitted: rpcData.admin_claims.submitted || 0,
-              approved: rpcData.admin_claims.approved || 0,
-              partiallyApproved: rpcData.admin_claims.partially_approved || 0,
-              rejected: rpcData.admin_claims.rejected || 0,
-              contested: rpcData.admin_claims.contested || 0,
-              paid: rpcData.admin_claims.paid || 0,
-              claimedValue: Number(rpcData.admin_claims.claimed_value || 0),
-              approvedValue: Number(rpcData.admin_claims.approved_value || 0),
-              declinedValue: Number(rpcData.admin_claims.declined_value || 0),
-            });
-            setClaimStatsError(false);
-          }
         }
       } else {
         console.warn("get_dashboard_stats RPC failed or not found, falling back to legacy queries:", rpcError);
         if (isClaimsRole) {
           setClaimStatsError(true);
-          const [allClaims, approvedClaims, rejectedClaims, pendingClaims, hospitalsRes, usersRes, historicalClaims] = await Promise.all([
+          const [allClaims, approvedClaims, rejectedClaims, hospitalsRes, usersRes, historicalClaims] = await Promise.all([
             supabase.from("hospital_claims" as any).select("id", { count: "exact", head: true }),
             supabase.from("hospital_claims" as any).select("id", { count: "exact", head: true }).eq("status", "approved"),
             supabase.from("hospital_claims" as any).select("id", { count: "exact", head: true }).eq("status", "rejected"),
-            supabase.from("hospital_claims" as any).select("id", { count: "exact", head: true }).or("status.eq.submitted,status.eq.pending"),
             supabase.from("hospitals").select("id", { count: "exact", head: true }),
             supabase.from("user_roles").select("id", { count: "exact", head: true }),
             supabase.from("historical_codes" as any).select("id", { count: "exact", head: true }).eq("record_type", "claim"),
           ]);
-          setStats({
-            total: (allClaims.count || 0) + (historicalClaims.count || 0),
-            approved: (approvedClaims.count || 0) + (historicalClaims.count || 0),
-            rejected: rejectedClaims.count || 0,
-            pending: pendingClaims.count || 0,
-            hospitals: hospitalsRes.count || 0,
-            users: usersRes.count || 0,
-            authorizedAmount: 0,
-          });
+          const liveTotal = allClaims.count;
+          const approved = approvedClaims.count;
+          const rejected = rejectedClaims.count;
+          const historical = historicalClaims.count;
+          const countsAvailable =
+            !allClaims.error && !approvedClaims.error && !rejectedClaims.error &&
+            !hospitalsRes.error && !usersRes.error && !historicalClaims.error &&
+            [liveTotal, approved, rejected, historical, hospitalsRes.count, usersRes.count].every(
+              (value) => typeof value === "number" && Number.isFinite(value) && value >= 0,
+            ) && (approved as number) + (rejected as number) <= (liveTotal as number);
+          if (countsAvailable) {
+            setStats({
+              total: (liveTotal as number) + (historical as number),
+              approved: approved as number,
+              rejected: rejected as number,
+              pending: (liveTotal as number) - (approved as number) - (rejected as number),
+              hospitals: hospitalsRes.count as number,
+              users: usersRes.count as number,
+              authorizedAmount: 0,
+              historical: historical as number,
+            });
+            setStatsError(false);
+          } else {
+            setStats(EMPTY_DASHBOARD_STATS);
+            setStatsError(true);
+          }
+          setAuthorizationStatsError(false);
+          setAuthorizedAmountError(true);
 
           const { data: claimChart } = await supabase.rpc("dashboard_claims_activity_7d" as any);
           const claimRows = claimChart?.length
@@ -352,26 +439,47 @@ export default function DashboardHome() {
           setChartData(claimRows);
           setClaimChartData(claimRows);
         } else {
-          const [totalRes, approvedRes, rejectedRes, pendingRes, hospitalsRes, usersRes, authChartRes, claimChartRes2, historicalAuths] = await Promise.all([
-            supabase.from("authorization_requests").select("id", { count: "exact", head: true }),
-            supabase.from("authorization_requests").select("id", { count: "exact", head: true }).eq("status", "approved"),
-            supabase.from("authorization_requests").select("id", { count: "exact", head: true }).eq("status", "rejected"),
-            supabase.from("authorization_requests").select("id", { count: "exact", head: true }).eq("status", "pending"),
+          const [totalRes, approvedRes, rejectedRes, hospitalsRes, usersRes, authChartRes, claimChartRes2, historicalAuths] = await Promise.all([
+            supabase.from("authorization_requests").select("id", { count: "exact", head: true }).or("status.is.null,status.neq.deferred"),
+            supabase.from("authorization_requests").select("id", { count: "exact", head: true }).in("status", ["approved", "partially_approved", "authorization_approved", "referral_approved", "referral_accepted"]),
+            supabase.from("authorization_requests").select("id", { count: "exact", head: true }).in("status", ["rejected", "referral_declined", "referral_expired", "accepted_referral_expired"]),
             supabase.from("hospitals").select("id", { count: "exact", head: true }),
             supabase.from("user_roles").select("id", { count: "exact", head: true }),
             supabase.rpc("dashboard_live_activity_7d" as any),
             supabase.rpc("dashboard_claims_activity_7d" as any),
             supabase.from("historical_codes" as any).select("id", { count: "exact", head: true }).eq("record_type", "authorization"),
           ]);
-          setStats({
-            total: (totalRes.count || 0) + (historicalAuths.count || 0),
-            approved: (approvedRes.count || 0) + (historicalAuths.count || 0),
-            rejected: rejectedRes.count || 0,
-            pending: pendingRes.count || 0,
-            hospitals: hospitalsRes.count || 0,
-            users: usersRes.count || 0,
-            authorizedAmount: 0,
-          });
+          const liveTotal = totalRes.count;
+          const approved = approvedRes.count;
+          const rejected = rejectedRes.count;
+          const historical = historicalAuths.count;
+          const authCountsAvailable =
+            !totalRes.error && !approvedRes.error && !rejectedRes.error &&
+            !historicalAuths.error &&
+            [liveTotal, approved, rejected, historical].every(
+              (value) => typeof value === "number" && Number.isFinite(value) && value >= 0,
+            ) && (approved as number) + (rejected as number) <= (liveTotal as number);
+          const allStatsAvailable =
+            authCountsAvailable && !hospitalsRes.error && !usersRes.error &&
+            typeof hospitalsRes.count === "number" && Number.isFinite(hospitalsRes.count) &&
+            typeof usersRes.count === "number" && Number.isFinite(usersRes.count);
+          if (allStatsAvailable) {
+            setStats({
+              total: (liveTotal as number) + (historical as number),
+              approved: approved as number,
+              rejected: rejected as number,
+              pending: (liveTotal as number) - (approved as number) - (rejected as number),
+              hospitals: hospitalsRes.count as number,
+              users: usersRes.count as number,
+              authorizedAmount: 0,
+              historical: historical as number,
+            });
+          } else {
+            setStats(EMPTY_DASHBOARD_STATS);
+          }
+          setStatsError(!allStatsAvailable);
+          setAuthorizationStatsError(!authCountsAvailable);
+          setAuthorizedAmountError(true);
           setChartData(
             authChartRes.data?.length
               ? authChartRes.data.map((row: any) => ({
@@ -400,6 +508,10 @@ export default function DashboardHome() {
     }
   } catch (error) {
       console.error("Dashboard stats fetch failed:", error);
+      setStats(EMPTY_DASHBOARD_STATS);
+      setStatsError(true);
+      setAuthorizationStatsError(role !== "claims" && role !== "claims_lead" && role !== "finance");
+      setAuthorizedAmountError(role === "admin");
       toast({ variant: "destructive", title: "Error", description: getErrorMessage(error, "Unable to load dashboard") });
     } finally {
       setLoading(false);
@@ -461,45 +573,52 @@ export default function DashboardHome() {
 
   return (
     <div className="space-y-4 max-w-full overflow-x-hidden pb-10 animate-in fade-in duration-500">
+      {!isAdmin && (statsError || authorizationStatsError) && (
+        <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+          <span>Dashboard totals could not be confirmed. Incomplete totals are hidden.</span>
+          <button type="button" onClick={() => void fetchStats(true)} className="min-h-11 rounded-md border border-amber-300 bg-white px-4 font-semibold text-amber-950 hover:bg-amber-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-700 focus-visible:ring-offset-2">
+            Retry totals
+          </button>
+        </div>
+      )}
       {isAdmin && (
         <div className="space-y-4">
-          {(financeStatsError || claimStatsError) && (
+          {(statsError || authorizationStatsError || authorizedAmountError || financeStatsError || claimStatsError) && (
             <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
-              <span>Some claim or payment totals could not be confirmed. Incomplete totals are hidden.</span>
+              <span>Some dashboard totals could not be confirmed. Incomplete totals are hidden.</span>
               <button type="button" onClick={() => void fetchStats(true)} className="min-h-11 rounded-md border border-amber-300 bg-white px-4 font-semibold text-amber-950 hover:bg-amber-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-700 focus-visible:ring-offset-2">
                 Retry totals
               </button>
             </div>
           )}
-          <section aria-labelledby="authorization-metrics-heading" className="space-y-1 sm:space-y-1.5">
-            <div id="authorization-metrics-heading" role="heading" aria-level={2} className="text-[10.5px] sm:text-xs font-bold uppercase tracking-wider text-slate-500">Clinical Authorizations</div>
-            <DashboardMetricGrid loading={loading} items={[
-              { label: "Authorized amount", value: money(stats.authorizedAmount), icon: Banknote },
-              { label: "Total requests", value: stats.total, icon: FileText },
-              { label: "Approved", value: stats.approved, icon: CheckCircle2, color: "text-emerald-700" },
-              { label: "Rejected", value: stats.rejected, icon: XCircle, color: "text-rose-700" },
-            ]} />
-          </section>
-
-          <section aria-labelledby="claims-metrics-heading" className="space-y-1 sm:space-y-1.5">
-            <div id="claims-metrics-heading" role="heading" aria-level={2} className="text-[10.5px] sm:text-xs font-bold uppercase tracking-wider text-slate-500">Claims</div>
-            <DashboardMetricGrid loading={loading} items={[
-              { label: "Submitted", value: claimStatsError ? "—" : claimStats.submitted, icon: FileText },
-              { label: "Paid", value: claimStatsError ? "—" : claimStats.paid, icon: CheckCircle2, color: "text-emerald-700" },
-              { label: "Approved value", value: claimStatsError ? "—" : money(claimStats.approvedValue), icon: Banknote },
-              { label: "Contested", value: claimStatsError ? "—" : claimStats.contested, icon: AlertTriangle, color: "text-amber-700" },
-            ]} />
-          </section>
-
-          <section aria-labelledby="payments-metrics-heading" className="space-y-1 sm:space-y-1.5">
-            <div id="payments-metrics-heading" role="heading" aria-level={2} className="text-[10.5px] sm:text-xs font-bold uppercase tracking-wider text-slate-500">Payments</div>
-            <DashboardMetricGrid loading={loading} items={[
-              { label: "Awaiting payment", value: financeStatsError ? "—" : money(financeStats.awaitingValue), icon: Clock, color: "text-amber-700" },
-              { label: "Paid value", value: financeStatsError ? "—" : money(financeStats.paidValue), icon: Banknote },
-              { label: "Settled batches", value: financeStatsError ? "—" : financeStats.paidBatches, icon: Layers },
-              { label: "Total batch value", value: financeStatsError ? "—" : money(financeStats.totalBatchesValue), icon: Wallet },
-            ]} />
-          </section>
+          <AdminOverview
+            loading={loading}
+            basePath={actionBase}
+            authError={authorizationStatsError}
+            authAmountError={authorizedAmountError}
+            claimsError={claimStatsError}
+            paymentsError={financeStatsError}
+            auth={{
+              total: stats.total,
+              approved: stats.approved,
+              rejected: stats.rejected,
+              historical: stats.historical,
+              authorizedAmount: stats.authorizedAmount,
+            }}
+            claims={{
+              submitted: claimStats.submitted,
+              paid: claimStats.paid,
+              contested: claimStats.contested,
+              approvedValue: claimStats.approvedValue,
+            }}
+            payments={{
+              awaitingCount: financeStats.awaitingCount,
+              awaitingValue: financeStats.awaitingValue,
+              paidValue: financeStats.paidValue,
+              settledBatches: financeStats.paidBatches,
+              totalBatchValue: financeStats.totalBatchesValue,
+            }}
+          />
         </div>
       )}
 
@@ -527,10 +646,10 @@ export default function DashboardHome() {
         <section aria-labelledby="manager-summary-heading" className="space-y-1 sm:space-y-1.5">
           <div id="manager-summary-heading" role="heading" aria-level={2} className="text-[10.5px] sm:text-xs font-bold uppercase tracking-wider text-slate-500">Authorization Workload</div>
           <DashboardMetricGrid loading={loading} columns="grid-cols-2" items={[
-            { label: "Total requests", value: stats.total, icon: FileText },
-            { label: "Action needed", value: stats.pending, icon: Clock, color: "text-amber-700" },
-            { label: "Approved", value: stats.approved, icon: CheckCircle2, color: "text-emerald-700" },
-            { label: "Rejected", value: stats.rejected, icon: XCircle, color: "text-rose-700" },
+            { label: "Total requests", value: statsError ? "—" : stats.total, icon: FileText },
+            { label: "Action needed", value: statsError ? "—" : stats.pending, icon: Clock, color: "text-amber-700" },
+            { label: "Approved", value: statsError ? "—" : stats.approved, icon: CheckCircle2, color: "text-emerald-700" },
+            { label: "Rejected", value: statsError ? "—" : stats.rejected, icon: XCircle, color: "text-rose-700" },
           ]} />
         </section>
       )}
@@ -539,10 +658,10 @@ export default function DashboardHome() {
         <section aria-labelledby="requests-summary-heading" className="space-y-1 sm:space-y-1.5">
           <div id="requests-summary-heading" role="heading" aria-level={2} className="text-[10.5px] sm:text-xs font-bold uppercase tracking-wider text-slate-500">Request Summary</div>
           <DashboardMetricGrid loading={loading} items={[
-            { label: "Total requests", value: stats.total, icon: FileText },
-            { label: "Facilities", value: stats.hospitals, icon: Building2 },
-            { label: "Approved", value: stats.approved, icon: CheckCircle2, color: "text-emerald-700" },
-            { label: "Rejected", value: stats.rejected, icon: XCircle, color: "text-rose-700" },
+            { label: "Total requests", value: statsError ? "—" : stats.total, icon: FileText },
+            { label: "Facilities", value: statsError ? "—" : stats.hospitals, icon: Building2 },
+            { label: "Approved", value: statsError ? "—" : stats.approved, icon: CheckCircle2, color: "text-emerald-700" },
+            { label: "Rejected", value: statsError ? "—" : stats.rejected, icon: XCircle, color: "text-rose-700" },
           ]} />
         </section>
       )}
