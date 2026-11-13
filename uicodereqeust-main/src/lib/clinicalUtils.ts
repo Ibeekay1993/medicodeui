@@ -75,7 +75,11 @@ export function getApprovalAmountIssue(
     if (!hasValidItemQuantity(item)) {
       return `${item.name}: confirm the quantity from the request or prescription.`;
     }
-    if (item.priceNeedsReview === true || !hasValidItemUnitPrice(item)) {
+    // Only block on price when there is genuinely no valid unit price (NaN,
+    // null, or not finite). Items with a confirmed zero tariff (free services)
+    // or any positive stored price are safe to approve. The priceNeedsReview
+    // flag is advisory only — the stored price is authoritative.
+    if (!hasValidItemUnitPrice(item)) {
       return `${item.name}: select a catalog item with a valid tariff price.`;
     }
   }

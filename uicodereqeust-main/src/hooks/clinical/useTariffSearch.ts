@@ -43,8 +43,11 @@ function normalizeStoredApprovalItem(item: any) {
     quantity,
     // Staff review the parsed quantity against the source request before approval.
     quantityNeedsReview: false,
-    priceNeedsReview: item.price_requires_review === true || recordedUnitPrice === null ||
-      recordedTotal === null || parsedQuantity === null || amountMismatch,
+    // A stored item is price-confirmed when it was not explicitly flagged for
+    // review AND it has a valid finite non-negative unit price with a consistent
+    // total. Free services (unitPrice=0) are allowed. Only block when the price
+    // is genuinely missing (null/NaN) or the stored amount is inconsistent.
+    priceNeedsReview: item.price_requires_review === true || !Number.isFinite(unitPrice) || unitPrice < 0 || amountMismatch,
     frequency: item.frequency || null,
     duration: item.duration || null,
     matched_via: item.matched_via,
@@ -100,9 +103,11 @@ function normalizeParsedApprovalItem(item: any) {
     unitPrice: unitPrice ?? 0,
     quantity,
     quantityNeedsReview: false,
-    // Older parser deployments did not emit this marker. Treat their parsed
-    // prices as unverified until the catalog item is reselected.
-    priceNeedsReview: item.price_requires_review !== false || unitPrice === null || amountMismatch,
+    // Flag for price review only when the parser explicitly says so, the
+    // resolved price is invalid (not finite / negative), or the amount data is
+    // internally inconsistent. Zero-price items (free services) are allowed.
+    // Items with a valid positive price from the parser are treated as confirmed.
+    priceNeedsReview: item.price_requires_review === true || !Number.isFinite(unitPrice ?? 0) || (unitPrice ?? 0) < 0 || amountMismatch,
     frequency: item.frequency || null,
     duration: item.duration || null,
     matched_via: item.matched_via,

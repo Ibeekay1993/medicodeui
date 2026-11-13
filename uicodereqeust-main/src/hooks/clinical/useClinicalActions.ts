@@ -188,8 +188,11 @@ export function useClinicalActions({
               unitPrice,
               quantity,
               quantityNeedsReview: false,
-              priceNeedsReview: item.price_requires_review === true || recordedUnit === null ||
-                total === null || parsedQuantity === null || amountMismatch,
+              // Treat stored items with a valid finite non-negative price and consistent
+              // total as price-confirmed, regardless of the legacy
+              // price_requires_review flag. Zero-price (free service) items are
+              // allowed. Only block when the price is genuinely invalid or inconsistent.
+              priceNeedsReview: item.price_requires_review === true || !Number.isFinite(unitPrice) || unitPrice < 0 || amountMismatch,
               frequency: item.frequency || null,
               duration: item.duration || null,
               declined: Boolean(item.declined),

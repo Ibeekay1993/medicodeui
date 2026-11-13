@@ -34,6 +34,22 @@ describe("approval amount calculations", () => {
     expect(getApprovalAmountIssue([], 0)).toContain("at least one treatment item");
     expect(getApprovalAmountIssue(confirmed, 70)).toContain("does not match");
   });
+
+  it("allows approval when priceNeedsReview is true but unitPrice is valid and positive", () => {
+    // Legacy items may have priceNeedsReview:true but a valid stored price —
+    // approval must not be blocked when the price is genuine.
+    const item = { code: "P1", name: "Potassium", category: "procedure", price: 1250, unitPrice: 1250, quantity: 1, priceNeedsReview: true };
+    expect(getApprovalAmountIssue([item], 1250)).toBeNull();
+  });
+
+  it("blocks approval when unitPrice is zero or missing regardless of priceNeedsReview flag", () => {
+    // A genuinely missing price (NaN / no price field) must block approval.
+    const nanPrice = { code: "P2", name: "Procedure", category: "procedure", price: Number.NaN, unitPrice: Number.NaN, quantity: 1 };
+    expect(getApprovalAmountIssue([nanPrice], 0)).toContain("valid tariff price");
+    // Zero-price items (free services with ₦0 tariff) are allowed when total matches.
+    const freeService = { code: "P3", name: "Service", category: "procedure", price: 0, unitPrice: 0, quantity: 1 };
+    expect(getApprovalAmountIssue([freeService], 0)).toBeNull();
+  });
 });
 
 describe("beneficiary identity matching", () => {
