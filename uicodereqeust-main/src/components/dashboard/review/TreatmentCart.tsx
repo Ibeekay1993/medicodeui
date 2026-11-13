@@ -173,9 +173,15 @@ export const TreatmentCart = React.memo(function TreatmentCart({
           {approvedItems.length > 0 ? (
             <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xs">
               <div className="max-h-64 overflow-auto divide-y divide-slate-100">
-                {approvedItems.map((item) => (
+                {approvedItems.map((item, itemIdx) => {
+                  // Use a stable unique key: prefer the NHIA code; fall back to
+                  // a composite of index + name so null-code items render correctly
+                  // and don't share DOM state with each other.
+                  const itemKey = item.code != null ? item.code : `__item_${itemIdx}_${item.name}`;
+                  const editKey = item.code ?? `__item_${itemIdx}_${item.name}`;
+                  return (
                   <div
-                    key={item.code}
+                    key={itemKey}
                     className={cn(
                       "p-2 transition-colors",
                       item.declined
@@ -264,7 +270,7 @@ export const TreatmentCart = React.memo(function TreatmentCart({
                               size="icon"
                               className="h-7 w-7 rounded-lg hover:bg-white hover:shadow-xs transition-all"
                               onClick={() => {
-                                const draft = editingQuantities[item.code || ""];
+                                const draft = editingQuantities[editKey];
                                 const draftQty = Number(draft);
                                 const currentQty = draft !== undefined && Number.isFinite(draftQty) && draftQty > 0
                                   ? draftQty
@@ -286,7 +292,7 @@ export const TreatmentCart = React.memo(function TreatmentCart({
                               inputMode="numeric"
                               pattern="[0-9]*"
                               aria-label={`Quantity for ${item.name}`}
-                              value={editingQuantities[item.code || ""] ?? String(item.quantity)}
+                              value={editingQuantities[editKey] ?? String(item.quantity)}
                               onChange={(event) => updateApprovedItemQuantity(item.code, event.target.value)}
                               onBlur={() => commitQuantity(item.code)}
                               onKeyDown={(event) => {
@@ -298,7 +304,7 @@ export const TreatmentCart = React.memo(function TreatmentCart({
                               onFocus={(event) => {
                                 event.target.select();
                               }}
-                              className="h-7 w-10 border-0 bg-transparent text-center font-black text-xs p-0 outline-none focus:ring-0 cursor-text text-slate-900"
+                              className="h-7 w-12 border-0 bg-transparent text-center font-black text-xs p-0 outline-none focus:ring-0 cursor-text text-slate-900"
                               disabled={readOnly || item.declined || request?.deletion_status === "awaiting_admin_approval" || isHospitalDirected}
                             />
                             <Button
@@ -306,7 +312,7 @@ export const TreatmentCart = React.memo(function TreatmentCart({
                               size="icon"
                               className="h-7 w-7 rounded-lg hover:bg-white hover:shadow-xs transition-all"
                               onClick={() => {
-                                const draft = editingQuantities[item.code || ""];
+                                const draft = editingQuantities[editKey];
                                 const draftQty = Number(draft);
                                 const currentQty = draft !== undefined && Number.isFinite(draftQty) && draftQty > 0
                                   ? draftQty
@@ -403,7 +409,8 @@ export const TreatmentCart = React.memo(function TreatmentCart({
                       </div>
                     )}
                   </div>
-                ))}
+                );
+              })}
               </div>
               <div className="flex items-center justify-between border-t border-slate-100 bg-slate-50 px-3 py-2.5">
                 <span className="text-xs font-black uppercase tracking-widest text-slate-700">
