@@ -6,6 +6,7 @@ vi.mock("@/integrations/supabase/client", () => ({
 }));
 
 import {
+  isVapidPublicKeyValid,
   notifyHospitalAuthorizationDecision,
   notifyPendingAuthorizationRequest,
 } from "./pushNotifications";
@@ -48,5 +49,19 @@ describe("push notification dispatch", () => {
         target_hospital_id: "hospital-1",
       }),
     });
+  });
+
+  it("rejects a missing or malformed browser VAPID key", () => {
+    expect(isVapidPublicKeyValid(undefined)).toBe(false);
+    expect(isVapidPublicKeyValid("not-a-key")).toBe(false);
+  });
+
+  it("accepts only a correctly sized uncompressed P-256 application server key", () => {
+    const bytes = new Uint8Array(65);
+    bytes[0] = 4;
+    const key = btoa(String.fromCharCode(...bytes)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+
+    expect(isVapidPublicKeyValid(key)).toBe(true);
+    expect(isVapidPublicKeyValid(key.slice(1))).toBe(false);
   });
 });

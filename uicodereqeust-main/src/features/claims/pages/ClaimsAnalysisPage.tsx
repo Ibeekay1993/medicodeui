@@ -7,11 +7,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { useDataPagination } from "@/hooks/use-data-pagination";
 import { DataPagination } from "@/components/dashboard/DataPagination";
 import { PageLoader } from "@/components/PageLoader";
+import { claimStatusBucket } from "../lib/claimStatus";
 import {
   AlertCircle,
   Building2,
@@ -31,33 +31,11 @@ function money(value: number) {
   }).format(value || 0);
 }
 
-function normalizeStatus(status?: string | null) {
-  return String(status || "pending").toLowerCase().replace(/\s+/g, "_");
-}
-
-function statusBucket(status?: string | null): "pending" | "approved" | "rejected" | "contested" | "other" {
-  const normalized = normalizeStatus(status);
-  if (["submitted", "pending", "under_investigation", "under_review", "pending_audit", "audit"].includes(normalized)) return "pending";
-  if (normalized === "approved") return "approved";
-  if (["contested", "paid"].includes(normalized)) return "contested";
-  if (["rejected", "declined", "denied"].includes(normalized)) return "rejected";
-  return "other";
-}
-
 export default function ClaimsAnalysisPage() {
-  const { toast } = useToast();
   const [openHospitalSelect, setOpenHospitalSelect] = useState(false);
   const [selectedHospitalKey, setSelectedHospitalKey] = useState("all");
 
   const { data: claims, isLoading: loading, refetch: refresh, isError } = useClaimsAnalysisQuery();
-
-  if (isError) {
-    toast({
-      variant: "destructive",
-      title: "Unable to load claims analysis",
-      description: "Please refresh and try again."
-    });
-  }
 
   useTabVisibilityRefresh(refresh as () => void);
 
@@ -69,41 +47,49 @@ export default function ClaimsAnalysisPage() {
       approved: 0,
       rejected: 0,
       contested: 0,
+      paid: 0,
       other: 0,
       totalValue: 0,
+      pendingValue: 0,
       approvedValue: 0,
       rejectedValue: 0,
-      contestedValue: 0
+      contestedValue: 0,
+      paidValue: 0,
     };
 
     (summary.by_status || []).forEach((row: any) => {
       const count = Number(row.count || 0);
       const amount = Number(row.total_amount || 0);
-      const bucket = statusBucket(row.status);
+      const bucket = claimStatusBucket(row.status);
       
       base.total += count;
       base.totalValue += amount;
       (base as any)[bucket] += count;
-      if (bucket === "approved") base.approvedValue += amount;
-      if (bucket === "rejected") base.rejectedValue += amount;
-      if (bucket === "contested") base.contestedValue += amount;
+      if (bucket === "pending") base.pendingValue += Number(row.pending_amount ?? row.total_amount ?? 0);
+      if (bucket === "approved") base.approvedValue += Number(row.approved_amount ?? 0);
+      if (bucket === "rejected") base.rejectedValue += Number(row.declined_amount || 0);
+      if (bucket === "contested") base.contestedValue += Number(row.under_contest_amount || 0);
+      if (bucket === "paid") base.paidValue += Number(row.paid_amount || 0);
     });
 
     const hospitals = (summary.by_hospital || []).map((h: any) => {
-      // In a real RPC we'd want to group by bucket, but since we simplified the RPC to just count and total_amount:
       return {
         key: h.hospital_id || h.hospital_name || "unknown",
         name: h.hospital_name || "Unknown Hospital",
         total: Number(h.count || 0),
-        pending: 0, // This simplification means we'll just show the total value correctly but not per-bucket counts
-        approved: 0,
-        rejected: 0,
-        contested: 0,
-        other: 0,
+        pending: Number(h.pending_count || 0),
+        approved: Number(h.approved_count || 0),
+        rejected: Number(h.rejected_count || 0),
+        contested: Number(h.contested_count || 0),
+        paid: Number(h.paid_count || 0),
+        other: Number(h.other_count || 0),
         value: Number(h.total_amount || 0),
-        approvedValue: 0,
-        contestedValue: 0,
-        latest: new Date().toISOString() // Or from RPC
+        pendingValue: Number(h.pending_amount || 0),
+        approvedValue: Number(h.approved_amount || 0),
+        rejectedValue: Number(h.rejected_amount || 0),
+        contestedValue: Number(h.contested_amount || 0),
+        paidValue: Number(h.paid_amount || 0),
+        latest: h.latest || null,
       };
     }).sort((a: any, b: any) => b.total - a.total || a.name.localeCompare(b.name));
 
@@ -117,24 +103,9 @@ export default function ClaimsAnalysisPage() {
 
   const selectedHospital = analysis.hospitals.find((hospital) => hospital.key === selectedHospitalKey) || null;
   
-  // Since we use the RPC, the global stats are already computed. If a specific hospital is selected, 
-  // we would ideally re-fetch or use hospital-specific buckets. 
-  // For now, if "all" is selected, we use global stats. If a specific hospital is selected, 
-  // we just use its total value since the simplified RPC doesn't break down status by hospital.
   const isAll = selectedHospitalKey === "all";
-  const summary = claims || { by_status: [], by_hospital: [], by_date: [] };
-
-  const paymentReadyValue = isAll 
-    ? (summary.by_status || [])
-        .filter((row: any) => ["approved", "partially_approved"].includes(normalizeStatus(row.status)))
-        .reduce((sum: number, row: any) => sum + Number(row.total_amount || 0), 0)
-    : 0;
-
-  const pendingAuditValue = isAll
-    ? (summary.by_status || [])
-        .filter((row: any) => statusBucket(row.status) === "pending")
-        .reduce((sum: number, row: any) => sum + Number(row.total_amount || 0), 0)
-    : 0;
+  const paymentReadyValue = isAll ? analysis.approvedValue : Number(selectedHospital?.approvedValue || 0);
+  const pendingAuditValue = isAll ? analysis.pendingValue : Number(selectedHospital?.pendingValue || 0);
 
   const filteredHospitals = analysis.hospitals.filter((hospital) => {
     return selectedHospitalKey === "all" || hospital.key === selectedHospitalKey;
@@ -153,44 +124,24 @@ export default function ClaimsAnalysisPage() {
   const maxVolume = Math.max(1, ...analysis.volume.map(([, count]) => count as number));
 
   const stats = useMemo(() => {
-    const base = {
-      pending: 0,
-      approved: 0,
-      rejected: 0,
-      contested: 0,
-      pendingValue: 0,
-      approvedValue: 0,
-      rejectedValue: 0,
-      contestedValue: 0
+    if (isAll) return analysis;
+    return {
+      pending: selectedHospital?.pending ?? 0,
+      approved: selectedHospital?.approved ?? 0,
+      rejected: selectedHospital?.rejected ?? 0,
+      contested: selectedHospital?.contested ?? 0,
+      paid: selectedHospital?.paid ?? 0,
+      pendingValue: selectedHospital?.pendingValue ?? 0,
+      approvedValue: selectedHospital?.approvedValue ?? 0,
+      rejectedValue: selectedHospital?.rejectedValue ?? 0,
+      contestedValue: selectedHospital?.contestedValue ?? 0,
+      paidValue: selectedHospital?.paidValue ?? 0,
     };
-
-    if (!isAll) {
-      // With the simple RPC, we only have totals for single hospitals
-      base.pendingValue = 0;
-      return base;
-    }
-
-    (summary.by_status || []).forEach((row: any) => {
-      const count = Number(row.count || 0);
-      const amount = Number(row.total_amount || 0);
-      const bucket = statusBucket(row.status);
-      
-      if (bucket in base) {
-        (base as any)[bucket] += count;
-      }
-      if (bucket === "pending") base.pendingValue += amount;
-      if (bucket === "approved") base.approvedValue += amount;
-      if (bucket === "rejected") base.rejectedValue += amount;
-      if (bucket === "contested") base.contestedValue += amount;
-    });
-
-    return base;
-  }, [summary, isAll]);
+  }, [analysis, isAll, selectedHospital]);
 
   if (loading) {
     return <PageLoader className="min-h-64" label="Loading claims analysis..." />;
   }
-
 
   const metrics = [
     {
@@ -224,11 +175,25 @@ export default function ClaimsAnalysisPage() {
       icon: Wallet,
       borderColor: "border-l-blue-500",
       iconBg: "bg-slate-50/70 text-blue-600 border border-slate-100"
+    },
+    {
+      label: "Paid",
+      count: stats.paid,
+      value: money(stats.paidValue),
+      icon: Wallet,
+      borderColor: "border-l-purple-500",
+      iconBg: "bg-slate-50/70 text-purple-600 border border-slate-100"
     }
   ];
 
   return (
     <div className="space-y-4 pb-10 animate-in fade-in duration-500">
+      {isError && (
+        <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">
+          <span>{claims ? "Claims analysis could not refresh; showing the last loaded results." : "Claims analysis could not be loaded. No totals are available."}</span>
+          <Button type="button" variant="outline" size="sm" onClick={() => void refresh()}>Retry</Button>
+        </div>
+      )}
       <div className="pb-3 border-b border-slate-100 flex flex-wrap items-center justify-end gap-2">
         <Popover open={openHospitalSelect} onOpenChange={setOpenHospitalSelect}>
           <PopoverTrigger asChild>
@@ -310,7 +275,7 @@ export default function ClaimsAnalysisPage() {
               <p className="text-sm sm:text-base font-extrabold text-slate-900 tracking-tight leading-tight mt-0.5">{selectedHospital.name}</p>
               <div className="mt-1 flex items-center gap-1.5 text-slate-500">
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-              <p className="text-xs font-medium">Latest claim: {new Date(selectedHospital.latest).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}</p>
+              <p className="text-xs font-medium">Latest claim: {selectedHospital.latest ? new Date(selectedHospital.latest).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "Not recorded"}</p>
               </div>
             </div>
             <div className="rounded-lg border border-slate-100 bg-slate-50/50 p-2 text-center sm:text-left">
@@ -325,7 +290,7 @@ export default function ClaimsAnalysisPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-2 sm:gap-4">
         {metrics.map((metric) => (
           <div key={metric.label} className="flex min-w-0 items-center gap-3 overflow-hidden rounded-xl border border-slate-200 bg-white p-3 sm:p-4" title={metric.label}>
             <div className={cn("hidden h-10 w-10 shrink-0 items-center justify-center rounded-lg sm:flex md:h-11 md:w-11", metric.iconBg)}>
@@ -386,7 +351,7 @@ export default function ClaimsAnalysisPage() {
           <CardHeader className="flex flex-col gap-3 space-y-0 p-4 sm:flex-row sm:items-center sm:justify-between border-b border-slate-100">
             <div className="min-w-0">
               <CardTitle className="text-sm font-bold text-slate-800 tracking-tight">All Partner Hospitals</CardTitle>
-              <p className="text-xs font-semibold text-slate-400 mt-0.5">{analysis.hospitals.length} active hospitals in this cycle</p>
+              <p className="text-xs font-semibold text-slate-400 mt-0.5">{analysis.hospitals.length} hospitals with claims</p>
             </div>
           </CardHeader>
           <CardContent className="p-0">
@@ -400,6 +365,7 @@ export default function ClaimsAnalysisPage() {
                     <th className="p-4">Approved</th>
                     <th className="p-4">Rejected</th>
                     <th className="p-4">Contested</th>
+                    <th className="p-4">Paid</th>
                     <th className="p-4 pr-6 text-right">Claim Value</th>
                   </tr>
                 </thead>
@@ -413,7 +379,7 @@ export default function ClaimsAnalysisPage() {
                           </div>
                           <div className="min-w-0">
                             <p className="font-bold text-slate-800 leading-tight truncate">{hospital.name}</p>
-                            <p className="text-xs text-slate-400 mt-1">Latest: {new Date(hospital.latest).toLocaleDateString("en-GB")}</p>
+                            <p className="text-xs text-slate-400 mt-1">Latest: {hospital.latest ? new Date(hospital.latest).toLocaleDateString("en-GB") : "Not recorded"}</p>
                           </div>
                         </div>
                       </td>
@@ -438,12 +404,17 @@ export default function ClaimsAnalysisPage() {
                           {hospital.contested}
                         </span>
                       </td>
+                      <td className="p-4">
+                        <span className="rounded-full border border-purple-100 bg-purple-50 px-2.5 py-0.5 text-xs font-bold text-purple-700">
+                          {hospital.paid}
+                        </span>
+                      </td>
                       <td className="p-4 pr-6 font-mono font-bold text-emerald-700 text-sm text-right">{money(hospital.value)}</td>
                     </tr>
                   ))}
                   {filteredHospitals.length === 0 && (
                     <tr>
-                      <td className="p-12 text-center text-xs font-semibold text-slate-400" colSpan={7}>
+                      <td className="p-12 text-center text-xs font-semibold text-slate-400" colSpan={8}>
                         No hospital claim analysis found
                       </td>
                     </tr>
@@ -458,16 +429,18 @@ export default function ClaimsAnalysisPage() {
                    <div className="flex items-start justify-between gap-3">
                      <div className="min-w-0">
                        <p className="truncate text-sm font-bold text-slate-800">{hospital.name}</p>
-                       <p className="mt-1 text-xs text-slate-400">Latest: {new Date(hospital.latest).toLocaleDateString("en-GB")}</p>
+                       <p className="mt-1 text-xs text-slate-400">Latest: {hospital.latest ? new Date(hospital.latest).toLocaleDateString("en-GB") : "Not recorded"}</p>
                      </div>
                      <p className="shrink-0 font-mono text-sm font-bold text-emerald-700">{money(hospital.value)}</p>
                    </div>
-                   <div className="mt-3 grid grid-cols-4 gap-1.5 text-center">
+                   <div className="mt-3 grid grid-cols-3 gap-1.5 text-center sm:grid-cols-6">
                      {[
                        ["Total", hospital.total, "bg-slate-50 text-slate-700 border border-slate-100"],
                        ["Pending", hospital.pending, "bg-amber-50 text-amber-700 border border-amber-100/50"],
                        ["Approved", hospital.approved, "bg-emerald-50 text-emerald-700 border border-emerald-100/50"],
-                       ["Rejected", hospital.rejected, "bg-rose-50 text-rose-700 border border-rose-100/50"]
+                       ["Rejected", hospital.rejected, "bg-rose-50 text-rose-700 border border-rose-100/50"],
+                       ["Contested", hospital.contested, "bg-blue-50 text-blue-700 border border-blue-100/50"],
+                       ["Paid", hospital.paid, "bg-purple-50 text-purple-700 border border-purple-100/50"]
                      ].map(([label, count, color]) => (
                        <div key={label} className={cn("rounded-lg p-1.5", color as string)}>
                          <p className="text-xs font-medium normal-case tracking-normal text-slate-500">{label}</p>

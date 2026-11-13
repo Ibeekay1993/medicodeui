@@ -21,9 +21,12 @@ import { saveAs } from "file-saver";
 import { toast } from "@/components/ui/use-toast";
 import { cn } from "@/lib/utils";
 import { PageLoader } from "@/components/PageLoader";
+import { DataPagination } from "@/components/dashboard/DataPagination";
+import { useDataPagination } from "@/hooks/use-data-pagination";
+import { PaymentLoadError } from "../components/PaymentLoadError";
 
 export default function FinanceReportsPage() {
-  const { data, isLoading, refetch } = useFinanceReports();
+  const { data, isLoading, isError, error, refetch } = useFinanceReports();
 
   const formatMoney = (value: number) =>
     new Intl.NumberFormat("en-NG", {
@@ -53,10 +56,11 @@ export default function FinanceReportsPage() {
 
     const awaitingList = (awaitingClaims as any[]).filter(
       (c: any) =>
-        c.status === "approved" ||
-        (c.status === "partially_approved" &&
-          (c.payment_status === "awaiting_payment" ||
-            (c.contest_deadline && new Date(c.contest_deadline) < currentDate)))
+        String(c.payment_status || "").toLowerCase() !== "paid" &&
+        (c.status === "approved" ||
+          (c.status === "partially_approved" &&
+            (c.payment_status === "awaiting_payment" ||
+              (c.contest_deadline && new Date(c.contest_deadline) < currentDate))))
     );
 
     return {
@@ -67,7 +71,7 @@ export default function FinanceReportsPage() {
       ),
       paidCount: (paidClaims as any[]).length,
       paidValue: (paidClaims as any[]).reduce(
-        (sum: number, c: any) => sum + Number(c.approved_amount || 0),
+        (sum: number, c: any) => sum + Number(c.approved_amount ?? c.total_amount ?? 0),
         0
       ),
       draftBatches: (batches as any[]).filter((b: any) => b.status === "draft").length,
@@ -84,6 +88,7 @@ export default function FinanceReportsPage() {
   }, [data]);
 
   const totalBatchesCount = stats.draftBatches + stats.readyBatches + stats.paidBatches;
+  const batchesPagination = useDataPagination(stats.batchesList as any[], 8, 15);
 
   const cards = useMemo(
     () => [
@@ -283,7 +288,7 @@ export default function FinanceReportsPage() {
           { header: "Batch ID", key: "id", width: 35 },
           { header: "Status", key: "status", width: 15 },
           { header: "Total Amount", key: "total_amount", width: 20, isCurrency: true },
-          { header: "Claims Count", key: "claims_count", width: 15 },
+          { header: "Claims Count", key: "total_claims", width: 15 },
           { header: "Created At", key: "created_at", width: 20 },
           { header: "Paid At", key: "paid_at", width: 20 },
         ],
@@ -350,6 +355,10 @@ export default function FinanceReportsPage() {
 
   if (isLoading) {
     return <PageLoader label="Loading finance data..." />;
+  }
+
+  if (isError) {
+    return <PaymentLoadError message={error instanceof Error ? error.message : undefined} onRetry={() => void refetch()} />;
   }
 
   return (
@@ -480,7 +489,7 @@ export default function FinanceReportsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-xs">
-              {(stats.batchesList as any[]).map((b, idx) => (
+              {batchesPagination.pageItems.map((b: any, idx: number) => (
                 <tr key={b.id || idx} className="hover:bg-slate-50/70 transition-colors">
                   <td className="p-3 pl-4 font-semibold text-slate-900">
                     {b.month || "Current Cycle"}
@@ -520,6 +529,15 @@ export default function FinanceReportsPage() {
               )}
             </tbody>
           </table>
+          <DataPagination
+            page={batchesPagination.page}
+            totalPages={batchesPagination.totalPages}
+            start={batchesPagination.start}
+            end={batchesPagination.end}
+            total={batchesPagination.total}
+            pageSize={batchesPagination.pageSize}
+            onPageChange={batchesPagination.setPage}
+          />
         </div>
       </Card>
     </div>

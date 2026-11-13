@@ -15,11 +15,15 @@ export type HospitalClaimSummary = {
   approved: number;
   rejected: number;
   contested: number;
+  paid: number;
   other: number;
   value: number;
+  pendingValue: number;
   approvedValue: number;
+  rejectedValue: number;
   contestedValue: number;
-  latest: string;
+  paidValue: number;
+  latest: string | null;
 };
 
 export type ClaimsAnalysisSummary = {
@@ -27,12 +31,29 @@ export type ClaimsAnalysisSummary = {
     status: string | null;
     count: number | string | null;
     total_amount: number | string | null;
+    pending_amount?: number | string | null;
+    approved_amount?: number | string | null;
+    declined_amount?: number | string | null;
+    under_contest_amount?: number | string | null;
+    paid_amount?: number | string | null;
   }>;
   by_hospital: Array<{
     hospital_id: string | null;
     hospital_name: string | null;
     count: number | string | null;
     total_amount: number | string | null;
+    pending_count?: number | string | null;
+    approved_count?: number | string | null;
+    rejected_count?: number | string | null;
+    contested_count?: number | string | null;
+    paid_count?: number | string | null;
+    other_count?: number | string | null;
+    pending_amount?: number | string | null;
+    approved_amount?: number | string | null;
+    rejected_amount?: number | string | null;
+    contested_amount?: number | string | null;
+    paid_amount?: number | string | null;
+    latest?: string | null;
   }>;
   by_date: Array<{
     claim_date: string;
@@ -80,11 +101,14 @@ export type ClaimsAnalysisResult = {
   approved: number;
   rejected: number;
   contested: number;
+  paid: number;
   other: number;
   totalValue: number;
+  pendingValue: number;
   approvedValue: number;
   rejectedValue: number;
   contestedValue: number;
+  paidValue: number;
   hospitals: HospitalClaimSummary[];
   volume: [string, number][];
 };

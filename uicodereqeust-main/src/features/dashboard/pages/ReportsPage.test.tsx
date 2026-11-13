@@ -172,6 +172,17 @@ describe("ReportsPage report integrity", () => {
     expect(screen.queryByTestId("report-metrics")).not.toBeInTheDocument();
   });
 
+  it("shows a bounded technical reason when the report query fails", async () => {
+    setupPageHandler(async () => ({
+      data: null,
+      error: Object.assign(new Error("permission denied for column patient_email"), { code: "42501" }),
+    }));
+    renderPage();
+
+    expect(await screen.findByText(/permission denied for column patient_email/)).toBeInTheDocument();
+    expect(screen.getByText(/42501/)).toBeInTheDocument();
+  });
+
   it("discards all rows when a later page fails", async () => {
     setupPageHandler(async ({ from }) => from === 0
       ? { data: Array.from({ length: 1000 }, (_, i) => row(`partial-${i}`)), error: null }

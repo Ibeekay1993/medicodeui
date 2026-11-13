@@ -31,6 +31,8 @@ import { BatchDetailsDrawer } from "../components/BatchDetailsDrawer";
 import { MonthYearPicker } from "@/components/ui/MonthYearPicker";
 import { usePaymentBatches, useUpdatePaymentBatchStatus, useDeletePaymentBatch } from "../hooks/usePayments";
 import { PaymentsService } from "../services/paymentsService";
+import { DataPagination } from "@/components/dashboard/DataPagination";
+import { useDataPagination } from "@/hooks/use-data-pagination";
 
 export default function BatchesPage() {
   const { role } = useAuth();
@@ -82,6 +84,8 @@ export default function BatchesPage() {
       return true;
     });
   }, [batches, activeTab, searchTerm, selectedMonth, startDate, endDate]);
+
+  const pagination = useDataPagination(filteredBatches, 6, 12);
 
   // Export batch claims to CSV
   const handleExportCSV = async (batch: any) => {
@@ -364,7 +368,7 @@ export default function BatchesPage() {
 
       {/* Batches Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filteredBatches.map(batch => {
+        {pagination.pageItems.map(batch => {
           const hospName = batch.hospitals?.name || "Unknown Provider";
           const statusColors = {
             draft: "bg-slate-100 text-slate-500 border-slate-200",
@@ -514,6 +518,17 @@ export default function BatchesPage() {
           </p>
         </div>
       )}
+
+      <DataPagination
+        page={pagination.page}
+        totalPages={pagination.totalPages}
+        start={pagination.start}
+        end={pagination.end}
+        total={pagination.total}
+        pageSize={pagination.pageSize}
+        onPageChange={pagination.setPage}
+        className="rounded-xl border border-slate-200"
+      />
 
       {/* Batch Details Slide-out Drawer */}
       {selectedBatchId && (

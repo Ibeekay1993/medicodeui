@@ -236,36 +236,6 @@ export default function DashboardHome() {
           setRecentDashboardRecords([]);
           setRecentDashboardRecordsError(true);
         }
-      } else if (!isAdmin) {
-        try {
-          const { data, error } = await supabase
-            .from("authorization_requests")
-            .select("id, request_id, status, total_amount, created_at")
-            .in("status", [...ACTION_REQUIRED_AUTHORIZATION_STATUSES])
-            .order("created_at", { ascending: false })
-            .limit(5);
-          if (error) throw error;
-          setRecentDashboardRecords(((data || []) as any[]).map((row) => {
-            const timestamp = row.created_at ? new Date(row.created_at) : null;
-            const createdLabel = timestamp && Number.isFinite(timestamp.getTime())
-              ? `Submitted ${timestamp.toLocaleDateString("en-NG", { day: "numeric", month: "short", year: "numeric" })}`
-              : "Submission date unavailable";
-            const amount = parseAggregateNumber(row.total_amount);
-            return {
-              id: String(row.id),
-              title: String(row.request_id || "Authorization request"),
-              detail: createdLabel,
-              status: String(row.status || "unknown"),
-              amount: Number.isFinite(amount) && amount >= 0 ? compactMoney(amount) : undefined,
-              to: "/backoffice/utilization-manager/requests?status=action_required",
-            };
-          }));
-          setRecentDashboardRecordsError(false);
-        } catch (recentError) {
-          console.error("Recent authorization requests could not be fetched:", recentError);
-          setRecentDashboardRecords([]);
-          setRecentDashboardRecordsError(true);
-        }
       } else {
         setRecentDashboardRecords([]);
         setRecentDashboardRecordsError(false);
@@ -693,7 +663,7 @@ export default function DashboardHome() {
     { name: "Messages", desc: "Reply to hospitals and staff", href: `${actionBase}/messages`, icon: FileText, ...actionStyle },
   ];
   const claimsActions = [
-    { name: "Claims Analysis", desc: "Compare hospital claims", href: actionBase, icon: TrendingUp, ...actionStyle },
+    { name: "Claims Analysis", desc: "Compare hospital claims", href: `${actionBase}/analysis`, icon: TrendingUp, ...actionStyle },
     { name: "Claims Queue", desc: "Review and resolve claims", href: `${actionBase}/all`, icon: Banknote, ...actionStyle },
     { name: "Claims Reports", desc: "Export claims data", href: `${actionBase}/reports`, icon: LayoutDashboard, ...actionStyle },
   ];
@@ -701,7 +671,7 @@ export default function DashboardHome() {
     { name: "Payments Queue", desc: "Pay approved claims", href: `${actionBase}/payments/awaiting`, icon: Banknote, ...actionStyle },
     { name: "Batches", desc: "Create and track batches", href: `${actionBase}/payments/batches`, icon: LayoutDashboard, ...actionStyle },
     { name: "Paid Claims", desc: "Review payment history", href: `${actionBase}/payments/paid`, icon: CheckCircle2, ...actionStyle },
-    { name: "Reports", desc: "Export payment reports", href: `${actionBase}/reports`, icon: FileText, ...actionStyle },
+    { name: "Reports", desc: "Export payment reports", href: `${actionBase}/payment-reports`, icon: FileText, ...actionStyle },
   ];
   const actions = role === "admin"
     ? adminActions
@@ -868,13 +838,6 @@ export default function DashboardHome() {
             { label: "Rejected", value: formatCount(stats.rejected, authorizationStatsError) },
             { label: "Other statuses", value: formatCount(otherAuthorizationStatuses, roleAuthCountsError), detail: otherAuthorizationStatusDetail },
           ]}
-          recentRecords={{
-            title: "Recent action-needed requests",
-            viewAllHref: `${actionBase}/requests?status=action_required`,
-            loading,
-            error: recentDashboardRecordsError,
-            items: recentDashboardRecords,
-          }}
         />
       )}
 
@@ -899,13 +862,6 @@ export default function DashboardHome() {
             { label: "Facilities", value: formatCount(stats.hospitals, statsError) },
             { label: "Other statuses", value: formatCount(otherAuthorizationStatuses, roleAuthCountsError), detail: otherAuthorizationStatusDetail },
           ]}
-          recentRecords={{
-            title: "Recent action-needed requests",
-            viewAllHref: `${actionBase}/requests?status=action_required`,
-            loading,
-            error: recentDashboardRecordsError,
-            items: recentDashboardRecords,
-          }}
         />
       )}
 

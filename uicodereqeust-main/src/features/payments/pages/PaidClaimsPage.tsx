@@ -6,6 +6,9 @@ import { money } from "@/lib/claims-helpers";
 import { FolderOpen, Search, ChevronDown, Check, Calendar } from "lucide-react";
 import { usePaidClaims } from "../hooks/usePayments";
 import { PageLoader } from "@/components/PageLoader";
+import { DataPagination } from "@/components/dashboard/DataPagination";
+import { useDataPagination } from "@/hooks/use-data-pagination";
+import { PaymentLoadError } from "../components/PaymentLoadError";
 
 export default function PaidClaimsPage() {
   const [selectedHospitalId, setSelectedHospitalId] = useState<string>("all");
@@ -18,12 +21,12 @@ export default function PaidClaimsPage() {
   const [endDate, setEndDate] = useState<string>("");
 
   // Fetch all paid claims from the service hook
-  const { data: allClaims = [], isLoading: isLoadingClaims } = usePaidClaims();
+  const { data: allClaims, isLoading: isLoadingClaims, isError, error, refetch } = usePaidClaims();
 
   // Derive hospital list from claim data (avoids extra network call)
   const hospitalsList = useMemo(() => {
     const map = new Map<string, string>();
-    allClaims.forEach((c: any) => {
+    (allClaims || []).forEach((c: any) => {
       if (c.hospital_id && c.hospital_name) map.set(c.hospital_id, c.hospital_name);
     });
     return Array.from(map.entries()).map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name));
@@ -31,7 +34,7 @@ export default function PaidClaimsPage() {
 
   // Apply all filters client-side (data already fetched)
   const claims = useMemo(() => {
-    let filtered = allClaims as any[];
+    let filtered = (allClaims || []) as any[];
 
     if (selectedHospitalId !== "all") {
       filtered = filtered.filter((c: any) => c.hospital_id === selectedHospitalId);
@@ -47,14 +50,21 @@ export default function PaidClaimsPage() {
     }
 
     if (selectedMonth && selectedMonth !== "all") {
-      filtered = filtered.filter((c: any) => (c.paid_at || "").startsWith(selectedMonth));
+      filtered = filtered.filter((c: any) => String(c.paid_at || "").startsWith(selectedMonth));
     }
 
-    if (startDate) filtered = filtered.filter((c: any) => c.paid_at >= startDate);
-    if (endDate) filtered = filtered.filter((c: any) => c.paid_at <= endDate);
+    if (startDate || endDate) {
+      filtered = filtered.filter((c: any) => {
+        const paidDate = typeof c.paid_at === "string" ? c.paid_at.slice(0, 10) : "";
+        if (!paidDate) return false;
+        return (!startDate || paidDate >= startDate) && (!endDate || paidDate <= endDate);
+      });
+    }
 
     return filtered;
   }, [allClaims, selectedHospitalId, debouncedSearchTerm, selectedMonth, startDate, endDate]);
+
+  const pagination = useDataPagination(claims, 20, 50);
 
   const handleHospitalChange = (val: string) => {
     setSelectedHospitalId(val);
@@ -62,6 +72,10 @@ export default function PaidClaimsPage() {
 
   if (isLoadingClaims) {
     return <PageLoader className="min-h-64" label="Loading paid claims..." />;
+  }
+
+  if (isError) {
+    return <PaymentLoadError message={error instanceof Error ? error.message : undefined} onRetry={() => void refetch()} />;
   }
 
   return (
@@ -208,7 +222,7 @@ export default function PaidClaimsPage() {
         
         <div className="text-right shrink-0">
           <span className="text-xs font-black uppercase tracking-wider text-slate-400">
-            {(claims || []).length} {(claims || []).length === 1 ? "paid claim" : "paid claims"}
+            {claims.length} {claims.length === 1 ? "paid claim" : "paid claims"}
           </span>
         </div>
       </div>
@@ -236,7 +250,7 @@ export default function PaidClaimsPage() {
               </tr>
             </thead>
             <tbody>
-              {(claims || []).map((c: any) => {
+              {pagination.pageItems.map((c: any) => {
                 const amt = Number(c.approved_amount || c.total_amount || 0);
 
                 return (
@@ -254,7 +268,7 @@ export default function PaidClaimsPage() {
                     <td className="border-y border-slate-100 bg-white px-3 py-3 shadow-sm">
                       <div className="font-medium text-slate-800 flex items-center gap-1.5">
                         <Calendar className="h-3.5 w-3.5 text-slate-400" />
-                        {c.paid_at ? new Date(c.paid_at).toLocaleDateString("en-GB") : new Date(c.created_at).toLocaleDateString("en-GB")}
+                        {c.paid_at ? new Date(c.paid_at).toLocaleDateString("en-GB") : "Date not recorded"}
                       </div>
                     </td>
                     <td className="border-y border-slate-100 bg-white px-3 py-3 font-black font-mono text-slate-950 text-right shadow-sm">
@@ -283,6 +297,15 @@ export default function PaidClaimsPage() {
             </p>
           </div>
         )}
+        <DataPagination
+          page={pagination.page}
+          totalPages={pagination.totalPages}
+          start={pagination.start}
+          end={pagination.end}
+          total={pagination.total}
+          pageSize={pagination.pageSize}
+          onPageChange={pagination.setPage}
+        />
       </Card>
     </div>
   );

@@ -15,6 +15,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import {
   isPushNotificationSupported,
+  isPushPublicKeyConfigured,
   getNotificationPermission,
   subscribeToPushNotifications,
   unsubscribeFromPushNotifications,
@@ -33,6 +34,7 @@ export default function PushNotificationSettingsCard() {
   const [testingPush, setTestingPush] = useState(false);
   const [setupError, setSetupError] = useState<string | null>(null);
   const isSupported = isPushNotificationSupported();
+  const vapidKeyConfigured = isPushPublicKeyConfigured();
 
   const checkStatus = useCallback(async () => {
     if (!isSupported) return;
@@ -50,6 +52,10 @@ export default function PushNotificationSettingsCard() {
 
   const handleToggle = async (checked: boolean) => {
     if (!user?.id) return;
+    if (checked && !vapidKeyConfigured) {
+      setSetupError("The browser push key is not configured in this app build.");
+      return;
+    }
     setIsLoading(true);
     try {
       const res = checked
@@ -129,6 +135,10 @@ export default function PushNotificationSettingsCard() {
               <Badge variant="outline" className="text-xs border-amber-300 bg-amber-50 text-amber-700">
                 Not Supported
               </Badge>
+            ) : !vapidKeyConfigured ? (
+              <Badge variant="outline" className="text-xs border-rose-300 bg-rose-50 text-rose-800 font-semibold">
+                Not Configured
+              </Badge>
             ) : permission === "denied" ? (
               <Badge variant="outline" className="text-xs border-rose-300 bg-rose-50 text-rose-700 font-semibold">
                 Blocked
@@ -150,6 +160,10 @@ export default function PushNotificationSettingsCard() {
         {!isSupported ? (
           <div className="rounded-xl bg-amber-50/70 border border-amber-100 p-3 text-xs text-amber-800 leading-relaxed">
             Push notifications are not supported here. Try <strong>Google Chrome</strong>. On iPhone or iPad, add the portal to your Home Screen and open the installed app before enabling alerts.
+          </div>
+        ) : !vapidKeyConfigured ? (
+          <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs leading-relaxed text-rose-900">
+            Push notifications cannot be enabled from this build because its browser VAPID public key is missing or invalid. Configure <code>VITE_VAPID_PUBLIC_KEY</code> in the frontend build environment, redeploy, and configure the matching private key on the push function.
           </div>
         ) : permission === "denied" ? (
           <div className="rounded-xl bg-rose-50 border border-rose-100 p-3 text-xs text-rose-800 space-y-1.5 leading-relaxed">

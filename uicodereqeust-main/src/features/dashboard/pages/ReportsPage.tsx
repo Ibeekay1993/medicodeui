@@ -50,9 +50,23 @@ type ReportState =
   | { status: "LOADING"; filterKey: string }
   | { status: "SUCCESS_EMPTY"; filterKey: string; result: ReportResult; loadedAt: number }
   | { status: "SUCCESS_COMPLETE"; filterKey: string; result: ReportResult; loadedAt: number }
-  | { status: "ERROR"; filterKey: string };
+  | { status: "ERROR"; filterKey: string; diagnostic?: string };
 
 const reportErrorMessage = "The report could not be fully loaded. No report totals are available. Check your connection and retry.";
+
+function getReportErrorDiagnostic(error: unknown): string | undefined {
+  if (!error || typeof error !== "object") return undefined;
+  const record = error as { code?: unknown; message?: unknown };
+  const code = typeof record.code === "string" && /^[A-Z0-9]{4,10}$/.test(record.code) ? record.code : "";
+  const message = typeof record.message === "string"
+    ? Array.from(record.message, (character) => {
+      const codePoint = character.codePointAt(0) ?? 0;
+      return codePoint < 32 || codePoint === 127 ? " " : character;
+    }).join("").replace(/\s+/g, " ").trim().slice(0, 240)
+    : "";
+  const diagnostic = [code, message].filter(Boolean).join(" · ");
+  return diagnostic || undefined;
+}
 
 function makeFilterKey(filters: FilterState, hospitalName?: string) {
   return JSON.stringify([filters.statusFilter, filters.dateFilter, filters.startDate, filters.endDate, filters.hospitalFilter, hospitalName]);
@@ -490,7 +504,9 @@ export default function ReportsPage() {
       });
     } catch (error) {
       console.error("Analytics fetch error:", error);
-      if (generation === requestGeneration.current) setReportState({ status: "ERROR", filterKey });
+      if (generation === requestGeneration.current) {
+        setReportState({ status: "ERROR", filterKey, diagnostic: getReportErrorDiagnostic(error) });
+      }
     }
   }, [filters, selectedHospitalName]);
 
@@ -923,7 +939,15 @@ export default function ReportsPage() {
           <RotateCw className="h-4 w-4" aria-hidden="true" />
           <AlertTitle>Report unavailable</AlertTitle>
           <AlertDescription className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <span>{reportErrorMessage}</span>
+            <div className="min-w-0 space-y-1">
+              <span>{reportErrorMessage}</span>
+              {visibleReportState.status === "ERROR" && visibleReportState.diagnostic && (
+                <details className="max-w-full break-words text-xs text-rose-700">
+                  <summary className="cursor-pointer">Technical details</summary>
+                  <span className="block pt-1 [overflow-wrap:anywhere]">{visibleReportState.diagnostic}</span>
+                </details>
+              )}
+            </div>
             <Button type="button" variant="outline" onClick={() => void fetchAnalytics()}>
               Retry
             </Button>

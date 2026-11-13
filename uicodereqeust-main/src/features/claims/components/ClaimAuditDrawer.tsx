@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { FormattedAuditNote } from "@/components/ui/FormattedAuditNote";
 import { cn } from "@/lib/utils";
+import { canUnlockClaim } from "../lib/claimStatus";
 import { ClaimDraft, AuditDecision, money, splitClaimNotes } from "@/lib/claims-helpers";
 import { formatNigeriaDate, formatNigeriaDateTime } from "@/lib/authorizationTime";
 import { supabase } from "@/integrations/supabase/client";
@@ -99,6 +100,7 @@ export default function ClaimAuditDrawer({
 
   const isAuditable = 
     (role === "claims" || role === "claims_lead" || role === "admin") &&
+    canUnlockClaim(selectedClaim) &&
     (selectedClaim.status === "submitted" || 
      selectedClaim.status === "pending" || 
      selectedClaim.status === "contested" || 
@@ -118,6 +120,14 @@ export default function ClaimAuditDrawer({
     : 0;
 
   const handleUnlockClaim = async () => {
+    if (!canUnlockClaim(selectedClaim)) {
+      toast({
+        variant: "destructive",
+        title: "Claim cannot be unlocked",
+        description: "Paid or batched claims are locked from re-audit.",
+      });
+      return;
+    }
     if (!window.confirm(`Are you sure you want to unlock claim ${selectedClaim.claim_number}? This will reset it to submitted status and return it to the active review queue.`)) return;
     setIsUnlocking(true);
     try {
@@ -786,10 +796,11 @@ Reason: The claims auditing panel has rejected this claim in its entirety. Direc
                           <Badge className="bg-purple-100 text-purple-800 border-purple-300 text-[10px] font-bold">Elevated Authority</Badge>
                         </div>
                         <p className="text-[11px] text-purple-800/80 leading-relaxed">
-                          As Claims Lead, you have supervisory authority to override completed claim decisions or unlock this record for re-audit.
+                          As Claims Lead, you can override eligible completed claim decisions. Paid or batched claims cannot be unlocked or changed.
                         </p>
                         <div className="flex flex-wrap items-center gap-2 pt-1">
-                          <Button
+                          {canUnlockClaim(selectedClaim) && <>
+                            <Button
                             type="button"
                             size="sm"
                             onClick={() => setLeadOverrideActive(!leadOverrideActive)}
@@ -802,8 +813,8 @@ Reason: The claims auditing panel has rejected this claim in its entirety. Direc
                           >
                             <ShieldAlert className="h-3.5 w-3.5 mr-1.5" />
                             {leadOverrideActive ? "Exit Override Mode" : "Override Decision"}
-                          </Button>
-                          <Button
+                            </Button>
+                            <Button
                             type="button"
                             variant="outline"
                             size="sm"
@@ -813,7 +824,8 @@ Reason: The claims auditing panel has rejected this claim in its entirety. Direc
                           >
                             <Unlock className="h-3.5 w-3.5 mr-1.5" />
                             {isUnlocking ? "Unlocking..." : "Unlock Claim Record"}
-                          </Button>
+                            </Button>
+                          </>}
                         </div>
                       </div>
                     )}

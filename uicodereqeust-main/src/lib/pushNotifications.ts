@@ -101,6 +101,21 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
   return Uint8Array.from([...rawData].map((c) => c.charCodeAt(0)));
 }
 
+/** Validate the public application-server key without exposing key material. */
+export function isVapidPublicKeyValid(value: string | undefined): boolean {
+  if (!value?.trim()) return false;
+  try {
+    const key = urlBase64ToUint8Array(value.trim());
+    return key.length === 65 && key[0] === 4;
+  } catch {
+    return false;
+  }
+}
+
+export function isPushPublicKeyConfigured(): boolean {
+  return isVapidPublicKeyValid(VAPID_PUBLIC_KEY);
+}
+
 // ---------------------------------------------------------------------------
 // Subscribe
 // ---------------------------------------------------------------------------
@@ -113,8 +128,8 @@ export async function subscribeToPushNotifications(userId: string): Promise<{
     return { success: false, error: "Push notifications not supported in this browser." };
   }
 
-  if (!VAPID_PUBLIC_KEY) {
-    return { success: false, error: "VAPID public key not configured." };
+  if (!isPushPublicKeyConfigured()) {
+    return { success: false, error: "The browser push key is missing or invalid in this app build. Ask an administrator to configure VITE_VAPID_PUBLIC_KEY and redeploy." };
   }
 
   // 1. Request browser permission (skip prompt if already granted)
@@ -346,7 +361,7 @@ export async function sendPushTestNotification(userId: string): Promise<{
       target_user_ids: [userId],
       title: "Ronsberger HMO Test Push",
       body: "This test was sent through the portal push service. You can receive alerts while the app is in the background.",
-      url: "/backoffice/settings",
+      url: "/",
       tag: `push-test-${userId}-${Date.now()}`,
     },
   });

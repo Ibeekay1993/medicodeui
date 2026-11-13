@@ -1,9 +1,10 @@
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllSupabaseRows } from "@/lib/supabasePagination";
 import { PaymentBatch, AwaitingPaymentClaim, PaidClaim } from "../types";
 
 export class PaymentsService {
   static async getAwaitingPaymentClaims(): Promise<AwaitingPaymentClaim[]> {
-    const { data, error } = await supabase
+    return fetchAllSupabaseRows<AwaitingPaymentClaim>((from, to) => (supabase
       .from("hospital_claims" as any)
       .select(`
         id,
@@ -15,30 +16,31 @@ export class PaymentsService {
         total_amount,
         approved_amount,
         approved_at,
+        submitted_at,
         created_at,
         status,
         payment_status,
-        contest_deadline
+        contest_deadline,
+        paid_at
       `)
       .in("status", ["approved", "partially_approved"])
       .is("payment_batch_id", null)
-      .order("approved_at", { ascending: true });
-
-    if (error) throw error;
-    return (data as any[]) || [];
+      .or("payment_status.is.null,payment_status.neq.paid")
+      .order("approved_at", { ascending: true })
+      .order("id", { ascending: true })
+      .range(from, to) as any));
   }
 
   static async getPaymentBatches(): Promise<PaymentBatch[]> {
-    const { data, error } = await (supabase as any)
+    return fetchAllSupabaseRows((from, to) => (supabase as any)
       .from("payment_batches")
       .select(`
         *,
         hospitals:provider_id(name)
       `)
-      .order("created_at", { ascending: false });
-
-    if (error) throw error;
-    return (data as any[]) || [];
+      .order("created_at", { ascending: false })
+      .order("id", { ascending: true })
+      .range(from, to));
   }
 
   static async getBatchDetails(batchId: string): Promise<PaymentBatch> {
@@ -56,14 +58,13 @@ export class PaymentsService {
   }
 
   static async getBatchClaims(batchId: string): Promise<any[]> {
-    const { data, error } = await supabase
+    return fetchAllSupabaseRows<any>((from, to) => (supabase
       .from("hospital_claims" as any)
       .select("id, claim_number, patient_name, policy_number, total_amount, approved_amount, approved_at, status")
       .eq("payment_batch_id", batchId)
-      .order("claim_number", { ascending: true });
-
-    if (error) throw error;
-    return (data as any[]) || [];
+      .order("claim_number", { ascending: true })
+      .order("id", { ascending: true })
+      .range(from, to) as any));
   }
 
   static async generateBatchReference(): Promise<string> {
@@ -127,12 +128,24 @@ export class PaymentsService {
     return filePath;
   }
 
-  static async updateBatchStatus(batchId: string, payload: any) {
-    const { error } = await (supabase as any)
-      .from("payment_batches")
-      .update(payload)
-      .eq("id", batchId);
+  static async preparePaymentBatch(batchId: string) {
+    const { error } = await (supabase as any).rpc("prepare_payment_batch_transactional", {
+      p_batch_id: batchId,
+    });
+    if (error) throw error;
+  }
 
+  static async rejectPaymentBatch(batchId: string) {
+    const { error } = await (supabase as any).rpc("reject_payment_batch_transactional", {
+      p_batch_id: batchId,
+    });
+    if (error) throw error;
+  }
+
+  static async cancelDraftPaymentBatch(batchId: string) {
+    const { error } = await (supabase as any).rpc("cancel_draft_payment_batch_transactional", {
+      p_batch_id: batchId,
+    });
     if (error) throw error;
   }
 
@@ -144,35 +157,8 @@ export class PaymentsService {
     if (error) throw error;
   }
 
-  static async updateClaimsPaymentStatusByBatch(batchId: string, paymentStatus: string) {
-    const { error } = await supabase
-      .from("hospital_claims" as any)
-      .update({ payment_status: paymentStatus })
-      .eq("payment_batch_id", batchId);
-
-    if (error) throw error;
-  }
-
-  static async unlinkClaimsFromBatch(batchId: string) {
-    const { error } = await supabase
-      .from("hospital_claims" as any)
-      .update({ payment_batch_id: null, payment_status: "awaiting_payment" })
-      .eq("payment_batch_id", batchId);
-
-    if (error) throw error;
-  }
-
-  static async deletePaymentBatch(batchId: string) {
-    const { error } = await (supabase as any)
-      .from("payment_batches")
-      .delete()
-      .eq("id", batchId);
-
-    if (error) throw error;
-  }
-
   static async getPaidClaims(): Promise<PaidClaim[]> {
-    const { data, error } = await supabase
+    return fetchAllSupabaseRows<PaidClaim>((from, to) => (supabase
       .from("hospital_claims" as any)
       .select(`
         id,
@@ -184,39 +170,92 @@ export class PaymentsService {
         total_amount,
         approved_amount,
         approved_at,
+        submitted_at,
+        created_at,
+        paid_at,
         status,
         payment_status
       `)
-      .eq("payment_status", "paid")
-      .order("approved_at", { ascending: false });
-
-    if (error) throw error;
-    return (data as any[]) || [];
+      .or("payment_status.eq.paid,status.eq.paid")
+      .order("paid_at", { ascending: false, nullsFirst: false })
+      .order("id", { ascending: true })
+      .range(from, to) as any));
   }
 
   static async getFinanceReports() {
-    const { data: paidClaims, error: paidError } = await supabase
+    const [paidClaims, awaitingClaims, batches] = await Promise.all([
+      fetchAllSupabaseRows((from, to) => supabase
       .from("hospital_claims" as any)
-      .select("approved_amount")
-      .eq("payment_status", "paid");
-    if (paidError) throw paidError;
+      .select(`
+        id,
+        claim_number,
+        patient_name,
+        policy_number,
+        hospital_name,
+        hospital_id,
+        total_amount,
+        approved_amount,
+        submitted_at,
+        paid_at,
+        created_at,
+        status,
+        payment_status
+      `)
+      .or("payment_status.eq.paid,status.eq.paid")
+      .order("paid_at", { ascending: false, nullsFirst: false })
+      .order("id", { ascending: true })
+      .range(from, to)),
 
-    const { data: awaitingClaims, error: awaitingError } = await supabase
+      fetchAllSupabaseRows((from, to) => supabase
       .from("hospital_claims" as any)
-      .select("approved_amount")
-      .eq("status", "approved")
-      .is("payment_batch_id", null);
-    if (awaitingError) throw awaitingError;
+      .select(`
+        id,
+        claim_number,
+        patient_name,
+        policy_number,
+        hospital_name,
+        hospital_id,
+        total_amount,
+        approved_amount,
+        submitted_at,
+        created_at,
+        approved_at,
+        contest_deadline,
+        status,
+        payment_status
+      `)
+      .in("status", ["approved", "partially_approved"])
+      .is("payment_batch_id", null)
+      .or("payment_status.is.null,payment_status.neq.paid")
+      .order("created_at", { ascending: false })
+      .order("id", { ascending: true })
+      .range(from, to)),
 
-    const { data: batches, error: batchesError } = await supabase
+      fetchAllSupabaseRows((from, to) => supabase
       .from("payment_batches" as any)
-      .select("status, total_amount, month");
-    if (batchesError) throw batchesError;
+      .select(`
+        id,
+        batch_reference,
+        provider_id,
+        hospitals:provider_id(name),
+        month,
+        total_claims,
+        total_amount,
+        status,
+        bank_reference,
+        created_at,
+        paid_at,
+        receipt_name
+      `)
+      .order("created_at", { ascending: false })
+      .order("id", { ascending: true })
+      .range(from, to)),
+    ]);
 
     return {
-      paidClaims: paidClaims || [],
-      awaitingClaims: awaitingClaims || [],
-      batches: batches || [],
+      paidClaims,
+      awaitingClaims,
+      batches,
     };
   }
 }

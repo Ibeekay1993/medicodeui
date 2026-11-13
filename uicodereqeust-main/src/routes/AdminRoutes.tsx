@@ -7,6 +7,7 @@ const DashboardHome = lazy(() => import("@/features/dashboard/pages/DashboardHom
 const RequestsPage = lazy(() => import("@/features/dashboard/pages/RequestsPage"));
 const ClaimsPortalPage = lazy(() => import("@/pages/claims/ClaimsPortalPage"));
 const ClaimsReportsPage = lazy(() => import("@/pages/claims/ClaimsReportsPage"));
+const ClaimsAnalysisPage = lazy(() => import("@/features/claims/pages/ClaimsAnalysisPage"));
 const PaymentsLayout = lazy(() => import("@/features/payments/components/PaymentsLayout"));
 const AwaitingPaymentPage = lazy(() => import("@/features/payments/pages/AwaitingPaymentPage"));
 const BatchesPage = lazy(() => import("@/features/payments/pages/BatchesPage"));
@@ -39,7 +40,7 @@ export function AdminRoutes() {
     >
       <Route index element={<DashboardHome />} />
       <Route path="requests" element={<RequestsPage />} />
-      <Route path="claims-analysis" element={<Navigate to="/backoffice/admin/claims-reports?tab=analysis" replace />} />
+      <Route path="claims-analysis" element={<ClaimsAnalysisPage />} />
       <Route path="claims" element={<ClaimsPortalPage />} />
       <Route path="claims-reports" element={<ClaimsReportsPage />} />
       <Route path="payments" element={<PaymentsLayout />}>

@@ -12,6 +12,9 @@ import { MonthYearPicker } from "@/components/ui/MonthYearPicker";
 import { useAwaitingPaymentClaims } from "../hooks/usePayments";
 import { getSelectedVisibleClaims, reconcileClaimSelection, toggleVisibleClaimSelection } from "../utils/claimSelection";
 import { PageLoader } from "@/components/PageLoader";
+import { DataPagination } from "@/components/dashboard/DataPagination";
+import { useDataPagination } from "@/hooks/use-data-pagination";
+import { PaymentLoadError } from "../components/PaymentLoadError";
 
 export default function AwaitingPaymentPage() {
   const { role } = useAuth();
@@ -30,7 +33,7 @@ export default function AwaitingPaymentPage() {
   const isFinance = role === "finance";
 
   // Fetch approved/partially_approved claims that have not been batched
-  const { data: claims, isLoading: isLoadingClaims, refetch } = useAwaitingPaymentClaims();
+  const { data: claims, isLoading: isLoadingClaims, isError, error, refetch } = useAwaitingPaymentClaims();
 
   // Extract unique hospitals that actually have claims in the list that are ready for payment
   const uniqueHospitals = useMemo(() => {
@@ -38,12 +41,13 @@ export default function AwaitingPaymentPage() {
     
     const activeHospitalsMap = new Map<string, string>();
     claims.forEach(c => {
-      const isReady = c.status === 'approved' || (
+      const isUnpaid = String(c.payment_status || "").toLowerCase() !== "paid";
+      const isReady = isUnpaid && (c.status === 'approved' || (
         c.status === 'partially_approved' && (
           c.payment_status === 'awaiting_payment' || 
           (c.contest_deadline && new Date(c.contest_deadline) < new Date())
         )
-      );
+      ));
       if (isReady && c.hospital_id && c.hospital_name) {
         activeHospitalsMap.set(c.hospital_id, c.hospital_name);
       }
@@ -59,6 +63,7 @@ export default function AwaitingPaymentPage() {
     if (!claims) return [];
     const now = new Date();
     return claims.filter(c =>
+      String(c.payment_status || "").toLowerCase() !== "paid" &&
       c.status === "partially_approved" &&
       c.payment_status !== "awaiting_payment" &&
       c.contest_deadline && new Date(c.contest_deadline) > now
@@ -81,12 +86,13 @@ export default function AwaitingPaymentPage() {
     if (!claims) return [];
     return claims.filter(c => {
       // Ready if approved, or partially_approved and contest_deadline has passed or payment_status is awaiting_payment
-      const isReady = c.status === 'approved' || (
+      const isUnpaid = String(c.payment_status || "").toLowerCase() !== "paid";
+      const isReady = isUnpaid && (c.status === 'approved' || (
         c.status === 'partially_approved' && (
           c.payment_status === 'awaiting_payment' || 
           (c.contest_deadline && new Date(c.contest_deadline) < new Date())
         )
-      );
+      ));
       if (!isReady) return false;
 
       const matchesHospital = selectedHospitalId === "all" || c.hospital_id === selectedHospitalId;
@@ -117,6 +123,8 @@ export default function AwaitingPaymentPage() {
       return matchesHospital && matchesSearch && matchesMonth && matchesDateRange;
     });
   }, [claims, selectedHospitalId, searchTerm, selectedMonth, startDate, endDate]);
+
+  const pagination = useDataPagination(filteredClaims, 20, 50);
 
   // Keep batch selection scoped to the claims currently visible under these filters.
   useEffect(() => {
@@ -170,6 +178,10 @@ export default function AwaitingPaymentPage() {
 
   if (isLoadingClaims) {
     return <PageLoader className="min-h-64" label="Loading payment queue..." />;
+  }
+
+  if (isError) {
+    return <PaymentLoadError message={error instanceof Error ? error.message : undefined} onRetry={() => void refetch()} />;
   }
 
   const activeHospitalName = selectedHospitalId === "all" 
@@ -413,7 +425,7 @@ export default function AwaitingPaymentPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 bg-white">
-              {filteredClaims.map(c => {
+              {pagination.pageItems.map(c => {
                 const daysWaiting = Math.floor((Date.now() - new Date(c.approved_at || c.created_at).getTime()) / (1000 * 60 * 60 * 24));
                 const amt = getPayableAmount(c);
                 const isSelected = selectedClaims.has(c.id);
@@ -488,6 +500,15 @@ export default function AwaitingPaymentPage() {
             </p>
           </div>
         )}
+        <DataPagination
+          page={pagination.page}
+          totalPages={pagination.totalPages}
+          start={pagination.start}
+          end={pagination.end}
+          total={pagination.total}
+          pageSize={pagination.pageSize}
+          onPageChange={pagination.setPage}
+        />
       </Card>
 
       {/* Create Batch Modal */}

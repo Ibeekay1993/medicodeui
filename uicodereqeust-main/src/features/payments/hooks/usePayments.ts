@@ -90,11 +90,12 @@ export function useUpdatePaymentBatchStatus() {
       if (bankReference?.trim()) updatePayload.bank_reference = bankReference.trim();
       if (status === "paid") {
         await PaymentsService.settlePaymentBatch(batchId, updatePayload);
+      } else if (status === "ready") {
+        await PaymentsService.preparePaymentBatch(batchId);
       } else if (status === "rejected") {
-        await PaymentsService.updateBatchStatus(batchId, updatePayload);
-        await PaymentsService.unlinkClaimsFromBatch(batchId);
+        await PaymentsService.rejectPaymentBatch(batchId);
       } else {
-        await PaymentsService.updateBatchStatus(batchId, updatePayload);
+        throw new Error("Unsupported payment batch transition.");
       }
 
       return batchId;
@@ -115,8 +116,7 @@ export function useDeletePaymentBatch() {
 
   return useMutation({
     mutationFn: async (batchId: string) => {
-      await PaymentsService.unlinkClaimsFromBatch(batchId);
-      await PaymentsService.deletePaymentBatch(batchId);
+      await PaymentsService.cancelDraftPaymentBatch(batchId);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["payment-batches"] });

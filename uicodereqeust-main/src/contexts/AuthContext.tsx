@@ -1,5 +1,7 @@
 ﻿import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { clearPatientAndSessionData } from "@/lib/sessionState";
+import { clearPrivateQueryCacheIfIdentityChanged } from "@/lib/authQueryCache";
+import { queryClient } from "@/providers/queryClient";
 import { supabase } from "@/integrations/supabase/client";
 import type { Session, User } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
@@ -228,6 +230,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!silent) setLoading(true);
 
     if (!nextSession || !nextSession.user) {
+      clearPrivateQueryCacheIfIdentityChanged(queryClient, userIdRef.current, null);
       setSession(null);
       setUser(null);
       userIdRef.current = null;
@@ -249,6 +252,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const currentUserId = nextSession.user.id;
     const sameUser = userIdRef.current === currentUserId;
+    clearPrivateQueryCacheIfIdentityChanged(queryClient, userIdRef.current, currentUserId);
     const cachedRole = (window.sessionStorage.getItem("ronsberger-role-" + currentUserId) as AppRole) || null;
     const cachedHospitalId = window.sessionStorage.getItem("ronsberger-hosp-" + currentUserId) || null;
     const cachedFullName = window.sessionStorage.getItem("ronsberger-name-" + currentUserId) || null;
@@ -272,6 +276,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const startedAt = Number(window.sessionStorage.getItem(sessionStartStorageKey) || now);
       const inactivityTimeout = getSessionInactivityTimeout(immediateRole);
       if (now - lastActivity >= inactivityTimeout || now - startedAt >= maxSessionLifetime) {
+        clearPrivateQueryCacheIfIdentityChanged(queryClient, currentUserId, null);
         setSession(null);
         setUser(null);
         userIdRef.current = null;
@@ -304,6 +309,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const profileRefresh = withAuthTimeout(resolveUserRole(nextSession.user, false)).then((profile) => {
         if (!mountedRef.current || userIdRef.current !== currentUserId) return;
         if (profile.accessStatus && profile.accessStatus !== "active") {
+          clearPrivateQueryCacheIfIdentityChanged(queryClient, currentUserId, null);
           setSession(null);
           setUser(null);
           userIdRef.current = null;
@@ -320,6 +326,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return;
         }
         if (!profile.role) return;
+        clearPrivateQueryCacheIfIdentityChanged(
+          queryClient,
+          `${currentUserId}:${roleRef.current || ""}:${hospitalIdRef.current || ""}`,
+          `${currentUserId}:${profile.role}:${profile.hospitalId || ""}`,
+        );
         roleRef.current = profile.role;
         hospitalIdRef.current = profile.hospitalId;
         fullNameRef.current = profile.fullName;
@@ -350,6 +361,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     if (!mountedRef.current || userIdRef.current !== currentUserId) return;
     if (profile.accessStatus && profile.accessStatus !== "active") {
+      clearPrivateQueryCacheIfIdentityChanged(queryClient, currentUserId, null);
       setSession(null);
       setUser(null);
       userIdRef.current = null;
@@ -375,6 +387,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const inactivityTimeout = getSessionInactivityTimeout(effectiveRole);
 
     if (now - lastActivity >= inactivityTimeout || now - startedAt >= maxSessionLifetime) {
+      clearPrivateQueryCacheIfIdentityChanged(queryClient, currentUserId, null);
       setSession(null);
       setUser(null);
       userIdRef.current = null;
@@ -393,6 +406,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
+    clearPrivateQueryCacheIfIdentityChanged(
+      queryClient,
+      `${currentUserId}:${roleRef.current || ""}:${hospitalIdRef.current || ""}`,
+      `${currentUserId}:${effectiveRole}:${effectiveHospitalId || ""}`,
+    );
     roleRef.current = effectiveRole;
     hospitalIdRef.current = effectiveHospitalId || null;
     fullNameRef.current = effectiveFullName;

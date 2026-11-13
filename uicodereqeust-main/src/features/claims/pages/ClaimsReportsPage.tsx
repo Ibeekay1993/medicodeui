@@ -31,31 +31,21 @@ import { cn } from "@/lib/utils";
 import { useDataPagination } from "@/hooks/use-data-pagination";
 import { DataPagination } from "@/components/dashboard/DataPagination";
 import { ClaimStatusMetricCard } from "../components/ClaimStatusMetricCard";
+import { claimStatusAmount, claimStatusBucket } from "../lib/claimStatus";
 
 const money = (value: unknown) => `₦${Number(value || 0).toLocaleString()}`;
 const csvCell = (value: unknown) => `"${String(value ?? "").replace(/"/g, '""')}"`;
 
-function normalizeStatus(status?: string | null) {
-  return String(status || "pending").toLowerCase().replace(/\s+/g, "_");
-}
-
-function statusBucket(status?: string | null): "pending" | "approved" | "rejected" | "contested" | "other" {
-  const normalized = normalizeStatus(status);
-  if (["submitted", "pending", "under_investigation", "under_review", "pending_audit", "audit"].includes(normalized)) return "pending";
-  if (["approved", "partially_approved"].includes(normalized)) return "approved";
-  if (["contested", "under_contest", "paid"].includes(normalized)) return "contested";
-  if (["rejected", "declined", "denied"].includes(normalized)) return "rejected";
-  return "other";
-}
+const normalizeStatus = (status?: string | null) => String(status || "pending").trim().toLowerCase().replace(/[\s-]+/g, "_");
 
 function matchesStatusFilter(rowStatus: string | null | undefined, filter: string): boolean {
   if (!filter || filter === "all") return true;
   const normalized = normalizeStatus(rowStatus);
   if (normalized === filter) return true;
-  if (filter === "pending" && statusBucket(rowStatus) === "pending") return true;
+  if (filter === "pending" && claimStatusBucket(rowStatus) === "pending") return true;
   if (filter === "approved" && (normalized === "approved" || normalized === "partially_approved")) return true;
-  if (filter === "contested" && statusBucket(rowStatus) === "contested") return true;
-  if (filter === "rejected" && statusBucket(rowStatus) === "rejected") return true;
+  if (filter === "contested" && claimStatusBucket(rowStatus) === "contested") return true;
+  if (filter === "rejected" && claimStatusBucket(rowStatus) === "rejected") return true;
   return false;
 }
 
@@ -74,6 +64,7 @@ const STATUS_PILL_STYLES: Record<string, string> = {
 export default function ClaimsReportsPage() {
   const { toast } = useToast();
   const [rows, setRows] = useState<any[]>([]);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [hospitals, setHospitals] = useState<any[]>([]);
   const [loadingHospitals, setLoadingHospitals] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -98,11 +89,12 @@ export default function ClaimsReportsPage() {
       approved: { count: 0, amount: 0 },
       rejected: { count: 0, amount: 0 },
       contested: { count: 0, amount: 0 },
+      paid: { count: 0, amount: 0 },
     };
 
     for (const row of rowsForMetrics) {
-      const bucket = statusBucket(row.status);
-      const amt = Number(row.approved_amount || row.total_amount || row.original_amount || 0);
+      const bucket = claimStatusBucket(row.status);
+      const amt = claimStatusAmount(bucket, row);
       if (bucket in metrics) {
         metrics[bucket as keyof typeof metrics].count += 1;
         metrics[bucket as keyof typeof metrics].amount += amt;
@@ -179,9 +171,10 @@ export default function ClaimsReportsPage() {
         _to: end ? end.toISOString() : null,
       });
       setRows(data || []);
+      setLoadError(null);
     } catch (error: any) {
+      setLoadError(error?.message || "The claims report could not be loaded.");
       toast({ variant: "destructive", title: "Claims report failed", description: error.message });
-      setRows([]);
     } finally {
       setLoading(false);
     }
@@ -668,7 +661,14 @@ export default function ClaimsReportsPage() {
       </Card>
 
       {/* ── Status Metrics Cards ──────────────────────────────────── */}
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      {loadError && (
+        <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">
+          <span>{rows.length ? "Could not refresh the claims report; showing the last loaded results." : "The claims report could not be loaded. No totals are available."}</span>
+          <Button type="button" variant="outline" size="sm" onClick={() => void loadReport()} disabled={loading}>Retry</Button>
+        </div>
+      )}
+
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
         {[
           {
             key: "pending",
@@ -705,6 +705,15 @@ export default function ClaimsReportsPage() {
             Icon: Wallet,
             iconBg: "bg-blue-50 text-blue-600 border border-blue-200",
             activeBorder: "ring-2 ring-blue-500",
+          },
+          {
+            key: "paid",
+            label: "Paid",
+            count: statusMetrics.paid.count,
+            amount: statusMetrics.paid.amount,
+            Icon: Wallet,
+            iconBg: "bg-purple-50 text-purple-600 border border-purple-200",
+            activeBorder: "ring-2 ring-purple-500",
           },
         ].map(({ key, label, count, amount, Icon, iconBg, activeBorder }) => {
           const isSelected = status === key;

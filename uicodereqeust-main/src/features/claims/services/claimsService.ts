@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllSupabaseRows } from "@/lib/supabasePagination";
 import type { ClaimDraft } from "@/lib/claims-helpers";
 import type { ClaimsAnalysisSummary } from "../types";
 
@@ -117,17 +118,17 @@ export class ClaimsService {
    * Generates claims report export.
    */
   static async generateClaimsReportExport(filters: any) {
-    const { data, error } = await supabase.rpc("claims_report_export" as any, filters);
-    if (error) throw error;
-    return data;
+    return fetchAllSupabaseRows((from, to) =>
+      supabase.rpc("claims_report_export" as any, filters).range(from, to),
+    );
   }
   
   /**
    * Generates claims reconciliation report.
    */
   static async generateClaimsReconciliationReport(filters: any) {
-    const { data, error } = await supabase.rpc("claims_reconciliation_report" as any, filters);
-    if (error) throw error;
-    return data;
+    return fetchAllSupabaseRows((from, to) =>
+      supabase.rpc("claims_reconciliation_report" as any, filters).range(from, to),
+    );
   }
 }
