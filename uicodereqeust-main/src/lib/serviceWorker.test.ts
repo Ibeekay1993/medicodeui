@@ -21,6 +21,14 @@ describe("service worker module asset caching", () => {
       }
       return undefined;
     });
+    const staticCacheMatch = vi.fn(async () => undefined);
+    const staticCache = {
+      match: staticCacheMatch,
+      put: vi.fn(async () => undefined),
+      delete: vi.fn(async () => true),
+      addAll: vi.fn(async () => undefined),
+    };
+    const cacheOpen = vi.fn(async () => staticCache);
     const fetchAsset = vi.fn(async () => {
       throw new Error("offline");
     });
@@ -28,7 +36,7 @@ describe("service worker module asset caching", () => {
 
     runInNewContext(serviceWorkerSource, {
       URL,
-      caches: { match: cacheMatch },
+      caches: { open: cacheOpen, match: cacheMatch },
       fetch: fetchAsset,
       self: {
         location: new URL("https://app.ronsbergerhmo.io/"),
@@ -50,7 +58,8 @@ describe("service worker module asset caching", () => {
 
     await expect(responsePromise).rejects.toMatchObject({ message: "offline" });
     expect(fetchAsset).toHaveBeenCalledTimes(1);
-    expect(cacheMatch).toHaveBeenCalledTimes(1);
-    expect(cacheMatch).toHaveBeenCalledWith(request);
+    expect(cacheOpen).toHaveBeenCalledTimes(1);
+    expect(staticCacheMatch).toHaveBeenCalledWith(request);
+    expect(cacheMatch).not.toHaveBeenCalled();
   });
 });

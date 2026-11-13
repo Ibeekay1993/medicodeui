@@ -1,5 +1,42 @@
 export type RequestStatus = "pending" | "approved" | "rejected" | "deferred";
 
+// Keep this aligned with the generated authorization_requests database type.
+// `rejection_reason` is not a database column; decision_reason is authoritative.
+export const PREAUTH_REPORT_SELECT_COLUMNS = [
+  "id",
+  "created_at",
+  "request_id",
+  "patient_name",
+  "patient_phone",
+  "patient_email",
+  "policy_number",
+  "diagnosis",
+  "treatment",
+  "hospital_id",
+  "hospital_name",
+  "requesting_hospital_id",
+  "requesting_hospital_name",
+  "referring_hospital_id",
+  "referring_hospital_name",
+  "referred_hospital_id",
+  "referred_hospital_name",
+  "claiming_hospital_id",
+  "claiming_hospital_name",
+  "source",
+  "authorization_code",
+  "status",
+  "total_amount",
+  "approved_items",
+  "decision_reason",
+  "decided_at",
+  "decided_by",
+  "approved_by",
+  "treatment_submitted_at",
+  "urgency",
+  "authorized_by_name",
+  "is_historical",
+].join(",");
+
 export interface ReportStats {
   totalCodes: number;
   approvedCodes: number;

@@ -109,7 +109,7 @@ export default function PushNotificationSettingsCard() {
 
   return (
     <Card className="rounded-2xl border border-slate-200/80 bg-white shadow-sm overflow-hidden transition-all">
-      <CardHeader className="p-4 sm:p-5 border-b border-slate-100 bg-slate-50/50">
+      <CardHeader className="p-3 sm:p-4 border-b border-slate-100 bg-slate-50/50">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-50 text-brand-700 shrink-0">
@@ -146,13 +146,13 @@ export default function PushNotificationSettingsCard() {
         </div>
       </CardHeader>
 
-      <CardContent className="p-4 sm:p-5 space-y-4">
+      <CardContent className="p-3 sm:p-4 space-y-3">
         {!isSupported ? (
-          <div className="rounded-xl bg-amber-50/70 border border-amber-100 p-3.5 text-xs text-amber-800 leading-relaxed">
+          <div className="rounded-xl bg-amber-50/70 border border-amber-100 p-3 text-xs text-amber-800 leading-relaxed">
             Push notifications are not supported here. Try <strong>Google Chrome</strong>. On iPhone or iPad, add the portal to your Home Screen and open the installed app before enabling alerts.
           </div>
         ) : permission === "denied" ? (
-          <div className="rounded-xl bg-rose-50 border border-rose-100 p-3.5 text-xs text-rose-800 space-y-1.5 leading-relaxed">
+          <div className="rounded-xl bg-rose-50 border border-rose-100 p-3 text-xs text-rose-800 space-y-1.5 leading-relaxed">
             <div className="flex items-center gap-1.5 font-bold text-rose-900">
               <AlertTriangle className="h-4 w-4 shrink-0 text-rose-600" />
               Notifications are currently blocked
@@ -163,7 +163,7 @@ export default function PushNotificationSettingsCard() {
           </div>
         ) : (
           <div
-            className={`flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-xl border transition-opacity ${
+            className={`flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3 rounded-xl border transition-opacity ${
               isLoading ? "opacity-60 pointer-events-none" : ""
             } ${
               isSubscribed

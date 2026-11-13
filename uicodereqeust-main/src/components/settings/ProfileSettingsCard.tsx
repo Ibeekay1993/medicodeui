@@ -125,17 +125,17 @@ export default function ProfileSettingsCard({
 
   return (
     <Card className="rounded-2xl border border-slate-200/80 bg-white shadow-sm overflow-hidden transition-all">
-      <CardHeader className="border-b border-slate-100 bg-slate-50/70 p-4 sm:p-5">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+      <CardHeader className="border-b border-slate-100 bg-slate-50/70 p-3 sm:p-4">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex min-w-0 items-start gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-700">
               <User className="h-5 w-5" />
             </div>
             <div className="min-w-0">
-              <CardTitle className="text-base font-semibold leading-5 text-slate-900">
+              <CardTitle className="text-sm font-semibold leading-5 text-slate-900">
                 Account &amp; Security Profile
               </CardTitle>
-              <CardDescription className="mt-1 text-sm leading-5 text-slate-600">
+              <CardDescription className="mt-0.5 text-xs leading-5 text-slate-600">
                 Your authenticated user identity and system privileges
               </CardDescription>
             </div>
@@ -150,7 +150,7 @@ export default function ProfileSettingsCard({
                 variant="outline"
                 size="sm"
                 onClick={() => setEditingName(true)}
-                className="h-10 gap-2 border-brand-200 px-3 text-sm font-medium text-brand-700 hover:bg-brand-50"
+                className="h-9 gap-2 border-brand-200 px-3 text-xs font-medium text-brand-700 hover:bg-brand-50"
               >
                 <Edit3 className="h-4 w-4" />
                 <span>Edit Name</span>
@@ -180,7 +180,7 @@ export default function ProfileSettingsCard({
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-4 p-4 sm:p-5">
+      <CardContent className="space-y-3 p-3 sm:p-4">
         {pendingRequest && (
           <div className="flex items-start gap-2.5 rounded-xl border border-amber-200/80 bg-amber-50 p-3">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
@@ -190,15 +190,15 @@ export default function ProfileSettingsCard({
           </div>
         )}
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <div className="space-y-2">
-            <Label className="text-sm font-medium text-slate-600">Full Name</Label>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <div className="space-y-1.5">
+            <Label className="text-xs font-medium text-slate-600">Full Name</Label>
             <Input
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               readOnly={!editingName || !!pendingRequest}
               className={cn(
-                "h-11 rounded-xl text-base font-medium transition-all",
+                "h-10 rounded-lg text-sm font-medium transition-all",
                 editingName && !pendingRequest
                   ? "bg-white border-brand-500 ring-2 ring-brand-500/20 shadow-sm"
                   : "bg-slate-50 border-slate-200/80 text-slate-900"
@@ -206,25 +206,25 @@ export default function ProfileSettingsCard({
             />
           </div>
 
-          <div className="space-y-2">
-            <Label className="flex items-center gap-1.5 text-sm font-medium text-slate-600">
-              <Shield className="h-4 w-4 text-slate-400" /> Assigned Role
+          <div className="space-y-1.5">
+            <Label className="flex items-center gap-1.5 text-xs font-medium text-slate-600">
+              <Shield className="h-3.5 w-3.5 text-slate-400" /> Assigned Role
             </Label>
             <Input
               value={role || ""}
               readOnly
-              className="h-11 rounded-xl border-slate-200/80 bg-slate-50 text-base font-medium uppercase text-slate-700"
+              className="h-10 rounded-lg border-slate-200/80 bg-slate-50 text-sm font-medium uppercase text-slate-700"
             />
           </div>
 
-          <div className="space-y-2">
-            <Label className="flex items-center gap-1.5 text-sm font-medium text-slate-600">
-              <Mail className="h-4 w-4 text-slate-400" /> System Email
+          <div className="space-y-1.5">
+            <Label className="flex items-center gap-1.5 text-xs font-medium text-slate-600">
+              <Mail className="h-3.5 w-3.5 text-slate-400" /> System Email
             </Label>
             <Input
               value={user?.email || ""}
               readOnly
-              className="h-11 truncate rounded-xl border-slate-200/80 bg-slate-50 text-base font-medium text-slate-700"
+              className="h-10 truncate rounded-lg border-slate-200/80 bg-slate-50 text-sm font-medium text-slate-700"
             />
           </div>
         </div>

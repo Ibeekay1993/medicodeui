@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { corsHeaders, getServiceClient, validateUser, maskEmail } from "../_shared/auth.ts"
 import { getBrevoSender } from "../_shared/brevo.ts"
+import { parseReportRecipients } from "../_shared/report-recipients.ts"
 
 interface AuthRequest {
   id?: string;
@@ -95,21 +96,37 @@ serve(async (req) => {
       console.error("Error reading daily_report_settings policy:", policyError)
     }
 
-    let recipientEmail = Deno.env.get("DAILY_REPORT_EMAIL") || ''
+    let configuredRecipients: unknown = Deno.env.get("DAILY_REPORT_EMAIL") || []
     let isEnabled = true
 
     if (policyData && policyData.value) {
-      if (policyData.value.email) {
-        recipientEmail = String(policyData.value.email).trim()
-      }
+      const settings = policyData.value as { emails?: unknown; email?: unknown; enabled?: unknown }
+      if (Array.isArray(settings.emails)) configuredRecipients = settings.emails
+      else if (typeof settings.email === "string" && settings.email.trim()) configuredRecipients = settings.email
       if (policyData.value.enabled !== undefined) {
         isEnabled = !!policyData.value.enabled
       }
     }
 
     // Allow payload override for test triggers or custom targets
-    if (payload && (payload.email || payload.recipient_email)) {
-      recipientEmail = String(payload.email || payload.recipient_email).trim()
+    if (payload && Array.isArray(payload.emails)) {
+      configuredRecipients = payload.emails
+    } else if (payload && (payload.email || payload.recipient_email)) {
+      configuredRecipients = String(payload.email || payload.recipient_email)
+    }
+
+    const parsedRecipients = parseReportRecipients(configuredRecipients)
+    if (parsedRecipients.invalid.length > 0) {
+      return new Response(JSON.stringify({ error: `Invalid report recipient email: ${parsedRecipients.invalid.join(", ")}` }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 400,
+      })
+    }
+    if (parsedRecipients.tooMany) {
+      return new Response(JSON.stringify({ error: "A maximum of 10 report recipients is allowed." }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 400,
+      })
     }
 
     // If daily report is disabled and not forced, skip execution
@@ -121,7 +138,7 @@ serve(async (req) => {
     }
 
     // If no recipient email is configured, skip execution
-    if (!recipientEmail) {
+    if (parsedRecipients.recipients.length === 0) {
       return new Response(JSON.stringify({ message: "No recipient email configured. Please set an email in the Settings page." }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 200,
@@ -266,7 +283,8 @@ serve(async (req) => {
 
     const brevoSender = getBrevoSender();
 
-    console.log(`Sending daily report to ${maskEmail(recipientEmail)}...`);
+    const maskedRecipients = parsedRecipients.recipients.map(maskEmail).join(", ");
+    console.log(`Sending daily report to ${maskedRecipients}...`);
     console.log(`From: ${brevoSender.name} <${brevoSender.email}>`);
     console.log(`Records included: ${effectiveRecords.length}`);
 
@@ -279,7 +297,7 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         sender: brevoSender,
-        to: recipientEmail.split(',').map(e => ({ email: e.trim() })).filter(e => e.email),
+        to: parsedRecipients.recipients.map((email) => ({ email })),
         subject: `${forceSend ? '[TEST] ' : ''}Ronsberger HMO Daily Pre-Auth Report - ${end.toLocaleDateString("en-GB")}`,
         htmlContent: htmlContent,
         attachment: [
@@ -299,10 +317,10 @@ serve(async (req) => {
       throw new Error(errorMsg);
     }
 
-    console.log(`Daily report sent successfully to ${maskEmail(recipientEmail)}`);
+    console.log(`Daily report sent successfully to ${maskedRecipients}`);
     return new Response(JSON.stringify({
       success: true,
-      message: `Daily report sent successfully to ${maskEmail(recipientEmail)}`,
+      message: `Daily report sent successfully to ${maskedRecipients}`,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
@@ -312,7 +330,7 @@ serve(async (req) => {
     console.error('daily-report failed:', error instanceof Error ? error.name : "unknown_error");
     return new Response(JSON.stringify({ error: errorMessage, success: false }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 200,
+      status: 500,
     });
   }
 })

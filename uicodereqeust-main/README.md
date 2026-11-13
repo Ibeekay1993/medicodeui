@@ -33,6 +33,7 @@ For full AI agent and contributor guidelines, see [AI_INSTRUCTIONS.md](../AI_INS
    ```env
    VITE_SUPABASE_URL=https://api.ronsbergerhmo.io
    VITE_SUPABASE_PUBLISHABLE_KEY=your_supabase_anon_key
+   VITE_VAPID_PUBLIC_KEY=your_web_push_vapid_public_key
    ```
 
 3. Run development server:

@@ -43,6 +43,8 @@ describe("TreatmentCart manual quantity review", () => {
 
     expect(screen.getByText("Check each item and quantity against the submitted request before approval.")).toBeInTheDocument();
     expect(screen.queryByText(/Provisional/)).not.toBeInTheDocument();
+    expect(screen.queryByText("Confirm to calculate")).not.toBeInTheDocument();
+    expect(screen.getAllByText(/7,500/)).toHaveLength(2);
     expect(screen.getByText("Total Approved Amount")).toBeInTheDocument();
     expect(changeItemQuantity).not.toHaveBeenCalled();
   });

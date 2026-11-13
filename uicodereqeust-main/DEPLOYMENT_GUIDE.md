@@ -19,8 +19,10 @@ Configure these in the Coolify frontend application's build-time environment:
 
 - `VITE_SUPABASE_URL=https://api.ronsbergerhmo.io`
 - `VITE_SUPABASE_PUBLISHABLE_KEY=<self-hosted Supabase publishable/anon key>`
+- `VITE_VAPID_PUBLIC_KEY=<Web Push VAPID public key>`
 
 Never put a service-role key, database password, Evolution API key, webhook token or worker secret in a `VITE_*` variable. Vite embeds `VITE_*` values into the browser bundle.
+For push delivery, configure the matching `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, and `VAPID_SUBJECT` in the self-hosted Edge Functions environment. The browser public key and server key pair must match; never put `VAPID_PRIVATE_KEY` in a frontend or `VITE_*` variable.
 
 ## Deployment workflow
 

@@ -99,7 +99,7 @@ export default function MfaSettingsCard({ user, fullName, role }: MfaSettingsCar
 
   return (
     <Card className="rounded-2xl border border-slate-200/80 bg-white shadow-sm overflow-hidden transition-all">
-      <CardHeader className="p-4 sm:p-5 border-b border-slate-100 bg-slate-50/50">
+      <CardHeader className="p-3 sm:p-4 border-b border-slate-100 bg-slate-50/50">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-700 shrink-0">
@@ -128,9 +128,9 @@ export default function MfaSettingsCard({ user, fullName, role }: MfaSettingsCar
         </div>
       </CardHeader>
 
-      <CardContent className="p-4 sm:p-5">
+      <CardContent className="p-3 sm:p-4">
         {!enrollData ? (
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-xl bg-slate-50/90 border border-slate-100">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3 rounded-xl bg-slate-50/90 border border-slate-100">
             <div className="space-y-1 flex-1 pr-2">
               <p className="text-xs sm:text-sm font-semibold text-slate-900">
                 {mfaEnabled ? "Authenticator App Active" : "Add Extra Login Protection"}
@@ -160,7 +160,7 @@ export default function MfaSettingsCard({ user, fullName, role }: MfaSettingsCar
             </div>
           </div>
         ) : (
-          <div className="space-y-4 p-4 rounded-xl bg-slate-50 border border-slate-200/80 animate-in fade-in duration-300">
+          <div className="space-y-3 p-3 rounded-xl bg-slate-50 border border-slate-200/80 animate-in fade-in duration-300">
             <div className="text-center space-y-1">
               <p className="text-xs sm:text-sm font-bold text-slate-900">
                 Scan QR Code with Authenticator App
@@ -170,7 +170,7 @@ export default function MfaSettingsCard({ user, fullName, role }: MfaSettingsCar
               </p>
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-5 items-center justify-center pt-2">
+            <div className="flex flex-col sm:flex-row gap-4 items-center justify-center pt-1">
               <div className="p-3 bg-white rounded-2xl border border-slate-200 shadow-sm shrink-0">
                 <QRCodeSVG value={enrollData.totp.uri} size={140} level="H" />
               </div>

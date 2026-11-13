@@ -332,7 +332,7 @@ export const TreatmentCart = React.memo(function TreatmentCart({
                           )}>
                             {item.declined
                               ? "Declined"
-                              : item.quantityNeedsReview || item.priceNeedsReview
+                              : item.priceNeedsReview
                               ? "Confirm to calculate"
                               : formatNaira(itemTotal(item))}
                           </p>

@@ -24,17 +24,17 @@ export default function SettingsPage() {
   ];
 
   return (
-    <main className="mx-auto max-w-5xl space-y-5 pb-8">
+    <main className="mx-auto max-w-4xl space-y-4 pb-6">
       <header>
-        <h1 className="text-xl font-semibold text-slate-900">Settings</h1>
-        <p className="mt-1 text-sm text-slate-500">Manage your account and preferences.</p>
+        <h1 className="text-lg font-semibold text-slate-900">Settings</h1>
+        <p className="mt-0.5 text-sm text-slate-500">Manage your account and preferences.</p>
       </header>
 
-      <div className="grid gap-4 md:grid-cols-[220px_minmax(0,1fr)] md:items-start">
+      <div className="grid gap-3 md:grid-cols-[200px_minmax(0,1fr)] md:items-start">
       <nav
         aria-label="Settings sections"
         className={cn(
-          "space-y-1 rounded-xl border border-slate-200 bg-white p-2",
+          "space-y-1 rounded-xl border border-slate-200 bg-white p-1.5",
           sectionOpen ? "hidden md:block" : "block",
         )}
       >
@@ -49,7 +49,7 @@ export default function SettingsPage() {
             }}
             aria-current={section === id ? "page" : undefined}
             className={cn(
-              "flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left transition-colors",
+              "flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2.5 text-left transition-colors",
               section === id ? "bg-slate-100 text-slate-950" : "text-slate-600 hover:bg-slate-50 hover:text-slate-900",
             )}
           >
@@ -65,7 +65,7 @@ export default function SettingsPage() {
 
       <section
         aria-live="polite"
-        className={cn("min-w-0 space-y-4", sectionOpen ? "block" : "hidden md:block")}
+        className={cn("min-w-0 space-y-3", sectionOpen ? "block" : "hidden md:block")}
       >
         <Button
           type="button"

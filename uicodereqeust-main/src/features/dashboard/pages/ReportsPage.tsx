@@ -23,6 +23,7 @@ import {
   groupByDate,
   calculateHospitalPerformance,
   calculateApprovedAmount,
+  PREAUTH_REPORT_SELECT_COLUMNS,
 } from "@/lib/reports-helpers";
 
 import ReportFilters from "@/components/reports/ReportFilters";
@@ -104,7 +105,7 @@ async function fetchPaymentAdviceRecords(filters: FilterState): Promise<PaymentA
   while (true) {
     let query = supabase
       .from("authorization_requests")
-      .select("id,created_at,request_id,patient_name,patient_phone,patient_email,policy_number,diagnosis,treatment,hospital_id,hospital_name,requesting_hospital_id,requesting_hospital_name,referring_hospital_id,referring_hospital_name,referred_hospital_id,referred_hospital_name,claiming_hospital_id,claiming_hospital_name,source,authorization_code,status,total_amount,approved_items,rejection_reason,decision_reason,decided_at,decided_by,approved_by,treatment_submitted_at,urgency,authorized_by_name,is_historical")
+      .select(PREAUTH_REPORT_SELECT_COLUMNS)
       .in("status", ["approved", "partially_approved", "referral_approved", "referral_accepted", "authorization_approved"])
       .order("decided_at", { ascending: true })
       .order("id", { ascending: true });
@@ -148,7 +149,7 @@ async function fetchPaymentAdviceRecords(filters: FilterState): Promise<PaymentA
       source_total_amount: item.total_amount === null || item.total_amount === undefined || item.total_amount === ""
         ? null
         : Number.isFinite(Number(item.total_amount)) ? Number(item.total_amount) : null,
-      rejection_reason: item.rejection_reason || "",
+      rejection_reason: item.decision_reason || "",
       decision_reason: item.decision_reason || "",
       decided_at: item.decided_at || undefined,
       decided_by: item.decided_by,
@@ -413,7 +414,7 @@ export default function ReportsPage() {
       const statusPredicate = getReportStatusPredicate(filterSnapshot.statusFilter);
       const dateRange = buildDateFilter(filterSnapshot.dateFilter, filterSnapshot.startDate, filterSnapshot.endDate);
       const allData = await fetchAllReportPages<any>(async ({ from, to }) => {
-        let q = supabase.from("authorization_requests").select("id,created_at,request_id,patient_name,patient_phone,patient_email,policy_number,diagnosis,treatment,hospital_id,hospital_name,requesting_hospital_id,requesting_hospital_name,referring_hospital_id,referring_hospital_name,referred_hospital_id,referred_hospital_name,claiming_hospital_id,claiming_hospital_name,source,authorization_code,status,total_amount,approved_items,rejection_reason,decision_reason,decided_at,decided_by,approved_by,treatment_submitted_at,urgency,authorized_by_name,is_historical")
+        let q = supabase.from("authorization_requests").select(PREAUTH_REPORT_SELECT_COLUMNS)
           .order("created_at", { ascending: false })
           .order("id", { ascending: true });
 
@@ -444,7 +445,7 @@ export default function ReportsPage() {
         status: item.status as RequestStatus,
         approved_amount: calculateApprovedAmount(item),
         approved_items: Array.isArray(item.approved_items) ? item.approved_items : undefined,
-        rejection_reason: item.rejection_reason || item.decision_reason || "",
+        rejection_reason: item.decision_reason || "",
         decision_reason: item.decision_reason || "",
         decided_at: item.decided_at,
         decided_by: item.decided_by,

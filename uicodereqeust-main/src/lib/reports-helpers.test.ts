@@ -6,8 +6,18 @@ import {
   fetchAllReportPages,
   getReportStatusPredicate,
   groupByDate,
+  PREAUTH_REPORT_SELECT_COLUMNS,
   PreAuthRecord,
 } from "./reports-helpers";
+
+describe("authorization report query columns", () => {
+  it("only selects authorization fields present in the database schema", () => {
+    const fields = PREAUTH_REPORT_SELECT_COLUMNS.split(",");
+
+    expect(fields).toContain("decision_reason");
+    expect(fields).not.toContain("rejection_reason");
+  });
+});
 
 describe("calculateApprovedAmount", () => {
   it("adds approved cart line totals and excludes declined items", () => {

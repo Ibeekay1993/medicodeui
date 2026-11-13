@@ -273,7 +273,7 @@ describe("Historical Reconciliation Engine", () => {
 
   it("accurately parses historical date strings like 2-Jul-26 and 2026-07-24 into July 2026 UTC", () => {
     const iso1 = parseHistoricalDate("2-Jul-26");
-    expect(iso1).toBe("2025-01-15T12:00:00.000Z");
+    expect(iso1).toBe("2026-07-02T12:00:00.000Z");
 
     const iso2 = parseHistoricalDate("24-Jul-2026");
     expect(iso2).toBe("2026-07-24T12:00:00.000Z");

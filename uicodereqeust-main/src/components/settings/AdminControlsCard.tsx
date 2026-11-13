@@ -9,8 +9,13 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Lock, Mail, Play } from "lucide-react";
+import { Lock, Mail, Play, Plus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  MAX_DAILY_REPORT_RECIPIENTS,
+  parseReportRecipientFields,
+  splitReportRecipientValues,
+} from "../../../supabase/functions/_shared/report-recipients";
 
 interface AdminControlsCardProps {
   user: any;
@@ -25,7 +30,8 @@ export default function AdminControlsCard({ user }: AdminControlsCardProps) {
   const [savingPolicy, setSavingPolicy] = useState(false);
 
   // Daily Pre-Auth Report Email state
-  const [reportEmail, setReportEmail] = useState("");
+  const [reportEmails, setReportEmails] = useState<string[]>([""]);
+  const [recipientError, setRecipientError] = useState<string | null>(null);
   const [reportEnabled, setReportEnabled] = useState(true);
   const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [isTriggeringReport, setIsTriggeringReport] = useState(false);
@@ -53,7 +59,9 @@ export default function AdminControlsCard({ user }: AdminControlsCardProps) {
         .maybeSingle();
       if (error) throw error;
       if (data && (data as any).value) {
-        setReportEmail((data as any).value.email || "");
+        const settings = (data as any).value;
+        const savedEmails = splitReportRecipientValues(settings.emails ?? settings.email ?? []);
+        setReportEmails(savedEmails.length > 0 ? savedEmails : [""]);
         setReportEnabled((data as any).value.enabled !== false);
       }
     } catch (e) {
@@ -67,6 +75,15 @@ export default function AdminControlsCard({ user }: AdminControlsCardProps) {
       fetchReportSettings();
     }
   }, [user]);
+
+  const handleAddRecipientField = () => {
+    if (reportEmails.length >= MAX_DAILY_REPORT_RECIPIENTS) {
+      setRecipientError(`Add no more than ${MAX_DAILY_REPORT_RECIPIENTS} recipients.`);
+      return;
+    }
+    setReportEmails((current) => [...current, ""]);
+    setRecipientError(null);
+  };
 
   const handleToggleMfaPolicy = async () => {
     if (role !== "admin") return;
@@ -95,6 +112,19 @@ export default function AdminControlsCard({ user }: AdminControlsCardProps) {
 
   const handleSaveReportSettings = async () => {
     if (role !== "admin") return;
+    const parsedRecipients = parseReportRecipientFields(reportEmails);
+    if (parsedRecipients.multiple.length > 0) {
+      setRecipientError("Enter one address in each box. Use + Add for another address.");
+      return;
+    }
+    if (parsedRecipients.invalid.length > 0) {
+      setRecipientError(`Correct or remove invalid addresses: ${parsedRecipients.invalid.join(", ")}`);
+      return;
+    }
+    if (parsedRecipients.tooMany) {
+      setRecipientError(`Add no more than ${MAX_DAILY_REPORT_RECIPIENTS} recipients.`);
+      return;
+    }
     setIsSavingSettings(true);
     try {
       const { error } = await (supabase as any)
@@ -102,7 +132,7 @@ export default function AdminControlsCard({ user }: AdminControlsCardProps) {
         .upsert(
           {
             key: "daily_report_settings",
-            value: { email: reportEmail.trim(), enabled: reportEnabled },
+            value: { emails: parsedRecipients.recipients, enabled: reportEnabled },
             updated_by: user?.id,
             updated_at: new Date().toISOString(),
           },
@@ -111,8 +141,11 @@ export default function AdminControlsCard({ user }: AdminControlsCardProps) {
       if (error) throw error;
       toast({
         title: "Report Settings Saved",
-        description: `Daily pre-auth report email address updated to ${reportEmail.trim()}.`,
+        description: parsedRecipients.recipients.length
+          ? `Daily report saved for ${parsedRecipients.recipients.length} recipient${parsedRecipients.recipients.length === 1 ? "" : "s"}.`
+          : "Daily report recipients cleared. Scheduled delivery will be skipped until an address is added.",
       });
+      setRecipientError(null);
     } catch (e: any) {
       toast({ variant: "destructive", title: "Failed to save settings", description: e.message });
     } finally {
@@ -131,7 +164,7 @@ export default function AdminControlsCard({ user }: AdminControlsCardProps) {
       if (data?.error) throw new Error(data.error);
       toast({
         title: "Test report sent",
-        description: data?.message || `Check ${reportEmail} for the test email.`,
+        description: data?.message || "Check the saved report recipients for the test email.",
       });
     } catch (e: any) {
       toast({
@@ -146,7 +179,7 @@ export default function AdminControlsCard({ user }: AdminControlsCardProps) {
 
   return (
     <Card className="rounded-2xl border border-slate-200/80 bg-white shadow-sm overflow-hidden transition-all">
-      <CardHeader className="p-4 sm:p-5 border-b border-slate-100 bg-slate-50/50">
+      <CardHeader className="p-3 sm:p-4 border-b border-slate-100 bg-slate-50/50">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-900 text-white shrink-0">
             <Lock className="h-5 w-5" />
@@ -162,9 +195,9 @@ export default function AdminControlsCard({ user }: AdminControlsCardProps) {
         </div>
       </CardHeader>
 
-      <CardContent className="p-4 sm:p-5 space-y-4">
+      <CardContent className="p-3 sm:p-4 space-y-3">
         {/* Row 1: MFA Policy */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-4 rounded-xl bg-slate-50/90 border border-slate-100">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 p-3 rounded-xl bg-slate-50/90 border border-slate-100">
           <div className="space-y-1 flex-1 pr-2">
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-xs sm:text-sm font-bold text-slate-900">
@@ -206,7 +239,7 @@ export default function AdminControlsCard({ user }: AdminControlsCardProps) {
         </div>
 
         {/* Row 2: Daily Pre-Auth Report Toggle */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-4 rounded-xl bg-slate-50/90 border border-slate-100">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 p-3 rounded-xl bg-slate-50/90 border border-slate-100">
           <div className="space-y-1 flex-1 pr-2">
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-xs sm:text-sm font-bold text-slate-900">
@@ -240,28 +273,74 @@ export default function AdminControlsCard({ user }: AdminControlsCardProps) {
         </div>
 
         {/* Row 3: Recipient Email Configuration */}
-        <div className="p-4 rounded-xl bg-slate-50/90 border border-slate-100 space-y-3">
+        <div className="p-3 rounded-xl bg-slate-50/90 border border-slate-100 space-y-2.5">
           <div className="flex items-center gap-2">
             <Mail className="h-4 w-4 text-slate-500" />
             <Label className="text-xs sm:text-sm font-bold text-slate-900">
-              Report Recipient Email
+              Daily Report Recipients
             </Label>
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-2.5">
-            <Input
-              type="email"
-              placeholder="e.g. reports@ronsberger.com"
-              value={reportEmail}
-              onChange={(e) => setReportEmail(e.target.value)}
-              className="h-10 rounded-xl text-xs sm:text-sm font-medium bg-white border-slate-200 text-slate-900 flex-1 shadow-sm"
-            />
-            <div className="flex gap-2">
+          <p id="report-recipient-help" className="text-xs leading-relaxed text-slate-500">
+            Add each address separately; save before testing. Reports contain patient and authorization details. Maximum {MAX_DAILY_REPORT_RECIPIENTS} recipients.
+          </p>
+
+          <div role="group" aria-label="Report email recipients" className="space-y-2">
+            {reportEmails.map((email, index) => (
+              <div key={index} className="flex min-w-0 items-center gap-2">
+                <Input
+                  type="email"
+                  aria-label={`Report recipient ${index + 1}`}
+                  aria-describedby="report-recipient-help"
+                  placeholder="reports@ronsberger.com"
+                  value={email}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setReportEmails((current) => current.map((item, itemIndex) => itemIndex === index ? value : item));
+                    if (recipientError) setRecipientError(null);
+                  }}
+                  className="h-9 min-w-0 flex-1 rounded-lg bg-white text-sm font-medium text-slate-900 shadow-sm"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  aria-label={`Remove report recipient ${index + 1}`}
+                  onClick={() => {
+                    setReportEmails((current) => current.filter((_, itemIndex) => itemIndex !== index));
+                    setRecipientError(null);
+                  }}
+                  className="h-11 w-11 shrink-0 text-slate-500 hover:text-rose-700"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            ))}
+          </div>
+
+          <Button
+            type="button"
+            onClick={handleAddRecipientField}
+            disabled={reportEmails.length >= MAX_DAILY_REPORT_RECIPIENTS}
+            variant="outline"
+            size="sm"
+            aria-label="Add report recipient"
+            className="h-9 gap-1.5 border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700"
+          >
+            <Plus className="h-4 w-4" />
+            Add recipient
+          </Button>
+
+          {recipientError && (
+            <p role="alert" className="text-xs font-medium text-rose-700">{recipientError}</p>
+          )}
+
+          <div className="flex flex-wrap gap-2 pt-1">
               <Button
                 onClick={handleSaveReportSettings}
                 disabled={isSavingSettings}
                 size="sm"
-                className="flex-1 sm:flex-none h-10 px-4 text-xs font-semibold bg-slate-900 hover:bg-black text-white shadow-sm"
+                className="h-11 px-4 text-xs font-semibold bg-slate-900 hover:bg-black text-white shadow-sm"
               >
                 {isSavingSettings ? <BrandSpinner className="h-3.5 w-3.5 animate-spin" /> : "Save"}
               </Button>
@@ -270,7 +349,7 @@ export default function AdminControlsCard({ user }: AdminControlsCardProps) {
                 disabled={isTriggeringReport}
                 variant="outline"
                 size="sm"
-                className="flex-1 sm:flex-none h-10 px-4 text-xs font-semibold border-slate-300 text-slate-700 bg-white hover:bg-slate-100 gap-1.5 shadow-sm"
+                className="h-11 px-4 text-xs font-semibold border-slate-300 text-slate-700 bg-white hover:bg-slate-100 gap-1.5 shadow-sm"
               >
                 {isTriggeringReport ? (
                   <BrandSpinner className="h-3.5 w-3.5 animate-spin" />
@@ -281,7 +360,6 @@ export default function AdminControlsCard({ user }: AdminControlsCardProps) {
                   </>
                 )}
               </Button>
-            </div>
           </div>
         </div>
       </CardContent>

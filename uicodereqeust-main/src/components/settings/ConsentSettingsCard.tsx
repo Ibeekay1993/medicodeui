@@ -82,7 +82,7 @@ export default function ConsentSettingsCard() {
 
   return (
     <Card className="rounded-2xl border border-slate-200/80 bg-white shadow-sm overflow-hidden transition-all">
-      <CardHeader className="p-4 sm:p-5 border-b border-slate-100 bg-slate-50/50">
+      <CardHeader className="p-3 sm:p-4 border-b border-slate-100 bg-slate-50/50">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-700 shrink-0">
             {isWithdrawn ? <ShieldAlert className="h-5 w-5 text-rose-500" /> : <ShieldCheck className="h-5 w-5 text-emerald-600" />}
@@ -98,7 +98,7 @@ export default function ConsentSettingsCard() {
         </div>
       </CardHeader>
       
-      <CardContent className="p-4 sm:p-5">
+      <CardContent className="p-3 sm:p-4">
         {loading ? (
           <div className="flex items-center space-x-2 text-xs text-slate-500 py-2">
             <BrandSpinner className="h-4 w-4 animate-spin text-brand-700" />
@@ -126,7 +126,7 @@ export default function ConsentSettingsCard() {
         )}
       </CardContent>
 
-      <CardFooter className="bg-slate-50/80 p-4 sm:p-5 border-t border-slate-100 flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
+      <CardFooter className="bg-slate-50/80 p-3 sm:p-4 border-t border-slate-100 flex flex-col sm:flex-row gap-2.5 sm:items-center sm:justify-between">
         <p className="text-xs text-slate-500 leading-relaxed max-w-sm">
           Revoking consent will restrict healthcare data access and log you out immediately.
         </p>

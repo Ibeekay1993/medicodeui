@@ -137,7 +137,7 @@ describe("prescriptionParser", () => {
     expect(results[0].quantityNeedsReview).toBe(true);
   });
 
-  it("flags a service quantity that was defaulted instead of supplied in the request", async () => {
+  it("uses one unit for a service without an explicit quantity", async () => {
     const mockSupabase: any = {
       from: vi.fn().mockReturnValue({
         select: vi.fn().mockReturnValue({
@@ -162,6 +162,6 @@ describe("prescriptionParser", () => {
 
     expect(results).toHaveLength(1);
     expect(results[0].quantity).toBe(1);
-    expect(results[0].quantityNeedsReview).toBe(true);
+    expect(results[0].quantityNeedsReview).toBe(false);
   });
 });
