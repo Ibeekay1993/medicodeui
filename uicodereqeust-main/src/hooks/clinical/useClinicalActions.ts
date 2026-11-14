@@ -187,7 +187,7 @@ export function useClinicalActions({
               price: total ?? unitPrice * quantity,
               unitPrice,
               quantity,
-              quantityNeedsReview: item.quantity_requires_review !== false || parsedQuantity === null,
+              quantityNeedsReview: false,
               // Treat stored items with a valid finite non-negative price and consistent
               // total as price-confirmed, regardless of the legacy
               // price_requires_review flag. Zero-price (free service) items are
@@ -209,7 +209,7 @@ export function useClinicalActions({
           price: Number(request.approved_tariff_amount || request.total_amount || 0),
           unitPrice: Number(request.approved_tariff_amount || request.total_amount || 0),
           quantity: 1,
-          quantityNeedsReview: true,
+          quantityNeedsReview: false,
           priceNeedsReview: true,
           frequency: null,
           duration: null,
@@ -400,7 +400,7 @@ export function useClinicalActions({
           category: item.category,
           unit_price: itemUnitPrice(item),
           quantity: itemQuantity(item),
-          quantity_requires_review: false, // staff reviewed via cart UI; DB validates independently
+          quantity_requires_review: false,
           price_requires_review: false,     // DB trigger validates price against catalog
           amount: itemTotal(item),
           frequency: item.frequency || null,
@@ -541,7 +541,7 @@ export function useClinicalActions({
           category: item.category,
           unit_price: itemUnitPrice(item),
           quantity: itemQuantity(item),
-          quantity_requires_review: false, // staff reviewed via cart UI; DB validates independently
+          quantity_requires_review: false,
           price_requires_review: false,     // DB trigger validates price against catalog
           amount: itemTotal(item),
           frequency: item.frequency || null,

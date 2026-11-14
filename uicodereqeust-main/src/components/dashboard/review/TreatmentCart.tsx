@@ -17,6 +17,7 @@ import { ChevronDown, ChevronUp, Zap, Minus, Plus, Search, AlertTriangle } from 
 import {
   TariffOption,
   formatNaira,
+  hasValidItemQuantity,
   itemTotal,
 } from "@/lib/clinicalUtils";
 import { FloatingPanel } from "@/components/ui/floating-panel";
@@ -36,6 +37,7 @@ interface TreatmentCartProps {
   updateApprovedItemQuantity: (code: string | null, value: string) => void;
   commitQuantity: (code: string | null) => void;
   changeItemQuantity?: (code: string | null, newQuantity: number) => void;
+  confirmItemQuantity?: (code: string | null) => void;
   removeApprovedItem: (code: string | null) => void;
   toggleDeclineApprovedItem?: (code: string | null) => void;
   updateDeclineReason?: (code: string | null, reason: string) => void;
@@ -64,6 +66,7 @@ export const TreatmentCart = React.memo(function TreatmentCart({
   updateApprovedItemQuantity,
   commitQuantity,
   changeItemQuantity,
+  confirmItemQuantity,
   removeApprovedItem,
   toggleDeclineApprovedItem,
   updateDeclineReason,
@@ -202,6 +205,24 @@ export const TreatmentCart = React.memo(function TreatmentCart({
                             <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
                             <span>Price not verified. Select an active catalogue item before approval.</span>
                           </p>
+                        )}
+                        {item.quantityNeedsReview && !item.declined && (
+                          <div className="mt-1 flex flex-wrap items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-2 py-1">
+                            <span className="text-[10px] font-medium leading-snug text-amber-900">
+                              Check quantity against the request or prescription.
+                            </span>
+                            {!readOnly && (
+                              <button
+                                type="button"
+                                aria-label={`Confirm quantity for ${item.name}`}
+                                onClick={() => confirmItemQuantity?.(item.code)}
+                                disabled={!confirmItemQuantity || !hasValidItemQuantity(item)}
+                                className="rounded-md border border-amber-300 bg-white px-2 py-1 text-[10px] font-bold text-amber-950 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50"
+                              >
+                                Confirm qty
+                              </button>
+                            )}
+                          </div>
                         )}
                         <div className="flex items-center gap-2 mt-1.5">
                           <Badge

@@ -1122,6 +1122,7 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
                     approvedTotal={tariffSearch.approvedTotal}
                     totalApprovedAmount={tariffSearch.approvedTotal}
                     changeItemQuantity={tariffSearch.changeItemQuantity}
+                    confirmItemQuantity={tariffSearch.confirmItemQuantity}
                     isHospitalDirected={isHospitalDirected}
                     editTreatment={actions.editTreatment}
                     setEditTreatment={actions.setEditTreatment}

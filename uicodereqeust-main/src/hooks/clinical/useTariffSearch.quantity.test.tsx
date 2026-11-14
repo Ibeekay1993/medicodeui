@@ -50,4 +50,11 @@ describe("useTariffSearch quantity editing", () => {
     expect(result.current.approvedItems[0].quantity).toBe(1);
     expect(result.current.approvedItems[0].price).toBe(70);
   });
+
+  it("treats stored items with confirmed quantities as ready for approval", async () => {
+    const { result } = renderHook(() => useTariffSearch(true, "", request, false));
+
+    await waitFor(() => expect(result.current.approvedItems).toHaveLength(1));
+    expect(result.current.approvedItems[0].quantityNeedsReview).toBe(false);
+  });
 });

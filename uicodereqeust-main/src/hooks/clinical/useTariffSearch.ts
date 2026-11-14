@@ -6,6 +6,7 @@ import {
   itemUnitPrice,
   itemQuantity,
   itemTotal,
+  hasValidItemQuantity,
   hasValidItemUnitPrice,
   parseNonNegativeAmount,
   parsePositiveQuantity,
@@ -41,7 +42,6 @@ function normalizeStoredApprovalItem(item: any) {
     unitPrice,
     price: recordedTotal ?? calculatedTotal,
     quantity,
-    // Staff review the parsed quantity against the source request before approval.
     quantityNeedsReview: false,
     // A stored item is price-confirmed when it was not explicitly flagged for
     // review AND it has a valid finite non-negative unit price with a consistent
@@ -407,7 +407,7 @@ export function useTariffSearch(
         unitPrice,
         quantity,
         price: unitPrice * quantity,
-        quantityNeedsReview: false,
+        quantityNeedsReview: !hasValidItemQuantity(item),
         priceNeedsReview: item.priceNeedsReview === true || !hasValidItemUnitPrice(item),
         matched_via: "manual",
       }];
@@ -481,6 +481,13 @@ export function useTariffSearch(
     );
   };
 
+  const confirmItemQuantity = (code: string | null) => {
+    setApprovedItems((current) => current.map((item) => {
+      if (item.code !== code || !hasValidItemQuantity(item)) return item;
+      return { ...item, quantityNeedsReview: false };
+    }));
+  };
+
   const updateDeclineReason = (code: string | null, reason: string) => {
     setApprovedItems((current) =>
       current.map((item) =>
@@ -510,6 +517,7 @@ export function useTariffSearch(
     updateApprovedItemQuantity,
     commitQuantity,
     changeItemQuantity,
+    confirmItemQuantity,
     parseTreatmentText,
   };
 }

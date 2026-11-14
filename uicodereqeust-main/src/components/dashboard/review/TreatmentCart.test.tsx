@@ -1,10 +1,11 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { TreatmentCart } from "@/components/dashboard/review/TreatmentCart";
 
 describe("TreatmentCart manual quantity review", () => {
   it("calculates the amount and leaves quantity verification to the approver", () => {
     const changeItemQuantity = vi.fn();
+    const confirmItemQuantity = vi.fn();
 
     render(
       <TreatmentCart
@@ -29,6 +30,7 @@ describe("TreatmentCart manual quantity review", () => {
         updateApprovedItemQuantity={vi.fn()}
         commitQuantity={vi.fn()}
         changeItemQuantity={changeItemQuantity}
+        confirmItemQuantity={confirmItemQuantity}
         removeApprovedItem={vi.fn()}
         tariffSearch=""
         setTariffSearch={vi.fn()}
@@ -46,6 +48,9 @@ describe("TreatmentCart manual quantity review", () => {
     expect(screen.queryByText("Confirm to calculate")).not.toBeInTheDocument();
     expect(screen.getAllByText(/7,500/)).toHaveLength(2);
     expect(screen.getByText("Total Approved Amount")).toBeInTheDocument();
+    const confirmButton = screen.getByRole("button", { name: "Confirm quantity for Amlodipine 10mg tablet" });
+    fireEvent.click(confirmButton);
+    expect(confirmItemQuantity).toHaveBeenCalledWith("NHIA-12-04-05");
     expect(changeItemQuantity).not.toHaveBeenCalled();
   });
 });

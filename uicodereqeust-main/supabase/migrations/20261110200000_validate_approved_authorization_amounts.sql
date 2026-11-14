@@ -68,11 +68,11 @@ BEGIN
     END IF;
 
     v_selected_count := v_selected_count + 1;
-    IF v_item->'quantity_requires_review' IS DISTINCT FROM 'false'::jsonb THEN
+    IF coalesce((v_item->>'quantity_requires_review')::boolean, false) IS TRUE THEN
       RAISE EXCEPTION 'Confirm each treatment quantity from the request or prescription before approval.'
         USING ERRCODE = '23514';
     END IF;
-    IF v_item->'price_requires_review' IS DISTINCT FROM 'false'::jsonb THEN
+    IF coalesce((v_item->>'price_requires_review')::boolean, false) IS TRUE THEN
       RAISE EXCEPTION 'Confirm each treatment price against the NHIA tariff before approval.'
         USING ERRCODE = '23514';
     END IF;
