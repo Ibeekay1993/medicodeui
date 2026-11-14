@@ -8,13 +8,28 @@ import {
   resolveBeneficiaryIdentityMatch,
 } from "@/lib/clinicalUtils";
 
-function withTimeout<T>(promise: PromiseLike<T>, ms: number = 4000): Promise<T> {
+function withTimeout<T>(promise: PromiseLike<T>, ms: number = 12000): Promise<T> {
   return Promise.race([
     promise,
     new Promise<T>((_, reject) =>
       setTimeout(() => reject(new Error(`Timeout of ${ms}ms exceeded`)), ms)
     ),
   ]);
+}
+
+async function withAutoRetry<T>(fn: () => Promise<T>, retries: number = 1, delayMs: number = 400): Promise<T> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastError = err;
+      if (attempt < retries) {
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+      }
+    }
+  }
+  throw lastError;
 }
 
 function withAbortTimeout<T>(request: (signal: AbortSignal) => PromiseLike<T>, ms: number): Promise<T> {
@@ -75,31 +90,35 @@ export function useClinicalVerification(
       let rpcSucceeded = false;
       let rpcUnavailable = !policy && !beneficiaryNum;
       if (!rpcUnavailable) {
-        const { data: rpcData, error: rpcError } = await withAbortTimeout<{ data: any; error: any }>(
-          (signal) => (supabase as any).rpc("get_patient_authorization_history", {
-            p_policy_number: policy || null,
-            p_policy_root: policyRoot || null,
-            p_beneficiary_number: beneficiaryNum || null,
-            p_limit: 100,
-          }).abortSignal(signal),
-          8000,
-        );
-        if (rpcError) {
-          // Only fall back when the RPC is not installed. A timeout/network error
-          // must not launch another history query while the original is still running.
-          rpcUnavailable = rpcError.code === "PGRST202" || rpcError.code === "42883";
-          if (!rpcUnavailable) throw rpcError;
-        } else if (Array.isArray(rpcData)) {
-          history = rpcData;
-          rpcSucceeded = true;
+        try {
+          const { data: rpcData, error: rpcError } = await withAutoRetry(() =>
+            withAbortTimeout<{ data: any; error: any }>(
+              (signal) => (supabase as any).rpc("get_patient_authorization_history", {
+                p_policy_number: policy || null,
+                p_policy_root: policyRoot || null,
+                p_beneficiary_number: beneficiaryNum || null,
+                p_limit: 100,
+              }).abortSignal(signal),
+              10000,
+            )
+          );
+          if (rpcError) {
+            rpcUnavailable = true;
+          } else if (Array.isArray(rpcData)) {
+            history = rpcData;
+            rpcSucceeded = true;
+          }
+        } catch (rpcErr) {
+          console.warn("RPC history query timed out or failed, falling back to direct query:", rpcErr);
+          rpcUnavailable = true;
         }
       }
-      // ── Step 2: Fallback direct query (if RPC not available) ──
+      // ── Step 2: Fallback direct query (if RPC not available or timed out) ──
       // IMPORTANT: DO NOT add .order("created_at") in the SQL query!
       // On Postgres, ORDER BY created_at with LIMIT forces a full sequential scan
       // over 75k+ rows on Nano compute, triggering statement timeouts.
       // We query by indexed policy/beneficiary filters and sort in JavaScript memory instead.
-      if (!rpcSucceeded && rpcUnavailable && (policy || beneficiaryNum)) {
+      if (!rpcSucceeded && (policy || beneficiaryNum)) {
         const conditions = new Set<string>();
         if (policyRoot) {
           conditions.add("policy_number.eq." + policyRoot);
@@ -108,14 +127,16 @@ export function useClinicalVerification(
         if (policy !== policyRoot) conditions.add("policy_number.eq." + policy);
         if (beneficiaryNum) conditions.add("beneficiary_number.eq." + beneficiaryNum);
 
-        const { data, error } = await withAbortTimeout(
-          (signal) => supabase
-            .from("authorization_requests")
-            .select("id, request_id, patient_name, policy_number, beneficiary_number, diagnosis, treatment, approved_items, hospital_name, status, authorization_code, decision_reason, clinical_notes, decided_at, created_at, source, is_historical")
-            .or([...conditions].join(","))
-            .limit(100)
-            .abortSignal(signal),
-          12000,
+        const { data, error } = await withAutoRetry(() =>
+          withAbortTimeout(
+            (signal) => supabase
+              .from("authorization_requests")
+              .select("id, request_id, patient_name, policy_number, beneficiary_number, diagnosis, treatment, approved_items, hospital_name, status, authorization_code, decision_reason, clinical_notes, decided_at, created_at, source, is_historical")
+              .or([...conditions].join(","))
+              .limit(100)
+              .abortSignal(signal),
+            12000,
+          )
         );
         if (error) throw error;
         history = data || [];
@@ -175,13 +196,15 @@ export function useClinicalVerification(
         conditions.add(`policy_number.eq.${policy}`);
         if (policyRoot && policyRoot !== policy) conditions.add(`policy_number.eq.${policyRoot}`);
         if (policyRoot) conditions.add(`policy_number.like.${policyRoot}-%`);
-        const { data, error } = await withTimeout(
-          supabase
-            .from("nhis_beneficiaries")
-            .select("id,full_name,surname,first_name,hcp_name,hcp_code,member_type,policy_number,beneficiary_number")
-            .or([...conditions].join(","))
-            .limit(50),
-          4000
+        const { data, error } = await withAutoRetry(() =>
+          withTimeout(
+            supabase
+              .from("nhis_beneficiaries")
+              .select("id,full_name,surname,first_name,hcp_name,hcp_code,member_type,policy_number,beneficiary_number")
+              .or([...conditions].join(","))
+              .limit(50),
+            12000
+          )
         );
         if (error) throw error;
         policyRows = data || [];
@@ -189,9 +212,11 @@ export function useClinicalVerification(
       const hasPolicyMatch = policyRows.length > 0;
       let fallbackRows: any[] = [];
       if (!hasPolicyMatch && policy) {
-        const { data: patients, error } = await withTimeout(
-          supabase.from("patients").select("id,policy_number,surname,first_name,role,expiry_date").eq("policy_number", policy),
-          4000,
+        const { data: patients, error } = await withAutoRetry(() =>
+          withTimeout(
+            supabase.from("patients").select("id,policy_number,surname,first_name,role,expiry_date").eq("policy_number", policy),
+            12000,
+          )
         );
         if (error) throw error;
         fallbackRows = patients || [];
