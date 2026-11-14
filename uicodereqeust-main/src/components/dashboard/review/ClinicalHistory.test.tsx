@@ -85,7 +85,7 @@ describe("ClinicalHistory approved treatment display", () => {
           policy_number: "TEST-1001",
           beneficiary_number: "TEST-1001-1",
           status: "approved",
-          approved_items: [{ name: "Amlodipine 10mg tablet", quantity: 1 }],
+          approved_items: [{ name: "Amlodipine 10mg tablet", quantity: 1, quantity_requires_review: true }],
         }]}
         historyPage={1}
         setHistoryPage={() => undefined}

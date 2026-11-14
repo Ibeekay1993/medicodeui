@@ -43,10 +43,10 @@ export function getApprovedHistoryItems(value: unknown): ApprovedHistoryItem[] {
       code: nonEmptyText(item.code),
       category: nonEmptyText(item.category),
       quantity,
-      // Older approvals predate explicit quantity confirmation. Keep their
-      // recorded value visible, but label it as unverified instead of implying
-      // the system confirmed it.
-      quantityNeedsReview: item.quantity_requires_review !== false || quantity === null,
+      // If an approved historical item has a valid positive quantity and was not
+      // explicitly marked as requiring review, treat it as confirmed approved.
+      // Only flag when quantity is genuinely missing or explicitly set to review.
+      quantityNeedsReview: item.quantity_requires_review === true || quantity === null,
       unit: nonEmptyText(item.unit) ?? nonEmptyText(item.quantity_unit),
       frequency: nonEmptyText(item.frequency),
       duration: nonEmptyText(item.duration),
