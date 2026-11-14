@@ -49,7 +49,7 @@ export function DeployVersionWatcher() {
     };
 
     document.addEventListener("visibilitychange", handleVisibilityChange);
-    const interval = window.setInterval(checkVersion, 30_000);
+    const interval = window.setInterval(checkVersion, 300_000);
 
     // ── 2. Service Worker update banner ──
     // Fires when index.html detects a new SW in 'installed' (waiting) state
