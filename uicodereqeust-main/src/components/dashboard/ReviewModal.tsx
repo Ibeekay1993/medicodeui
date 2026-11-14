@@ -1204,7 +1204,7 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
                           Unlock Record
                         </Button>
                       )
-                    ) : (
+                    ) : role === "hospital" ? null : (
                       <>
                         <Button
                           className="w-full sm:w-auto sm:flex-1 h-11 sm:h-12 px-6 rounded-xl bg-red-600 hover:bg-red-700 text-white text-[11px] sm:text-xs font-black uppercase tracking-widest shadow-md transition-all flex items-center justify-center gap-1.5"

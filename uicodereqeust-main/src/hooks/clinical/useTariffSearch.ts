@@ -396,10 +396,16 @@ export function useTariffSearch(
 
   const approvedTotal = approvedItems.reduce((sum, item) => sum + itemTotal(item), 0);
 
+  const matchesItem = (item: TariffOption, identifier: string | null) => {
+    if (!identifier) return false;
+    return item.code === identifier || item.name === identifier || (!item.code && identifier.includes(item.name));
+  };
+
   const addApprovedItem = (item: TariffOption) => {
-    if (!item.code) return;
+    if (!item.code && !item.name) return;
     setApprovedItems((current) => {
-      if (current.some((existing) => existing.code === item.code)) return current;
+      if (item.code && current.some((existing) => existing.code === item.code)) return current;
+      if (!item.code && current.some((existing) => existing.name === item.name)) return current;
       const unitPrice = itemUnitPrice(item);
       const quantity = itemQuantity(item);
       return [...current, {
@@ -409,45 +415,46 @@ export function useTariffSearch(
         price: unitPrice * quantity,
         quantityNeedsReview: !hasValidItemQuantity(item),
         priceNeedsReview: item.priceNeedsReview === true || !hasValidItemUnitPrice(item),
-        matched_via: "manual",
+        matched_via: item.matched_via || "manual",
       }];
     });
     setCartCollapsed(false);
   };
 
   const removeApprovedItem = (code: string | null) => {
-    setApprovedItems((current) => current.filter((item) => item.code !== code));
+    setApprovedItems((current) => current.filter((item) => !matchesItem(item, code)));
   };
 
   const toggleDeclineApprovedItem = (code: string | null) => {
     setApprovedItems((current) =>
       current.map((item) =>
-        item.code === code ? { ...item, declined: !item.declined } : item
+        matchesItem(item, code) ? { ...item, declined: !item.declined } : item
       )
     );
   };
 
   const updateApprovedItemQuantity = (code: string | null, value: string) => {
+    if (!code) return;
     const cleaned = String(value || "").replace(/[^0-9]/g, "");
-    setEditingQuantities((prev) => ({ ...prev, [code || ""]: cleaned }));
+    setEditingQuantities((prev) => ({ ...prev, [code]: cleaned }));
   };
 
   const commitQuantity = (code: string | null) => {
-    const key = code || "";
-    if (!Object.prototype.hasOwnProperty.call(editingQuantities, key)) return;
+    if (!code) return;
+    if (!Object.prototype.hasOwnProperty.call(editingQuantities, code)) return;
 
-    const raw = editingQuantities[key];
+    const raw = editingQuantities[code];
     const parsed = parsePositiveQuantity(raw);
     setEditingQuantities((prev) => {
       const next = { ...prev };
-      delete next[key];
+      delete next[code];
       return next;
     });
     // Blank or invalid drafts are cancelled: preserve the last valid amount.
     if (parsed === null) return;
 
     setApprovedItems((current) => current.map((item) => {
-      if (item.code !== code) return item;
+      if (!matchesItem(item, code)) return item;
       const unit = itemUnitPrice(item);
       return {
         ...item,
@@ -460,15 +467,16 @@ export function useTariffSearch(
   };
 
   const changeItemQuantity = (code: string | null, newQuantity: number) => {
+    if (!code) return;
     const quantity = Math.max(1, Math.floor(newQuantity));
     setEditingQuantities((prev) => {
       const next = { ...prev };
-      delete next[code || ""];
+      delete next[code];
       return next;
     });
     setApprovedItems((current) =>
       current.map((item) => {
-        if (item.code !== code) return item;
+        if (!matchesItem(item, code)) return item;
         const unit = itemUnitPrice(item);
         return {
           ...item,
@@ -483,7 +491,7 @@ export function useTariffSearch(
 
   const confirmItemQuantity = (code: string | null) => {
     setApprovedItems((current) => current.map((item) => {
-      if (item.code !== code || !hasValidItemQuantity(item)) return item;
+      if (!matchesItem(item, code) || !hasValidItemQuantity(item)) return item;
       return { ...item, quantityNeedsReview: false };
     }));
   };
@@ -491,7 +499,7 @@ export function useTariffSearch(
   const updateDeclineReason = (code: string | null, reason: string) => {
     setApprovedItems((current) =>
       current.map((item) =>
-        item.code === code ? { ...item, decline_reason: reason } : item
+        matchesItem(item, code) ? { ...item, decline_reason: reason } : item
       )
     );
   };

@@ -100,8 +100,9 @@ export const TreatmentCart = React.memo(function TreatmentCart({
 
   const handleConfirmDecline = () => {
     if (declineDialogItem) {
-      updateDeclineReason?.(declineDialogItem.code, declineReasonText);
-      toggleDeclineApprovedItem?.(declineDialogItem.code);
+      const identifier = declineDialogItem.code || declineDialogItem.name;
+      updateDeclineReason?.(identifier, declineReasonText);
+      toggleDeclineApprovedItem?.(identifier);
       setDeclineDialogItem(null);
       setDeclineReasonText("");
     }
@@ -177,11 +178,10 @@ export const TreatmentCart = React.memo(function TreatmentCart({
             <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xs">
               <div className="max-h-64 overflow-auto divide-y divide-slate-100">
                 {approvedItems.map((item, itemIdx) => {
-                  // Use a stable unique key: prefer the NHIA code; fall back to
-                  // a composite of index + name so null-code items render correctly
-                  // and don't share DOM state with each other.
+                  // Use a stable unique identifier: prefer code, fall back to name or index
+                  const itemIdentifier = item.code || item.name || `__item_${itemIdx}`;
                   const itemKey = item.code != null ? item.code : `__item_${itemIdx}_${item.name}`;
-                  const editKey = item.code ?? `__item_${itemIdx}_${item.name}`;
+                  const editKey = itemIdentifier;
                   return (
                   <div
                     key={itemKey}
@@ -215,7 +215,7 @@ export const TreatmentCart = React.memo(function TreatmentCart({
                               <button
                                 type="button"
                                 aria-label={`Confirm quantity for ${item.name}`}
-                                onClick={() => confirmItemQuantity?.(item.code)}
+                                onClick={() => confirmItemQuantity?.(itemIdentifier)}
                                 disabled={!confirmItemQuantity || !hasValidItemQuantity(item)}
                                 className="rounded-md border border-amber-300 bg-white px-2 py-1 text-[10px] font-bold text-amber-950 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50"
                               >
@@ -231,7 +231,7 @@ export const TreatmentCart = React.memo(function TreatmentCart({
                               "text-xs font-black uppercase tracking-widest",
                               item.declined
                                 ? "text-rose-700 bg-rose-50 border-rose-100"
-                                : "text-slate-700 bg-slate-100 border-slate-200"
+                               : "text-slate-700 bg-slate-100 border-slate-200"
                             )}
                           >
                             {item.declined ? "Declined" : item.category || "tariff"}
@@ -241,17 +241,17 @@ export const TreatmentCart = React.memo(function TreatmentCart({
                             onClick={() =>
                               setShowItemDetails((prev) => ({
                                 ...prev,
-                                [item.code || ""]: !prev[item.code || ""],
+                                [itemIdentifier]: !prev[itemIdentifier],
                               }))
                             }
                             className="inline-flex items-center gap-1 text-xs font-bold text-slate-400 hover:text-slate-700 transition-colors"
                           >
-                            {showItemDetails[item.code || ""] ? (
+                            {showItemDetails[itemIdentifier] ? (
                               <ChevronUp className="w-3 h-3" />
                             ) : (
                               <ChevronDown className="w-3 h-3" />
                             )}
-                            {showItemDetails[item.code || ""] ? "Hide Details" : "Details"}
+                            {showItemDetails[itemIdentifier] ? "Hide Details" : "Details"}
                           </button>
                         </div>
                         {item.declined && (
@@ -264,7 +264,7 @@ export const TreatmentCart = React.memo(function TreatmentCart({
                               placeholder="Reason for decline (required)..."
                               value={item.decline_reason || ""}
                               onChange={(e) =>
-                                updateDeclineReason?.(item.code, e.target.value)
+                                updateDeclineReason?.(itemIdentifier, e.target.value)
                               }
                               className="h-7 text-xs font-bold rounded-lg border-rose-200 focus:border-rose-400 focus:ring-rose-400/20 bg-rose-50/10 placeholder:text-rose-300 placeholder:font-normal text-rose-800 focus:ring-1"
                               disabled={readOnly || request?.deletion_status === "awaiting_admin_approval" || isHospitalDirected}
@@ -298,10 +298,10 @@ export const TreatmentCart = React.memo(function TreatmentCart({
                                   : Number(item.quantity ?? 1);
                                 const nextQty = Math.max(1, currentQty - 1);
                                 if (changeItemQuantity) {
-                                  changeItemQuantity(item.code, nextQty);
+                                  changeItemQuantity(itemIdentifier, nextQty);
                                 } else {
-                                  updateApprovedItemQuantity(item.code, String(nextQty));
-                                  commitQuantity(item.code);
+                                  updateApprovedItemQuantity(itemIdentifier, String(nextQty));
+                                  commitQuantity(itemIdentifier);
                                 }
                               }}
                               disabled={readOnly || item.declined || request?.deletion_status === "awaiting_admin_approval" || isHospitalDirected}
@@ -314,8 +314,8 @@ export const TreatmentCart = React.memo(function TreatmentCart({
                               pattern="[0-9]*"
                               aria-label={`Quantity for ${item.name}`}
                               value={editingQuantities[editKey] ?? String(item.quantity)}
-                              onChange={(event) => updateApprovedItemQuantity(item.code, event.target.value)}
-                              onBlur={() => commitQuantity(item.code)}
+                              onChange={(event) => updateApprovedItemQuantity(itemIdentifier, event.target.value)}
+                              onBlur={() => commitQuantity(itemIdentifier)}
                               onKeyDown={(event) => {
                                 if (event.key === "Enter") {
                                   event.preventDefault();
@@ -340,10 +340,10 @@ export const TreatmentCart = React.memo(function TreatmentCart({
                                   : Number(item.quantity ?? 1);
                                 const nextQty = currentQty + 1;
                                 if (changeItemQuantity) {
-                                  changeItemQuantity(item.code, nextQty);
+                                  changeItemQuantity(itemIdentifier, nextQty);
                                 } else {
-                                  updateApprovedItemQuantity(item.code, String(nextQty));
-                                  commitQuantity(item.code);
+                                  updateApprovedItemQuantity(itemIdentifier, String(nextQty));
+                                  commitQuantity(itemIdentifier);
                                 }
                               }}
                               disabled={readOnly || item.declined || request?.deletion_status === "awaiting_admin_approval" || isHospitalDirected}
@@ -369,7 +369,7 @@ export const TreatmentCart = React.memo(function TreatmentCart({
                                   type="button"
                                   onClick={() => {
                                     if (item.declined) {
-                                      toggleDeclineApprovedItem?.(item.code);
+                                      toggleDeclineApprovedItem?.(itemIdentifier);
                                     } else {
                                       setDeclineDialogItem(item);
                                       setDeclineReasonText(item.decline_reason || "");
@@ -387,7 +387,7 @@ export const TreatmentCart = React.memo(function TreatmentCart({
                               <span className="text-slate-300 text-xs select-none">•</span>
                               <button
                                 type="button"
-                                onClick={() => removeApprovedItem(item.code)}
+                                onClick={() => removeApprovedItem(itemIdentifier)}
                                 className="text-xs font-black uppercase text-slate-400 hover:text-rose-600 transition-colors"
                               >
                                 Remove
@@ -398,7 +398,7 @@ export const TreatmentCart = React.memo(function TreatmentCart({
                       </div>
                     </div>
 
-                    {showItemDetails[item.code || ""] && (
+                    {showItemDetails[itemIdentifier] && (
                       <div className="mt-2.5 p-3 rounded-xl bg-slate-50 border border-slate-100 space-y-1.5 animate-in slide-in-from-top-1 duration-150">
                         <p className="text-xs font-black text-slate-400 uppercase tracking-widest">
                           System Metadata
