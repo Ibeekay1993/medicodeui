@@ -56,9 +56,9 @@ export function SupportConversationsSidebar({
   return (
     <div
       className={cn(
-        "w-full lg:w-[280px] border-r border-slate-200/80 bg-white flex flex-col h-full shrink-0 transition-all duration-300",
+        "w-full lg:w-[320px] border-r border-slate-200/80 bg-white flex flex-col h-full shrink-0 transition-all duration-300",
         mobileSubView === "LIST" ? "flex" : "hidden lg:flex",
-        leftCollapsed ? "lg:w-0 lg:overflow-hidden lg:border-r-0" : "lg:w-[280px]"
+        leftCollapsed ? "lg:w-0 lg:overflow-hidden lg:border-r-0" : "lg:w-[320px]"
       )}
     >
       {/* Inbox Header & Search */}
@@ -156,27 +156,53 @@ export function SupportConversationsSidebar({
                   isSelected ? "bg-indigo-50 border-indigo-400" : "border-transparent hover:bg-slate-50"
                 )}
               >
-                <div className="flex flex-col gap-1">
-                  {/* Top Row: Subject ● Status ● Date */}
-                  <div className="flex items-center gap-2 text-xs">
-                    <span className="font-bold text-slate-900 truncate max-w-[140px]">{item.subject || "Request Support"}</span>
-                    <span className="text-slate-300 shrink-0">•</span>
-                    <span className={cn("font-bold uppercase tracking-wider text-[10px] shrink-0", item.status === "closed" || item.status === "resolved" ? "text-slate-500" : "text-indigo-600")}>
-                      {(item.status || "open").replace(/_/g, " ")}
+                <div className="flex flex-col gap-1.5 py-0.5">
+                  {/* Top Row: Full Subject + Date */}
+                  <div className="flex items-start justify-between gap-2">
+                    <span
+                      className="font-semibold text-slate-900 text-xs truncate flex-1 leading-snug"
+                      title={item.subject || "Request Support"}
+                    >
+                      {item.subject || "Request Support"}
                     </span>
-                    <span className="text-slate-300 shrink-0">•</span>
-                    <span className="text-slate-500 font-medium whitespace-nowrap shrink-0 text-[10px]">
-                      {item.last_message_at ? new Date(item.last_message_at).toLocaleDateString([], { day: "numeric", month: "short" }) : new Date(item.created_at).toLocaleDateString([], { day: "numeric", month: "short" })}
+                    <span className="text-slate-400 font-normal shrink-0 text-[10px] whitespace-nowrap pt-0.5">
+                      {item.last_message_at
+                        ? new Date(item.last_message_at).toLocaleDateString([], { day: "numeric", month: "short" })
+                        : new Date(item.created_at).toLocaleDateString([], { day: "numeric", month: "short" })}
                     </span>
                   </div>
 
-                  {/* Bottom Row: Hospital ● Priority */}
-                  <div className="flex items-center gap-2 text-[11px] text-slate-500">
-                    <span className="font-medium truncate">{name}</span>
+                  {/* Bottom Row: Status Badge + Hospital Name + Priority */}
+                  <div className="flex items-center gap-1.5 text-[11px] text-slate-500 overflow-hidden">
+                    <span
+                      className={cn(
+                        "inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider shrink-0",
+                        item.status === "closed" || item.status === "resolved"
+                          ? "bg-slate-100 text-slate-600"
+                          : item.status === "pending" || item.status?.includes("pending")
+                          ? "bg-amber-50 text-amber-700 border border-amber-200"
+                          : "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                      )}
+                    >
+                      {(item.status || "open").replace(/_/g, " ")}
+                    </span>
+                    <span className="text-slate-300 shrink-0">•</span>
+                    <span className="font-medium text-slate-600 truncate flex-1" title={name}>
+                      {name}
+                    </span>
                     {item.priority && (
                       <>
                         <span className="text-slate-300 shrink-0">•</span>
-                        <span className={cn("font-bold capitalize shrink-0", item.priority === "urgent" || item.priority === "high" ? "text-rose-600" : "")}>{item.priority}</span>
+                        <span
+                          className={cn(
+                            "font-bold capitalize shrink-0 text-[10px]",
+                            item.priority === "urgent" || item.priority === "high"
+                              ? "text-rose-600 font-black"
+                              : "text-slate-500"
+                          )}
+                        >
+                          {item.priority}
+                        </span>
                       </>
                     )}
                   </div>
