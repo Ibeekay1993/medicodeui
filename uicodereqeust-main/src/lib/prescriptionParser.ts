@@ -1,5 +1,6 @@
 import { SupabaseClient } from "@supabase/supabase-js";
 import { TariffOption } from "./clinicalUtils";
+import { safeIlikePattern } from "@/lib/postgrestFilter";
 import {
   calculateMedicationQuantity,
   extractExplicitQuantity,
@@ -383,7 +384,7 @@ export async function parsePrescriptionClientFallback(
         const { data, error } = await supabase
           .from("nhia_items" as any)
           .select("code,name,category,subcategory,amount,dosage_form,strengths")
-          .or(`name.ilike.%${cleanWord}%,code.ilike.%${cleanWord}%`)
+          .or(`name.ilike.${safeIlikePattern(cleanWord)},code.ilike.${safeIlikePattern(cleanWord)}`)
           .eq("is_active", true)
           .limit(40);
 

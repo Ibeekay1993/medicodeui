@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MessageSquare, Send, FileText, Plus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { safeIlikePattern } from "@/lib/postgrestFilter";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
@@ -144,7 +145,7 @@ export default function SupportMessagesPage() {
     else setClaims([]);
 
     try {
-      const pattern = `%${term}%`;
+      const pattern = safeIlikePattern(term);
       if (type === "request") {
         let query = supabase
           .from("authorization_requests")

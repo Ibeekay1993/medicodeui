@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { safeIlikePattern } from "@/lib/postgrestFilter";
 import { fetchAllSupabaseRows } from "@/lib/supabasePagination";
 import type { ClaimDraft } from "@/lib/claims-helpers";
 import type { ClaimsAnalysisSummary } from "../types";
@@ -53,7 +54,7 @@ export class ClaimsService {
     }
 
     if (searchTerm.trim()) {
-      const term = `%${searchTerm.trim()}%`;
+      const term = safeIlikePattern(searchTerm);
       query = query.or(`patient_name.ilike.${term},claim_number.ilike.${term},auth_code.ilike.${term},policy_number.ilike.${term}`);
     }
 

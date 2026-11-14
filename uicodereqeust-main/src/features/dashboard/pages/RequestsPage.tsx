@@ -6,6 +6,7 @@ import type { Database } from "@/integrations/supabase/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { RequestList } from "@/components/dashboard/requests/RequestList";
 import { ACTION_REQUIRED_AUTHORIZATION_STATUSES } from "@/features/dashboard/constants/requestStatuses";
+import { safeIlikePattern } from "@/lib/postgrestFilter";
 import { REQUEST_REVIEW_COLUMNS } from "@/features/dashboard/constants/requestReviewColumns";
 
 type RequestRow = Database["public"]["Tables"]["authorization_requests"]["Row"];
@@ -134,7 +135,10 @@ export default function RequestsPage() {
         // created_at has a production index. Sorting all 75k+ requests by updated_at
         // caused PostgreSQL to choose a sequential scan and sort before applying LIMIT.
         .order("created_at", { ascending: false });
-      if (search) q = q.or(`patient_name.ilike.%${search}%,policy_number.ilike.%${search}%,request_id.ilike.%${search}%,authorization_code.ilike.%${search}%`);
+      if (search) {
+        const p = safeIlikePattern(search);
+        q = q.or(`patient_name.ilike.${p},policy_number.ilike.${p},request_id.ilike.${p},authorization_code.ilike.${p}`);
+      }
       if (statusFilter === "action_required") {
         q = q.in("status", [...ACTION_REQUIRED_AUTHORIZATION_STATUSES]);
       } else if (statusFilter !== "all") {

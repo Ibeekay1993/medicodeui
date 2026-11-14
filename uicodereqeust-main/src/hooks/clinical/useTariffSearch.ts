@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { safeIlikePattern } from "@/lib/postgrestFilter";
 import {
   TariffOption,
   itemUnitPrice,
@@ -356,11 +357,10 @@ export function useTariffSearch(
       } catch (err) {
         console.error("Tariff search via function failed, trying database fallback:", err);
         try {
-          const escaped = query.replace(/[%_,]/g, " ");
           const { data, error: nhiaError } = await supabase
             .from("nhia_items" as any)
             .select("code,name,category,amount")
-            .or(`code.ilike.%${escaped}%,name.ilike.%${escaped}%,subcategory.ilike.%${escaped}%`)
+            .or(`code.ilike.${safeIlikePattern(query)},name.ilike.${safeIlikePattern(query)},subcategory.ilike.${safeIlikePattern(query)}`)
             .eq("is_active", true)
             .limit(100);
 

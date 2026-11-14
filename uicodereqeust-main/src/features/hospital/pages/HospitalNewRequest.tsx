@@ -15,6 +15,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Form } from "@/components/ui/form";
 import { useHospitalProfile } from "../hooks/useHospitalDashboard";
 import { useDebounce } from "@/hooks/use-debounce";
+import { safeIlikePattern } from "@/lib/postgrestFilter";
 
 import {
   HospitalRequestDraft,
@@ -217,7 +218,7 @@ export default function HospitalNewRequest() {
       if (debouncedPatientSearch.length < 3) return [];
       const { data } = await supabase.from("nhis_beneficiaries")
         .select("full_name, policy_number, beneficiary_number")
-        .or(`policy_number.ilike.%${debouncedPatientSearch}%,beneficiary_number.ilike.%${debouncedPatientSearch}%,full_name.ilike.%${debouncedPatientSearch}%`)
+        .or(`policy_number.ilike.${safeIlikePattern(debouncedPatientSearch)},beneficiary_number.ilike.${safeIlikePattern(debouncedPatientSearch)},full_name.ilike.${safeIlikePattern(debouncedPatientSearch)}`)
         .limit(8);
       return data || [];
     },
@@ -261,7 +262,7 @@ export default function HospitalNewRequest() {
       const { data } = await supabase
         .from("nhia_items" as any)
         .select("code,name,amount,category,subcategory")
-        .or(`name.ilike.%${term}%,code.ilike.%${term}%,subcategory.ilike.%${term}%`)
+        .or(`name.ilike.${safeIlikePattern(term)},code.ilike.${safeIlikePattern(term)},subcategory.ilike.${safeIlikePattern(term)}`)
         .eq("is_active", true)
         .limit(100);
       return data || [];

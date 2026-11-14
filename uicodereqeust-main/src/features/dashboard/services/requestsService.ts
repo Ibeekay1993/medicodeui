@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { safeIlikePattern } from "@/lib/postgrestFilter";
 import { ACTION_REQUIRED_AUTHORIZATION_STATUSES } from "@/features/dashboard/constants/requestStatuses";
 
 export class RequestsService {
@@ -34,7 +35,7 @@ export class RequestsService {
     }
 
     if (search.trim()) {
-      const term = `%${search.trim()}%`;
+      const term = safeIlikePattern(search);
       q = q.or(`patient_name.ilike.${term},request_id.ilike.${term},hospital_name.ilike.${term},policy_number.ilike.${term}`);
     }
 

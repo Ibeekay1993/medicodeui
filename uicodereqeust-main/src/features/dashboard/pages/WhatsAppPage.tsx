@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { parsePrescriptionClientFallback } from "@/lib/prescriptionParser";
 import { resolveParsedTariffPrices } from "@/lib/resolveParsedTariffPrices";
 import type { TariffOption } from "@/lib/clinicalUtils";
+import { safeIlikePattern } from "@/lib/postgrestFilter";
 
 const whatsappSamples = [
   {
@@ -281,7 +282,7 @@ export default function WhatsAppPage() {
          const { data: matchedReferralHospitals } = await supabase
             .from("hospitals")
             .select("id, name")
-            .or(`name.ilike.%${searchName}%,code.ilike.%${data.referral_hospital_name}%`)
+            .or(`name.ilike.${safeIlikePattern(searchName)},code.ilike.${safeIlikePattern(data.referral_hospital_name)}`)
             .limit(1);
 
          if (matchedReferralHospitals && matchedReferralHospitals.length > 0) {

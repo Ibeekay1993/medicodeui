@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { normalizeEnrolleeSearchTerm } from "@/lib/enrolleeSearch";
+import { safeIlikePattern, quotePostgrestFilterValue } from "@/lib/postgrestFilter";
 
 interface EnrolleeRecord {
   full_name: string;
@@ -38,7 +39,7 @@ export default function FindEnrolleePage() {
       const { data, error: searchError } = await supabase
         .from("nhis_beneficiaries")
         .select("full_name,policy_number,beneficiary_number,member_type,plan_code")
-        .or(`full_name.ilike.%${term}%,policy_number.ilike.%${term}%,beneficiary_number.eq.${term}`)
+        .or(`full_name.ilike.${safeIlikePattern(term)},policy_number.ilike.${safeIlikePattern(term)},beneficiary_number.eq.${quotePostgrestFilterValue(term)}`)
         .order("full_name", { ascending: true })
         .limit(30)
         .abortSignal(controller.signal);

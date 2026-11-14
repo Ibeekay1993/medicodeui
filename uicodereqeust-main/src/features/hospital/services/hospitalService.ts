@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { safeIlikePattern } from "@/lib/postgrestFilter";
 import { notifyPendingAuthorizationRequest } from "@/lib/pushNotifications";
 import { Hospital } from "../types";
 
@@ -214,7 +215,7 @@ export class HospitalService {
     }
 
     if (searchTerm.trim()) {
-      const term = `%${searchTerm.trim()}%`;
+      const term = safeIlikePattern(searchTerm);
       query = query.or(`patient_name.ilike.${term},policy_number.ilike.${term},authorization_code.ilike.${term}`);
     }
 
@@ -283,7 +284,7 @@ export class HospitalService {
       .or(orQuery.join(','));
 
     if (searchTerm.trim()) {
-      const term = `%${searchTerm.trim()}%`;
+      const term = safeIlikePattern(searchTerm);
       query = query.or(`claim_number.ilike.${term},patient_name.ilike.${term},policy_number.ilike.${term},auth_code.ilike.${term}`);
     }
 

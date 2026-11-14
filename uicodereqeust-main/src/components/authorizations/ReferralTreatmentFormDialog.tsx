@@ -1,5 +1,6 @@
 import { BrandSpinner } from "@/components/BrandSpinner";
 import { useState, useEffect } from "react";
+import { safeIlikePattern } from "@/lib/postgrestFilter";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -46,7 +47,7 @@ export default function ReferralTreatmentFormDialog({
       const { data } = await supabase
         .from("nhia_items" as any)
         .select("code,name,amount,category,subcategory")
-        .or(`name.ilike.%${term}%,code.ilike.%${term}%,subcategory.ilike.%${term}%`)
+        .or(`name.ilike.${safeIlikePattern(term)},code.ilike.${safeIlikePattern(term)},subcategory.ilike.${safeIlikePattern(term)}`)
         .eq("is_active", true)
         .limit(10);
       setSearchResults(data || []);

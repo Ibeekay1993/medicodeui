@@ -2,17 +2,19 @@
 **Target Platform:** Ronsberger HMO Enterprise Portal (`https://app.ronsbergerhmo.io`)  
 **Repository Branch:** `main` (commit `fc025c1`)  
 **Audit Date:** 14 November 2026  
-**Quality Gate Status:** TypeScript: **0 errors** | Vitest: **353 / 353 passed (54 test suites)**
+**Quality Gate Status:** TypeScript: **0 errors** | Vitest: **362 / 362 passed (55 test suites)**
 
 ---
 
 ## 1. Executive Summary
 
-This comprehensive cyber security audit and verification evaluates the security posture, authentication/authorization controls, dependency vulnerabilities, credential management, and recent functional fixes of the Ronsberger HMO Enterprise Portal. 
+This comprehensive cyber security audit and verification evaluates the security posture, authentication/authorization controls, dependency vulnerabilities, credential management, SQL/PostgREST filter injection protection, and recent functional fixes of the Ronsberger HMO Enterprise Portal. 
 
-All recent functional enhancements made to the **Reviewal Modal**, **Treatment Cart**, **NHIS Registry Verification**, and **Patient Clinical History** were regression-tested and verified. The system passes all automated quality gates (353/353 Vitest unit tests, 0 TypeScript errors). 
+All recent functional enhancements made to the **Reviewal Modal**, **Treatment Cart**, **NHIS Registry Verification**, and **Patient Clinical History** were regression-tested and verified. The system passes all automated quality gates (362/362 Vitest unit tests, 0 TypeScript errors). 
 
-Additionally, a defensive security patch (**migration `20261114080000`**) was created and committed directly to `main` (`fc025c1`), resolving open review finding **F6 (Arrival PIN Brute-force Lockout & Hospital Tenant Isolation)**.
+Additionally, a defensive security patch (**migration `20261114080000`**, corrected by **`20261114083000`**) was committed to `main`. These migrations resolve open review finding **F6 (Arrival PIN Brute-force Lockout & Hospital Tenant Isolation)** but have **not yet been applied to the live database**. They must be run against production Supabase before the controls take effect.
+
+Furthermore, a full-codebase audit for **SQL & PostgREST Filter Injection** was completed. PostgREST `.or()` filter injections were hardened across all user-facing query interfaces using a centralized `safeIlikePattern` helper with literal LIKE wildcard escaping.
 
 ---
 
@@ -81,8 +83,8 @@ Running `npm audit --omit=dev` identifies 13 advisories (5 High, 8 Moderate, 0 C
 ### Domain 3: Access Control, Tenant Isolation & Arrival PIN Hardening
 | Vulnerability / Control | Status | Mitigation Implemented |
 |---|---|---|
-| **Arrival PIN Brute-force Attack (Finding F6)** | **FIXED** | Applied migration `20261114080000`. Added `failed_attempts` tracking and `locked_until` timestamp. If a user enters 5 incorrect PINs, the PIN is locked for 15 minutes. |
-| **Hospital Cross-Tenant Probing (Finding F6)** | **FIXED** | Added tenant boundary check in `verify_otp`: When a hospital user attempts verification, the RPC queries `user_roles.hospital_id` and verifies that the target authorization belongs to that hospital (direct, referring, or referred). Unauthorized hospitals receive `Access denied`. |
+| **Arrival PIN Brute-force Attack (Finding F6)** | **MIGRATION COMMITTED — NOT YET APPLIED TO PRODUCTION** | Migration `20261114080000` (initial) and corrective migration `20261114083000` committed to `main`. Adds `failed_attempts` tracking, `locked_until` timestamp, `SELECT ... FOR UPDATE` row locking to prevent concurrent-guess race conditions, and `expires_at` enforcement (OTP expires per column default, currently 1 hour). After 5 incorrect PINs the row is locked for 15 minutes. **These migrations must be applied to the live Supabase database before the controls are active.** |
+| **Hospital Cross-Tenant Probing (Finding F6)** | **MIGRATION COMMITTED — NOT YET APPLIED TO PRODUCTION** | Corrective migration `20261114083000` adds tenant boundary check in `verify_otp`: hospital users must have a non-NULL `hospital_id` in `user_roles` (NULL → denied). The RPC verifies the target authorization belongs to the caller's hospital (direct, referring, or referred). `search_path` set to `''` (empty) to prevent search-path hijacking in `SECURITY DEFINER` context. |
 | **Tenant Column Tampering (Finding F13, F14)** | **FIXED** | Database triggers `protect_user_role_tenant_columns` and `protect_hospital_self_service_columns` prevent non-admin users from altering `hospital_id`, `is_team_lead`, or hospital status. |
 | **Sensitive Table RLS (`otp_verifications`)** | **HARDENED** | Deny-all RLS policy on `public.otp_verifications` for `authenticated` and `anon`. Access permitted strictly through hardened `SECURITY DEFINER` RPCs (`verify_otp`, `get_otp_value`). |
 | **MFA Protection on Plaintext PIN Retrieval** | **ENFORCED** | `get_otp_value` and `get_otp_values_batch` are restricted to `nurse` and `admin` roles, and enforce `aal2` (MFA verification) when `enforce_mfa` policy is enabled. |
@@ -127,10 +129,39 @@ Running `npm audit --omit=dev` identifies 13 advisories (5 High, 8 Moderate, 0 C
 
 ---
 
+### Domain 6: SQL & PostgREST Filter Injection Hardening
+
+1. **Vulnerability Mechanics in PostgREST `.or()`:**
+   * Supabase/PostgREST translates `.or()` clauses passed as string parameters (e.g. `col1.ilike.%${term}%,col2.ilike.%${term}%`).
+   * When user input contains commas (`,`), parentheses, or quotes, PostgREST's grammar splits on commas, interpreting subsequent input as structural filter tokens or throwing HTTP 400 Bad Request.
+   * Furthermore, unescaped `%` and `_` characters in user input act as SQL LIKE wildcards, potentially causing full-table scans, pattern abuse, or denial of service.
+
+2. **Mitigation (`src/lib/postgrestFilter.ts`):**
+   * Implemented `escapeLikePattern()` to backslash-escape `%`, `_`, and `\` before pattern construction so inputs match literally.
+   * Implemented `quotePostgrestFilterValue()` to safely wrap values in PostgREST double-quotes with proper backslash escaping.
+   * Implemented `safeIlikePattern()` which chains wildcard escaping, double-quote escaping, and wraps the sanitized term in `"%...%"`.
+   * Unit tests added in `src/lib/postgrestFilter.test.ts` (9 test cases covering quotes, backslashes, wildcards, commas, and edge cases).
+
+3. **Remediated Interfaces:**
+   * `claimsService.ts`: Claim code / enrollee name / hospital search.
+   * `requestsService.ts`: Pre-auth requests search filter.
+   * `hospitalService.ts`: Authorizations and claims search filters.
+   * `FindEnrolleePage.tsx`: Full name, policy number, and beneficiary number filters.
+   * `RequestsPage.tsx`: Dashboard request search filter.
+   * `SupportMessagesPage.tsx`: Hospital / user support search.
+   * `HospitalNewRequest.tsx`: Patient lookup and NHIA treatment search.
+   * `ReferralTreatmentFormDialog.tsx`: NHIA treatment search.
+   * `prescriptionParser.ts`: NHIA drug catalog candidate matching.
+   * `WhatsAppPage.tsx`: Hospital name lookup matching.
+   * `useTariffSearch.ts`: Direct NHIA database fallback search.
+
+---
+
 ## 4. Verification Checkpoint Summary
 
-* **Single Branch Policy:** All code committed and pushed directly to `main` at `fc025c1`.
+* **Single Branch Policy:** All code committed and pushed directly to `main`.
 * **TypeScript Compilation:** `npx tsc --noEmit` -> **0 errors**.
-* **Automated Unit Tests:** `npm test -- --run` -> **54 test files passed, 353 / 353 tests passed**.
+* **Automated Unit Tests:** `npm test -- --run` -> **55 test files passed, 362 / 362 tests passed**.
 * **Zero Firebase:** Confirmed clean; no legacy Firebase or MedicodeUI references.
-* **Production Status:** System is tight, resilient, and ready for continuous production operation.
+* **Database Migrations:** `20261114080000` & `20261114083000` committed; requires manual execution on self-hosted Supabase database via Coolify/psql.
+* **Production Status:** Application code hardened, tested, and verified clean.
