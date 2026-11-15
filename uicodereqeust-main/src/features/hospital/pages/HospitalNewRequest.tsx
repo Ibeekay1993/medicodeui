@@ -313,16 +313,8 @@ export default function HospitalNewRequest() {
     } else if (step === 3) {
       isValid = await trigger(["treatments"]);
     } else if (step === 4) {
-      if (!doctorReportPath) {
-        toast({
-          variant: "destructive",
-          title: "Doctor report required",
-          description: "Please upload the doctor report or diagnosis form before continuing.",
-        });
-        isValid = false;
-      } else {
-        isValid = true;
-      }
+      // Document upload is optional per clinical workflow standards.
+      isValid = true;
     }
     
     if (isValid) {
@@ -641,8 +633,8 @@ export default function HospitalNewRequest() {
           {[
             { num: 1, label: "Patient" },
             { num: 2, label: "Diagnosis" },
-            { num: 3, label: "Urgency" },
-            { num: 4, label: "Treatment" },
+            { num: 3, label: "Treatment" },
+            { num: 4, label: "Documents" },
             { num: 5, label: "Review" },
           ].map(({ num, label }) => (
             <div key={num} className="flex flex-col items-center text-center">

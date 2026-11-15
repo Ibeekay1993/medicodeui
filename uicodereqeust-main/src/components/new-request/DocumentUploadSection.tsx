@@ -100,14 +100,18 @@ export default function DocumentUploadSection({
       <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
         <div>
           <h4 className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
-            <FileText className="h-3.5 w-3.5 text-emerald-600" /> Supporting Clinical Documents
+            <FileText className="h-3.5 w-3.5 text-emerald-600" /> Supporting Clinical Documents <span className="text-[11px] font-normal text-slate-400">(Optional)</span>
           </h4>
-          <p className="text-[11px] text-slate-500">Upload doctor prescription, lab report, or clinical summary</p>
+          <p className="text-[11px] text-slate-500">Upload doctor prescription, lab report, or clinical summary (optional, can be skipped)</p>
         </div>
-        {doctorReportPath && (
+        {doctorReportPath ? (
           <Badge variant="outline" className="rounded-full border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-[10px] font-semibold text-emerald-700">
             <CheckCircle2 className="mr-1 h-3 w-3" />
             Attached
+          </Badge>
+        ) : (
+          <Badge variant="outline" className="rounded-full border-slate-200 bg-slate-50 px-2.5 py-0.5 text-[10px] font-medium text-slate-500">
+            Optional
           </Badge>
         )}
       </div>
