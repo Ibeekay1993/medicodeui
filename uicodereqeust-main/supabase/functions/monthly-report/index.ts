@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import * as XLSX from "https://esm.sh/xlsx@0.18.5";
+import ExcelJS from "https://esm.sh/exceljs@4.4.0";
 import { corsHeaders, getServiceClient, validateUser } from "../_shared/auth.ts";
 import { getBrevoSender } from "../_shared/brevo.ts";
 import { parseReportRecipients } from "../_shared/report-recipients.ts";
@@ -445,262 +445,330 @@ serve(async (req) => {
     `;
 
     // -------------------------------------------------------------
-    // GENERATE MULTI-SHEET EXECUTIVE EXCEL WORKBOOK (.XLSX)
+    // GENERATE MULTI-SHEET EXECUTIVE EXCEL WORKBOOK (.XLSX) WITH EXCELJS
+    // Matching UI Dashboard colors (#1E3A8A banners, colored tabs, KPI hierarchy)
     // -------------------------------------------------------------
-    const wb = XLSX.utils.book_new();
+    const WorkbookClass = (ExcelJS as any).Workbook || (ExcelJS as any).default?.Workbook || (ExcelJS as any);
+    const workbook = new WorkbookClass();
+    workbook.creator = "Ronsberger HMO Enterprise Portal";
+    workbook.created = new Date();
 
-    // SHEET 1: EXECUTIVE SUMMARY (KPI Overview & Financial Insights)
-    const wsSummaryHeaders = ["Executive Metric", "Value", "Operational Analysis"];
-    const wsSummaryRows = [
-      ["Reporting Period", monthLabel, "Comprehensive calendar monthly cycle"],
-      ["Total Pre-Auth Requests", totalVolume, "All patient encounter pre-auth submissions"],
-      ["Approved Requests", `${approvedCount} (${approvalRate}%)`, "Vetted and authorized clinical care"],
-      ["Rejected Requests", `${rejectedCount} (${rejectionRate}%)`, "Medical policy and benefit exclusions"],
-      ["Pending Requests", `${pendingCount} (${totalVolume > 0 ? ((pendingCount / totalVolume) * 100).toFixed(1) : "0.0"}%)`, "Awaiting clinical review / deferred"],
-      ["Net Approved Value (₦)", `₦${netApprovedValue.toLocaleString("en-NG", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, "Strict vetted approved tariff expenditure"],
-      ["SLA Compliance Rate (≤ 15 mins)", `${slaOnTimeRate}%`, "Target: ≥ 80.0% within turnaround window"],
-      ["Median Response Time", `${medianMinutes} Minutes`, "Target: ≤ 15 Minutes median queue delay"],
-      ["Active Healthcare Providers", `${Object.keys(hospitalStats).length} Hospitals`, "Facilities submitting authorizations this period"],
-      ["Unique Diagnoses Treated", `${Object.keys(diagnosisStats).length} Conditions`, "Distinct diagnostic categories vetted"]
-    ];
-    const wsSummary = XLSX.utils.aoa_to_sheet([wsSummaryHeaders, ...wsSummaryRows]);
-    wsSummary["!cols"] = [
-      { wch: 34 },
-      { wch: 28 },
-      { wch: 45 },
-    ];
-    XLSX.utils.book_append_sheet(wb, wsSummary, "Executive Summary");
+    const theme = {
+      primary: "FF1E3A8A",    // Deep Navy Blue
+      headerSub: "FF1E3A5F",  // Navy Accent
+      titleGreen: "FF0F3D35", // Deep Green Title Banner
+      success: "FF10B981",    // Emerald Green
+      danger: "FFEF4444",     // Crimson Red
+      warning: "FFF59E0B",    // Amber / Gold
+      slate: "FF64748B",      // Slate Gray
+      bg: "FFF8FAFC",         // Light Gray Background
+      headerBg: "FFF1F5F9",   // Soft Header Fill
+      zebra: "FFF8FAFC",      // Soft alternating row fill
+      white: "FFFFFFFF",      // Pure White
+    };
 
-    // SHEET 2: PRE-AUTH MASTER LOG (No Request ID, Capitalized Status, Text Policy Number)
-    const sheet1Headers = [
-      "S/N",
-      "Date Requested",
-      "Decided At",
-      "Turnaround (Mins)",
-      "Auth Code",
-      "Status",
-      "Hospital",
-      "Patient Name",
-      "Policy Number",
-      "Diagnosis",
-      "Service / Treatment",
-      "Net Approved (₦)",
-      "Decision Reason"
-    ];
+    const headerFill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: theme.primary },
+    };
 
-    const sheet1Rows = allRecords.map((r, i) => {
-      let turnMins = "";
-      if (r.decided_at && r.created_at) {
-        const start = Date.parse(r.treatment_submitted_at || r.created_at);
-        const end = Date.parse(r.decided_at);
-        if (Number.isFinite(start) && Number.isFinite(end) && end >= start) {
-          turnMins = String(Math.round((end - start) / 60000));
-        }
-      }
-      const appVal = calculateAccurateApprovedAmount(r);
+    const headerFont = {
+      color: { argb: theme.white },
+      bold: true,
+      size: 11,
+    };
 
-      return [
-        i + 1,
-        r.created_at ? new Date(r.created_at).toLocaleString("en-GB") : "",
-        r.decided_at ? new Date(r.decided_at).toLocaleString("en-GB") : "",
-        turnMins ? Number(turnMins) : "",
-        r.authorization_code || "N/A",
-        formatCapitalizedStatus(r.status),
-        r.requesting_hospital || r.requesting_hospital_name || r.hospital_name || "Unspecified Hospital",
-        r.patient_name || "",
-        { t: "s", v: String(r.policy_number || "").trim() || "N/A", z: "@" },
-        r.diagnosis || "Unspecified",
-        r.treatment || "Consultation / Care",
-        appVal > 0 ? Number(appVal.toFixed(2)) : 0,
-        r.decision_reason || r.rejection_reason || r.notes || ""
-      ];
+    const currencyFormat = '"₦"#,##0.00';
+    const percentFormat = '0.0"%"';
+    workbook.calcProperties.fullCalcOnLoad = true;
+
+    // ── SHEET 1: EXECUTIVE SUMMARY ──────────────────────────────
+    const wsSummary = workbook.addWorksheet("Executive Summary", {
+      views: [{ showGridLines: false }],
+      properties: { tabColor: { argb: theme.primary } },
     });
 
-    const ws1 = XLSX.utils.aoa_to_sheet([sheet1Headers, ...sheet1Rows]);
-    ws1["!cols"] = [
-      { wch: 6 },
-      { wch: 20 },
-      { wch: 20 },
-      { wch: 18 },
-      { wch: 22 },
-      { wch: 18 },
-      { wch: 34 },
-      { wch: 26 },
-      { wch: 20 },
-      { wch: 28 },
-      { wch: 28 },
-      { wch: 20 },
-      { wch: 36 },
-    ];
-    XLSX.utils.book_append_sheet(wb, ws1, "Pre-Auth Log");
-
-    // SHEET 3: PAYMENT ADVICE (Hospital Settlement & Payout Schedule)
-    const sheet2Headers = [
-      "S/N",
-      "Healthcare Provider / Hospital",
-      "Total Requests",
-      "Approved Requests",
-      "Rejected Requests",
-      "Approval Rate (%)",
-      "Net Approved Payout (₦)",
-      "Expenditure Share (%)"
+    wsSummary.columns = [
+      { width: 36 },
+      { width: 28 },
+      { width: 48 },
     ];
 
-    const sortedHospitals = Object.entries(hospitalStats).sort((a, b) => b[1].approvedValue - a[1].approvedValue);
+    const titleRow = wsSummary.addRow(["EXECUTIVE ANALYTICS DASHBOARD"]);
+    titleRow.getCell(1).font = { size: 16, bold: true, color: { argb: theme.primary } };
+    titleRow.height = 28;
+    wsSummary.addRow([]);
 
-    const sheet2Rows = sortedHospitals.map(([hospName, stats], idx) => {
-      const appRate = stats.total > 0 ? ((stats.approved / stats.total) * 100).toFixed(1) + "%" : "0.0%";
-      const spendShare = netApprovedValue > 0 ? ((stats.approvedValue / netApprovedValue) * 100).toFixed(1) + "%" : "0.0%";
-      return [
-        idx + 1,
-        hospName,
-        stats.total,
-        stats.approved,
-        stats.rejected,
-        appRate,
-        Number(stats.approvedValue.toFixed(2)),
-        spendShare
-      ];
-    });
+    const kpiHeader = wsSummary.addRow(["EXECUTIVE KPI SUMMARY", "", ""]);
+    kpiHeader.font = headerFont;
+    kpiHeader.fill = headerFill;
+    kpiHeader.height = 26;
+    kpiHeader.alignment = { vertical: "middle" };
+    wsSummary.mergeCells(`A${kpiHeader.number}:C${kpiHeader.number}`);
 
-    const sheet2TotalRow = [
-      "TOTAL",
-      `${sortedHospitals.length} Healthcare Facilities`,
-      totalVolume,
-      approvedCount,
-      rejectedCount,
-      approvalRate + "%",
-      Number(netApprovedValue.toFixed(2)),
-      "100.0%"
-    ];
+    const kpiSubHeader = wsSummary.addRow(["KPI", "Value", "Trend / Note"]);
+    kpiSubHeader.font = { bold: true, size: 10, color: { argb: "FF475569" } };
+    kpiSubHeader.border = { bottom: { style: "thin", color: { argb: "FFCCCCCC" } } };
+    kpiSubHeader.height = 22;
 
-    const ws2 = XLSX.utils.aoa_to_sheet([sheet2Headers, ...sheet2Rows, sheet2TotalRow]);
-    ws2["!cols"] = [
-      { wch: 6 },
-      { wch: 38 },
-      { wch: 16 },
-      { wch: 18 },
-      { wch: 18 },
-      { wch: 18 },
-      { wch: 24 },
-      { wch: 22 },
-    ];
-    XLSX.utils.book_append_sheet(wb, ws2, "Payment Advice");
+    const pushKPI = (kpi: string, value: any, note: string, isCurrency = false, isPercent = false, colorArgb?: string) => {
+      const row = wsSummary.addRow([kpi, value, note]);
+      row.getCell(1).font = { bold: true, size: 11, color: { argb: "FF1E293B" } };
+      const valCell = row.getCell(2);
+      valCell.font = { bold: true, size: 13, color: colorArgb ? { argb: colorArgb } : { argb: "FF0F172A" } };
+      valCell.alignment = { horizontal: isCurrency || isPercent || typeof value === "number" ? "right" : "left" };
+      if (isCurrency) valCell.numFmt = currencyFormat;
+      if (isPercent) valCell.numFmt = percentFormat;
+      row.getCell(3).font = { size: 10, color: { argb: "FF64748B" } };
+      row.border = { bottom: { style: "hair", color: { argb: "FFE2E8F0" } } };
+      row.height = 22;
+      return row;
+    };
 
-    // SHEET 4: PAYMENT ADVICE SCHEDULE (Itemized Approved Claims)
+    pushKPI("Reporting Period", monthLabel, "Comprehensive calendar monthly cycle");
+    pushKPI("Total Pre-Auth Requests", totalVolume, "All patient encounter pre-auth submissions");
+    pushKPI("Total Approved Requests", approvedCount, `${approvalRate}% · Vetted and authorized clinical care`, false, false, theme.success);
+    pushKPI("Total Rejected Requests", rejectedCount, `${rejectionRate}% · Medical policy and benefit exclusions`, false, false, theme.danger);
+    pushKPI("Total Pending Requests", pendingCount, "Awaiting clinical review / deferred", false, false, theme.warning);
+    pushKPI("SLA Compliance Rate (≤ 15 mins)", Number(slaOnTimeRate), "Target: ≥ 80.0% within turnaround window", false, true, Number(slaOnTimeRate) >= 80 ? theme.success : theme.warning);
+    pushKPI("Median Turnaround Time", `${medianMinutes} Minutes`, "Target: ≤ 15 Minutes median queue delay");
+    wsSummary.addRow([]);
+
+    const finHeader = wsSummary.addRow(["FINANCIAL INSIGHTS", "", ""]);
+    finHeader.font = headerFont;
+    finHeader.fill = headerFill;
+    finHeader.height = 26;
+    finHeader.alignment = { vertical: "middle" };
+    wsSummary.mergeCells(`A${finHeader.number}:C${finHeader.number}`);
+
+    const finSubHeader = wsSummary.addRow(["Metric", "Value", "Interpretation"]);
+    finSubHeader.font = { bold: true, size: 10, color: { argb: "FF475569" } };
+    finSubHeader.border = { bottom: { style: "thin", color: { argb: "FFCCCCCC" } } };
+    finSubHeader.height = 22;
+
+    pushKPI("Total Approved Amount", Number(netApprovedValue.toFixed(2)), "Verified from approved items only (NGN)", true, false, theme.success);
+    pushKPI("Approval Rate", Number(approvalRate), "Approved / Total Volume", false, true);
+    pushKPI("Rejection Rate", Number(rejectionRate), "Rejected / Total Volume", false, true, theme.danger);
+    pushKPI("Active Healthcare Providers", `${Object.keys(hospitalStats).length} Hospitals`, "Facilities submitting authorizations this period");
+    pushKPI("Unique Diagnoses Treated", `${Object.keys(diagnosisStats).length} Conditions`, "Distinct diagnostic categories vetted");
+
+    // ── SHEET 2: PAYMENT ADVICE SCHEDULE (Itemized Approved Claims) ───────
     const approvedRecords = allRecords.filter(r => {
       const s = String(r.status || "").toLowerCase();
       return ["approved", "partially_approved", "referral_approved", "referral_accepted", "authorization_approved"].includes(s);
     });
 
-    const sheetPasHeaders = [
-      "S/N",
-      "Approval Date",
-      "Healthcare Provider / Hospital",
-      "Auth Code",
-      "Patient Name",
-      "Policy Number",
-      "Diagnosis",
-      "Approved Items (code, quantity, amount)",
-      "Approved Amount (₦)",
-      "Authorized By / Decision Note"
-    ];
-
-    const sheetPasRows = approvedRecords.map((r, idx) => {
-      const appAmt = calculateAccurateApprovedAmount(r);
-      const itemsSummary = formatApprovedItemsSummary(r.approved_items as any[], r.treatment);
-      return [
-        idx + 1,
-        r.decided_at ? new Date(r.decided_at).toLocaleString("en-GB") : (r.created_at ? new Date(r.created_at).toLocaleString("en-GB") : ""),
-        r.requesting_hospital || r.requesting_hospital_name || r.hospital_name || "Unspecified Hospital",
-        r.authorization_code || "N/A",
-        r.patient_name || "",
-        { t: "s", v: String(r.policy_number || "").trim() || "N/A", z: "@" },
-        r.diagnosis || "Unspecified",
-        itemsSummary,
-        appAmt > 0 ? Number(appAmt.toFixed(2)) : 0,
-        r.approved_by || r.decided_by || r.decision_reason || r.notes || "Approved"
-      ];
+    const wsPas = workbook.addWorksheet("Payment Advice Schedule", {
+      views: [{ state: "frozen", xSplit: 0, ySplit: 3, showGridLines: false, zoomScale: 90 }],
+      properties: { tabColor: { argb: "FF059669" } },
     });
 
-    const sheetPasTotalRow = [
-      "TOTAL",
-      `${approvedRecords.length} Approved Authorizations`,
-      "",
-      "",
-      "",
-      "",
-      "",
-      "Total Approved Payable Value",
-      Number(netApprovedValue.toFixed(2)),
-      ""
+    wsPas.columns = [
+      { header: "S/N", key: "sn", width: 8 },
+      { header: "Approval Date", key: "date", width: 18 },
+      { header: "Healthcare Provider / Hospital", key: "hospital", width: 34 },
+      { header: "Auth Code", key: "authCode", width: 22 },
+      { header: "Enrollee / Patient", key: "patient", width: 26 },
+      { header: "Policy Number", key: "policy", width: 20 },
+      { header: "Diagnosis", key: "diagnosis", width: 28 },
+      { header: "Approved Items (code, quantity, amount)", key: "treatment", width: 48 },
+      { header: "Approved Amount (₦)", key: "appAmt", width: 22 },
+      { header: "Authorized By / Decision Note", key: "note", width: 32 },
     ];
 
-    const wsPas = XLSX.utils.aoa_to_sheet([sheetPasHeaders, ...sheetPasRows, sheetPasTotalRow]);
-    wsPas["!cols"] = [
-      { wch: 6 },
-      { wch: 20 },
-      { wch: 34 },
-      { wch: 22 },
-      { wch: 26 },
-      { wch: 20 },
-      { wch: 28 },
-      { wch: 48 },
-      { wch: 22 },
-      { wch: 32 },
-    ];
-    XLSX.utils.book_append_sheet(wb, wsPas, "Payment Advice Schedule");
+    wsPas.mergeCells("A1:J1");
+    const pasTitleCell = wsPas.getCell("A1");
+    pasTitleCell.value = "PAYMENT ADVICE SCHEDULE";
+    pasTitleCell.font = { bold: true, size: 16, color: { argb: theme.white } };
+    pasTitleCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: theme.titleGreen } };
+    pasTitleCell.alignment = { vertical: "middle" };
+    wsPas.getRow(1).height = 32;
 
-    // SHEET 5: CLINICAL CHECK (Diagnosis & Utilization Audit)
-    const sheet3Headers = [
-      "S/N",
-      "Diagnosis / Clinical Condition",
-      "Total Encounters",
-      "Approved Encounters",
-      "Net Approved Value (₦)",
-      "Average Cost per Encounter (₦)",
-      "Prevalence Share (%)"
+    const pasSubRow = wsPas.getRow(2);
+    pasSubRow.values = [
+      "Approval Period", monthLabel,
+      "Healthcare Facilities", `${Object.keys(hospitalStats).length} Hospitals`,
+      "", "", "", "",
+      "Approved Authorizations", approvedRecords.length
     ];
+    pasSubRow.height = 24;
+    pasSubRow.eachCell((cell: any, colNum: number) => {
+      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: theme.headerBg } };
+      cell.font = colNum % 2 === 1
+        ? { bold: true, color: { argb: "FF475569" }, size: 10 }
+        : { color: { argb: "FF0F172A" }, size: 10 };
+    });
+
+    const pasHeaderRow = wsPas.getRow(3);
+    pasHeaderRow.font = headerFont;
+    pasHeaderRow.fill = { type: "pattern", pattern: "solid", fgColor: { argb: theme.headerSub } };
+    pasHeaderRow.height = 28;
+    pasHeaderRow.alignment = { vertical: "middle", wrapText: true };
+
+    approvedRecords.forEach((r, idx) => {
+      const appAmt = calculateAccurateApprovedAmount(r);
+      const itemsSummary = formatApprovedItemsSummary(r.approved_items as any[], r.treatment);
+      const row = wsPas.addRow({
+        sn: idx + 1,
+        date: r.decided_at ? new Date(r.decided_at).toLocaleString("en-GB") : (r.created_at ? new Date(r.created_at).toLocaleString("en-GB") : ""),
+        hospital: r.requesting_hospital || r.requesting_hospital_name || r.hospital_name || "Unspecified Hospital",
+        authCode: r.authorization_code || "N/A",
+        patient: r.patient_name || "",
+        policy: String(r.policy_number || "").trim() || "N/A",
+        diagnosis: r.diagnosis || "Unspecified",
+        treatment: itemsSummary,
+        appAmt: appAmt > 0 ? Number(appAmt.toFixed(2)) : 0,
+        note: r.approved_by || r.decided_by || r.decision_reason || r.notes || "Approved",
+      });
+      row.height = Math.min(90, Math.max(22, Math.ceil(itemsSummary.length / 65) * 15));
+      row.eachCell({ includeEmpty: true }, (cell: any, colNum: number) => {
+        cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: idx % 2 === 0 ? theme.white : theme.zebra } };
+        cell.border = { bottom: { style: "hair", color: { argb: "FFE2E8F0" } } };
+        cell.alignment = {
+          vertical: "top",
+          wrapText: colNum === 7 || colNum === 8 || colNum === 10,
+          horizontal: colNum === 9 ? "right" : colNum === 1 ? "center" : colNum === 6 ? "left" : undefined,
+        };
+      });
+      // Policy number explicitly text formatted and left aligned
+      const policyCell = row.getCell(6);
+      policyCell.numFmt = "@";
+      policyCell.alignment = { horizontal: "left", vertical: "top" };
+    });
+    wsPas.getColumn("appAmt").numFmt = currencyFormat;
+
+    const pasTotalRow = wsPas.addRow({
+      hospital: "TOTAL APPROVED PAYABLE",
+      treatment: `${approvedRecords.length} Approved Authorizations`,
+      appAmt: Number(netApprovedValue.toFixed(2)),
+    });
+    pasTotalRow.font = { bold: true, color: { argb: "FF065F46" } };
+    pasTotalRow.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFD1FAE5" } };
+    pasTotalRow.getCell("appAmt").numFmt = currencyFormat;
+    pasTotalRow.height = 26;
+
+    // ── SHEET 3: PAYMENT ADVICE CHECKS (Provider Settlement Schedule) ────
+    const wsPaChecks = workbook.addWorksheet("Payment Advice Checks", {
+      views: [{ state: "frozen", xSplit: 0, ySplit: 1 }],
+      properties: { tabColor: { argb: theme.warning } },
+    });
+
+    wsPaChecks.columns = [
+      { header: "S/N", key: "sn", width: 8 },
+      { header: "Healthcare Provider / Hospital", key: "hospital", width: 38 },
+      { header: "Total Requests", key: "total", width: 16 },
+      { header: "Approved Requests", key: "approved", width: 18 },
+      { header: "Rejected Requests", key: "rejected", width: 18 },
+      { header: "Approval Rate", key: "rate", width: 18 },
+      { header: "Net Approved Payout (₦)", key: "payout", width: 24 },
+      { header: "Expenditure Share", key: "share", width: 22 },
+    ];
+
+    wsPaChecks.getRow(1).font = headerFont;
+    wsPaChecks.getRow(1).fill = headerFill;
+    wsPaChecks.getRow(1).height = 28;
+    wsPaChecks.getRow(1).alignment = { vertical: "middle" };
+
+    const sortedHospitals = Object.entries(hospitalStats).sort((a, b) => b[1].approvedValue - a[1].approvedValue);
+
+    sortedHospitals.forEach(([hospName, stats], idx) => {
+      const appRate = stats.total > 0 ? (stats.approved / stats.total) * 100 : 0;
+      const spendShare = netApprovedValue > 0 ? (stats.approvedValue / netApprovedValue) * 100 : 0;
+      const row = wsPaChecks.addRow({
+        sn: idx + 1,
+        hospital: hospName,
+        total: stats.total,
+        approved: stats.approved,
+        rejected: stats.rejected,
+        rate: appRate,
+        payout: Number(stats.approvedValue.toFixed(2)),
+        share: spendShare,
+      });
+      row.height = 22;
+      row.border = { bottom: { style: "hair", color: { argb: "FFE2E8F0" } } };
+      row.getCell("sn").alignment = { horizontal: "center" };
+      row.getCell("total").alignment = { horizontal: "right" };
+      row.getCell("approved").alignment = { horizontal: "right" };
+      row.getCell("rejected").alignment = { horizontal: "right" };
+    });
+
+    const paChecksTotalRow = wsPaChecks.addRow({
+      sn: "TOTAL",
+      hospital: `${sortedHospitals.length} Healthcare Facilities`,
+      total: totalVolume,
+      approved: approvedCount,
+      rejected: rejectedCount,
+      rate: Number(approvalRate),
+      payout: Number(netApprovedValue.toFixed(2)),
+      share: 100.0,
+    });
+    paChecksTotalRow.font = { bold: true };
+    paChecksTotalRow.fill = { type: "pattern", pattern: "solid", fgColor: { argb: theme.headerBg } };
+    paChecksTotalRow.height = 26;
+    wsPaChecks.getColumn("payout").numFmt = currencyFormat;
+    wsPaChecks.getColumn("rate").numFmt = percentFormat;
+    wsPaChecks.getColumn("share").numFmt = percentFormat;
+
+    // ── SHEET 4: CLINICAL CHECK (Diagnosis & Utilization Audit) ───────────
+    const wsClinical = workbook.addWorksheet("Clinical Check", {
+      views: [{ state: "frozen", xSplit: 0, ySplit: 1 }],
+      properties: { tabColor: { argb: theme.danger } },
+    });
+
+    wsClinical.columns = [
+      { header: "S/N", key: "sn", width: 8 },
+      { header: "Diagnosis / Clinical Condition", key: "diagnosis", width: 38 },
+      { header: "Total Encounters", key: "count", width: 18 },
+      { header: "Approved Encounters", key: "approvedCount", width: 20 },
+      { header: "Net Approved Spend (₦)", key: "spend", width: 24 },
+      { header: "Average Cost per Encounter (₦)", key: "avgCost", width: 28 },
+      { header: "Prevalence Share", key: "share", width: 20 },
+    ];
+
+    wsClinical.getRow(1).font = headerFont;
+    wsClinical.getRow(1).fill = headerFill;
+    wsClinical.getRow(1).height = 28;
+    wsClinical.getRow(1).alignment = { vertical: "middle" };
 
     const sortedDiagnoses = Object.entries(diagnosisStats).sort((a, b) => b[1].count - a[1].count);
 
-    const sheet3Rows = sortedDiagnoses.map(([diagName, stats], idx) => {
-      const avgCost = stats.approvedCount > 0 ? Number((stats.approvedValue / stats.approvedCount).toFixed(2)) : 0;
-      const prevShare = totalVolume > 0 ? ((stats.count / totalVolume) * 100).toFixed(1) + "%" : "0.0%";
-      return [
-        idx + 1,
-        diagName,
-        stats.count,
-        stats.approvedCount,
-        Number(stats.approvedValue.toFixed(2)),
-        avgCost,
-        prevShare
-      ];
+    sortedDiagnoses.forEach(([diagName, stats], idx) => {
+      const avgCost = stats.approvedCount > 0 ? stats.approvedValue / stats.approvedCount : 0;
+      const prevShare = totalVolume > 0 ? (stats.count / totalVolume) * 100 : 0;
+      const row = wsClinical.addRow({
+        sn: idx + 1,
+        diagnosis: diagName,
+        count: stats.count,
+        approvedCount: stats.approvedCount,
+        spend: Number(stats.approvedValue.toFixed(2)),
+        avgCost: Number(avgCost.toFixed(2)),
+        share: prevShare,
+      });
+      row.height = 22;
+      row.border = { bottom: { style: "hair", color: { argb: "FFE2E8F0" } } };
+      row.getCell("sn").alignment = { horizontal: "center" };
+      row.getCell("count").alignment = { horizontal: "right" };
+      row.getCell("approvedCount").alignment = { horizontal: "right" };
     });
 
-    const sheet3TotalRow = [
-      "TOTAL",
-      `${sortedDiagnoses.length} Diagnostic Categories`,
-      totalVolume,
-      approvedCount,
-      Number(netApprovedValue.toFixed(2)),
-      approvedCount > 0 ? Number((netApprovedValue / approvedCount).toFixed(2)) : 0,
-      "100.0%"
-    ];
+    const clinicalTotalRow = wsClinical.addRow({
+      sn: "TOTAL",
+      diagnosis: `${sortedDiagnoses.length} Diagnostic Categories`,
+      count: totalVolume,
+      approvedCount: approvedCount,
+      spend: Number(netApprovedValue.toFixed(2)),
+      avgCost: approvedCount > 0 ? Number((netApprovedValue / approvedCount).toFixed(2)) : 0,
+      share: 100.0,
+    });
+    clinicalTotalRow.font = { bold: true };
+    clinicalTotalRow.fill = { type: "pattern", pattern: "solid", fgColor: { argb: theme.headerBg } };
+    clinicalTotalRow.height = 26;
+    wsClinical.getColumn("spend").numFmt = currencyFormat;
+    wsClinical.getColumn("avgCost").numFmt = currencyFormat;
+    wsClinical.getColumn("share").numFmt = percentFormat;
 
-    const ws3 = XLSX.utils.aoa_to_sheet([sheet3Headers, ...sheet3Rows, sheet3TotalRow]);
-    ws3["!cols"] = [
-      { wch: 6 },
-      { wch: 36 },
-      { wch: 18 },
-      { wch: 20 },
-      { wch: 24 },
-      { wch: 26 },
-      { wch: 22 },
-    ];
-    XLSX.utils.book_append_sheet(wb, ws3, "Clinical Check");
-
-    // SHEET 6: TREND ANALYSIS (Daily Performance Breakdown)
+    // ── SHEET 5: TREND ANALYSIS (Daily Throughput & Spend) ────────────────
     const dailyStats: Record<string, { total: number; approved: number; rejected: number; pending: number; approvedValue: number }> = {};
     for (const r of allRecords) {
       const dayKey = r.created_at ? r.created_at.split("T")[0] : "Unknown";
@@ -719,80 +787,193 @@ serve(async (req) => {
       }
     }
 
-    const sortedDays = Object.entries(dailyStats).sort((a, b) => a[0].localeCompare(b[0]));
-    const trendHeaders = [
-      "Date",
-      "Total Volume",
-      "Approved",
-      "Rejected",
-      "Pending",
-      "Approval Rate (%)",
-      "Net Approved Spend (₦)"
-    ];
-    const trendRows = sortedDays.map(([dateStr, st]) => {
-      const rate = st.total > 0 ? ((st.approved / st.total) * 100).toFixed(1) + "%" : "0.0%";
-      return [
-        dateStr,
-        st.total,
-        st.approved,
-        st.rejected,
-        st.pending,
-        rate,
-        Number(st.approvedValue.toFixed(2))
-      ];
+    const wsTrend = workbook.addWorksheet("Trend Analysis", {
+      views: [{ state: "frozen", xSplit: 0, ySplit: 1 }],
+      properties: { tabColor: { argb: theme.success } },
     });
-    const trendTotalRow = [
-      "TOTAL",
-      totalVolume,
-      approvedCount,
-      rejectedCount,
-      pendingCount,
-      approvalRate + "%",
-      Number(netApprovedValue.toFixed(2))
-    ];
-    const wsTrend = XLSX.utils.aoa_to_sheet([trendHeaders, ...trendRows, trendTotalRow]);
-    wsTrend["!cols"] = [
-      { wch: 16 },
-      { wch: 16 },
-      { wch: 14 },
-      { wch: 14 },
-      { wch: 14 },
-      { wch: 18 },
-      { wch: 24 },
-    ];
-    XLSX.utils.book_append_sheet(wb, wsTrend, "Trend Analysis");
 
-    // SHEET 7: EXECUTIVE SLA SCORECARD
-    const sheet4Headers = [
-      "Executive Metric",
-      "Observed Value",
-      "Target Benchmark",
-      "Performance Assessment"
+    wsTrend.columns = [
+      { header: "Date", key: "date", width: 16 },
+      { header: "Total Volume", key: "total", width: 16 },
+      { header: "Approved", key: "approved", width: 15 },
+      { header: "Rejected", key: "rejected", width: 15 },
+      { header: "Pending", key: "pending", width: 15 },
+      { header: "Approval Rate", key: "rate", width: 18 },
+      { header: "Net Approved Spend (₦)", key: "spend", width: 24 },
     ];
 
-    const sheet4Rows = [
-      ["Reporting Cycle", monthLabel, "Full Calendar Month", "Audit Completed"],
-      ["Total Pre-Auth Volume", String(totalVolume), "All Incoming Requests", "Fully Processed"],
-      ["Approved Authorizations", `${approvedCount} (${approvalRate}%)`, "Standard Clinical Eligibility", "Approved"],
-      ["Rejected Authorizations", `${rejectedCount} (${rejectionRate}%)`, "Medical Policy Exclusions", "Vetted / Declined"],
-      ["Net Approved Expenditure", `₦${netApprovedValue.toLocaleString("en-NG", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, "Strict Approved Items Only", "Financial Audit Passed"],
-      ["SLA On-Time Compliance (≤ 15 mins)", `${onTimeCount} (${slaOnTimeRate}%)`, "≥ 80.0% Response Target", Number(slaOnTimeRate) >= 80 ? "Compliant" : "Needs Optimization"],
-      ["SLA Warning Window (16 - 30 mins)", `${warningCount} (${totalDecided > 0 ? ((warningCount / totalDecided) * 100).toFixed(1) : "0.0"}%)`, "≤ 15.0% Operational Buffer", "Acceptable Buffer"],
-      ["SLA Breached Window (> 30 mins)", `${breachedCount} (${slaBreachRate}%)`, "≤ 5.0% Maximum Threshold", Number(slaBreachRate) <= 5 ? "Within Threshold" : "SLA Escalation Alert"],
-      ["Median Turnaround Time", `${medianMinutes} Minutes`, "≤ 15 Minutes Target", medianMinutes <= 15 ? "High Efficiency" : "Moderate Queue Delay"]
+    wsTrend.getRow(1).font = headerFont;
+    wsTrend.getRow(1).fill = headerFill;
+    wsTrend.getRow(1).height = 28;
+    wsTrend.getRow(1).alignment = { vertical: "middle" };
+
+    const sortedDays = Object.entries(dailyStats).sort((a, b) => a[0].localeCompare(b[0]));
+    sortedDays.forEach(([dateStr, st]) => {
+      const rate = st.total > 0 ? (st.approved / st.total) * 100 : 0;
+      const row = wsTrend.addRow({
+        date: dateStr,
+        total: st.total,
+        approved: st.approved,
+        rejected: st.rejected,
+        pending: st.pending,
+        rate: rate,
+        spend: Number(st.approvedValue.toFixed(2)),
+      });
+      row.height = 22;
+      row.border = { bottom: { style: "hair", color: { argb: "FFE2E8F0" } } };
+      row.getCell("total").alignment = { horizontal: "right" };
+      row.getCell("approved").alignment = { horizontal: "right" };
+      row.getCell("rejected").alignment = { horizontal: "right" };
+      row.getCell("pending").alignment = { horizontal: "right" };
+    });
+
+    const trendTotalRow = wsTrend.addRow({
+      date: "TOTAL",
+      total: totalVolume,
+      approved: approvedCount,
+      rejected: rejectedCount,
+      pending: pendingCount,
+      rate: Number(approvalRate),
+      spend: Number(netApprovedValue.toFixed(2)),
+    });
+    trendTotalRow.font = { bold: true };
+    trendTotalRow.fill = { type: "pattern", pattern: "solid", fgColor: { argb: theme.headerBg } };
+    trendTotalRow.height = 26;
+    wsTrend.getColumn("spend").numFmt = currencyFormat;
+    wsTrend.getColumn("rate").numFmt = percentFormat;
+
+    // ── SHEET 6: SLA SCORECARD (Turnaround Compliance Metrics) ────────────
+    const wsSla = workbook.addWorksheet("SLA Scorecard", {
+      views: [{ state: "frozen", xSplit: 0, ySplit: 1 }],
+      properties: { tabColor: { argb: theme.primary } },
+    });
+
+    wsSla.columns = [
+      { header: "Executive Metric", key: "metric", width: 38 },
+      { header: "Observed Value", key: "value", width: 28 },
+      { header: "Target Benchmark", key: "benchmark", width: 32 },
+      { header: "Performance Assessment", key: "assessment", width: 26 },
     ];
 
-    const ws4 = XLSX.utils.aoa_to_sheet([sheet4Headers, ...sheet4Rows]);
-    ws4["!cols"] = [
-      { wch: 36 },
-      { wch: 28 },
-      { wch: 32 },
-      { wch: 26 },
+    wsSla.getRow(1).font = headerFont;
+    wsSla.getRow(1).fill = headerFill;
+    wsSla.getRow(1).height = 28;
+    wsSla.getRow(1).alignment = { vertical: "middle" };
+
+    const slaScorecardData = [
+      { metric: "Reporting Cycle", value: monthLabel, benchmark: "Full Calendar Month", assessment: "Audit Completed" },
+      { metric: "Total Pre-Auth Volume", value: String(totalVolume), benchmark: "All Incoming Requests", assessment: "Fully Processed" },
+      { metric: "Approved Authorizations", value: `${approvedCount} (${approvalRate}%)`, benchmark: "Standard Clinical Eligibility", assessment: "Approved" },
+      { metric: "Rejected Authorizations", value: `${rejectedCount} (${rejectionRate}%)`, benchmark: "Medical Policy Exclusions", assessment: "Vetted / Declined" },
+      { metric: "Net Approved Expenditure", value: `₦${netApprovedValue.toLocaleString("en-NG", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, benchmark: "Strict Approved Items Only", assessment: "Financial Audit Passed" },
+      { metric: "SLA On-Time Compliance (≤ 15 mins)", value: `${onTimeCount} (${slaOnTimeRate}%)`, benchmark: "≥ 80.0% Response Target", assessment: Number(slaOnTimeRate) >= 80 ? "Compliant" : "Needs Optimization" },
+      { metric: "SLA Warning Window (16 - 30 mins)", value: `${warningCount} (${totalDecided > 0 ? ((warningCount / totalDecided) * 100).toFixed(1) : "0.0"}%)`, benchmark: "≤ 15.0% Operational Buffer", assessment: "Operational Buffer" },
+      { metric: "SLA Breached Window (> 30 mins)", value: `${breachedCount} (${slaBreachRate}%)`, benchmark: "≤ 5.0% Maximum Threshold", assessment: Number(slaBreachRate) <= 5 ? "Within Threshold" : "SLA Escalation Alert" },
+      { metric: "Median Turnaround Time", value: `${medianMinutes} Minutes`, benchmark: "≤ 15 Minutes Target", assessment: medianMinutes <= 15 ? "High Efficiency" : "Moderate Queue Delay" },
     ];
-    XLSX.utils.book_append_sheet(wb, ws4, "SLA Scorecard");
+
+    for (const item of slaScorecardData) {
+      const added = wsSla.addRow(item);
+      added.height = 24;
+      added.border = { bottom: { style: "hair", color: { argb: "FFE2E8F0" } } };
+      if (item.assessment === "Compliant" || item.assessment === "Approved" || item.assessment === "Financial Audit Passed" || item.assessment === "High Efficiency") {
+        added.getCell("assessment").font = { bold: true, color: { argb: theme.success } };
+      } else if (item.assessment === "SLA Escalation Alert" || item.assessment === "Needs Optimization") {
+        added.getCell("assessment").font = { bold: true, color: { argb: theme.danger } };
+      }
+    }
+
+    // ── SHEET 7: PRE-AUTH LOG (Master Clinical Authorizations Log) ────────
+    const wsLog = workbook.addWorksheet("Pre-Auth Log", {
+      views: [{ state: "frozen", xSplit: 0, ySplit: 1 }],
+      properties: { tabColor: { argb: theme.slate } },
+    });
+
+    wsLog.columns = [
+      { header: "S/N", key: "sn", width: 8 },
+      { header: "Date Requested", key: "date", width: 18 },
+      { header: "Decided At", key: "decidedAt", width: 18 },
+      { header: "Turnaround (Mins)", key: "turnaround", width: 18 },
+      { header: "Auth Code", key: "authCode", width: 22 },
+      { header: "Status", key: "status", width: 16 },
+      { header: "Hospital", key: "hospital", width: 34 },
+      { header: "Patient Name", key: "patient", width: 26 },
+      { header: "Policy Number", key: "policy", width: 20 },
+      { header: "Diagnosis", key: "diagnosis", width: 28 },
+      { header: "Service / Treatment", key: "treatment", width: 30 },
+      { header: "Net Approved (₦)", key: "appAmt", width: 20 },
+      { header: "Decision Reason", key: "reason", width: 36 },
+    ];
+
+    wsLog.getRow(1).font = headerFont;
+    wsLog.getRow(1).fill = headerFill;
+    wsLog.getRow(1).height = 28;
+    wsLog.getRow(1).alignment = { vertical: "middle" };
+
+    allRecords.forEach((r, i) => {
+      let turnMins: number | string = "";
+      if (r.decided_at && r.created_at) {
+        const start = Date.parse(r.treatment_submitted_at || r.created_at);
+        const end = Date.parse(r.decided_at);
+        if (Number.isFinite(start) && Number.isFinite(end) && end >= start) {
+          turnMins = Math.round((end - start) / 60000);
+        }
+      }
+      const appVal = calculateAccurateApprovedAmount(r);
+
+      const row = wsLog.addRow({
+        sn: i + 1,
+        date: r.created_at ? new Date(r.created_at).toLocaleString("en-GB") : "",
+        decidedAt: r.decided_at ? new Date(r.decided_at).toLocaleString("en-GB") : "",
+        turnaround: turnMins !== "" ? Number(turnMins) : "",
+        authCode: r.authorization_code || "N/A",
+        status: formatCapitalizedStatus(r.status),
+        hospital: r.requesting_hospital || r.requesting_hospital_name || r.hospital_name || "Unspecified Hospital",
+        patient: r.patient_name || "",
+        policy: String(r.policy_number || "").trim() || "N/A",
+        diagnosis: r.diagnosis || "Unspecified",
+        treatment: r.treatment || "Consultation / Care",
+        appAmt: appVal > 0 ? Number(appVal.toFixed(2)) : 0,
+        reason: r.decision_reason || r.rejection_reason || r.notes || "",
+      });
+
+      row.height = 22;
+      row.eachCell({ includeEmpty: true }, (cell: any, colNum: number) => {
+        cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: i % 2 === 0 ? theme.white : theme.zebra } };
+        cell.border = { bottom: { style: "hair", color: { argb: "FFE2E8F0" } } };
+        cell.alignment = {
+          vertical: "top",
+          horizontal: colNum === 12 ? "right" : colNum === 1 || colNum === 4 ? "center" : colNum === 9 ? "left" : undefined,
+        };
+      });
+
+      // Status color formatting
+      const statusCell = row.getCell("status");
+      const stVal = String(r.status || "").toLowerCase();
+      if (["approved", "partially_approved", "referral_approved", "referral_accepted", "authorization_approved"].includes(stVal)) {
+        statusCell.font = { bold: true, color: { argb: "FF065F46" } };
+      } else if (["rejected", "referral_rejected", "cancelled", "denied"].includes(stVal)) {
+        statusCell.font = { bold: true, color: { argb: "FF991B1B" } };
+      } else {
+        statusCell.font = { bold: true, color: { argb: "FF92400E" } };
+      }
+
+      // Policy number explicitly text formatted and left aligned
+      const policyCell = row.getCell("policy");
+      policyCell.numFmt = "@";
+      policyCell.alignment = { horizontal: "left", vertical: "top" };
+    });
+    wsLog.getColumn("appAmt").numFmt = currencyFormat;
 
     // Convert Workbook to Base64
-    const xlsxBase64 = XLSX.write(wb, { bookType: "xlsx", type: "base64" });
+    const buffer = await workbook.xlsx.writeBuffer();
+    const uint8 = new Uint8Array(buffer);
+    let binary = "";
+    const chunkSize = 8192;
+    for (let i = 0; i < uint8.length; i += chunkSize) {
+      binary += String.fromCharCode.apply(null, uint8.subarray(i, i + chunkSize) as unknown as number[]);
+    }
+    const xlsxBase64 = btoa(binary);
 
     // Send via Brevo API
     const brevoSender = getBrevoSender();
