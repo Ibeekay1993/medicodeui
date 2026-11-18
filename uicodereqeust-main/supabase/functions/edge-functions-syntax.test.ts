@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 
 const edgeEntries = [
   "supabase/functions/daily-report/index.ts",
+  "supabase/functions/monthly-report/index.ts",
   "supabase/functions/get-whatsapp-clinical-details/index.ts",
   "supabase/functions/send-push-notification/index.ts",
 ];
