@@ -79,6 +79,21 @@ function calculateAccurateApprovedAmount(record: AuthRequest): number {
   return 0;
 }
 
+function formatApprovedItemsSummary(items: unknown[], fallbackTreatment?: string): string {
+  if (Array.isArray(items) && items.length > 0) {
+    const valid = items.filter((it: any) => it && typeof it === "object" && !it.declined);
+    if (valid.length > 0) {
+      return valid.map((it: any) => {
+        const qty = Number(it.quantity ?? 1);
+        const amt = it.amount ?? it.total ?? ((Number(it.unit_price ?? it.price ?? 0)) * qty);
+        const name = [it.code, it.name || it.item_name || it.description].filter(Boolean).join(" ");
+        return `${name} × ${qty} · ₦${Number(amt).toLocaleString("en-NG", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+      }).join("; ");
+    }
+  }
+  return fallbackTreatment || "Approved services";
+}
+
 function escapeCsvField(val: unknown): string {
   if (val === null || val === undefined) return '""';
   const str = String(val).replace(/"/g, '""');
@@ -434,7 +449,29 @@ serve(async (req) => {
     // -------------------------------------------------------------
     const wb = XLSX.utils.book_new();
 
-    // SHEET 1: PRE-AUTH MASTER LOG (No Request ID, Capitalized Status, Text Policy Number)
+    // SHEET 1: EXECUTIVE SUMMARY (KPI Overview & Financial Insights)
+    const wsSummaryHeaders = ["Executive Metric", "Value", "Operational Analysis"];
+    const wsSummaryRows = [
+      ["Reporting Period", monthLabel, "Comprehensive calendar monthly cycle"],
+      ["Total Pre-Auth Requests", totalVolume, "All patient encounter pre-auth submissions"],
+      ["Approved Requests", `${approvedCount} (${approvalRate}%)`, "Vetted and authorized clinical care"],
+      ["Rejected Requests", `${rejectedCount} (${rejectionRate}%)`, "Medical policy and benefit exclusions"],
+      ["Pending Requests", `${pendingCount} (${totalVolume > 0 ? ((pendingCount / totalVolume) * 100).toFixed(1) : "0.0"}%)`, "Awaiting clinical review / deferred"],
+      ["Net Approved Value (₦)", `₦${netApprovedValue.toLocaleString("en-NG", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, "Strict vetted approved tariff expenditure"],
+      ["SLA Compliance Rate (≤ 15 mins)", `${slaOnTimeRate}%`, "Target: ≥ 80.0% within turnaround window"],
+      ["Median Response Time", `${medianMinutes} Minutes`, "Target: ≤ 15 Minutes median queue delay"],
+      ["Active Healthcare Providers", `${Object.keys(hospitalStats).length} Hospitals`, "Facilities submitting authorizations this period"],
+      ["Unique Diagnoses Treated", `${Object.keys(diagnosisStats).length} Conditions`, "Distinct diagnostic categories vetted"]
+    ];
+    const wsSummary = XLSX.utils.aoa_to_sheet([wsSummaryHeaders, ...wsSummaryRows]);
+    wsSummary["!cols"] = [
+      { wch: 34 },
+      { wch: 28 },
+      { wch: 45 },
+    ];
+    XLSX.utils.book_append_sheet(wb, wsSummary, "Executive Summary");
+
+    // SHEET 2: PRE-AUTH MASTER LOG (No Request ID, Capitalized Status, Text Policy Number)
     const sheet1Headers = [
       "S/N",
       "Date Requested",
@@ -497,7 +534,7 @@ serve(async (req) => {
     ];
     XLSX.utils.book_append_sheet(wb, ws1, "Pre-Auth Log");
 
-    // SHEET 2: PAYMENT ADVICE (Hospital Settlement & Payout Schedule)
+    // SHEET 3: PAYMENT ADVICE (Hospital Settlement & Payout Schedule)
     const sheet2Headers = [
       "S/N",
       "Healthcare Provider / Hospital",
@@ -550,7 +587,71 @@ serve(async (req) => {
     ];
     XLSX.utils.book_append_sheet(wb, ws2, "Payment Advice");
 
-    // SHEET 3: CLINICAL CHECK (Diagnosis & Utilization Audit)
+    // SHEET 4: PAYMENT ADVICE SCHEDULE (Itemized Approved Claims)
+    const approvedRecords = allRecords.filter(r => {
+      const s = String(r.status || "").toLowerCase();
+      return ["approved", "partially_approved", "referral_approved", "referral_accepted", "authorization_approved"].includes(s);
+    });
+
+    const sheetPasHeaders = [
+      "S/N",
+      "Approval Date",
+      "Healthcare Provider / Hospital",
+      "Auth Code",
+      "Patient Name",
+      "Policy Number",
+      "Diagnosis",
+      "Approved Items (code, quantity, amount)",
+      "Approved Amount (₦)",
+      "Authorized By / Decision Note"
+    ];
+
+    const sheetPasRows = approvedRecords.map((r, idx) => {
+      const appAmt = calculateAccurateApprovedAmount(r);
+      const itemsSummary = formatApprovedItemsSummary(r.approved_items as any[], r.treatment);
+      return [
+        idx + 1,
+        r.decided_at ? new Date(r.decided_at).toLocaleString("en-GB") : (r.created_at ? new Date(r.created_at).toLocaleString("en-GB") : ""),
+        r.requesting_hospital || r.requesting_hospital_name || r.hospital_name || "Unspecified Hospital",
+        r.authorization_code || "N/A",
+        r.patient_name || "",
+        { t: "s", v: String(r.policy_number || "").trim() || "N/A", z: "@" },
+        r.diagnosis || "Unspecified",
+        itemsSummary,
+        appAmt > 0 ? Number(appAmt.toFixed(2)) : 0,
+        r.approved_by || r.decided_by || r.decision_reason || r.notes || "Approved"
+      ];
+    });
+
+    const sheetPasTotalRow = [
+      "TOTAL",
+      `${approvedRecords.length} Approved Authorizations`,
+      "",
+      "",
+      "",
+      "",
+      "",
+      "Total Approved Payable Value",
+      Number(netApprovedValue.toFixed(2)),
+      ""
+    ];
+
+    const wsPas = XLSX.utils.aoa_to_sheet([sheetPasHeaders, ...sheetPasRows, sheetPasTotalRow]);
+    wsPas["!cols"] = [
+      { wch: 6 },
+      { wch: 20 },
+      { wch: 34 },
+      { wch: 22 },
+      { wch: 26 },
+      { wch: 20 },
+      { wch: 28 },
+      { wch: 48 },
+      { wch: 22 },
+      { wch: 32 },
+    ];
+    XLSX.utils.book_append_sheet(wb, wsPas, "Payment Advice Schedule");
+
+    // SHEET 5: CLINICAL CHECK (Diagnosis & Utilization Audit)
     const sheet3Headers = [
       "S/N",
       "Diagnosis / Clinical Condition",
@@ -599,7 +700,69 @@ serve(async (req) => {
     ];
     XLSX.utils.book_append_sheet(wb, ws3, "Clinical Check");
 
-    // SHEET 4: EXECUTIVE SLA SCORECARD
+    // SHEET 6: TREND ANALYSIS (Daily Performance Breakdown)
+    const dailyStats: Record<string, { total: number; approved: number; rejected: number; pending: number; approvedValue: number }> = {};
+    for (const r of allRecords) {
+      const dayKey = r.created_at ? r.created_at.split("T")[0] : "Unknown";
+      if (!dailyStats[dayKey]) dailyStats[dayKey] = { total: 0, approved: 0, rejected: 0, pending: 0, approvedValue: 0 };
+      dailyStats[dayKey].total += 1;
+      const s = String(r.status || "").toLowerCase();
+      const isApp = ["approved", "partially_approved", "referral_approved", "referral_accepted", "authorization_approved"].includes(s);
+      const isRej = ["rejected", "referral_rejected", "cancelled", "denied"].includes(s);
+      if (isApp) {
+        dailyStats[dayKey].approved += 1;
+        dailyStats[dayKey].approvedValue += calculateAccurateApprovedAmount(r);
+      } else if (isRej) {
+        dailyStats[dayKey].rejected += 1;
+      } else {
+        dailyStats[dayKey].pending += 1;
+      }
+    }
+
+    const sortedDays = Object.entries(dailyStats).sort((a, b) => a[0].localeCompare(b[0]));
+    const trendHeaders = [
+      "Date",
+      "Total Volume",
+      "Approved",
+      "Rejected",
+      "Pending",
+      "Approval Rate (%)",
+      "Net Approved Spend (₦)"
+    ];
+    const trendRows = sortedDays.map(([dateStr, st]) => {
+      const rate = st.total > 0 ? ((st.approved / st.total) * 100).toFixed(1) + "%" : "0.0%";
+      return [
+        dateStr,
+        st.total,
+        st.approved,
+        st.rejected,
+        st.pending,
+        rate,
+        Number(st.approvedValue.toFixed(2))
+      ];
+    });
+    const trendTotalRow = [
+      "TOTAL",
+      totalVolume,
+      approvedCount,
+      rejectedCount,
+      pendingCount,
+      approvalRate + "%",
+      Number(netApprovedValue.toFixed(2))
+    ];
+    const wsTrend = XLSX.utils.aoa_to_sheet([trendHeaders, ...trendRows, trendTotalRow]);
+    wsTrend["!cols"] = [
+      { wch: 16 },
+      { wch: 16 },
+      { wch: 14 },
+      { wch: 14 },
+      { wch: 14 },
+      { wch: 18 },
+      { wch: 24 },
+    ];
+    XLSX.utils.book_append_sheet(wb, wsTrend, "Trend Analysis");
+
+    // SHEET 7: EXECUTIVE SLA SCORECARD
     const sheet4Headers = [
       "Executive Metric",
       "Observed Value",
@@ -612,7 +775,7 @@ serve(async (req) => {
       ["Total Pre-Auth Volume", String(totalVolume), "All Incoming Requests", "Fully Processed"],
       ["Approved Authorizations", `${approvedCount} (${approvalRate}%)`, "Standard Clinical Eligibility", "Approved"],
       ["Rejected Authorizations", `${rejectedCount} (${rejectionRate}%)`, "Medical Policy Exclusions", "Vetted / Declined"],
-      ["Net Approved Expenditure", `₦${netApprovedValue.toLocaleString("en-NG", { minimumFractionDigits: 2 })}`, "Strict Approved Items Only", "Financial Audit Passed"],
+      ["Net Approved Expenditure", `₦${netApprovedValue.toLocaleString("en-NG", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, "Strict Approved Items Only", "Financial Audit Passed"],
       ["SLA On-Time Compliance (≤ 15 mins)", `${onTimeCount} (${slaOnTimeRate}%)`, "≥ 80.0% Response Target", Number(slaOnTimeRate) >= 80 ? "Compliant" : "Needs Optimization"],
       ["SLA Warning Window (16 - 30 mins)", `${warningCount} (${totalDecided > 0 ? ((warningCount / totalDecided) * 100).toFixed(1) : "0.0"}%)`, "≤ 15.0% Operational Buffer", "Acceptable Buffer"],
       ["SLA Breached Window (> 30 mins)", `${breachedCount} (${slaBreachRate}%)`, "≤ 5.0% Maximum Threshold", Number(slaBreachRate) <= 5 ? "Within Threshold" : "SLA Escalation Alert"],

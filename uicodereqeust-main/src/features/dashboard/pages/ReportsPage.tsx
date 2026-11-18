@@ -23,6 +23,7 @@ import {
   groupByDate,
   calculateHospitalPerformance,
   calculateApprovedAmount,
+  formatCapitalizedStatus,
   PREAUTH_REPORT_SELECT_COLUMNS,
 } from "@/lib/reports-helpers";
 
@@ -722,144 +723,258 @@ export default function ReportsPage() {
         ]
       });
 
-      // ── SHEET 3: Hospital Performance ────────────────────────────────────
-      const ws3 = workbook.addWorksheet("Hospital Performance", {
+      // ── SHEET 3: Payment Advice (Provider Settlement Schedule) ──────────────
+      const ws3 = workbook.addWorksheet("Payment Advice", {
         views: [{ state: 'frozen', xSplit: 0, ySplit: 1 }],
         properties: { tabColor: { argb: theme.warning } },
       });
 
       ws3.columns = [
-        { header: "Hospital", key: "hospital", width: 35 },
-        { header: "Total Codes", key: "total", width: 15 },
-        { header: "Approved Codes", key: "approved", width: 18 },
-        { header: "Rejected Codes", key: "rejected", width: 18 },
-        { header: "Approved Amount", key: "appAmt", width: 22 },
+        { header: "S/N", key: "sn", width: 8 },
+        { header: "Healthcare Provider / Hospital", key: "hospital", width: 38 },
+        { header: "Total Volume", key: "total", width: 16 },
+        { header: "Approved Requests", key: "approved", width: 18 },
+        { header: "Rejected Requests", key: "rejected", width: 18 },
         { header: "Approval Rate", key: "rate", width: 18 },
+        { header: "Net Approved Payout (₦)", key: "appAmt", width: 24 },
+        { header: "Expenditure Share", key: "share", width: 22 },
       ];
 
       ws3.getRow(1).font = headerFont;
       ws3.getRow(1).fill = headerFill;
 
-      const sortedHospitals = [...hospitalPerformance].sort((a, b) => b.totalCodes - a.totalCodes);
-      
-      for (const h of sortedHospitals) {
+      const sortedHospitals = [...hospitalPerformance].sort((a, b) => (b.approvedAmount || 0) - (a.approvedAmount || 0));
+      const totalApprovedSpend = sortedHospitals.reduce((sum, h) => sum + (h.approvedAmount || 0), 0);
+      const totalHospitalCodes = sortedHospitals.reduce((sum, h) => sum + (h.totalCodes || 0), 0);
+      const totalHospitalApproved = sortedHospitals.reduce((sum, h) => sum + (h.approvedCodes || 0), 0);
+      const totalHospitalRejected = sortedHospitals.reduce((sum, h) => sum + (h.rejectedCodes || 0), 0);
+
+      sortedHospitals.forEach((h, idx) => {
+        const spendShare = totalApprovedSpend > 0 ? (h.approvedAmount / totalApprovedSpend) * 100 : 0;
         ws3.addRow({
+          sn: idx + 1,
           hospital: h.hospital,
           total: h.totalCodes,
           approved: h.approvedCodes,
           rejected: h.rejectedCodes,
+          rate: h.approvalRate,
           appAmt: h.approvedAmount,
-          rate: h.approvalRate
+          share: spendShare,
         });
-      }
+      });
+
+      const totalHospRow = ws3.addRow({
+        sn: "TOTAL",
+        hospital: `${sortedHospitals.length} Healthcare Facilities`,
+        total: totalHospitalCodes,
+        approved: totalHospitalApproved,
+        rejected: totalHospitalRejected,
+        rate: totalHospitalCodes > 0 ? (totalHospitalApproved / totalHospitalCodes) * 100 : 0,
+        appAmt: totalApprovedSpend,
+        share: 100,
+      });
+      totalHospRow.font = { bold: true };
+      totalHospRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: "FFF1F5F9" } };
 
       ws3.getColumn('appAmt').numFmt = currencyFormat;
       ws3.getColumn('rate').numFmt = percentFormat;
+      ws3.getColumn('share').numFmt = percentFormat;
 
-      // In-cell pseudo-chart for Hospital Approval Rate
-      ws3.addConditionalFormatting({
-        ref: `F2:F${Math.max(2, sortedHospitals.length + 1)}`,
-        rules: [
-          {
-            type: 'colorScale',
-            cfvo: [{ type: 'num', value: 0 }, { type: 'num', value: 50 }, { type: 'num', value: 100 }],
-            priority: 1,
-            color: [{ argb: theme.danger }, { argb: theme.warning }, { argb: theme.success }]
-          }
-        ]
-      });
-
-      // ── SHEET 4: Clinical Insights ───────────────────────────────────────
-      const ws4 = workbook.addWorksheet("Clinical Insights", {
+      // ── SHEET 4: Clinical Check (Diagnosis & Utilization Audit) ─────────────
+      const ws4 = workbook.addWorksheet("Clinical Check", {
         views: [{ state: 'frozen', xSplit: 0, ySplit: 1 }],
         properties: { tabColor: { argb: theme.danger } },
       });
 
       ws4.columns = [
-        { header: "Diagnosis", key: "diagnosis", width: 40 },
-        { header: "Count", key: "count", width: 15 },
-        { header: "% of Total", key: "pct", width: 15 },
+        { header: "S/N", key: "sn", width: 8 },
+        { header: "Diagnosis / Clinical Condition", key: "diagnosis", width: 38 },
+        { header: "Total Encounters", key: "count", width: 18 },
+        { header: "Approved Encounters", key: "approvedCount", width: 20 },
+        { header: "Net Approved Spend (₦)", key: "appAmt", width: 24 },
+        { header: "Average Cost per Encounter (₦)", key: "avgCost", width: 28 },
+        { header: "Prevalence Share", key: "pct", width: 20 },
       ];
 
       ws4.getRow(1).font = headerFont;
       ws4.getRow(1).fill = headerFill;
 
-      const diagMap: Record<string, number> = {};
+      const diagMap: Record<string, { count: number; approvedCount: number; approvedAmount: number }> = {};
       for (const r of records) {
-        const d = r.diagnosis || "Unknown";
-        diagMap[d] = (diagMap[d] || 0) + 1;
+        const d = (r.diagnosis || "Unspecified Diagnosis").trim();
+        if (!diagMap[d]) diagMap[d] = { count: 0, approvedCount: 0, approvedAmount: 0 };
+        diagMap[d].count += 1;
+        const s = String(r.status || "").toLowerCase();
+        if (["approved", "partially_approved", "referral_approved", "referral_accepted", "authorization_approved"].includes(s)) {
+          diagMap[d].approvedCount += 1;
+          diagMap[d].approvedAmount += Number(r.approved_amount) || 0;
+        }
       }
-      const sortedDiags = Object.entries(diagMap).sort((a, b) => b[1] - a[1]);
+      const sortedDiags = Object.entries(diagMap).sort((a, b) => b[1].count - a[1].count);
+      const totalEncounterCount = records.length;
+      const totalDiagApprovedCount = sortedDiags.reduce((sum, d) => sum + d[1].approvedCount, 0);
+      const totalDiagApprovedAmount = sortedDiags.reduce((sum, d) => sum + d[1].approvedAmount, 0);
 
-      for (const [diag, count] of sortedDiags) {
+      sortedDiags.forEach(([diag, stat], idx) => {
+        const avgCost = stat.approvedCount > 0 ? stat.approvedAmount / stat.approvedCount : 0;
+        const prevShare = totalEncounterCount > 0 ? (stat.count / totalEncounterCount) * 100 : 0;
         ws4.addRow({
+          sn: idx + 1,
           diagnosis: diag,
-          count: count,
-          pct: stats.totalCodes > 0 ? (count / stats.totalCodes) * 100 : 0
+          count: stat.count,
+          approvedCount: stat.approvedCount,
+          appAmt: stat.approvedAmount,
+          avgCost: avgCost,
+          pct: prevShare,
         });
-      }
+      });
 
+      const totalDiagRow = ws4.addRow({
+        sn: "TOTAL",
+        diagnosis: `${sortedDiags.length} Diagnostic Categories`,
+        count: totalEncounterCount,
+        approvedCount: totalDiagApprovedCount,
+        appAmt: totalDiagApprovedAmount,
+        avgCost: totalDiagApprovedCount > 0 ? totalDiagApprovedAmount / totalDiagApprovedCount : 0,
+        pct: 100,
+      });
+      totalDiagRow.font = { bold: true };
+      totalDiagRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: "FFF1F5F9" } };
+
+      ws4.getColumn('appAmt').numFmt = currencyFormat;
+      ws4.getColumn('avgCost').numFmt = currencyFormat;
       ws4.getColumn('pct').numFmt = percentFormat;
 
-        ws4.addConditionalFormatting({
-          ref: `B2:B${Math.max(2, sortedDiags.length + 1)}`,
-          rules: [
-            {
-              type: 'dataBar',
-              cfvo: [{ type: 'min' }, { type: 'max' }],
-              priority: 1,
-              gradient: true,
-            }
-          ]
-        });
+      // ── SHEET 5: SLA Scorecard (Executive Turnaround Metrics) ───────────────
+      const wsSla = workbook.addWorksheet("SLA Scorecard", {
+        views: [{ state: 'frozen', xSplit: 0, ySplit: 1 }],
+        properties: { tabColor: { argb: theme.primary } },
+      });
+
+      wsSla.columns = [
+        { header: "Executive Metric", key: "metric", width: 38 },
+        { header: "Observed Value", key: "value", width: 28 },
+        { header: "Target Benchmark", key: "benchmark", width: 32 },
+        { header: "Performance Assessment", key: "assessment", width: 26 },
+      ];
+
+      wsSla.getRow(1).font = headerFont;
+      wsSla.getRow(1).fill = headerFill;
+
+      // Compute SLA metrics from records
+      let slaOnTime = 0;
+      let slaWarning = 0;
+      let slaBreached = 0;
+      const turnaroundDurations: number[] = [];
+
+      for (const r of records) {
+        if (r.decided_at && r.created_at) {
+          const start = Date.parse(r.treatment_submitted_at || r.created_at);
+          const end = Date.parse(r.decided_at);
+          if (Number.isFinite(start) && Number.isFinite(end) && end >= start) {
+            const mins = Math.round((end - start) / 60000);
+            turnaroundDurations.push(mins);
+            if (mins <= 15) slaOnTime += 1;
+            else if (mins <= 30) slaWarning += 1;
+            else slaBreached += 1;
+          }
+        }
       }
 
-      // ── SHEET 5: Detailed Data (Always Included) ─────────────────────────
-      const ws5 = workbook.addWorksheet("Detailed Data", {
+      const totalSlaDecided = slaOnTime + slaWarning + slaBreached;
+      const slaOnTimePct = totalSlaDecided > 0 ? (slaOnTime / totalSlaDecided) * 100 : 0;
+      const slaWarningPct = totalSlaDecided > 0 ? (slaWarning / totalSlaDecided) * 100 : 0;
+      const slaBreachPct = totalSlaDecided > 0 ? (slaBreached / totalSlaDecided) * 100 : 0;
+
+      const sortedTurnaround = [...turnaroundDurations].sort((a, b) => a - b);
+      const medianMinutes = sortedTurnaround.length > 0
+        ? (sortedTurnaround.length % 2 === 1
+            ? sortedTurnaround[Math.floor(sortedTurnaround.length / 2)]
+            : Math.round((sortedTurnaround[sortedTurnaround.length / 2 - 1] + sortedTurnaround[sortedTurnaround.length / 2]) / 2))
+        : 0;
+
+      const slaScorecardData = [
+        { metric: "Total Pre-Auth Volume", value: String(stats.totalCodes), benchmark: "All Incoming Requests", assessment: "Processed" },
+        { metric: "Approved Authorizations", value: `${stats.approvedCodes} (${stats.approvalRate.toFixed(1)}%)`, benchmark: "Clinical Protocol Compliance", assessment: "Approved" },
+        { metric: "Rejected Authorizations", value: `${stats.rejectedCodes} (${stats.rejectionRate.toFixed(1)}%)`, benchmark: "Medical Policy Exclusions", assessment: "Declined" },
+        { metric: "Pending Authorizations", value: `${stats.pendingCodes}`, benchmark: "Current Active Queue", assessment: "In Review" },
+        { metric: "Net Approved Expenditure", value: `₦${stats.approvedAmount.toLocaleString("en-NG", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, benchmark: "Strict Tariff Verified Only", assessment: "Audited" },
+        { metric: "SLA On-Time Compliance (≤ 15 mins)", value: `${slaOnTime} (${slaOnTimePct.toFixed(1)}%)`, benchmark: "≥ 80.0% Target Benchmark", assessment: slaOnTimePct >= 80 ? "Compliant" : "Needs Optimization" },
+        { metric: "SLA Warning Window (16 – 30 mins)", value: `${slaWarning} (${slaWarningPct.toFixed(1)}%)`, benchmark: "≤ 15.0% Operational Buffer", assessment: "Operational Buffer" },
+        { metric: "SLA Breached Window (> 30 mins)", value: `${slaBreached} (${slaBreachPct.toFixed(1)}%)`, benchmark: "≤ 5.0% Maximum Threshold", assessment: slaBreachPct <= 5 ? "Within Threshold" : "SLA Escalation Alert" },
+        { metric: "Median Turnaround Time", value: `${medianMinutes} Minutes`, benchmark: "≤ 15 Minutes Target", assessment: medianMinutes <= 15 ? "High Efficiency" : "Queue Delay" },
+      ];
+
+      for (const row of slaScorecardData) {
+        const added = wsSla.addRow(row);
+        added.border = { bottom: { style: "hair", color: { argb: "FFE2E8F0" } } };
+      }
+      }
+
+      // ── SHEET 6 / DEFAULT: Pre-Auth Log (Clean Master Authorizations Log) ─────
+      const wsLog = workbook.addWorksheet("Pre-Auth Log", {
         views: [{ state: 'frozen', xSplit: 0, ySplit: 1 }],
         properties: { tabColor: { argb: theme.bg } },
       });
 
-      ws5.columns = [
-        { header: "Date", key: "date", width: 15 },
-        { header: "Request ID", key: "reqId", width: 20 },
-        { header: "Status", key: "status", width: 15 },
+      wsLog.columns = [
+        { header: "S/N", key: "sn", width: 8 },
+        { header: "Date Requested", key: "date", width: 18 },
+        { header: "Decided At", key: "decidedAt", width: 18 },
+        { header: "Turnaround (Mins)", key: "turnaround", width: 18 },
+        { header: "Auth Code", key: "authCode", width: 22 },
+        { header: "Status", key: "status", width: 16 },
         { header: "Hospital", key: "hospital", width: 35 },
         { header: "Patient Name", key: "patient", width: 25 },
         { header: "Policy Number", key: "policy", width: 20 },
         { header: "Diagnosis", key: "diagnosis", width: 30 },
-        { header: "Treatment", key: "treatment", width: 30 },
-        { header: "Approved Amount", key: "appAmt", width: 20 },
-        { header: "Auth Code", key: "authCode", width: 20 },
-        { header: "Decision Note", key: "note", width: 40 },
+        { header: "Service / Treatment", key: "treatment", width: 32 },
+        { header: "Approved Amount (₦)", key: "appAmt", width: 22 },
+        { header: "Decision Reason", key: "note", width: 40 },
         { header: "Clinician", key: "clinician", width: 20 },
       ];
 
-      ws5.getRow(1).font = headerFont;
-      ws5.getRow(1).fill = headerFill;
+      wsLog.getRow(1).font = headerFont;
+      wsLog.getRow(1).fill = headerFill;
 
-      for (const r of records) {
-        ws5.addRow({
-          date: r.created_at ? new Date(r.created_at).toLocaleDateString("en-GB") : "",
-          reqId: r.request_id,
-          status: (r.status || "").toUpperCase(),
-          hospital: r.requesting_hospital,
-          patient: r.patient_name,
-          policy: r.policy_number,
-          diagnosis: r.diagnosis,
-          treatment: r.treatment,
-          appAmt: r.approved_amount || 0,
-          authCode: r.authorization_code,
+      records.forEach((r, idx) => {
+        let turnaroundMins: number | string = "";
+        if (r.decided_at && r.created_at) {
+          const start = Date.parse(r.treatment_submitted_at || r.created_at);
+          const end = Date.parse(r.decided_at);
+          if (Number.isFinite(start) && Number.isFinite(end) && end >= start) {
+            turnaroundMins = Math.round((end - start) / 60000);
+          }
+        }
+
+        const row = wsLog.addRow({
+          sn: idx + 1,
+          date: r.created_at ? new Date(r.created_at).toLocaleString("en-GB") : "",
+          decidedAt: r.decided_at ? new Date(r.decided_at).toLocaleString("en-GB") : "",
+          turnaround: turnaroundMins !== "" ? Number(turnaroundMins) : "",
+          authCode: r.authorization_code || "N/A",
+          status: formatCapitalizedStatus(r.status),
+          hospital: r.requesting_hospital || "Unspecified Hospital",
+          patient: r.patient_name || "",
+          policy: String(r.policy_number || "").trim() || "N/A",
+          diagnosis: r.diagnosis || "Unspecified",
+          treatment: r.treatment || "Consultation / Care",
+          appAmt: Number(r.approved_amount) || 0,
           note: r.rejection_reason || r.decision_reason || "",
           clinician: r.clinician || "",
         });
-      }
 
-      ws5.getColumn('appAmt').numFmt = currencyFormat;
+        // Ensure Policy Number is explicitly formatted as text and left-aligned
+        const policyCell = row.getCell("policy");
+        policyCell.numFmt = "@";
+        policyCell.alignment = { horizontal: "left" };
+      });
+
+      wsLog.getColumn('appAmt').numFmt = currencyFormat;
       
-      ws5.autoFilter = {
+      wsLog.autoFilter = {
         from: { row: 1, column: 1 },
-        to: { row: Math.max(1, records.length), column: 12 }
+        to: { row: Math.max(1, records.length), column: 14 }
       };
       }
 

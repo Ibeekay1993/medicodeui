@@ -257,6 +257,15 @@ export function calculateReportStats(data: PreAuthRecord[]): ReportStats {
   };
 }
 
+export function formatCapitalizedStatus(status: unknown): string {
+  const s = String(status || "").trim();
+  if (!s || s === "N/A") return "Pending";
+  return s
+    .split(/[_\s]+/)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(" ");
+}
+
 export function formatNaira(value: number): string {
   return new Intl.NumberFormat("en-NG", {
     style: "currency",
