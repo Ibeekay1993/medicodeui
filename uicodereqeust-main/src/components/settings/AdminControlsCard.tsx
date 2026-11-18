@@ -1,8 +1,6 @@
 import { BrandSpinner } from "@/components/BrandSpinner";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -274,316 +272,247 @@ export default function AdminControlsCard({ user }: AdminControlsCardProps) {
   };
 
   return (
-    <Card className="rounded-2xl border border-slate-200/80 bg-white shadow-sm overflow-hidden transition-all">
-      <CardHeader className="p-3 sm:p-4 border-b border-slate-100 bg-slate-50/50">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-900 text-white shrink-0">
-            <Lock className="h-5 w-5" />
-          </div>
-          <div>
-            <CardTitle className="text-sm sm:text-base font-bold text-slate-900 leading-tight">
-              Administrative Controls
-            </CardTitle>
-            <CardDescription className="text-xs text-slate-500 mt-0.5">
-              Global system security policies and scheduled reporting
-            </CardDescription>
-          </div>
+    <div className="space-y-6">
+      {/* ── Security ── */}
+      <section>
+        <div className="flex items-center gap-2 mb-3">
+          <Lock className="h-4 w-4 text-slate-500" />
+          <h3 className="text-xs font-bold uppercase tracking-widest text-slate-500">Security</h3>
         </div>
-      </CardHeader>
-
-      <CardContent className="p-3 sm:p-4 space-y-3">
-        {/* Row 1: MFA Policy */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 p-3 rounded-xl bg-slate-50/90 border border-slate-100">
-          <div className="space-y-1 flex-1 pr-2">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs sm:text-sm font-bold text-slate-900">
-                Global MFA Enforcement
-              </span>
-              <Badge
-                className={cn(
-                  "text-[10px] font-bold py-0.5 px-2",
-                  enforceMfaPolicy ? "bg-rose-100 text-rose-700 border-rose-200" : "bg-slate-200 text-slate-700 border-slate-300"
-                )}
-                variant="outline"
-              >
-                {enforceMfaPolicy ? "ENFORCED" : "OPTIONAL"}
-              </Badge>
+        <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-4 p-4">
+            <div className="flex-1 min-w-0">
+              <div className="flex flex-wrap items-center gap-2 mb-1">
+                <span className="text-sm font-semibold text-slate-900">Global MFA Enforcement</span>
+                <span className={cn(
+                  "inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold tracking-wide",
+                  enforceMfaPolicy
+                    ? "bg-rose-50 text-rose-700 ring-1 ring-rose-200"
+                    : "bg-slate-100 text-slate-500 ring-1 ring-slate-200"
+                )}>
+                  {enforceMfaPolicy ? "ENFORCED" : "OPTIONAL"}
+                </span>
+              </div>
+              <p className="text-xs text-slate-500">
+                Require all accounts to complete MFA. Individual exemptions can be set per user.
+              </p>
             </div>
-            <p className="text-xs text-slate-500 leading-relaxed">
-              When disabled, no account is required to complete MFA. When enabled, MFA can be disabled for individual users from Users.
-            </p>
-          </div>
-          <div className="w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-200/60 flex justify-end">
             <Button
               onClick={handleToggleMfaPolicy}
               disabled={savingPolicy}
               size="sm"
               className={cn(
-                "w-full sm:w-auto h-9 px-4 text-xs font-semibold shadow-sm transition-all",
-                enforceMfaPolicy ? "bg-rose-600 hover:bg-rose-700 text-white" : "bg-slate-900 hover:bg-black text-white"
+                "shrink-0 h-9 px-5 text-xs font-semibold rounded-lg transition-all",
+                enforceMfaPolicy
+                  ? "bg-rose-600 hover:bg-rose-700 text-white"
+                  : "bg-slate-900 hover:bg-black text-white"
               )}
             >
-              {savingPolicy ? (
-                <BrandSpinner className="h-3.5 w-3.5 animate-spin" />
-              ) : enforceMfaPolicy ? (
-                "Disable Policy"
-              ) : (
-                "Enable Policy"
-              )}
+              {savingPolicy
+                ? <BrandSpinner className="h-3.5 w-3.5 animate-spin" />
+                : enforceMfaPolicy ? "Disable" : "Enable"}
             </Button>
           </div>
         </div>
+      </section>
 
-        {/* Row 2: Daily Pre-Auth Report Toggle */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 p-3 rounded-xl bg-slate-50/90 border border-slate-100">
-          <div className="space-y-1 flex-1 pr-2">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs sm:text-sm font-bold text-slate-900">
-                Daily Pre-Auth Email Report
-              </span>
-              <Badge
-                className={cn(
-                  "text-[10px] font-bold py-0.5 px-2",
-                  reportEnabled ? "bg-emerald-100 text-emerald-800 border-emerald-200" : "bg-slate-200 text-slate-700 border-slate-300"
-                )}
-                variant="outline"
-              >
-                {reportEnabled ? "ACTIVE" : "PAUSED"}
-              </Badge>
+      {/* ── Daily Report ── */}
+      <section>
+        <div className="flex items-center gap-2 mb-3">
+          <Mail className="h-4 w-4 text-slate-500" />
+          <h3 className="text-xs font-bold uppercase tracking-widest text-slate-500">Daily Report</h3>
+        </div>
+        <div className="rounded-xl border border-slate-200 bg-white overflow-hidden divide-y divide-slate-100">
+
+          {/* Toggle row */}
+          <div className="flex items-center justify-between gap-4 px-4 py-3">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 mb-0.5">
+                <span className="text-sm font-semibold text-slate-900">Daily Pre-Auth Email Report</span>
+                <span className={cn(
+                  "inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold tracking-wide",
+                  reportEnabled
+                    ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200"
+                    : "bg-slate-100 text-slate-500 ring-1 ring-slate-200"
+                )}>
+                  {reportEnabled ? "ACTIVE" : "PAUSED"}
+                </span>
+              </div>
+              <p className="text-xs text-slate-500">Sends CSV summary of all pre-auth codes at 12:00 AM WAT.</p>
             </div>
-            <p className="text-xs text-slate-500 leading-relaxed">
-              Dispatches automated CSV summaries of daily authorization codes at 12:00 AM WAT.
-            </p>
-          </div>
-          <div className="w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-200/60 flex items-center justify-between sm:justify-end gap-3">
-            <span className="text-xs font-semibold text-slate-600 sm:hidden">
-              {reportEnabled ? "Active" : "Paused"}
-            </span>
             <Switch
               checked={reportEnabled}
               onCheckedChange={setReportEnabled}
-              className="data-[state=checked]:bg-emerald-600"
+              className="data-[state=checked]:bg-emerald-600 shrink-0"
               aria-label="Toggle daily report"
             />
           </div>
-        </div>
 
-        {/* Row 3: Recipient Email Configuration */}
-        <div className="p-3 rounded-xl bg-slate-50/90 border border-slate-100 space-y-2.5">
-          <div className="flex items-center gap-2">
-            <Mail className="h-4 w-4 text-slate-500" />
-            <Label className="text-xs sm:text-sm font-bold text-slate-900">
-              Daily Report Recipients
-            </Label>
-          </div>
+          {/* Recipients */}
+          <div className="px-4 py-4 space-y-3">
+            <Label className="text-xs font-semibold text-slate-700">Recipients</Label>
+            <div className="space-y-2" role="group" aria-label="Daily report recipients">
+              {reportEmails.map((email, index) => (
+                <div key={index} className="flex items-center gap-2">
+                  <Input
+                    type="email"
+                    placeholder="ops@ronsberger.com"
+                    value={email}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setReportEmails(c => c.map((x, i) => i === index ? v : x));
+                      if (recipientError) setRecipientError(null);
+                    }}
+                    className="h-9 flex-1 text-sm bg-slate-50 border-slate-200 focus:bg-white"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => { setReportEmails(c => c.filter((_, i) => i !== index)); setRecipientError(null); }}
+                    className="h-9 w-9 flex items-center justify-center rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                    aria-label={`Remove recipient ${index + 1}`}
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
 
-          <p id="report-recipient-help" className="text-xs leading-relaxed text-slate-500">
-            Add each address separately; save before testing. Reports contain patient and authorization details. Maximum {MAX_DAILY_REPORT_RECIPIENTS} recipients.
-          </p>
+            {recipientError && <p role="alert" className="text-xs text-rose-600 font-medium">{recipientError}</p>}
 
-          <div role="group" aria-label="Report email recipients" className="space-y-2">
-            {reportEmails.map((email, index) => (
-              <div key={index} className="flex min-w-0 items-center gap-2">
-                <Input
-                  type="email"
-                  aria-label={`Report recipient ${index + 1}`}
-                  aria-describedby="report-recipient-help"
-                  placeholder="reports@ronsberger.com"
-                  value={email}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    setReportEmails((current) => current.map((item, itemIndex) => itemIndex === index ? value : item));
-                    if (recipientError) setRecipientError(null);
-                  }}
-                  className="h-9 min-w-0 flex-1 rounded-lg bg-white text-sm font-medium text-slate-900 shadow-sm"
-                />
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+              <button
+                type="button"
+                onClick={handleAddRecipientField}
+                disabled={reportEmails.length >= MAX_DAILY_REPORT_RECIPIENTS}
+                className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold text-slate-600 border border-dashed border-slate-300 hover:border-slate-400 hover:text-slate-900 bg-transparent transition-colors disabled:opacity-40"
+              >
+                <Plus className="h-3.5 w-3.5" /> Add recipient
+              </button>
+
+              <div className="flex items-center gap-2 ml-auto">
                 <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  aria-label={`Remove report recipient ${index + 1}`}
-                  onClick={() => {
-                    setReportEmails((current) => current.filter((_, itemIndex) => itemIndex !== index));
-                    setRecipientError(null);
-                  }}
-                  className="h-11 w-11 shrink-0 text-slate-500 hover:text-rose-700"
+                  onClick={handleTriggerReport}
+                  disabled={isTriggeringReport}
+                  variant="outline"
+                  size="sm"
+                  className="h-9 px-4 text-xs font-semibold border-slate-300 text-slate-700 hover:bg-slate-50 gap-1.5"
                 >
-                  <X className="h-4 w-4" />
+                  {isTriggeringReport
+                    ? <BrandSpinner className="h-3.5 w-3.5 animate-spin" />
+                    : <><Play className="h-3 w-3 fill-current" /> Test</>}
+                </Button>
+                <Button
+                  onClick={handleSaveReportSettings}
+                  disabled={isSavingSettings}
+                  size="sm"
+                  className="h-9 px-5 text-xs font-semibold bg-slate-900 hover:bg-black text-white"
+                >
+                  {isSavingSettings ? <BrandSpinner className="h-3.5 w-3.5 animate-spin" /> : "Save"}
                 </Button>
               </div>
-            ))}
-          </div>
-
-          <Button
-            type="button"
-            onClick={handleAddRecipientField}
-            disabled={reportEmails.length >= MAX_DAILY_REPORT_RECIPIENTS}
-            variant="outline"
-            size="sm"
-            aria-label="Add report recipient"
-            className="h-9 gap-1.5 border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700"
-          >
-            <Plus className="h-4 w-4" />
-            Add recipient
-          </Button>
-
-          {recipientError && (
-            <p role="alert" className="text-xs font-medium text-rose-700">{recipientError}</p>
-          )}
-
-          <div className="flex flex-wrap gap-2 pt-1">
-              <Button
-                onClick={handleSaveReportSettings}
-                disabled={isSavingSettings}
-                size="sm"
-                className="h-11 px-4 text-xs font-semibold bg-slate-900 hover:bg-black text-white shadow-sm"
-              >
-                {isSavingSettings ? <BrandSpinner className="h-3.5 w-3.5 animate-spin" /> : "Save"}
-              </Button>
-              <Button
-                onClick={handleTriggerReport}
-                disabled={isTriggeringReport}
-                variant="outline"
-                size="sm"
-                className="h-11 px-4 text-xs font-semibold border-slate-300 text-slate-700 bg-white hover:bg-slate-100 gap-1.5 shadow-sm"
-              >
-                {isTriggeringReport ? (
-                  <BrandSpinner className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <>
-                    <Play className="h-3 w-3 fill-current" />
-                    <span>Test Send</span>
-                  </>
-                )}
-              </Button>
+            </div>
           </div>
         </div>
+      </section>
 
-        {/* Row 4: Monthly Executive SLA Report Toggle */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 p-3 rounded-xl bg-slate-50/90 border border-slate-100">
-          <div className="space-y-1 flex-1 pr-2">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs sm:text-sm font-bold text-slate-900">
-                Monthly Executive SLA & Intelligence Report
-              </span>
-              <Badge
-                className={cn(
-                  "text-[10px] font-bold py-0.5 px-2",
-                  monthlyEnabled ? "bg-emerald-100 text-emerald-800 border-emerald-200" : "bg-slate-200 text-slate-700 border-slate-300"
-                )}
-                variant="outline"
-              >
-                {monthlyEnabled ? "ACTIVE" : "PAUSED"}
-              </Badge>
+      {/* ── Monthly Report ── */}
+      <section>
+        <div className="flex items-center gap-2 mb-3">
+          <Mail className="h-4 w-4 text-emerald-600" />
+          <h3 className="text-xs font-bold uppercase tracking-widest text-emerald-700">Monthly Executive Report</h3>
+        </div>
+        <div className="rounded-xl border border-emerald-200 bg-white overflow-hidden divide-y divide-emerald-50">
+
+          {/* Toggle row */}
+          <div className="flex items-center justify-between gap-4 px-4 py-3 bg-emerald-50/40">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 mb-0.5">
+                <span className="text-sm font-semibold text-slate-900">Monthly SLA & Intelligence Report</span>
+                <span className={cn(
+                  "inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold tracking-wide",
+                  monthlyEnabled
+                    ? "bg-emerald-100 text-emerald-800 ring-1 ring-emerald-300"
+                    : "bg-slate-100 text-slate-500 ring-1 ring-slate-200"
+                )}>
+                  {monthlyEnabled ? "ACTIVE" : "PAUSED"}
+                </span>
+              </div>
+              <p className="text-xs text-slate-500">Net Approved Value, SLA scorecard, hospital rankings — sent on the 1st at 12:05 AM WAT.</p>
             </div>
-            <p className="text-xs text-slate-500 leading-relaxed">
-              Dispatches comprehensive monthly SLA metrics, verified Net Approved Value, hospital rankings, and disease trends on the 1st of every month at 12:05 AM WAT.
-            </p>
-          </div>
-          <div className="w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-200/60 flex items-center justify-between sm:justify-end gap-3">
-            <span className="text-xs font-semibold text-slate-600 sm:hidden">
-              {monthlyEnabled ? "Active" : "Paused"}
-            </span>
             <Switch
               checked={monthlyEnabled}
               onCheckedChange={setMonthlyEnabled}
-              className="data-[state=checked]:bg-emerald-600"
+              className="data-[state=checked]:bg-emerald-600 shrink-0"
               aria-label="Toggle monthly report"
             />
           </div>
-        </div>
 
-        {/* Row 5: Monthly Report Recipient Email Configuration */}
-        <div className="p-3 rounded-xl bg-slate-50/90 border border-slate-100 space-y-2.5">
-          <div className="flex items-center gap-2">
-            <Mail className="h-4 w-4 text-emerald-600" />
-            <Label className="text-xs sm:text-sm font-bold text-slate-900">
-              Monthly Executive Report Recipients
-            </Label>
-          </div>
+          {/* Recipients */}
+          <div className="px-4 py-4 space-y-3">
+            <Label className="text-xs font-semibold text-slate-700">Executive Recipients</Label>
+            <div className="space-y-2" role="group" aria-label="Monthly report recipients">
+              {monthlyEmails.map((email, index) => (
+                <div key={index} className="flex items-center gap-2">
+                  <Input
+                    type="email"
+                    placeholder="executive@ronsberger.com"
+                    value={email}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setMonthlyEmails(c => c.map((x, i) => i === index ? v : x));
+                      if (monthlyRecipientError) setMonthlyRecipientError(null);
+                    }}
+                    className="h-9 flex-1 text-sm bg-slate-50 border-slate-200 focus:bg-white"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => { setMonthlyEmails(c => c.filter((_, i) => i !== index)); if (monthlyRecipientError) setMonthlyRecipientError(null); }}
+                    className="h-9 w-9 flex items-center justify-center rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                    aria-label={`Remove monthly recipient ${index + 1}`}
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
 
-          <p id="monthly-report-recipient-help" className="text-xs leading-relaxed text-slate-500">
-            Addresses for leadership and executives to receive monthly SLA compliance scorecards and verified financial aggregates. Maximum {MAX_DAILY_REPORT_RECIPIENTS} recipients.
-          </p>
+            {monthlyRecipientError && <p role="alert" className="text-xs text-rose-600 font-medium">{monthlyRecipientError}</p>}
 
-          <div role="group" aria-label="Monthly report email recipients" className="space-y-2">
-            {monthlyEmails.map((email, index) => (
-              <div key={index} className="flex min-w-0 items-center gap-2">
-                <Input
-                  type="email"
-                  aria-label={`Monthly report recipient ${index + 1}`}
-                  aria-describedby="monthly-report-recipient-help"
-                  placeholder="executive@ronsberger.com"
-                  value={email}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    setMonthlyEmails((current) => current.map((item, itemIndex) => itemIndex === index ? value : item));
-                    if (monthlyRecipientError) setMonthlyRecipientError(null);
-                  }}
-                  className="h-9 min-w-0 flex-1 rounded-lg bg-white text-sm font-medium text-slate-900 shadow-sm"
-                />
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+              <button
+                type="button"
+                onClick={handleAddMonthlyRecipientField}
+                disabled={monthlyEmails.length >= MAX_DAILY_REPORT_RECIPIENTS}
+                className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold text-emerald-700 border border-dashed border-emerald-300 hover:border-emerald-500 hover:text-emerald-900 bg-transparent transition-colors disabled:opacity-40"
+              >
+                <Plus className="h-3.5 w-3.5" /> Add recipient
+              </button>
+
+              <div className="flex items-center gap-2 ml-auto">
                 <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  aria-label={`Remove monthly report recipient ${index + 1}`}
-                  onClick={() => {
-                    setMonthlyEmails((current) => current.filter((_, itemIndex) => itemIndex !== index));
-                    if (monthlyRecipientError) setMonthlyRecipientError(null);
-                  }}
-                  className="h-11 w-11 shrink-0 text-slate-500 hover:text-rose-700"
+                  onClick={handleTriggerMonthlyReport}
+                  disabled={isTriggeringMonthlyReport}
+                  variant="outline"
+                  size="sm"
+                  className="h-9 px-4 text-xs font-semibold border-emerald-300 text-emerald-700 hover:bg-emerald-50 gap-1.5"
                 >
-                  <X className="h-4 w-4" />
+                  {isTriggeringMonthlyReport
+                    ? <BrandSpinner className="h-3.5 w-3.5 animate-spin" />
+                    : <><Play className="h-3 w-3 fill-current" /> Test</>}
+                </Button>
+                <Button
+                  onClick={handleSaveMonthlyReportSettings}
+                  disabled={isSavingMonthlySettings}
+                  size="sm"
+                  className="h-9 px-5 text-xs font-semibold bg-emerald-700 hover:bg-emerald-800 text-white"
+                >
+                  {isSavingMonthlySettings ? <BrandSpinner className="h-3.5 w-3.5 animate-spin" /> : "Save"}
                 </Button>
               </div>
-            ))}
-          </div>
-
-          <Button
-            type="button"
-            onClick={handleAddMonthlyRecipientField}
-            disabled={monthlyEmails.length >= MAX_DAILY_REPORT_RECIPIENTS}
-            variant="outline"
-            size="sm"
-            aria-label="Add monthly report recipient"
-            className="h-9 gap-1.5 border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700"
-          >
-            <Plus className="h-4 w-4" />
-            Add recipient
-          </Button>
-
-          {monthlyRecipientError && (
-            <p role="alert" className="text-xs font-medium text-rose-700">{monthlyRecipientError}</p>
-          )}
-
-          <div className="flex flex-wrap gap-2 pt-1">
-              <Button
-                onClick={handleSaveMonthlyReportSettings}
-                disabled={isSavingMonthlySettings}
-                size="sm"
-                className="h-11 px-4 text-xs font-semibold bg-emerald-700 hover:bg-emerald-800 text-white shadow-sm"
-              >
-                {isSavingMonthlySettings ? <BrandSpinner className="h-3.5 w-3.5 animate-spin" /> : "Save Monthly Settings"}
-              </Button>
-              <Button
-                onClick={handleTriggerMonthlyReport}
-                disabled={isTriggeringMonthlyReport}
-                variant="outline"
-                size="sm"
-                className="h-11 px-4 text-xs font-semibold border-slate-300 text-slate-700 bg-white hover:bg-slate-100 gap-1.5 shadow-sm"
-              >
-                {isTriggeringMonthlyReport ? (
-                  <BrandSpinner className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <>
-                    <Play className="h-3 w-3 fill-current" />
-                    <span>Send Monthly Test</span>
-                  </>
-                )}
-              </Button>
+            </div>
           </div>
         </div>
-      </CardContent>
-    </Card>
+      </section>
+    </div>
   );
 }
