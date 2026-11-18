@@ -459,8 +459,14 @@ serve(async (req) => {
       ].join(",");
     });
 
-    const csvContent = [csvHeaders.join(","), ...csvRows].join("\r\n");
-    const csvBase64 = btoa(unescape(encodeURIComponent(csvContent)));
+    const csvContent = [csvHeaders.join(","), ...csvRows].join("\n");
+    const encoder = new TextEncoder();
+    const csvBytes = encoder.encode(csvContent);
+    let binary = "";
+    for (const byte of csvBytes) {
+      binary += String.fromCharCode(byte);
+    }
+    const csvBase64 = btoa(binary);
 
     // Send via Brevo API
     const brevoSender = getBrevoSender();

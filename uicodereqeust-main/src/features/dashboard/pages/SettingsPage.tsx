@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import ProfileSettingsCard from "@/components/settings/ProfileSettingsCard";
 import MfaSettingsCard from "@/components/settings/MfaSettingsCard";
@@ -13,8 +14,31 @@ type Section = "account" | "notifications" | "privacy" | "security" | "admin";
 
 export default function SettingsPage() {
   const { fullName, role, user, refreshProfile } = useAuth();
-  const [section, setSection] = useState<Section>("account");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabParam = searchParams.get("tab") as Section | null;
+  const initialSection: Section = (tabParam && ["account", "notifications", "privacy", "security", "admin"].includes(tabParam))
+    ? tabParam
+    : (typeof window !== "undefined" && (window.sessionStorage.getItem("ronsberger-settings-section") as Section)) || "account";
+
+  const [section, setSection] = useState<Section>(initialSection);
   const [sectionOpen, setSectionOpen] = useState(false);
+
+  useEffect(() => {
+    if (tabParam && ["account", "notifications", "privacy", "security", "admin"].includes(tabParam)) {
+      setSection(tabParam);
+      setSectionOpen(true);
+    }
+  }, [tabParam]);
+
+  const handleSelectSection = (id: Section) => {
+    setSection(id);
+    setSectionOpen(true);
+    if (typeof window !== "undefined") {
+      window.sessionStorage.setItem("ronsberger-settings-section", id);
+    }
+    setSearchParams({ tab: id }, { replace: true });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
   const sections: { id: Section; label: string; description: string; icon: typeof UserRound }[] = [
     { id: "account", label: "Account", description: "Profile details", icon: UserRound },
     { id: "notifications", label: "Alerts", description: "Push notifications", icon: Bell },
@@ -42,11 +66,7 @@ export default function SettingsPage() {
           <button
             key={id}
             type="button"
-            onClick={() => {
-              setSection(id);
-              setSectionOpen(true);
-              window.scrollTo({ top: 0, behavior: "smooth" });
-            }}
+            onClick={() => handleSelectSection(id)}
             aria-current={section === id ? "page" : undefined}
             className={cn(
               "flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left transition-colors",
