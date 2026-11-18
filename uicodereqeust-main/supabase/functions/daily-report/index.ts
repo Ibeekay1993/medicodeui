@@ -30,6 +30,15 @@ function constantTimeEqual(a: string, b: string): boolean {
   return difference === 0;
 }
 
+function formatCapitalizedStatus(status: unknown): string {
+  const s = String(status || "").trim();
+  if (!s || s === "N/A") return "Pending";
+  return s
+    .split(/[_\s]+/)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(" ");
+}
+
 serve(async (req) => {
   // Handle CORS OPTIONS preflight request
   if (req.method === "OPTIONS") {
@@ -262,7 +271,7 @@ serve(async (req) => {
         r.requesting_hospital || r.hospital_name || "N/A",
         r.source || "Manual",
         r.authorization_code || "N/A",
-        r.status || "N/A",
+        formatCapitalizedStatus(r.status),
         r.rejection_reason || r.notes || "N/A"
       ];
       return row.map(val => `"${String(val).replace(/"/g, '""')}"`).join(",");

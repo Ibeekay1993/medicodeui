@@ -356,6 +356,7 @@ export default function AdminControlsCard({ user }: AdminControlsCardProps) {
                 <div key={index} className="flex items-center gap-2">
                   <Input
                     type="email"
+                    aria-label={`Report recipient ${index + 1}`}
                     placeholder="ops@ronsberger.com"
                     value={email}
                     onChange={(e) => {
@@ -369,7 +370,7 @@ export default function AdminControlsCard({ user }: AdminControlsCardProps) {
                     type="button"
                     onClick={() => { setReportEmails(c => c.filter((_, i) => i !== index)); setRecipientError(null); }}
                     className="h-9 w-9 flex items-center justify-center rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
-                    aria-label={`Remove recipient ${index + 1}`}
+                    aria-label={`Remove report recipient ${index + 1}`}
                   >
                     <X className="h-3.5 w-3.5" />
                   </button>
@@ -384,6 +385,7 @@ export default function AdminControlsCard({ user }: AdminControlsCardProps) {
                 type="button"
                 onClick={handleAddRecipientField}
                 disabled={reportEmails.length >= MAX_DAILY_REPORT_RECIPIENTS}
+                aria-label="Add report recipient"
                 className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold text-slate-600 border border-dashed border-slate-300 hover:border-slate-400 hover:text-slate-900 bg-transparent transition-colors disabled:opacity-40"
               >
                 <Plus className="h-3.5 w-3.5" /> Add recipient
@@ -455,6 +457,7 @@ export default function AdminControlsCard({ user }: AdminControlsCardProps) {
                 <div key={index} className="flex items-center gap-2">
                   <Input
                     type="email"
+                    aria-label={`Monthly report recipient ${index + 1}`}
                     placeholder="executive@ronsberger.com"
                     value={email}
                     onChange={(e) => {
@@ -468,7 +471,7 @@ export default function AdminControlsCard({ user }: AdminControlsCardProps) {
                     type="button"
                     onClick={() => { setMonthlyEmails(c => c.filter((_, i) => i !== index)); if (monthlyRecipientError) setMonthlyRecipientError(null); }}
                     className="h-9 w-9 flex items-center justify-center rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
-                    aria-label={`Remove monthly recipient ${index + 1}`}
+                    aria-label={`Remove monthly report recipient ${index + 1}`}
                   >
                     <X className="h-3.5 w-3.5" />
                   </button>
@@ -483,6 +486,7 @@ export default function AdminControlsCard({ user }: AdminControlsCardProps) {
                 type="button"
                 onClick={handleAddMonthlyRecipientField}
                 disabled={monthlyEmails.length >= MAX_DAILY_REPORT_RECIPIENTS}
+                aria-label="Add monthly report recipient"
                 className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold text-emerald-700 border border-dashed border-emerald-300 hover:border-emerald-500 hover:text-emerald-900 bg-transparent transition-colors disabled:opacity-40"
               >
                 <Plus className="h-3.5 w-3.5" /> Add recipient

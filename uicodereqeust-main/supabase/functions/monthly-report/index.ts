@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import * as XLSX from "https://esm.sh/xlsx@0.18.5";
 import { corsHeaders, getServiceClient, validateUser } from "../_shared/auth.ts";
 import { getBrevoSender } from "../_shared/brevo.ts";
 import { parseReportRecipients } from "../_shared/report-recipients.ts";
@@ -42,6 +43,15 @@ function constantTimeEqual(a: string, b: string): boolean {
 
 const ON_TIME_MINUTES = 15;
 const WARNING_MINUTES = 30;
+
+function formatCapitalizedStatus(status: unknown): string {
+  const s = String(status || "").trim();
+  if (!s) return "Pending";
+  return s
+    .split(/[_\s]+/)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(" ");
+}
 
 function calculateAccurateApprovedAmount(record: AuthRequest): number {
   if (Array.isArray(record.approved_items) && record.approved_items.length > 0) {
@@ -229,7 +239,7 @@ serve(async (req) => {
     const durations: number[] = [];
 
     const hospitalStats: Record<string, { total: number; approved: number; rejected: number; approvedValue: number }> = {};
-    const diagnosisStats: Record<string, { count: number; approvedValue: number }> = {};
+    const diagnosisStats: Record<string, { count: number; approvedCount: number; approvedValue: number }> = {};
 
     for (const r of allRecords) {
       const s = String(r.status || "").toLowerCase();
@@ -239,7 +249,7 @@ serve(async (req) => {
       if (!hospitalStats[hosp]) hospitalStats[hosp] = { total: 0, approved: 0, rejected: 0, approvedValue: 0 };
       hospitalStats[hosp].total += 1;
 
-      if (!diagnosisStats[diag]) diagnosisStats[diag] = { count: 0, approvedValue: 0 };
+      if (!diagnosisStats[diag]) diagnosisStats[diag] = { count: 0, approvedCount: 0, approvedValue: 0 };
       diagnosisStats[diag].count += 1;
 
       const isApp = ["approved", "partially_approved", "referral_approved", "referral_accepted", "authorization_approved"].includes(s);
@@ -251,6 +261,7 @@ serve(async (req) => {
         netApprovedValue += val;
         hospitalStats[hosp].approved += 1;
         hospitalStats[hosp].approvedValue += val;
+        diagnosisStats[diag].approvedCount += 1;
         diagnosisStats[diag].approvedValue += val;
       } else if (isRej) {
         rejectedCount += 1;
@@ -402,7 +413,11 @@ serve(async (req) => {
 
           <div style="background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 8px; padding: 14px; text-align: center; margin-top: 24px;">
             <p style="margin: 0; font-size: 12px; color: #475569;">
-              📎 <strong>Attached:</strong> Complete reconciliation CSV workbook containing all individual patient claims, approved codes, issuing hospitals, and decisions for <strong>${monthLabel}</strong>.
+              📎 <strong>Attached:</strong> Comprehensive Multi-Sheet Executive Workbook (<code>.xlsx</code>) featuring:
+              <br/>• <strong>Pre-Auth Log:</strong> Complete clinical authorization log with vetted net approved amounts.
+              <br/>• <strong>Payment Advice:</strong> Provider payout settlement schedule aggregated per healthcare facility.
+              <br/>• <strong>Clinical Check:</strong> Disease encounter volumes, diagnostic cost analysis, and utilization checks.
+              <br/>• <strong>SLA Scorecard:</strong> Turnaround compliance, median response benchmarks, and operational metrics.
             </p>
           </div>
         </div>
@@ -414,24 +429,29 @@ serve(async (req) => {
       </div>
     `;
 
-    // Generate CSV Attachment
-    const csvHeaders = [
+    // -------------------------------------------------------------
+    // GENERATE MULTI-SHEET EXECUTIVE EXCEL WORKBOOK (.XLSX)
+    // -------------------------------------------------------------
+    const wb = XLSX.utils.book_new();
+
+    // SHEET 1: PRE-AUTH MASTER LOG (No Request ID, Capitalized Status, Text Policy Number)
+    const sheet1Headers = [
       "S/N",
-      "Created At",
+      "Date Requested",
       "Decided At",
       "Turnaround (Mins)",
-      "Request ID",
       "Auth Code",
       "Status",
       "Hospital",
       "Patient Name",
       "Policy Number",
       "Diagnosis",
-      "Net Approved Amount (NGN)",
+      "Service / Treatment",
+      "Net Approved (₦)",
       "Decision Reason"
     ];
 
-    const csvRows = allRecords.map((r, i) => {
+    const sheet1Rows = allRecords.map((r, i) => {
       let turnMins = "";
       if (r.decided_at && r.created_at) {
         const start = Date.parse(r.treatment_submitted_at || r.created_at);
@@ -444,29 +464,172 @@ serve(async (req) => {
 
       return [
         i + 1,
-        escapeCsvField(r.created_at ? new Date(r.created_at).toLocaleString("en-GB") : ""),
-        escapeCsvField(r.decided_at ? new Date(r.decided_at).toLocaleString("en-GB") : ""),
-        escapeCsvField(turnMins),
-        escapeCsvField(r.request_id || r.id),
-        escapeCsvField(r.authorization_code || ""),
-        escapeCsvField(r.status || ""),
-        escapeCsvField(r.requesting_hospital || r.requesting_hospital_name || r.hospital_name || ""),
-        escapeCsvField(r.patient_name || ""),
-        escapeCsvField(r.policy_number || ""),
-        escapeCsvField(r.diagnosis || ""),
-        escapeCsvField(appVal.toFixed(2)),
-        escapeCsvField(r.decision_reason || r.rejection_reason || r.notes || "")
-      ].join(",");
+        r.created_at ? new Date(r.created_at).toLocaleString("en-GB") : "",
+        r.decided_at ? new Date(r.decided_at).toLocaleString("en-GB") : "",
+        turnMins ? Number(turnMins) : "",
+        r.authorization_code || "N/A",
+        formatCapitalizedStatus(r.status),
+        r.requesting_hospital || r.requesting_hospital_name || r.hospital_name || "Unspecified Hospital",
+        r.patient_name || "",
+        { t: "s", v: String(r.policy_number || "").trim() || "N/A", z: "@" },
+        r.diagnosis || "Unspecified",
+        r.treatment || "Consultation / Care",
+        appVal > 0 ? Number(appVal.toFixed(2)) : 0,
+        r.decision_reason || r.rejection_reason || r.notes || ""
+      ];
     });
 
-    const csvContent = [csvHeaders.join(","), ...csvRows].join("\n");
-    const encoder = new TextEncoder();
-    const csvBytes = encoder.encode(csvContent);
-    let binary = "";
-    for (const byte of csvBytes) {
-      binary += String.fromCharCode(byte);
-    }
-    const csvBase64 = btoa(binary);
+    const ws1 = XLSX.utils.aoa_to_sheet([sheet1Headers, ...sheet1Rows]);
+    ws1["!cols"] = [
+      { wch: 6 },
+      { wch: 20 },
+      { wch: 20 },
+      { wch: 18 },
+      { wch: 22 },
+      { wch: 18 },
+      { wch: 34 },
+      { wch: 26 },
+      { wch: 20 },
+      { wch: 28 },
+      { wch: 28 },
+      { wch: 20 },
+      { wch: 36 },
+    ];
+    XLSX.utils.book_append_sheet(wb, ws1, "Pre-Auth Log");
+
+    // SHEET 2: PAYMENT ADVICE (Hospital Settlement & Payout Schedule)
+    const sheet2Headers = [
+      "S/N",
+      "Healthcare Provider / Hospital",
+      "Total Requests",
+      "Approved Requests",
+      "Rejected Requests",
+      "Approval Rate (%)",
+      "Net Approved Payout (₦)",
+      "Expenditure Share (%)"
+    ];
+
+    const sortedHospitals = Object.entries(hospitalStats).sort((a, b) => b[1].approvedValue - a[1].approvedValue);
+
+    const sheet2Rows = sortedHospitals.map(([hospName, stats], idx) => {
+      const appRate = stats.total > 0 ? ((stats.approved / stats.total) * 100).toFixed(1) + "%" : "0.0%";
+      const spendShare = netApprovedValue > 0 ? ((stats.approvedValue / netApprovedValue) * 100).toFixed(1) + "%" : "0.0%";
+      return [
+        idx + 1,
+        hospName,
+        stats.total,
+        stats.approved,
+        stats.rejected,
+        appRate,
+        Number(stats.approvedValue.toFixed(2)),
+        spendShare
+      ];
+    });
+
+    const sheet2TotalRow = [
+      "TOTAL",
+      `${sortedHospitals.length} Healthcare Facilities`,
+      totalVolume,
+      approvedCount,
+      rejectedCount,
+      approvalRate + "%",
+      Number(netApprovedValue.toFixed(2)),
+      "100.0%"
+    ];
+
+    const ws2 = XLSX.utils.aoa_to_sheet([sheet2Headers, ...sheet2Rows, sheet2TotalRow]);
+    ws2["!cols"] = [
+      { wch: 6 },
+      { wch: 38 },
+      { wch: 16 },
+      { wch: 18 },
+      { wch: 18 },
+      { wch: 18 },
+      { wch: 24 },
+      { wch: 22 },
+    ];
+    XLSX.utils.book_append_sheet(wb, ws2, "Payment Advice");
+
+    // SHEET 3: CLINICAL CHECK (Diagnosis & Utilization Audit)
+    const sheet3Headers = [
+      "S/N",
+      "Diagnosis / Clinical Condition",
+      "Total Encounters",
+      "Approved Encounters",
+      "Net Approved Value (₦)",
+      "Average Cost per Encounter (₦)",
+      "Prevalence Share (%)"
+    ];
+
+    const sortedDiagnoses = Object.entries(diagnosisStats).sort((a, b) => b[1].count - a[1].count);
+
+    const sheet3Rows = sortedDiagnoses.map(([diagName, stats], idx) => {
+      const avgCost = stats.approvedCount > 0 ? Number((stats.approvedValue / stats.approvedCount).toFixed(2)) : 0;
+      const prevShare = totalVolume > 0 ? ((stats.count / totalVolume) * 100).toFixed(1) + "%" : "0.0%";
+      return [
+        idx + 1,
+        diagName,
+        stats.count,
+        stats.approvedCount,
+        Number(stats.approvedValue.toFixed(2)),
+        avgCost,
+        prevShare
+      ];
+    });
+
+    const sheet3TotalRow = [
+      "TOTAL",
+      `${sortedDiagnoses.length} Diagnostic Categories`,
+      totalVolume,
+      approvedCount,
+      Number(netApprovedValue.toFixed(2)),
+      approvedCount > 0 ? Number((netApprovedValue / approvedCount).toFixed(2)) : 0,
+      "100.0%"
+    ];
+
+    const ws3 = XLSX.utils.aoa_to_sheet([sheet3Headers, ...sheet3Rows, sheet3TotalRow]);
+    ws3["!cols"] = [
+      { wch: 6 },
+      { wch: 36 },
+      { wch: 18 },
+      { wch: 20 },
+      { wch: 24 },
+      { wch: 26 },
+      { wch: 22 },
+    ];
+    XLSX.utils.book_append_sheet(wb, ws3, "Clinical Check");
+
+    // SHEET 4: EXECUTIVE SLA SCORECARD
+    const sheet4Headers = [
+      "Executive Metric",
+      "Observed Value",
+      "Target Benchmark",
+      "Performance Assessment"
+    ];
+
+    const sheet4Rows = [
+      ["Reporting Cycle", monthLabel, "Full Calendar Month", "Audit Completed"],
+      ["Total Pre-Auth Volume", String(totalVolume), "All Incoming Requests", "Fully Processed"],
+      ["Approved Authorizations", `${approvedCount} (${approvalRate}%)`, "Standard Clinical Eligibility", "Approved"],
+      ["Rejected Authorizations", `${rejectedCount} (${rejectionRate}%)`, "Medical Policy Exclusions", "Vetted / Declined"],
+      ["Net Approved Expenditure", `₦${netApprovedValue.toLocaleString("en-NG", { minimumFractionDigits: 2 })}`, "Strict Approved Items Only", "Financial Audit Passed"],
+      ["SLA On-Time Compliance (≤ 15 mins)", `${onTimeCount} (${slaOnTimeRate}%)`, "≥ 80.0% Response Target", Number(slaOnTimeRate) >= 80 ? "Compliant" : "Needs Optimization"],
+      ["SLA Warning Window (16 - 30 mins)", `${warningCount} (${totalDecided > 0 ? ((warningCount / totalDecided) * 100).toFixed(1) : "0.0"}%)`, "≤ 15.0% Operational Buffer", "Acceptable Buffer"],
+      ["SLA Breached Window (> 30 mins)", `${breachedCount} (${slaBreachRate}%)`, "≤ 5.0% Maximum Threshold", Number(slaBreachRate) <= 5 ? "Within Threshold" : "SLA Escalation Alert"],
+      ["Median Turnaround Time", `${medianMinutes} Minutes`, "≤ 15 Minutes Target", medianMinutes <= 15 ? "High Efficiency" : "Moderate Queue Delay"]
+    ];
+
+    const ws4 = XLSX.utils.aoa_to_sheet([sheet4Headers, ...sheet4Rows]);
+    ws4["!cols"] = [
+      { wch: 36 },
+      { wch: 28 },
+      { wch: 32 },
+      { wch: 26 },
+    ];
+    XLSX.utils.book_append_sheet(wb, ws4, "SLA Scorecard");
+
+    // Convert Workbook to Base64
+    const xlsxBase64 = XLSX.write(wb, { bookType: "xlsx", type: "base64" });
 
     // Send via Brevo API
     const brevoSender = getBrevoSender();
@@ -477,8 +640,8 @@ serve(async (req) => {
       htmlContent,
       attachment: [
         {
-          name: `RonsbergerHMO_Monthly_Report_${monthLabel.replace(/\s+/g, "_")}.csv`,
-          content: csvBase64,
+          name: `RonsbergerHMO_Executive_Monthly_Report_${monthLabel.replace(/\s+/g, "_")}.xlsx`,
+          content: xlsxBase64,
         },
       ],
     };
