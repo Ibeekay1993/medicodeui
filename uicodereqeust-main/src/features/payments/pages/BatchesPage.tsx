@@ -35,7 +35,7 @@ import { DataPagination } from "@/components/dashboard/DataPagination";
 import { useDataPagination } from "@/hooks/use-data-pagination";
 
 export default function BatchesPage() {
-  const { role } = useAuth();
+  const { role, isFinanceLead } = useAuth();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<"all" | "draft" | "ready" | "paid">("all");
   const [selectedBatchId, setSelectedBatchId] = useState<string | null>(null);
@@ -50,7 +50,7 @@ export default function BatchesPage() {
 
   const isViewOnly = role === "claims";
   const canModifyDrafts = role === "admin" || role === "finance";
-  const canSettlePayments = role === "admin" || role === "finance";
+  const canSettlePayments = isFinanceLead;
 
   // Fetch payment batches with hospital details joined
   const { data: batches, isLoading, error, refetch } = usePaymentBatches();

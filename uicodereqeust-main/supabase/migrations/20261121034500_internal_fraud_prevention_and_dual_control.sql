@@ -1,22 +1,24 @@
 -- ============================================================================
--- Migration: Internal Fraud Prevention & 4-Eyes Dual Control (HIPAA / ISO 27001)
+-- Migration: Internal Fraud Prevention & Finance Lead Governance (HIPAA / ISO 27001)
 --
 -- 1. Immutable Audit Logs:
 --    Blocks any UPDATE, DELETE, or TRUNCATE on public.audit_logs for all users.
 --    Audit logs cannot be purged or manipulated to hide internal staff actions.
 --
--- 2. Maker-Checker (Segregation of Duties) on Authorizations:
---    Prevents internal clinical staff from self-approving authorization requests
---    that they personally created or submitted.
+-- 2. Finance Team Lead Exclusive Settlement:
+--    Enforces that ONLY a Finance Team Lead (role = 'finance' AND is_team_lead = true)
+--    or a Super Administrator (role = 'admin') can mark payment batches as 'paid'.
+--    Regular finance officers can assemble and review draft batches, but cannot
+--    unilaterally release funds.
 --
--- 3. Payment Batch Segregation of Duties:
---    Prevents the finance creator of a payment batch from unilaterally settling
---    and releasing funds on that batch without independent verification.
---
--- 4. Tariff Catalog Hardening:
+-- 3. Tariff Catalog Hardening:
 --    Explicitly revokes modification privileges on public.nhia_items and
---    abbreviations from non-service-role users, ensuring drug and procedure
---    tariffs cannot be inflated.
+--    abbreviations from general roles, ensuring drug and procedure tariffs
+--    cannot be inflated by internal staff.
+--
+-- 4. Clinical Queue Reliability (Preserving WhatsApp Parser & Emergency Intake):
+--    Authorizations remain governed by authorized clinical staff without
+--    blocking emergency single-shift nurses who intake and approve WhatsApp requests.
 -- ============================================================================
 BEGIN;
 
@@ -44,7 +46,7 @@ GRANT SELECT, INSERT ON public.audit_logs TO authenticated;
 GRANT ALL ON public.audit_logs TO service_role;
 
 
--- ─── 2. Tariff Catalog Hardening ───────────────────────────────────────────
+-- ─── 2. Lock Tariff Catalog from Unauthorized Alteration ───────────────────
 REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON public.nhia_items FROM PUBLIC, anon, authenticated;
 REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON public.abbreviations FROM PUBLIC, anon, authenticated;
 
@@ -54,7 +56,7 @@ GRANT ALL ON public.nhia_items TO service_role;
 GRANT ALL ON public.abbreviations TO service_role;
 
 
--- ─── 3. Payment Batch Maker-Checker Settlement RPC ────────────────────────
+-- ─── 3. Finance Team Lead Exclusive Payment Settlement RPC ────────────────
 CREATE OR REPLACE FUNCTION public.settle_payment_batch_transactional(
   p_batch_id uuid,
   p_payload jsonb
@@ -66,12 +68,26 @@ SET search_path = public
 AS $$
 DECLARE
   v_batch public.payment_batches%ROWTYPE;
+  v_is_finance_lead boolean := false;
 BEGIN
-  IF auth.uid() IS NULL OR NOT (
-    public.has_role(auth.uid(), 'admin'::public.app_role)
-    OR public.has_role(auth.uid(), 'finance'::public.app_role)
-  ) THEN
-    RAISE EXCEPTION 'Unauthorized: Finance or Super Admin access required.';
+  -- Caller must be authenticated
+  IF auth.uid() IS NULL THEN
+    RAISE EXCEPTION 'Authentication required.' USING ERRCODE = '42501';
+  END IF;
+
+  -- Verify caller is Super Admin OR Finance Team Lead
+  IF public.has_role(auth.uid(), 'admin'::public.app_role) THEN
+    v_is_finance_lead := true;
+  ELSIF public.has_role(auth.uid(), 'finance'::public.app_role) THEN
+    SELECT coalesce(ur.is_team_lead, false) INTO v_is_finance_lead
+    FROM public.user_roles ur
+    WHERE ur.user_id = auth.uid()
+      AND ur.role = 'finance'::public.app_role;
+  END IF;
+
+  IF NOT v_is_finance_lead THEN
+    RAISE EXCEPTION 'Unauthorized: Only a Finance Team Lead or Super Administrator can settle payment batches and mark claims as paid.'
+      USING ERRCODE = '42501';
   END IF;
 
   IF p_payload->>'status' IS DISTINCT FROM 'paid' THEN
@@ -87,12 +103,6 @@ BEGIN
     RAISE EXCEPTION 'Payment batch not found.';
   END IF;
 
-  -- Maker-Checker segregation: batch creator cannot settle unless admin override
-  IF v_batch.created_by = auth.uid() AND NOT public.has_role(auth.uid(), 'admin'::public.app_role) THEN
-    RAISE EXCEPTION 'Segregation of duties violation: The creator of a payment batch cannot approve and settle it. Another finance officer or administrator must verify.'
-      USING ERRCODE = '42501';
-  END IF;
-
   IF NOT EXISTS (
     SELECT 1 FROM public.hospital_claims WHERE payment_batch_id = p_batch_id
   ) THEN
@@ -103,7 +113,7 @@ BEGIN
   SET status = 'paid',
       paid_at = CASE WHEN p_payload ? 'paid_at' THEN (p_payload->>'paid_at')::timestamptz ELSE now() END,
       bank_reference = CASE WHEN p_payload ? 'bank_reference' THEN p_payload->>'bank_reference' ELSE bank_reference END,
-      paid_by = auth.uid(), -- Always record actual caller ID, not arbitrary payload
+      paid_by = auth.uid(), -- Always audit the authenticated caller ID
       receipt_url = CASE WHEN p_payload ? 'receipt_url' THEN p_payload->>'receipt_url' ELSE receipt_url END,
       receipt_name = CASE WHEN p_payload ? 'receipt_name' THEN p_payload->>'receipt_name' ELSE receipt_name END
   WHERE id = p_batch_id;
@@ -112,7 +122,7 @@ BEGIN
   SET payment_status = 'paid'
   WHERE payment_batch_id = p_batch_id;
 
-  -- Record audit log
+  -- Record audit trail
   INSERT INTO public.audit_logs (user_id, action, resource_type, details, created_at)
   VALUES (
     auth.uid(),
@@ -133,8 +143,9 @@ REVOKE ALL ON FUNCTION public.settle_payment_batch_transactional(uuid, jsonb) FR
 GRANT EXECUTE ON FUNCTION public.settle_payment_batch_transactional(uuid, jsonb) TO authenticated, service_role;
 
 
--- ─── 4. Maker-Checker Rule in Authorization Decision Transition ────────────
--- Updated to include a self-approval check for clinical users.
+-- ─── 4. Protect Authorization Decision Transition ─────────────────────────
+-- Protects decision fields and enforces tariff catalog matching without breaking
+-- single-nurse shifts or WhatsApp emergency intakes.
 CREATE OR REPLACE FUNCTION public.protect_authorization_decision_transition()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -202,7 +213,7 @@ BEGIN
     NEW.is_unlocked := false;
   END IF;
 
-  -- 3. Validate approval decision requirements & Enforce Maker-Checker
+  -- 3. Validate approval decision requirements
   IF NEW.status IN ('approved', 'partially_approved', 'referral_approved')
      AND (OLD.status IS DISTINCT FROM NEW.status OR coalesce(OLD.is_unlocked, false) IS TRUE) THEN
     IF NOT (
@@ -214,19 +225,10 @@ BEGIN
       RAISE EXCEPTION 'Only authorized clinical staff can finalize an authorization decision' USING ERRCODE = '42501';
     END IF;
 
-    -- Maker-Checker enforcement: Staff member cannot approve their own submission
-    IF auth.uid() IS NOT NULL
-       AND NEW.submitted_by = auth.uid()
-       AND NOT public.has_role(auth.uid(), 'admin'::public.app_role) THEN
-      RAISE EXCEPTION 'Segregation of duties violation: An authorization cannot be approved by the same user who submitted it (Maker-Checker rule).'
-        USING ERRCODE = '42501';
-    END IF;
-
     IF NEW.decided_at IS NULL OR NEW.decided_by IS NULL THEN
       RAISE EXCEPTION 'A decision timestamp and decision user are required';
     END IF;
-    IF NEW.approved_by IS NULL
-       OR coalesce(nullif(trim(NEW.authorization_code), ''), '') = '' THEN
+    IF NEW.approved_by IS NULL OR coalesce(nullif(trim(NEW.authorization_code), ''), '') = '' THEN
       RAISE EXCEPTION 'Approved decisions require an approver and authorization code';
     END IF;
   END IF;
@@ -242,8 +244,7 @@ BEGIN
     ) THEN
       RAISE EXCEPTION 'Only authorized clinical staff can finalize an authorization decision' USING ERRCODE = '42501';
     END IF;
-    IF NEW.decided_at IS NULL OR NEW.decided_by IS NULL
-       OR coalesce(nullif(trim(NEW.decision_reason), ''), '') = '' THEN
+    IF NEW.decided_at IS NULL OR NEW.decided_by IS NULL OR coalesce(nullif(trim(NEW.decision_reason), ''), '') = '' THEN
       RAISE EXCEPTION 'Rejected decisions require a decision user, timestamp, and reason';
     END IF;
   END IF;
@@ -257,9 +258,7 @@ BEGIN
     FOR item IN SELECT value FROM jsonb_array_elements(NEW.approved_items)
     LOOP
       SELECT code, name, category, amount INTO catalog
-      FROM public.nhia_items
-      WHERE code = NULLIF(item->>'code', '')
-      LIMIT 1;
+      FROM public.nhia_items WHERE code = NULLIF(item->>'code', '') LIMIT 1;
       IF NOT FOUND THEN
         RAISE EXCEPTION 'Approved item is not a valid NHIA catalog item: %', item->>'code';
       END IF;
