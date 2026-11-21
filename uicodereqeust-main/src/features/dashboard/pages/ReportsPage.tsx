@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { getErrorMessage } from "@/lib/errors";
 import type * as ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
+import { auditExport } from "@/lib/auditExport";
 import {
   RequestStatus,
   ReportStats,
@@ -993,6 +994,18 @@ export default function ReportsPage() {
         : `PreAuth_Detailed_Data_${selectedHospital}_${new Date().toISOString().split("T")[0]}.xlsx`;
       
       saveAs(blob, filename);
+
+      // ── Audit log: record every export (HIPAA §164.312(b), NDPR Art. 2.4) ──
+      void auditExport({
+        exportType: "excel",
+        resource: "authorization_requests",
+        rowCount: mode === "payment_advice" ? paymentAdviceRowCount : records.length,
+        filters: {
+          mode,
+          hospital: filters.hospitalFilter,
+          dateFilter: filters.dateFilter,
+        },
+      });
 
       toast.success(
         mode === "payment_advice"
