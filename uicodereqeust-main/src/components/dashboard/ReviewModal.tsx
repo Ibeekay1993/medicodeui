@@ -43,6 +43,8 @@ import { PatientVerifyCard } from "./review/PatientVerifyCard";
 import { TreatmentCart } from "./review/TreatmentCart";
 import { ClinicalHistory } from "./review/ClinicalHistory";
 import { PostReviewTemplates } from "./review/PostReviewTemplates";
+import { ArrivalPinBanner } from "./review/ArrivalPinBanner";
+import { usePrimaryHospitalLookup } from "@/hooks/clinical/usePrimaryHospitalLookup";
 
 // Utilities
 import {
@@ -105,58 +107,7 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
   }, [request?.clinical_notes, request?.decision_reason]);
 
   // 1b. Look up the patient's registered primary hospital from nhis_beneficiaries
-  const [primaryHospital, setPrimaryHospital] = useState<{ hcp_name: string; hcp_code: string } | null>(null);
-  const [primaryHospitalLoading, setPrimaryHospitalLoading] = useState(false);
-
-  useEffect(() => {
-    if (!open || !requestPolicyNumber) {
-      setPrimaryHospital(null);
-      return;
-    }
-    let cancelled = false;
-    setPrimaryHospitalLoading(true);
-    // Fast indexed query instead of slow unindexed RPC to prevent database statement timeouts
-    const root = requestPolicyNumber.includes("-") ? requestPolicyNumber.split("-")[0] : requestPolicyNumber;
-    const conds = [`policy_number.eq.${requestPolicyNumber}`];
-    if (root && root !== requestPolicyNumber) {
-      conds.push(`policy_number.eq.${root}`);
-      conds.push(`policy_number.ilike.${root}-%`);
-    }
-
-    supabase
-      .from("nhis_beneficiaries")
-      .select("id, hcp_name, hcp_code, member_type, policy_number, beneficiary_number")
-      .or(conds.join(","))
-      .limit(20)
-      .then(async ({ data, error }: { data: any[] | null; error: unknown }) => {
-        if (error) {
-          console.error("Primary hospital family lookup error:", error);
-          if (!cancelled) {
-            setPrimaryHospital(null);
-            setPrimaryHospitalLoading(false);
-          }
-          return;
-        }
-        const principal = (data || []).find((member) =>
-          ["PRINCIPAL", "MEMBER"].includes(String(member.member_type || "").toUpperCase())
-        );
-        if (!cancelled) {
-          let hcp_name = principal?.hcp_name || "";
-          const hcp_code = principal?.hcp_code || "";
-          
-          if (hcp_code) {
-            const { data: hospData } = await supabase.from("hospitals").select("name").eq("code", hcp_code).maybeSingle();
-            if (hospData?.name) {
-              hcp_name = hospData.name;
-            }
-          }
-          
-          setPrimaryHospital(principal ? { hcp_name, hcp_code } : null);
-          setPrimaryHospitalLoading(false);
-        }
-      });
-    return () => { cancelled = true; };
-  }, [open, requestPolicyNumber]);
+  const { primaryHospital, loading: primaryHospitalLoading } = usePrimaryHospitalLookup(open, requestPolicyNumber);
 
   // 1c. Look up the requesting hospital's hcp_code from the hospitals table
   const [requestingHospitalCode, setRequestingHospitalCode] = useState<string | null>(null);
@@ -923,47 +874,11 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
                 )}
 
                 {/* OTP Banner */}
-                {visibleOtpValue && !actions.approvalResult && (
-                <div className="mb-2 flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2 sm:mb-3 sm:px-3">
-                    <div className="min-w-0">
-                      <div className="text-[10px] font-medium uppercase tracking-wide text-slate-500">
-                        Patient OTP / Arrival PIN
-                      </div>
-                      <div className="font-mono text-base font-semibold tracking-wider text-slate-900 sm:text-lg">
-                        {visibleOtpValue}
-                      </div>
-                    </div>
-                    <div className="flex shrink-0 items-center gap-1.5">
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        className="h-10 w-10 shrink-0 border-slate-300 bg-white text-slate-600 hover:bg-slate-100"
-                        aria-label="Copy patient OTP"
-                        onClick={async () => {
-                          try {
-                            await writeClipboardText(visibleOtpValue);
-                            toast({ title: "OTP Copied!" });
-                          } catch {
-                            toast({ variant: "destructive", title: "Copy failed", description: "Allow clipboard access or copy the OTP manually." });
-                          }
-                        }}
-                        title="Copy OTP"
-                      >
-                        <Copy className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="default"
-                        className="h-10 min-w-0 bg-emerald-700 px-3 text-xs font-semibold text-white hover:bg-emerald-800"
-                        onClick={handleResendOtp}
-                        disabled={isResending}
-                        title="Resend OTP"
-                      >
-                        {isResending ? <BrandSpinner className="h-4 w-4 mr-2 animate-spin" /> : <Send className="h-4 w-4 mr-2" />}
-                        Resend
-                      </Button>
-                    </div>
-                  </div>
-                )}
+                <ArrivalPinBanner
+                  visibleOtpValue={visibleOtpValue}
+                  request={request}
+                  hasApprovalResult={Boolean(actions.approvalResult)}
+                />
 
                 {/* Standard Request Facility Banner (Non-Referral) */}
                 {!request?.referred_hospital_name && (request?.requesting_hospital_name || requestingHospitalName) && (
