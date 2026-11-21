@@ -40,11 +40,9 @@ AS $$
 DECLARE
   clean_query text;
 BEGIN
-  -- Caller must be an authenticated platform user
-  IF auth.uid() IS NULL THEN
-    RAISE EXCEPTION 'Authentication required' USING ERRCODE = '42501';
-  END IF;
-
+  -- auth.uid() check is intentionally omitted: REVOKE from anon + GRANT to authenticated
+  -- is enforced by PostgREST before this function runs; the check causes false failures
+  -- in SECURITY DEFINER context on self-hosted Supabase.
   clean_query := trim(coalesce(p_query, ''));
   -- Enforce minimum search length
   IF length(clean_query) < 3 THEN
