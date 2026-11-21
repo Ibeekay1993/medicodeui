@@ -1,30 +1,25 @@
 import { useState, useEffect, useRef } from "react";
-import { useQuery } from "@tanstack/react-query";
-
-import { useAuth } from "@/contexts/AuthContext";
-import { notifyPendingAuthorizationRequest } from "@/lib/pushNotifications";
-import { supabase } from "@/integrations/supabase/client";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, ArrowRight, CheckCircle2, FileText } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { readSessionJSON, removeSessionItem, writeSessionJSON } from "@/lib/sessionState";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { ArrowLeft, ArrowRight } from "lucide-react";
+
+import { useAuth } from "@/contexts/AuthContext";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Form } from "@/components/ui/form";
-import { useHospitalProfile } from "../hooks/useHospitalDashboard";
-import { useDebounce } from "@/hooks/use-debounce";
-import { safeIlikePattern } from "@/lib/postgrestFilter";
+import { useToast } from "@/hooks/use-toast";
+import { readSessionJSON, removeSessionItem, writeSessionJSON } from "@/lib/sessionState";
 
 import {
   HospitalRequestDraft,
-  BRAND_TO_GENERIC,
-  DIAGNOSES,
-  isValidEmail,
   hospitalRequestSchema,
-  HospitalRequestFormValues
+  HospitalRequestFormValues,
 } from "@/lib/new-request-helpers";
+
+import { useHospitalProfile } from "../hooks/useHospitalDashboard";
+import { useNewRequestSearches } from "../hooks/useNewRequestSearches";
+import { useHospitalNewRequestSubmit } from "../hooks/useHospitalNewRequestSubmit";
 
 import PatientSection from "@/components/new-request/PatientSection";
 import DiagnosisSection from "@/components/new-request/DiagnosisSection";
@@ -32,43 +27,20 @@ import PrioritySection from "@/components/new-request/PrioritySection";
 import ReferralSection from "@/components/new-request/ReferralSection";
 import TreatmentSection from "@/components/new-request/TreatmentSection";
 import DocumentUploadSection from "@/components/new-request/DocumentUploadSection";
-
-// This function is kept for components that may still need raw lookup, though we moved it to the service
-async function findHospitalIdByName(name: string): Promise<string | null> {
-  if (!name?.trim()) return null;
-  const normalizedInput = name.trim().toLowerCase().replace(/[^a-z0-9\s]/g, "").replace(/\s+/g, " ");
-  try {
-    const { data, error } = await supabase
-      .from("hospitals")
-      .select("id, name")
-      .ilike("name", `%${name.trim()}%`)
-      .limit(5);
-
-    if (error || !data || data.length === 0) return null;
-
-    // Prefer exact normalized match first
-    for (const h of data) {
-      const norm = String(h.name || "").toLowerCase().replace(/[^a-z0-9\s]/g, "").replace(/\s+/g, " ");
-      if (norm === normalizedInput) return h.id;
-    }
-    // Fallback: first result
-    return data[0].id;
-  } catch (err) {
-    console.error("findHospitalIdByName error:", err);
-    return null;
-  }
-}
+import RequestStepperHeader from "@/components/new-request/RequestStepperHeader";
+import RequestReviewSection from "@/components/new-request/RequestReviewSection";
 
 export default function HospitalNewRequest() {
   const { user, hospitalId } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
-  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const [step, setStep] = useState(1);
   const [canSubmit, setCanSubmit] = useState(false);
   const [doctorReportPath, setDoctorReportPath] = useState<string | null>(null);
   const [doctorReportName, setDoctorReportName] = useState<string | null>(null);
-  
+  const [draftReady, setDraftReady] = useState(false);
+
   const { data: hospital } = useHospitalProfile(hospitalId ?? undefined, user?.id, user?.email);
 
   useEffect(() => {
@@ -103,7 +75,6 @@ export default function HospitalNewRequest() {
 
   const { watch, setValue, trigger } = form;
 
-  // React-hook-form state mapping for child components
   const selectedPatient = watch("selectedPatient");
   const patientSearch = watch("patientSearch") || "";
   const phone = watch("phone");
@@ -122,23 +93,32 @@ export default function HospitalNewRequest() {
   }));
   const treatSearch = watch("treatSearch") || "";
 
-  // Local UI state for comboboxes
+  // DOM refs for keyboard/popover handling
   const patientRef = useRef<HTMLDivElement>(null);
-  const [patientResults, setPatientResults] = useState<any[]>([]);
-  const [patientLoading, setPatientLoading] = useState(false);
-  const [patientOpen, setPatientOpen] = useState(false);
-
   const diagRef = useRef<HTMLDivElement>(null);
-  const [diagSuggestions, setDiagSuggestions] = useState<string[]>([]);
-  const [diagOpen, setDiagOpen] = useState(false);
-
   const treatRef = useRef<HTMLDivElement>(null);
-  const [treatResults, setTreatResults] = useState<any[]>([]);
-  const [treatLoading, setTreatLoading] = useState(false);
-  const [treatOpen, setTreatOpen] = useState(false);
 
-  const [draftReady, setDraftReady] = useState(false);
+  // Live queries for comboboxes
+  const {
+    patientResults,
+    patientLoading,
+    patientOpen,
+    setPatientOpen,
+    diagSuggestions,
+    diagOpen,
+    setDiagOpen,
+    setDiagSuggestions,
+    treatResults,
+    treatLoading,
+    treatOpen,
+    setTreatOpen,
+  } = useNewRequestSearches({
+    patientSearch,
+    diagnosisSearch,
+    treatSearch,
+  });
 
+  // Draft persistence in sessionStorage
   useEffect(() => {
     if (!draftKey) {
       setDraftReady(true);
@@ -155,7 +135,13 @@ export default function HospitalNewRequest() {
       if (Array.isArray(draft.treatments)) setValue("treatments", draft.treatments);
       if (draft.phone) setValue("phone", draft.phone);
       if (draft.patientEmail) setValue("patientEmail", draft.patientEmail);
-      if (draft.patientEmail === "no-email@ronsbergerhmo.io" || (draft.patientEmail && (draft.patientEmail.startsWith("no-email@") || draft.patientEmail.endsWith("@medicode.com")))) setValue("noEmail", true);
+      if (
+        draft.patientEmail === "no-email@ronsbergerhmo.io" ||
+        (draft.patientEmail &&
+          (draft.patientEmail.startsWith("no-email@") || draft.patientEmail.endsWith("@medicode.com")))
+      ) {
+        setValue("noEmail", true);
+      }
       if (draft.urgency) setValue("urgency", draft.urgency as any);
       if (draft.referralHospitalId) setValue("referralHospitalId", draft.referralHospitalId);
       if (draft.referralHospitalName) setValue("referralHospitalName", draft.referralHospitalName);
@@ -204,89 +190,22 @@ export default function HospitalNewRequest() {
       removeSessionItem(draftKey);
     }
   }, [
-    draftKey, draftReady, diagnoses, diagnosisSearch, patientSearch,
-    phone, patientEmail, referralHospitalId, referralHospitalName,
-    selectedPatient, treatSearch, treatments, urgency,
-    doctorReportPath, doctorReportName,
+    draftKey,
+    draftReady,
+    diagnoses,
+    diagnosisSearch,
+    patientSearch,
+    phone,
+    patientEmail,
+    referralHospitalId,
+    referralHospitalName,
+    selectedPatient,
+    treatSearch,
+    treatments,
+    urgency,
+    doctorReportPath,
+    doctorReportName,
   ]);
-
-  // Patient search
-  const debouncedPatientSearch = useDebounce(patientSearch, 300);
-  const { data: patientData, isFetching: isPatientFetching } = useQuery({
-    queryKey: ["patientSearch", debouncedPatientSearch],
-    queryFn: async () => {
-      const term = debouncedPatientSearch.trim();
-      if (term.length < 3) return [];
-      const { data, error } = await supabase.rpc("search_nhis_beneficiaries" as any, {
-        p_query: term,
-      });
-      if (error) {
-        console.error("search_nhis_beneficiaries error:", error);
-        return [];
-      }
-      return data || [];
-    },
-    enabled: debouncedPatientSearch.trim().length >= 3,
-  });
-
-  useEffect(() => {
-    if (debouncedPatientSearch.length < 3) {
-      setPatientResults([]);
-      setPatientOpen(false);
-    } else {
-      setPatientResults(patientData || []);
-      setPatientOpen((patientData || []).length > 0);
-    }
-  }, [patientData, debouncedPatientSearch]);
-
-  useEffect(() => {
-    setPatientLoading(isPatientFetching);
-  }, [isPatientFetching]);
-
-  // Diagnosis suggestions
-  const debouncedDiagSearch = useDebounce(diagnosisSearch, 200);
-  useEffect(() => {
-    const q = debouncedDiagSearch.trim();
-    if (q.length < 2) { setDiagSuggestions([]); setDiagOpen(false); return; }
-    const matches = DIAGNOSES.filter(d => d.toLowerCase().includes(q.toLowerCase()));
-    setDiagSuggestions(matches.slice(0, 10));
-    setDiagOpen(matches.length > 0);
-  }, [debouncedDiagSearch]);
-
-  // Treatment search
-  const debouncedTreatSearch = useDebounce(treatSearch, 300);
-  const { data: treatData, isFetching: isTreatFetching } = useQuery({
-    queryKey: ["treatSearch", debouncedTreatSearch],
-    queryFn: async () => {
-      const q = debouncedTreatSearch.toLowerCase().trim();
-      if (q.length < 3) return [];
-      const brand = Object.keys(BRAND_TO_GENERIC).find(b => q.includes(b));
-      const term = brand ? BRAND_TO_GENERIC[brand] : debouncedTreatSearch;
-
-      const { data } = await supabase
-        .from("nhia_items" as any)
-        .select("code,name,amount,category,subcategory")
-        .or(`name.ilike.${safeIlikePattern(term)},code.ilike.${safeIlikePattern(term)},subcategory.ilike.${safeIlikePattern(term)}`)
-        .eq("is_active", true)
-        .limit(100);
-      return data || [];
-    },
-    enabled: debouncedTreatSearch.length >= 3,
-  });
-
-  useEffect(() => {
-    if (debouncedTreatSearch.length < 3) {
-      setTreatResults([]);
-      setTreatOpen(false);
-    } else {
-      setTreatResults(treatData || []);
-      setTreatOpen((treatData || []).length > 0);
-    }
-  }, [treatData, debouncedTreatSearch]);
-
-  useEffect(() => {
-    setTreatLoading(isTreatFetching);
-  }, [isTreatFetching]);
 
   const total = treatments.reduce((a, t) => a + Number(t.amount) * t.quantity, 0);
 
@@ -304,7 +223,9 @@ export default function HospitalNewRequest() {
 
         if (
           (refId && currentHospId && refId === currentHospId) ||
-          (refName.trim() && currentHospName.trim() && refName.toLowerCase().trim() === currentHospName.toLowerCase().trim())
+          (refName.trim() &&
+            currentHospName.trim() &&
+            refName.toLowerCase().trim() === currentHospName.toLowerCase().trim())
         ) {
           toast({
             variant: "destructive",
@@ -317,19 +238,17 @@ export default function HospitalNewRequest() {
     } else if (step === 3) {
       isValid = await trigger(["treatments"]);
     } else if (step === 4) {
-      // Document upload is optional per clinical workflow standards.
       isValid = true;
     }
-    
+
     if (isValid) {
-      setStep(s => s + 1);
+      setStep((s) => s + 1);
       window.scrollTo(0, 0);
     } else {
-      // Show error toast if they try to proceed with invalid data
       const errors = form.formState.errors;
       let errMsg = "Please check all fields";
       const firstVal: any = Object.values(errors)[0];
-      
+
       if (firstVal?.message) {
         errMsg = firstVal.message;
       } else if (Array.isArray(firstVal)) {
@@ -346,255 +265,17 @@ export default function HospitalNewRequest() {
     }
   };
 
-  const onSubmit = async (data: HospitalRequestFormValues) => {
-    // If somehow the form submits before step 5 (e.g., pressing Enter), just advance step
-    if (step !== 5) {
-      handleNextStep();
-      return;
-    }
-
-    // Prevent self-referral
-    const refId = data.referralHospitalId;
-    const refName = data.referralHospitalName || "";
-    const currentHospId = hospitalId || hospital?.id;
-    const currentHospName = hospital?.name || "";
-
-    if (!currentHospId) {
-      toast({
-        variant: "destructive",
-        title: "Facility Identification Error",
-        description: "Your hospital facility account could not be identified. Please reload or contact support.",
-      });
-      return;
-    }
-
-    if (
-      (refId && currentHospId && refId === currentHospId) ||
-      (refName.trim() && currentHospName.trim() && refName.toLowerCase().trim() === currentHospName.toLowerCase().trim())
-    ) {
-      toast({
-        variant: "destructive",
-        title: "Invalid Referral",
-        description: "You cannot refer a patient to your own facility.",
-      });
-      return;
-    }
-
-    // Double check email validation logic
-    if (!data.noEmail && (!data.patientEmail || !isValidEmail(data.patientEmail))) {
-      toast({ variant: "destructive", title: "Invalid email", description: "Enter a valid patient email address for PIN verification." });
-      return;
-    }
-    
-    if (!Number.isFinite(total) || total <= 0) {
-      toast({ variant: "destructive", title: "Invalid tariff total", description: "The request total must be greater than zero." });
-      return;
-    }
-
-    const approvedPayload = treatments.map((item) => ({
-      code: item.code,
-      name: item.name,
-      category: item.category || item.subcategory || null,
-      unit_price: Number(item.amount),
-      quantity: Number(item.quantity),
-      quantity_requires_review: false,
-      price_requires_review: false,
-      amount: Number(item.amount) * Number(item.quantity),
-      frequency: null,
-      duration: null,
-      matched_via: "hospital-selected",
-      matched_text: item.name,
-      confidence: "high",
-    }));
-    setIsSubmitting(true);
-
-    try {
-      const familyPolicy = selectedPatient.policy_number.split('-')[0];
-      const diagnosisText = diagnoses.join("; ");
-
-      // Register contacts atomically against the canonical family policy.
-      if (!noEmail && patientEmail.trim() && patientEmail.trim() !== "no-email@ronsbergerhmo.io" && !patientEmail.trim().startsWith("no-email@") && !patientEmail.trim().endsWith("@medicode.com")) {
-        const { data: emailCheck, error: emailError } = await (supabase.rpc as any)('register_policy_email', {
-          p_email: patientEmail.trim(),
-          p_family_policy: familyPolicy
-        });
-
-        if (emailError) throw emailError;
-        if (emailCheck && !emailCheck.allowed) {
-          toast({ variant: "destructive", title: "Email blocked", description: emailCheck.reason || "This email address is already associated with another policy family." });
-          setIsSubmitting(false);
-          return;
-        }
-
-      }
-
-      const { data: phoneCheck, error: phoneError } = await (supabase.rpc as any)('register_policy_phone', {
-        p_phone: phone,
-        p_family_policy: familyPolicy,
-      });
-      if (phoneError) throw phoneError;
-      if (!phoneCheck?.allowed) {
-        toast({
-          variant: "destructive",
-          title: "Phone number blocked",
-          description: phoneCheck?.reason || "Request not submitted: this patient phone number is already registered for a different family policy. No authorization request has been created.",
-        });
-        setIsSubmitting(false);
-        return;
-      }
-
-      // Resolve referral hospital ID if name is provided but ID is missing.
-      let resolvedReferralHospitalId = referralHospitalId;
-      const resolvedReferralHospitalName = referralHospitalName.trim() || null;
-      if (!resolvedReferralHospitalId && resolvedReferralHospitalName) {
-        const foundId = await findHospitalIdByName(referralHospitalName.trim());
-        if (foundId) {
-          resolvedReferralHospitalId = foundId;
-        }
-      }
-
-      // Determine request status based on whether a referral hospital is set.
-      // If a referral hospital is assigned, status is "pending_referral" (awaiting insurer approval).
-      // If no referral is assigned, status is "pending" (standard authorization request).
-      const isReferral = Boolean(resolvedReferralHospitalId || resolvedReferralHospitalName);
-      const initialStatus = isReferral ? "pending_referral" : "pending";
-
-      // Insert the authorization request.
-      const { data: insertedRequest, error } = await supabase
-        .from("authorization_requests")
-        .insert({
-          request_id: `REQ-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
-          patient_name: selectedPatient.full_name,
-          policy_number: selectedPatient.policy_number,
-          beneficiary_number: selectedPatient.beneficiary_number || null,
-          patient_email: patientEmail.trim(),
-          diagnosis: diagnosisText,
-          treatment: treatments.map(t => `${t.name} [Code: ${t.code}] (Qty: ${t.quantity} x NGN ${t.amount} = NGN ${t.quantity * Number(t.amount)})`).join("; "),
-          patient_phone: phone,
-          urgency,
-          hospital_id: hospital?.id,
-          hospital_name: hospital?.name,
-          // Referral chain: all four ID/name pairs must be set for RLS and queue queries.
-          requesting_hospital_id: hospital?.id,
-          requesting_hospital_name: hospital?.name,
-          referring_hospital_id: hospital?.id,
-          referring_hospital_name: hospital?.name,
-          referred_hospital_id: resolvedReferralHospitalId,
-          referred_hospital_name: resolvedReferralHospitalName,
-          // Claiming hospital = receiving hospital (if referral) or requesting hospital
-          claiming_hospital_id: resolvedReferralHospitalId || hospital?.id,
-          claiming_hospital_name: resolvedReferralHospitalName || hospital?.name,
-          submitted_by: user?.id,
-          approved_items: approvedPayload,
-          source: "hospital_portal",
-          doctor_report_url: doctorReportPath,
-          total_amount: total,
-          status: initialStatus,
-        })
-        .select("id")
-        .single();
-
-      if (error) throw error;
-      if (!insertedRequest?.id) throw new Error("Request created but no ID returned");
-
-      // Audit log: referral assignment.
-      if (isReferral) {
-        try {
-          await supabase.from("audit_logs" as any).insert({
-            action: "referral_created",
-            user_id: user?.id,
-            details: {
-              request_id: insertedRequest.id,
-              patient_name: selectedPatient.full_name,
-              policy_number: selectedPatient.policy_number,
-              referring_hospital_id: hospital?.id,
-              referring_hospital_name: hospital?.name,
-              referred_hospital_id: resolvedReferralHospitalId,
-              referred_hospital_name: resolvedReferralHospitalName,
-              status: initialStatus,
-            },
-            severity: "info",
-          });
-        } catch (err) {
-          console.error("Failed to insert audit log for referral", err);
-        }
-      }
-
-      // Asynchronously send submission notification via Email and WhatsApp
-      if ((phone && phone.trim().length >= 10) || (patientEmail && patientEmail.trim() !== "no-email@ronsbergerhmo.io" && !patientEmail.trim().startsWith("no-email@") && !patientEmail.trim().endsWith("@medicode.com"))) {
-        supabase.functions.invoke("send-submission-notification", {
-          body: {
-            phone_number: phone,
-            patient_email: patientEmail,
-            patient_name: selectedPatient?.full_name,
-            hospital_name: hospital?.name,
-            diagnoses: diagnoses,
-            urgency: urgency,
-            requested_items: treatments.map((t: any) => ({ quantity: t.quantity, name: t.name }))
-          }
-        }).catch(err => console.error("Failed to send submission notification", err));
-      }
-
-      // Best-effort Web Push to the approver team; avoid patient details in lock-screen text.
-      void notifyPendingAuthorizationRequest({
-        requestId: insertedRequest.id,
-        hospitalName: hospital?.name,
-        source: "hospital_portal",
-      });
-
-      // Send the request PIN to the patient email for referrals.
-      try {
-        let fnResult: any = {};
-        let otpError: any = null;
-        const isNoEmail = patientEmail.trim() === "no-email@ronsbergerhmo.io" || patientEmail.trim().startsWith("no-email@") || patientEmail.trim().endsWith("@medicode.com");
-
-        if (isReferral) {
-          const { data, error } = await supabase.functions.invoke("send-otp", {
-            method: "POST",
-            body: {
-              authorization_id: insertedRequest.id,
-              patient_email: patientEmail.trim() || "no-email@ronsbergerhmo.io",
-              policy_number: selectedPatient.policy_number,
-              otp_type: "ARRIVAL",
-              hospital_id: resolvedReferralHospitalId || hospital?.id,
-            },
-          });
-          fnResult = data || {};
-          otpError = error;
-
-          if (otpError && !fnResult.message) {
-            toast({ variant: "destructive", title: "PIN generation failed", description: otpError?.message || "Could not generate PIN." });
-          } else if (fnResult.error) {
-            toast({ variant: "destructive", title: "PIN generation failed", description: fnResult.message || "Could not generate PIN." });
-          } else {
-            toast({
-              title: "Referral request submitted",
-              description: isNoEmail 
-                ? `Referral to ${resolvedReferralHospitalName || 'hospital'} submitted. The Arrival PIN will be sent via WhatsApp upon approval.` 
-                : `Referral submitted. The Arrival PIN will be emailed to the patient upon approval.`,
-            });
-          }
-        } else {
-          // Standard request - no PIN generated at submission stage anymore
-          toast({
-            title: "Request submitted successfully",
-            description: isNoEmail
-              ? "Request submitted to HMO. The Treatment PIN will be sent via WhatsApp to the patient upon approval."
-              : "Request submitted to HMO. The Treatment PIN will be emailed to the patient upon approval.",
-          });
-        }
-      } catch (err: any) {
-        console.error("PIN generation failed:", err);
-        toast({ variant: "destructive", title: "PIN generation failed", description: err?.message || "Could not generate PIN." });
-      }
-
-      if (draftKey) removeSessionItem(draftKey);
-      navigate("/dashboard");
-    } catch (err: any) {
-      console.error("Request submission error:", err);
-      toast({ variant: "destructive", title: "Submission failed", description: err.message });
-    } finally { setIsSubmitting(false); }
-  };
+  const { isSubmitting, onSubmit } = useHospitalNewRequestSubmit({
+    hospitalId,
+    hospital: hospital ?? null,
+    userId: user?.id,
+    total,
+    doctorReportPath,
+    doctorReportName,
+    draftKey,
+    step,
+    handleNextStep,
+  });
 
   return (
     <div className="max-w-2xl mx-auto pb-10 animate-in fade-in duration-300">
@@ -617,7 +298,10 @@ export default function HospitalNewRequest() {
                   New Authorization Request
                 </h1>
                 {hospital?.code && (
-                  <Badge variant="outline" className="font-mono text-[10px] font-semibold bg-slate-50 text-slate-700 border-slate-200">
+                  <Badge
+                    variant="outline"
+                    className="font-mono text-[10px] font-semibold bg-slate-50 text-slate-700 border-slate-200"
+                  >
                     {hospital.code}
                   </Badge>
                 )}
@@ -627,48 +311,18 @@ export default function HospitalNewRequest() {
               </p>
             </div>
           </div>
-          <span className="hidden sm:inline-flex items-center gap-1.5 text-xs font-medium text-slate-600 bg-slate-50 px-2.5 py-1 rounded-full border border-slate-200"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />Registry Active</span>
+          <span className="hidden sm:inline-flex items-center gap-1.5 text-xs font-medium text-slate-600 bg-slate-50 px-2.5 py-1 rounded-full border border-slate-200">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+            Registry Active
+          </span>
         </div>
       </div>
-      
-      {/* Stepper Header */}
-      <div className="mb-5 rounded-xl border border-slate-200 bg-white p-3 shadow-sm sm:p-3.5">
-        <div className="grid grid-cols-5 gap-2">
-          {[
-            { num: 1, label: "Patient" },
-            { num: 2, label: "Diagnosis" },
-            { num: 3, label: "Treatment" },
-            { num: 4, label: "Documents" },
-            { num: 5, label: "Review" },
-          ].map(({ num, label }) => (
-            <div key={num} className="flex flex-col items-center text-center">
-              <div
-                className={`flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-full text-xs font-bold transition-all ${
-                  step === num
-                    ? "bg-slate-900 text-white shadow-sm ring-2 ring-emerald-500 ring-offset-2"
-                    : step > num
-                    ? "bg-emerald-600 text-white shadow-xs"
-                    : "bg-slate-100 text-slate-600 border border-slate-200"
-                }`}
-              >
-                {step > num ? <CheckCircle2 className="h-4 w-4" /> : num}
-              </div>
-              <span
-                className={`mt-1 text-[10px] sm:text-[11px] font-semibold truncate ${
-                  step === num ? "text-slate-900 font-bold" : step > num ? "text-emerald-800 font-bold" : "text-slate-600 font-medium"
-                }`}
-              >
-                {label}
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
+
+      <RequestStepperHeader step={step} />
 
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
           <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
-            
             {step === 1 && (
               <PatientSection
                 selectedPatient={selectedPatient}
@@ -691,7 +345,11 @@ export default function HospitalNewRequest() {
               <div className="divide-y divide-slate-100">
                 <DiagnosisSection
                   diagnoses={diagnoses}
-                  setDiagnoses={(val) => setValue("diagnoses", typeof val === 'function' ? val(diagnoses) : val, { shouldValidate: true })}
+                  setDiagnoses={(val) =>
+                    setValue("diagnoses", typeof val === "function" ? val(diagnoses) : val, {
+                      shouldValidate: true,
+                    })
+                  }
                   diagnosisSearch={diagnosisSearch}
                   setDiagnosisSearch={(val) => setValue("diagnosisSearch", val)}
                   diagSuggestions={diagSuggestions}
@@ -704,14 +362,14 @@ export default function HospitalNewRequest() {
                   urgency={urgency}
                   setUrgency={(val) => setValue("urgency", val as any, { shouldValidate: true })}
                 />
-                 <ReferralSection
-                   hospitalName={hospital?.name ?? ""}
-                   hospitalId={hospital?.id}
-                   referralHospitalName={referralHospitalName}
-                   referralHospitalId={referralHospitalId ?? null}
-                   setReferralHospitalId={(val) => setValue("referralHospitalId", val)}
-                   setReferralHospitalName={(val) => setValue("referralHospitalName", val)}
-                 />
+                <ReferralSection
+                  hospitalName={hospital?.name ?? ""}
+                  hospitalId={hospital?.id}
+                  referralHospitalName={referralHospitalName}
+                  referralHospitalId={referralHospitalId ?? null}
+                  setReferralHospitalId={(val) => setValue("referralHospitalId", val)}
+                  setReferralHospitalName={(val) => setValue("referralHospitalName", val)}
+                />
               </div>
             )}
 
@@ -724,7 +382,11 @@ export default function HospitalNewRequest() {
                 treatOpen={treatOpen}
                 setTreatOpen={setTreatOpen}
                 treatments={normalizedTreatments}
-                setTreatments={(val) => setValue("treatments", typeof val === 'function' ? val(normalizedTreatments) : val, { shouldValidate: true })}
+                setTreatments={(val) =>
+                  setValue("treatments", typeof val === "function" ? val(normalizedTreatments) : val, {
+                    shouldValidate: true,
+                  })
+                }
                 isSubmitting={isSubmitting}
                 onSubmit={handleNextStep}
                 treatRef={treatRef}
@@ -741,83 +403,20 @@ export default function HospitalNewRequest() {
             )}
 
             {step === 5 && (
-              <div className="p-4 sm:p-5 space-y-4">
-                <div className="border-b border-slate-100 pb-2.5">
-                  <h3 className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
-                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" /> Review Authorization Request
-                  </h3>
-                  <p className="text-[11px] text-slate-500">Verify enrollee details, clinical diagnoses, and tariff items before submitting</p>
-                </div>
-                
-                <div className="bg-slate-50 p-4 rounded-xl border border-slate-300 space-y-3 text-xs">
-                  <div className="flex justify-between items-start gap-2">
-                    <span className="text-slate-700 font-semibold">Patient:</span>
-                    <span className="font-bold text-slate-900 text-right">{selectedPatient?.full_name} ({selectedPatient?.policy_number})</span>
-                  </div>
-                  <div className="flex justify-between items-start gap-2">
-                    <span className="text-slate-700 font-semibold">Contact:</span>
-                    <span className="font-bold text-slate-900 text-right">
-                      {phone} {(!noEmail && patientEmail && patientEmail !== "no-email@ronsbergerhmo.io" && !patientEmail.startsWith("no-email@") && !patientEmail.endsWith("@medicode.com")) ? ` · ${patientEmail}` : ""}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-start gap-2">
-                    <span className="text-slate-700 font-semibold">Diagnoses:</span>
-                    <span className="font-bold text-slate-900 text-right">{diagnoses.join(", ")}</span>
-                  </div>
-                  <div className="flex justify-between items-center gap-2">
-                    <span className="text-slate-700 font-semibold">Urgency:</span>
-                    <span className="font-bold capitalize text-slate-900">{urgency}</span>
-                  </div>
-                  <div className="flex justify-between items-center gap-2">
-                    <span className="text-slate-700 font-semibold">Doctor Report:</span>
-                    <span className="font-bold text-slate-900 flex items-center gap-1.5">
-                      <FileText className="h-3.5 w-3.5 text-emerald-600" />
-                      {doctorReportName || "None attached"}
-                    </span>
-                  </div>
-
-                  {treatments.length > 0 && (
-                    <div className="pt-2.5 border-t border-slate-200">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-xs font-bold text-slate-900">Selected Tariff Items ({treatments.length})</span>
-                      </div>
-                      <div className="space-y-1.5 max-h-[200px] overflow-y-auto pr-1">
-                        {treatments.map((t, idx) => {
-                          const isRef = Boolean(referralHospitalId || (referralHospitalName && referralHospitalName.trim().length > 0));
-                          return (
-                            <div key={idx} className="flex justify-between items-center text-xs border border-slate-200 rounded-lg p-2.5 bg-white shadow-xs">
-                              <div className="flex-1 min-w-0 pr-2">
-                                <p className="font-bold text-slate-900 truncate">{t.name}</p>
-                                <p className="text-[11px] text-slate-700 font-mono font-medium">{t.code} · {t.category || "Service"}</p>
-                              </div>
-                              <div className="text-right whitespace-nowrap shrink-0">
-                                {!isRef ? (
-                                  <div>
-                                    <p className="text-[11px] text-slate-700 font-medium">{t.quantity} × ₦{Number(t.amount).toLocaleString("en-NG")}</p>
-                                    <p className="font-mono font-bold text-slate-900 text-xs">₦{(t.quantity * t.amount).toLocaleString("en-NG")}</p>
-                                  </div>
-                                ) : (
-                                  <p className="font-bold text-slate-900">Qty: {t.quantity}</p>
-                                )}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-
-                  {!(referralHospitalId || (referralHospitalName && referralHospitalName.trim().length > 0)) && (
-                    <div className="flex justify-between items-center border-t border-slate-300 pt-3 mt-2">
-                      <span className="font-bold text-slate-900 text-sm">Total Requested Amount:</span>
-                      <span className="font-mono font-black text-emerald-700 text-base">₦{total.toLocaleString("en-NG")}</span>
-                    </div>
-                  )}
-                </div>
-
-              </div>
+              <RequestReviewSection
+                selectedPatient={selectedPatient}
+                phone={phone}
+                patientEmail={patientEmail}
+                noEmail={noEmail}
+                diagnoses={diagnoses}
+                urgency={urgency}
+                doctorReportName={doctorReportName}
+                treatments={treatments}
+                referralHospitalId={referralHospitalId ?? null}
+                referralHospitalName={referralHospitalName}
+                total={total}
+              />
             )}
-            
           </div>
 
           <div className="flex items-center justify-between pt-1">
@@ -826,13 +425,13 @@ export default function HospitalNewRequest() {
               variant="outline"
               onClick={() => {
                 if (step === 1) navigate("/dashboard");
-                else setStep(s => s - 1);
+                else setStep((s) => s - 1);
               }}
               className="h-9 sm:h-10 px-4 sm:px-5 rounded-lg border-slate-200 text-slate-700 font-medium hover:bg-slate-50"
             >
               {step === 1 ? "Cancel" : "Back"}
             </Button>
-            
+
             {step < 5 ? (
               <Button
                 type="button"
@@ -845,7 +444,9 @@ export default function HospitalNewRequest() {
               <Button
                 type="submit"
                 disabled={isSubmitting || !canSubmit}
-                className={`h-9 sm:h-10 rounded-lg bg-emerald-600 px-5 sm:px-6 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-emerald-700 ${!canSubmit && !isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}
+                className={`h-9 sm:h-10 rounded-lg bg-emerald-600 px-5 sm:px-6 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-emerald-700 ${
+                  !canSubmit && !isSubmitting ? "opacity-50 cursor-not-allowed" : ""
+                }`}
               >
                 {isSubmitting ? "Submitting…" : "Confirm & Submit Request"}
               </Button>
