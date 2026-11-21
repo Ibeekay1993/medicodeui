@@ -45,6 +45,8 @@ import { ClinicalHistory } from "./review/ClinicalHistory";
 import { PostReviewTemplates } from "./review/PostReviewTemplates";
 import { ArrivalPinBanner } from "./review/ArrivalPinBanner";
 import { usePrimaryHospitalLookup } from "@/hooks/clinical/usePrimaryHospitalLookup";
+import { useWhatsAppClinicalRecovery } from "@/hooks/clinical/useWhatsAppClinicalRecovery";
+import { usePatientArrivalPinResend } from "@/hooks/clinical/usePatientArrivalPinResend";
 
 // Utilities
 import {
@@ -70,7 +72,6 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
   const isDecided = !isPending;
   const [activeTab, setActiveTab] = useState(() => (isDecided ? "clinical" : "verification"));
   const [showStickyName, setShowStickyName] = useState(false);
-  const [isResending, setIsResending] = useState(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   // 1. Determine request metadata
@@ -176,78 +177,6 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
     !codeMatch
   );
 
-  // Helper: extract treatment/services text from a request even when treatment
-  // field is empty. WhatsApp requests may have "Services: ..." in clinical_notes
-  // or the worker may have failed to map it â€” this recovers those cases.
-  const extractTreatmentText = (req: any): string => {
-    if (req?.treatment?.trim()) return req.treatment.trim();
-    const cn = req?.clinical_notes;
-    if (cn) {
-      let parsed: any = cn;
-      if (typeof cn === "string") {
-        try { parsed = JSON.parse(cn); } catch { /* ignore */ }
-      }
-      if (typeof parsed === "object" && parsed !== null) {
-        const candidates = [
-          parsed.raw_text,
-          parsed.services,
-          parsed.treatment,
-          parsed.requested_service,
-          parsed.requestedService,
-        ];
-        for (const c of candidates) {
-          if (typeof c === "string" && c.trim()) return c.trim();
-        }
-      }
-      if (typeof parsed === "string" && /services?\s*:/i.test(parsed)) {
-        return parsed.trim();
-      }
-    }
-    return "";
-  };
-  // 2. Add local state for editTreatment
-  const [editTreatment, setEditTreatment] = useState("");
-  const [recoveredDiagnosis, setRecoveredDiagnosis] = useState<{ requestId: string; text: string } | null>(null);
-
-  useEffect(() => {
-    if (open && request) {
-      setEditTreatment(extractTreatmentText(request));
-    }
-  }, [open, request]);
-
-  // Recover missing WhatsApp diagnosis/treatment values from the source message.
-  useEffect(() => {
-    if (!open || !request) return;
-    if (request.source !== "whatsapp") return; // only WhatsApp requests need this
-    const needsDiagnosis = !request.diagnosis?.trim();
-    const needsTreatment = !request.treatment?.trim() && !extractTreatmentText(request);
-    if (!needsDiagnosis && !needsTreatment) return;
-    const msgId = request.whatsapp_message_id;
-    if (!msgId) return;
-
-    let cancelled = false;
-    const recoverClinicalText = async () => {
-      const { data, error } = await supabase.functions.invoke("get-whatsapp-clinical-details", {
-        body: { request_id: request.id },
-      });
-      if (error) throw error;
-      if (cancelled || !data) return;
-
-      const diagnosis = typeof data.diagnosis === "string" ? data.diagnosis.trim() : "";
-      if (needsDiagnosis && diagnosis) setRecoveredDiagnosis({ requestId: request.id, text: diagnosis });
-
-      const treatment = typeof data.treatment === "string" ? data.treatment.trim() : "";
-      if (needsTreatment && treatment) {
-        setEditTreatment((current) => cancelled || current.trim() ? current : treatment);
-      }
-    };
-    void recoverClinicalText().catch((error) => {
-      if (!cancelled) console.warn("Could not recover missing WhatsApp clinical details from the source message:", error);
-    });
-    return () => { cancelled = true; };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, request?.id, request?.source, request?.whatsapp_message_id, request?.diagnosis, request?.treatment, request?.clinical_notes]);
-
   useEffect(() => {
     if (!open || !request) return;
     setActiveTab(isDecided ? "clinical" : "verification");
@@ -261,6 +190,25 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
     const frame = requestAnimationFrame(resetScroll);
     return () => cancelAnimationFrame(frame);
   }, [open, request?.id, isDecided]);
+
+  // WhatsApp clinical recovery hook for diagnosis & treatment
+  const [editDiagnosis, setEditDiagnosis] = useState("");
+  const [editTreatment, setEditTreatment] = useState("");
+
+  const whatsappRecovery = useWhatsAppClinicalRecovery({
+    open,
+    request,
+    requestDetailsLoaded,
+    editDiagnosis,
+    setEditDiagnosis,
+  });
+
+  // Keep local editTreatment in sync with recovery
+  useEffect(() => {
+    if (whatsappRecovery.editTreatment) {
+      setEditTreatment(whatsappRecovery.editTreatment);
+    }
+  }, [whatsappRecovery.editTreatment]);
 
   // 3. Initialize manual/auto tariff search hook
   const tariffSearch = useTariffSearch(open, editTreatment, request, canManageClinicalCart && !isHospitalDirected);
@@ -278,99 +226,18 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
     setEditTreatment,
   });
 
+  // Wire sync from local diagnosis state to actions
   useEffect(() => {
-    if (
-      !open ||
-      !requestDetailsLoaded ||
-      !request ||
-      request.source !== "whatsapp" ||
-      request.diagnosis?.trim() ||
-      !recoveredDiagnosis ||
-      recoveredDiagnosis.requestId !== request.id ||
-      !recoveredDiagnosis.text.trim() ||
-      actions.editDiagnosis.trim()
-    ) return;
-    actions.setEditDiagnosis(recoveredDiagnosis.text);
-  }, [
-    open,
-    requestDetailsLoaded,
-    request?.id,
-    request?.source,
-    request?.diagnosis,
-    recoveredDiagnosis,
-    actions.editDiagnosis,
-    actions.setEditDiagnosis,
-  ]);
+    if (editDiagnosis && !actions.editDiagnosis) {
+      actions.setEditDiagnosis(editDiagnosis);
+    }
+  }, [editDiagnosis, actions]);
   const visibleOtpValue = otpValue || actions.arrivalOtp || actions.treatmentOtp;
 
-  const handleResendOtp = async () => {
-    if (!request) return;
-    setIsResending(true);
-    try {
-      if (!request.patient_phone) {
-        throw new Error("This patient does not have a WhatsApp phone number on record.");
-      }
-
-      // Strictly source the verified Arrival PIN (never fall back to auth_code or treatment PIN)
-      const arrivalPinToResend = (otpValue || actions.arrivalOtp || "").trim();
-      if (!arrivalPinToResend) {
-        throw new Error("No verified Arrival PIN is available to resend for this authorization. Please ensure the PIN is generated.");
-      }
-
-      // Prepare WhatsApp message
-      const patientName = cleanPatientName(request.patient_name || "");
-      const policyNo = request.policy_number || "N/A";
-      const hospitalName = request.hospital_name || "the hospital";
-      const diagnosis = request.diagnosis || "Not specified";
-      const priority = request.urgency || "ROUTINE";
-      const pin = arrivalPinToResend;
-      const approverName = String(request.authorized_by_name || "Ronsberger HMO Utilization Team").trim();
-      const approverInitials = String(request.nurse_initials || "").trim();
-      const authorizedBy = approverInitials ? `${approverName} (${approverInitials})` : approverName;
-
-      let itemsText = "";
-      const itemsList = request.approved_items || request.items;
-      if (itemsList && Array.isArray(itemsList) && itemsList.length > 0) {
-        itemsText = "\n\n*Approved Treatment / Services*\n\n" + itemsList.map((item: any) => {
-          const qty = item.quantity || 1;
-          const name = item.name || "Service";
-          return `• *${qty}x ${name}*`;
-        }).join("\n");
-      }
-
-      const messageText = `*Ronsberger HMO*\n\n*AUTHORIZATION APPROVED*\n\nHello *${patientName}*,\n\nWe are pleased to inform you that your treatment request submitted through *${hospitalName}* has been *approved* by Ronsberger HMO.\n\nYour requested treatment has been authorized based on the diagnosis and request details below.\n\n*Request Details*\n\nPatient: *${patientName}*\nPolicy No.: *${policyNo}*\nHospital: *${hospitalName}*\nDiagnosis: *${diagnosis}*\nAuthorized by: *${authorizedBy}*\nPriority: *${priority}*${itemsText}\n\n*Your Patient Arrival PIN*\n\n*${pin}*\n\nPlease provide this PIN to the reception at *${hospitalName}* when you arrive. The PIN will be used to confirm your authorization and finalize your approved treatment.\n\n*Important Notice*\nPlease contact us immediately if these services were not fully rendered to you, or if you are asked to make any additional payments for the approved items listed above.\n\nThank you for choosing Ronsberger HMO.`;
-
-      // Format phone number
-      const phoneStr = String(request.patient_phone || "");
-      const cleanNumber = phoneStr.replace(/\D/g, "");
-      let formattedNumber = cleanNumber;
-      if (cleanNumber.length === 11 && cleanNumber.startsWith("0")) {
-        formattedNumber = "234" + cleanNumber.substring(1);
-      } else if (cleanNumber.length === 10) {
-        formattedNumber = "234" + cleanNumber;
-      }
-
-      // Direct background send via Evolution API (send-whatsapp Edge Function)
-      const { data: sendResult, error: sendError } = await supabase.functions.invoke("send-whatsapp", {
-        body: {
-          phone_number: formattedNumber,
-          message: messageText,
-        },
-      });
-
-      if (sendError || !sendResult?.success) {
-        const reason = await getWhatsAppSendErrorMessage(sendResult, sendError);
-        toast({ variant: "destructive", title: "WhatsApp not sent", description: reason });
-      } else {
-        toast({ title: "WhatsApp Sent!", description: `Arrival PIN sent to ${formattedNumber}` });
-      }
-    } catch (err: any) {
-      console.error(err);
-      toast({ variant: "destructive", title: "Error", description: err.message || "An unexpected error occurred." });
-    } finally {
-      setIsResending(false);
-    }
-  };
+  const { isResending, handleResendOtp } = usePatientArrivalPinResend({
+    request,
+    visibleOtpValue,
+  });
 
   useEffect(() => {
     if (actions.approvalResult || actions.declineResult) {
