@@ -1,4 +1,4 @@
-// whatsapp-worker/index.ts
+﻿// whatsapp-worker/index.ts
 // Ronsberger HMO WhatsApp AI conversation worker.
 // AI interprets intent and entities; deterministic code owns database/business actions.
 
@@ -25,6 +25,27 @@ import {
   analyzeMessage,
   type GeminiAnalysisResult,
 } from "./providers.ts";
+import {
+  sendWhatsAppMessage,
+  getOutboundLedger,
+  saveOutboundLedger,
+  sendOutboundReply,
+  formatDetailedDecisionMessage,
+  formatPatientDecisionMessage,
+} from "./response-dispatcher.ts";
+import {
+  draftIdentityConflicts,
+  findExistingAuthorizationForMessage,
+  findSenderRequests,
+  getConversation,
+  getProviderInformation,
+  normalizeDraftName,
+  postAuthorization,
+  resolveHospitalSender,
+  resumeExistingAuthorization,
+  updateConversation,
+} from "./authorizations-intake.ts";
+import { processNotifications } from "./notification-dispatcher.ts";
 import {
   classifyRetryFailure,
   isInboundMessageProcessable,
@@ -97,7 +118,7 @@ const PROCESSING_LEASE_MS = Number(Deno.env.get("WHATSAPP_PROCESSING_LEASE_MS") 
 const UNREGISTERED_WINDOW_MS = 60_000;
 const UNREGISTERED_MAX_MESSAGES = 3;
 
-// AI provider failover config (Gemini → Groq → Modal → deterministic brain).
+// AI provider failover config (Gemini â†’ Groq â†’ Modal â†’ deterministic brain).
 // Values are read from environment at cold start; secrets are never logged.
 const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY") || "";
 const GROQ_MODEL = Deno.env.get("GROQ_MODEL") || "";
@@ -263,716 +284,6 @@ async function recoverStaleProcessingRows(
   }
 }
 
-async function findExistingAuthorizationForMessage(
-  supabase: ReturnType<typeof getServiceClient>,
-  row: {
-    message_id: string;
-    authorization_request_id?: string | null;
-    internal_request_id?: string | null;
-    received_at?: string | null;
-    created_at?: string | null;
-  },
-) {
-  const candidateIds = [
-    row.authorization_request_id,
-    row.internal_request_id,
-  ].filter((value): value is string => Boolean(value));
-
-  if (candidateIds.length) {
-    const { data, error } = await supabase
-      .from("authorization_requests")
-      .select(
-        "id, request_id, patient_name, policy_number, diagnosis, treatment, status, source, clinical_notes, whatsapp_message_id, authorization_code, approved_by, decided_at, decided_by, decision_reason, created_at",
-      )
-      .in("id", candidateIds)
-      .limit(20);
-    if (error) throw error;
-    if (data?.[0]) return data[0];
-  }
-
-  const messageId = String(row.message_id || "").trim();
-  if (messageId) {
-    const { data: directMatch, error: directMatchError } = await supabase
-      .from("authorization_requests")
-      .select(
-        "id, request_id, patient_name, policy_number, diagnosis, treatment, status, source, clinical_notes, whatsapp_message_id, authorization_code, approved_by, decided_at, decided_by, decision_reason, created_at",
-      )
-      .eq("whatsapp_message_id", messageId)
-      .limit(20);
-    if (directMatchError) throw directMatchError;
-    if (directMatch?.[0]) return directMatch[0];
-  }
-
-  // The JSON-note lookup exists only for legacy rows that predate the indexed
-  // whatsapp_message_id column. Avoid reading a page of recent authorizations
-  // for every normal inbound message.
-  if (!isPastAutoProcessAgeLimit(row, MAX_AUTO_PROCESS_AGE_MINUTES)) return null;
-
-  const { data: recent, error: recentError } = await supabase
-    .from("authorization_requests")
-    .select(
-      "id, request_id, patient_name, policy_number, diagnosis, treatment, status, source, clinical_notes, whatsapp_message_id, authorization_code, approved_by, decided_at, decided_by, decision_reason, created_at",
-    )
-    .eq("source", "whatsapp")
-    .order("created_at", { ascending: false })
-    .limit(200);
-  if (recentError) throw recentError;
-
-  const matching = (recent || []).find((candidate) => {
-    let clinical: Record<string, unknown> = candidate.clinical_notes && typeof candidate.clinical_notes === "object"
-      ? candidate.clinical_notes as Record<string, unknown>
-      : {};
-    if (typeof candidate.clinical_notes === "string") {
-      try {
-        const parsed: unknown = JSON.parse(candidate.clinical_notes);
-        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-          clinical = parsed as Record<string, unknown>;
-        }
-      } catch { clinical = {}; }
-    }
-    const exactMessageId = String(candidate.whatsapp_message_id || "");
-    const noteMessageId = String(clinical.whatsapp_message_id || "");
-    return exactMessageId === String(row.message_id) || noteMessageId === String(row.message_id);
-  });
-
-  return matching || null;
-}
-
-async function resumeExistingAuthorization(
-  supabase: ReturnType<typeof getServiceClient>,
-  row: {
-    message_id: string;
-    authorization_request_id?: string | null;
-    internal_request_id?: string | null;
-    received_at?: string | null;
-    created_at?: string | null;
-  },
-) {
-  return await findExistingAuthorizationForMessage(supabase, row);
-}
-
-function normalizeDraftName(value: unknown) {
-  return String(value || "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, " ")
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean)
-    .sort()
-    .join(" ");
-}
-
-function draftIdentityConflicts(
-  current: Record<string, string>,
-  incomingName: string | null | undefined,
-  incomingPolicy: string | null | undefined,
-) {
-  const currentName = normalizeDraftName(current.patientName);
-  const newName = normalizeDraftName(incomingName);
-  if (currentName && newName && currentName !== newName) return true;
-
-  const currentPolicy = parsePolicyNumber(String(current.policyNumber || "")).basePolicy;
-  const newPolicy = parsePolicyNumber(String(incomingPolicy || "")).basePolicy;
-  return Boolean(currentPolicy && newPolicy && currentPolicy !== newPolicy);
-}
-
-async function sendWhatsAppMessage(toPhone: string, text: string) {
-  if (!EVOLUTION_API_URL || !EVOLUTION_API_KEY)
-    throw new Error("Evolution creds missing");
-  if (OUTBOUND_DELAY_MS > 0) {
-    await new Promise((resolve) => setTimeout(resolve, OUTBOUND_DELAY_MS));
-  }
-  const url = `${EVOLUTION_API_URL.replace(/\/$/, "")}/message/sendText/${encodeURIComponent(EVOLUTION_INSTANCE_NAME)}`;
-  let res: Response;
-  const controller = new AbortController();
-  const timeout = setTimeout(
-    () => controller.abort(),
-    OUTBOUND_REQUEST_TIMEOUT_MS,
-  );
-  try {
-    try {
-      res = await fetch(url, {
-        method: "POST",
-        headers: { apikey: EVOLUTION_API_KEY, "Content-Type": "application/json" },
-        body: JSON.stringify({ number: toPhone, text }),
-        signal: controller.signal,
-      });
-      await res.text();
-    } catch (cause) {
-      const error = new Error(`Evolution delivery outcome is uncertain: ${(cause as Error).message || "network error"}`);
-      Object.assign(error, { deliveryAmbiguous: true });
-      throw error;
-    }
-  } finally {
-    clearTimeout(timeout);
-  }
-  if (!res.ok) {
-    // Do not persist the provider response body: it can contain recipient
-    // identifiers. The HTTP status is enough to classify retry behavior.
-    const error = new Error(`Evolution send ${res.status}`);
-    Object.assign(error, { providerStatus: res.status });
-    if (res.status >= 500) Object.assign(error, { deliveryAmbiguous: true });
-    throw error;
-  }
-  // A 2xx response means Evolution accepted the message. Avoid storing its
-  // response payload, which may include recipient identifiers.
-  return null;
-}
-
-async function getOutboundLedger(
-  supabase: ReturnType<typeof getServiceClient>,
-  messageId: string,
-) {
-  const { data, error } = await supabase
-    .from("whatsapp_outbound_ledger")
-    .select(    "id, message_id, status, outbound_state, provider_message_id, authorization_request_id, sent_at, attempt_count, lease_owner, lease_expires_at, last_error, operation_key, destination_phone, content_hash")
-    .eq("message_id", messageId)
-    .maybeSingle();
-  if (error) {
-    log("outbound_ledger", messageId, "error", { error: error.message });
-    throw new Error(`outbound_ledger_lookup_failed: ${error.message}`);
-  }
-  return data || null;
-}
-
-async function saveOutboundLedger(
-  supabase: ReturnType<typeof getServiceClient>,
-  messageId: string,
-  authorizationRequestId: string | null,
-  status: "pending" | "sent" | "failed" | "retrying" | "ambiguous",
-  extra: Record<string, unknown> = {},
-) {
-  const payload: Record<string, unknown> = {
-    message_id: messageId,
-    authorization_request_id: authorizationRequestId || null,
-    status,
-    outbound_state: extra.outbound_state || (status === "sent" ? "sent" : status === "failed" ? "send_failed" : status === "retrying" ? "retry_pending" : "not_started"),
-    updated_at: new Date().toISOString(),
-    attempt_count: Number(extra.attempt_count ?? 0),
-    ...extra,
-  };
-  if (status === "sent") payload.sent_at = payload.sent_at || new Date().toISOString();
-  if (payload.outbound_state === "send_in_progress") {
-    payload.lease_expires_at = payload.lease_expires_at || new Date(Date.now() + 120_000).toISOString();
-  } else {
-    payload.lease_expires_at = null;
-  }
-  const { error } = await supabase
-    .from("whatsapp_outbound_ledger")
-    .upsert(payload, { onConflict: "message_id" });
-  if (error) throw error;
-  return payload;
-}
-
-async function sendOutboundReply(
-  supabase: ReturnType<typeof getServiceClient>,
-  toPhone: string,
-  text: string,
-  messageId: string,
-  authorizationRequestId?: string | null,
-  operationKey = "authorization_response",
-) {
-  const ledger = await getOutboundLedger(supabase, messageId);
-  if (ledger && isOutboundAmbiguous(ledger.outbound_state, ledger.lease_expires_at)) {
-    if (ledger.outbound_state !== "ambiguous") {
-      await saveOutboundLedger(supabase, messageId, authorizationRequestId || null, "retrying", {
-        outbound_state: "ambiguous",
-        attempt_count: Number(ledger.attempt_count || 0),
-        last_error: "Outbound lease expired; provider delivery cannot be reconciled safely",
-        lease_expires_at: null,
-      });
-    }
-    return { skipped: true, ambiguous: true, providerMessageId: ledger.provider_message_id || null };
-  }
-  if (ledger && !shouldSendOutbound(ledger.outbound_state, ledger.lease_expires_at)) {
-    return { skipped: true, ambiguous: false, providerMessageId: ledger.provider_message_id || null };
-  }
-  const attemptNumber = Number(ledger?.attempt_count || 0) + 1;
-  const contentHash = Array.from(
-    new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text))),
-  ).map((byte) => byte.toString(16).padStart(2, "0")).join("");
-  const leaseOwner = `outbound-${crypto.randomUUID()}`;
-  const { data: claimed, error: claimError } = await supabase.rpc(
-    "claim_whatsapp_outbound_operation",
-    {
-      p_message_id: messageId,
-      p_authorization_request_id: authorizationRequestId || null,
-      p_operation_key: operationKey,
-      p_destination_phone: toPhone,
-      p_content_hash: contentHash,
-      p_lease_owner: leaseOwner,
-      p_lease_seconds: 120,
-    },
-  );
-  if (claimError) throw claimError;
-  if (!claimed) {
-    return { skipped: true, ambiguous: true, providerMessageId: ledger?.provider_message_id || null };
-  }
-
-  let providerMessageId: unknown;
-  try {
-    providerMessageId = await sendWhatsAppMessage(toPhone, text);
-  } catch (error) {
-    const msg = (error as Error).message || "unknown";
-    const deliveryAmbiguous = Boolean((error as Error & { deliveryAmbiguous?: boolean }).deliveryAmbiguous);
-    const { error: updateError } = await supabase
-      .from("whatsapp_outbound_ledger")
-      .update({
-      outbound_state: deliveryAmbiguous ? "ambiguous" : "send_failed",
-      status: deliveryAmbiguous ? "retrying" : "failed",
-      attempt_count: attemptNumber,
-      last_error: msg.slice(0, 500),
-      lease_expires_at: null,
-      lease_owner: null,
-      updated_at: new Date().toISOString(),
-      })
-      .eq("message_id", messageId)
-      .eq("lease_owner", leaseOwner);
-    if (updateError) throw updateError;
-    if (deliveryAmbiguous) {
-      return { skipped: true, ambiguous: true, providerMessageId: null };
-    }
-    throw error;
-  }
-
-  try {
-    const { error: updateError } = await supabase
-      .from("whatsapp_outbound_ledger")
-      .update({
-      outbound_state: "sent",
-      status: "sent",
-      provider_message_id: typeof providerMessageId === "string" ? providerMessageId.slice(0, 200) : null,
-      sent_at: new Date().toISOString(),
-      attempt_count: attemptNumber,
-      last_error: null,
-      lease_expires_at: null,
-      lease_owner: null,
-      updated_at: new Date().toISOString(),
-      })
-      .eq("message_id", messageId)
-      .eq("lease_owner", leaseOwner);
-    if (updateError) throw updateError;
-    return { skipped: false, ambiguous: false, providerMessageId: providerMessageId || null };
-  } catch (error) {
-    const msg = (error as Error).message || "provider succeeded but result persistence failed";
-    try {
-      await supabase
-        .from("whatsapp_outbound_ledger")
-        .update({
-        status: "retrying",
-        outbound_state: "ambiguous",
-        provider_message_id: typeof providerMessageId === "string" ? providerMessageId.slice(0, 200) : null,
-        attempt_count: attemptNumber,
-        last_error: `Evolution accepted the message but persistence failed: ${msg.slice(0, 400)}`,
-        lease_expires_at: null,
-        lease_owner: null,
-        updated_at: new Date().toISOString(),
-        })
-        .eq("message_id", messageId)
-        .eq("lease_owner", leaseOwner);
-    } catch (ambiguityError) {
-      log("outbound_ledger", messageId, "error", {
-        error: (ambiguityError as Error).message,
-        provider_result: "accepted",
-      });
-    }
-    return { skipped: true, ambiguous: true, providerMessageId: providerMessageId || null };
-  }
-}
-
-async function resolveHospitalSender(
-  supabase: ReturnType<typeof getServiceClient>,
-  phoneNumber: string,
-) {
-  const normalized = normalizePhoneNumber(phoneNumber);
-  if (!normalized) return { authorized: false, reason: "phone_required" };
-
-  const { data, error } = await supabase.rpc("resolve_whatsapp_hospital_contact", {
-    _phone: normalized,
-  });
-  return parseWhatsAppHospitalContactResolution(data, error);
-}
-
-async function postAuthorization(
-  supabase: ReturnType<typeof getServiceClient>,
-  payload: Record<string, unknown>,
-) {
-  try {
-    const url = `${MEDAUTH_BASE_URL.replace(/\/$/, "")}${MEDAUTH_INTERNAL_PATH}`;
-    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
-    const headers: Record<string, string> = {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${serviceKey || MEDAUTH_API_KEY}`,
-      apikey: serviceKey || MEDAUTH_API_KEY,
-    };
-    if (MEDAUTH_API_KEY) headers["x-api-key"] = MEDAUTH_API_KEY;
-    if (WORKER_SECRET) headers["x-worker-secret"] = WORKER_SECRET;
-    const res = await fetch(url, {
-      method: "POST",
-      headers,
-      body: JSON.stringify(payload),
-    });
-    if (!res.ok) {
-      let failure: any = null;
-      try {
-        failure = await res.json();
-      } catch {
-        failure = null;
-      }
-      const failureMessage = String(
-        failure?.code || failure?.message || "",
-      ).toLowerCase();
-      if (
-        failureMessage === "phone_family_conflict" ||
-        failure?.message === "phone_family_conflict"
-      ) {
-        return {
-          error: "phone_family_conflict",
-          message: String(
-            failure?.message ||
-              "This phone number is already associated with another policy family.",
-          ),
-        };
-      }
-      if (
-        failureMessage === "beneficiary_mismatch" ||
-        failure?.message === "beneficiary_mismatch"
-      ) {
-        return {
-          error: "beneficiary_mismatch",
-          message: String(
-            failure?.message ||
-              "The patient name does not match the NHIS beneficiary record for this policy family.",
-          ),
-        };
-      }
-      if (
-        failureMessage === "beneficiary_conflict" ||
-        failure?.message === "beneficiary_conflict"
-      ) {
-        return {
-          error: "beneficiary_conflict",
-          message: "The beneficiary number conflicts with the patient name or policy. Please verify the member details before resubmitting.",
-        };
-      }
-      if (
-        failureMessage === "beneficiary_ambiguous" ||
-        failure?.message === "beneficiary_ambiguous"
-      ) {
-        return {
-          error: "beneficiary_ambiguous",
-          message: String(
-            failure?.message ||
-              "More than one NHIS beneficiary matches this patient name and policy family.",
-          ),
-        };
-      }
-    }
-    if (res.ok) {
-      const j = await res.json();
-      if (j?.id)
-        return {
-          id: String(j.id),
-          request_id: j.request_id ? String(j.request_id) : undefined,
-          status: j.status ? String(j.status) : undefined,
-        };
-    }
-  } catch (e) {
-    console.warn(
-      "submit-authorization invoke failed; using DB fallback",
-      (e as Error).message,
-    );
-  }
-  const patientName = String(payload.patient_name || "").trim(),
-    policyNumber = String(payload.policy_number || "").trim(),
-    diagnosis = String(payload.diagnosis || "").trim(),
-    treatment = String(payload.treatment || "").trim(),
-    hospitalName = String(
-      payload.hospital_name ||
-        "UNIVERSITY OF IBADAN HEALTH SERVICES (JAJA HEALTH CLINIC)",
-    ).trim(),
-    phoneNumber = String(payload.phone_number || "").trim(),
-    whatsappMessageId = String(payload.whatsapp_message_id || ""),
-    relatedRequestId = payload.related_request_id
-      ? String(payload.related_request_id)
-      : null,
-    duplicateStatus = payload.duplicate_status
-      ? String(payload.duplicate_status)
-      : "none";
-  let hospitalId: string | null = null;
-  const { data: senderContact } = await supabase
-    .from("hospital_whatsapp_contacts")
-    .select("hospital_id")
-    .eq("phone_number", normalizePhoneNumber(String(payload.sender_phone || "")))
-    .eq("status", "active")
-    .maybeSingle();
-  if (senderContact?.hospital_id) {
-    hospitalId = senderContact.hospital_id;
-  }
-  const normalizedPhoneNumber = phoneNumber
-    ? normalizePhoneNumber(phoneNumber)
-    : null;
-  const phoneCheck = await supabase.rpc("register_policy_phone", {
-    p_phone: normalizedPhoneNumber,
-    p_family_policy: policyNumber,
-  });
-  if (phoneCheck.error) throw phoneCheck.error;
-  if (!phoneCheck.data?.allowed) {
-    return {
-      error: "phone_family_conflict",
-      message: String(
-        phoneCheck.data?.reason ||
-          "Request not submitted: this patient phone number is already registered for a different family policy. No authorization request has been created.",
-      ),
-    };
-  }
-  const existingAuth = whatsappMessageId
-    ? await findExistingAuthorizationForMessage(supabase, { message_id: whatsappMessageId })
-    : null;
-  if (existingAuth) {
-    if (whatsappMessageId) {
-      await supabase
-        .from("whatsapp_messages")
-        .update({
-          authorization_request_id: existingAuth.id,
-          internal_request_id: existingAuth.id,
-          status: "authorization_created",
-          status_updated_at: getNowIso(),
-          last_error: null,
-        })
-        .eq("message_id", whatsappMessageId);
-    }
-    if (
-      String(payload.source || "").toLowerCase() === "whatsapp" &&
-      !isClinicallyDecidedAuthorization(existingAuth)
-    ) {
-      await ensureArrivalPin(supabase, existingAuth.id);
-    }
-    return {
-      id: String(existingAuth.id),
-      request_id: existingAuth.request_id ? String(existingAuth.request_id) : undefined,
-      status: existingAuth.status ? String(existingAuth.status) : undefined,
-    };
-  }
-  const { data: row, error } = await supabase
-    .from("authorization_requests")
-    .insert({
-      patient_name: patientName,
-      policy_number: policyNumber,
-      diagnosis,
-      treatment,
-      patient_phone: normalizedPhoneNumber,
-      hospital_name: hospitalName,
-      hospital_id: hospitalId,
-      requesting_hospital_id: hospitalId,
-      requesting_hospital_name: hospitalName,
-      referring_hospital_id: hospitalId,
-      referring_hospital_name: hospitalName,
-      claiming_hospital_id: hospitalId,
-      claiming_hospital_name: hospitalName,
-      doctor_name: "WhatsApp automated intake",
-      urgency: "routine",
-      source: "whatsapp",
-      clinical_notes: JSON.stringify({
-        source: "whatsapp",
-        whatsapp_message_id: whatsappMessageId,
-        captured_at: new Date().toISOString(),
-        related_request_id: relatedRequestId,
-        duplicate_status: duplicateStatus,
-        worker_processing_mode: payload[WORKER_PROCESSING_MODE_FIELD] || null,
-        missing_info: Array.isArray(payload.missing_info) ? payload.missing_info : [],
-        notes: getClinicalReviewNote(
-          resolveWorkerProcessingMode(payload[WORKER_PROCESSING_MODE_FIELD]),
-        ),
-      }),
-      whatsapp_message_id: whatsappMessageId || null,
-      whatsapp_raw_message: whatsappMessageId,
-      status: "pending",
-      submitted_by: null,
-      related_request_id: relatedRequestId,
-      duplicate_status: duplicateStatus,
-    })
-    .select("id, request_id, status")
-    .single();
-  if (error) {
-    const { data: existing } = whatsappMessageId
-      ? await supabase
-        .from("authorization_requests")
-        .select("id, request_id, status, authorization_code, approved_by, decided_at, decided_by, decision_reason")
-        .eq("whatsapp_message_id", whatsappMessageId)
-        .maybeSingle()
-      : { data: null };
-    if (existing) {
-      if (
-        String(payload.source || "").toLowerCase() === "whatsapp" &&
-        !isClinicallyDecidedAuthorization(existing)
-      ) {
-        await ensureArrivalPin(supabase, existing.id);
-      }
-      return { id: existing.id, request_id: existing.request_id, status: existing.status };
-    }
-  }
-  if (error || !row)
-    throw new Error(
-      `Direct DB fallback failed: ${error?.message || "unknown"}`,
-    );
-  if (String(payload.source || "").toLowerCase() === "whatsapp") {
-    if (row.status === "pending") {
-      schedulePendingAuthorizationPush(supabase, row.id, hospitalName);
-    }
-    await ensureArrivalPin(supabase, row.id);
-  }
-  return { id: row.id, request_id: row.request_id, status: row.status };
-}
-async function getConversation(
-  supabase: ReturnType<typeof getServiceClient>,
-  phone: string,
-) {
-  const { data } = await supabase
-    .from("whatsapp_conversations")
-    .select("*")
-    .eq("phone_number", phone)
-    .maybeSingle();
-  if (data) return data;
-  const { data: created } = await supabase
-    .from("whatsapp_conversations")
-    .insert({ phone_number: phone, pending_data: {} })
-    .select("*")
-    .single();
-  return created || { phone_number: phone, pending_data: {} };
-}
-async function updateConversation(
-  supabase: ReturnType<typeof getServiceClient>,
-  phone: string,
-  updates: Record<string, unknown>,
-) {
-  await supabase
-    .from("whatsapp_conversations")
-    .update({
-      ...updates,
-      updated_at: new Date().toISOString(),
-      last_message_at: new Date().toISOString(),
-    })
-    .eq("phone_number", phone);
-}
-async function findSenderRequests(
-  supabase: ReturnType<typeof getServiceClient>,
-  phone: string,
-) {
-  const { data: linked } = await supabase
-    .from("whatsapp_messages")
-    .select("authorization_request_id")
-    .eq("phone_number", phone)
-    .not("authorization_request_id", "is", null);
-  const ids = [
-    ...new Set(
-      (linked || [])
-        .map((x: any) => x.authorization_request_id)
-        .filter(Boolean),
-    ),
-  ] as string[];
-  if (!ids.length) return [];
-  const { data } = await supabase
-    .from("authorization_requests")
-    .select(
-      "id, request_id, patient_name, policy_number, status, decision_reason, diagnosis, treatment, hospital_name, claiming_hospital_name, authorization_code, approved_items, decided_at, created_at",
-    )
-    .in("id", ids)
-    .order("created_at", { ascending: false })
-    .limit(20);
-  return data || [];
-}
-
-function formatDetailedDecisionMessage(
-  auth: any,
-  decision: "approved" | "partially_approved" | "rejected",
-): string {
-  if (decision === "rejected") {
-    return `AUTHORIZATION DECLINED\n\nPatient: ${auth.patient_name}\nPolicy No: ${auth.policy_number || "N/A"}\nHospital: ${auth.claiming_hospital_name || auth.hospital_name || "N/A"}\nDiagnosis: ${auth.diagnosis || "Not specified"}\nReason: ${auth.decision_reason || "Does not meet clinical policy guidelines"}\nDate: ${auth.decided_at ? new Date(auth.decided_at).toLocaleDateString("en-GB") : new Date().toLocaleDateString("en-GB")}\n\nPlease contact Ronsberger HMO for clarification before treatment.\n\nRonsberger HMO UI Desk`;
-  }
-
-  const items = Array.isArray(auth.approved_items) ? auth.approved_items : [];
-  const approved = items
-    .filter((item: any) => !item?.declined)
-    .map(
-      (item: any) =>
-        `${item?.code || "NHIA"} - ${item?.name || "Approved service"}: ${Number(item?.quantity || 1)}`,
-    )
-    .join("\n") || `• ${auth.treatment || "See the authorization record"}`;
-  const declined = items
-    .filter((item: any) => item?.declined)
-    .map((item: any) => {
-      const line = `${item?.code || "NHIA"} - ${item?.name || "Declined service"}: ${Number(item?.quantity || 1)}`;
-      return `~${line}~${item?.decline_reason ? ` (Reason: ${item.decline_reason})` : ""}`;
-    })
-    .join("\n");
-  const isPartial = decision === "partially_approved";
-  const date = auth.decided_at
-    ? new Date(auth.decided_at).toLocaleDateString("en-GB")
-    : new Date().toLocaleDateString("en-GB");
-  const closing = isPartial
-    ? "Please proceed only with the approved services listed above. Declined services must not be provided under this authorization. For clarification, please contact Ronsberger HMO before treatment."
-    : "Please proceed with the approved services listed above. For clarification, please contact Ronsberger HMO before treatment.";
-  return `${isPartial ? "AUTHORIZATION PARTIALLY APPROVED" : "AUTHORIZATION APPROVED"}\n\nPatient: ${auth.patient_name}\nPolicy No: ${auth.policy_number || "N/A"}\nAuth Code: ${auth.authorization_code || "N/A"}\nHospital: ${auth.claiming_hospital_name || auth.hospital_name || "N/A"}\nDiagnosis: ${auth.diagnosis || "Not specified"}\n\nApproved Services:\n${approved}${declined ? `\n\nDeclined Services:\n${declined}` : ""}\nDate: ${date}\n\n${closing}\n\nRonsberger HMO UI Desk`;
-}
-
-function formatPatientDecisionMessage(
-  auth: any,
-  decision: "approved" | "partially_approved" | "rejected",
-): string {
-  const isPartial = decision === "partially_approved";
-  const heading = decision === "rejected"
-    ? "AUTHORIZATION DECLINED"
-    : isPartial
-    ? "AUTHORIZATION PARTIALLY APPROVED"
-    : "AUTHORIZATION APPROVED";
-  const approved = (Array.isArray(auth.approved_items) ? auth.approved_items : [])
-    .filter((item: any) => !item?.declined)
-    .map((item: any) => `- ${item?.code || "NHIA"} - ${item?.name || "Approved service"}: ${Number(item?.quantity || 1)}`)
-    .join("\n") || auth.treatment || "See the authorization details provided by your hospital.";
-  const declined = (Array.isArray(auth.approved_items) ? auth.approved_items : [])
-    .filter((item: any) => item?.declined)
-    .map((item: any) => `- ${item?.code || "NHIA"} - ${item?.name || "Service"}: ${Number(item?.quantity || 1)}${item?.decline_reason ? ` (${item.decline_reason})` : ""}`)
-    .join("\n");
-  const date = auth.decided_at
-    ? new Date(auth.decided_at).toLocaleDateString("en-GB")
-    : new Date().toLocaleDateString("en-GB");
-
-  if (decision === "rejected") {
-    return `Ronsberger HMO\n\n${heading}\n\nPatient: ${auth.patient_name}\nPolicy No: ${auth.policy_number || "N/A"}\nDiagnosis: ${auth.diagnosis || "Not specified"}\nReason: ${auth.decision_reason || "Please contact your hospital or Ronsberger HMO for clarification."}\n\nDate: ${date}\n\nPlease contact your hospital or Ronsberger HMO if you have any questions.`;
-  }
-
-  return `Ronsberger HMO\n\n${heading}\n\nPatient: ${auth.patient_name}\nPolicy No: ${auth.policy_number || "N/A"}\nAuth Code: ${auth.authorization_code || "N/A"}\nHospital: ${auth.claiming_hospital_name || auth.hospital_name || "N/A"}\nDiagnosis: ${auth.diagnosis || "Not specified"}\n\nApproved Services:\n${approved}${declined ? `\n\nNot Approved:\n${declined}` : ""}\n\nDate: ${date}\n\n${isPartial ? "Please proceed only with the approved services listed above. Do not receive declined services under this authorization." : "Please contact your hospital or Ronsberger HMO if you have any questions."}\n\nRonsberger HMO`;
-}
-
-// ── Deterministic provider information lookup (get_provider_information) ─────
-// Searches the HMO provider directory (hospitals table) by name or state.
-// Returns only public directory fields — never UUIDs or internal codes.
-async function getProviderInformation(
-  supabase: ReturnType<typeof getServiceClient>,
-  searchTerm: string,
-  messageId: string,
-) {
-  const term = String(searchTerm || "").trim();
-  if (!term) return [];
-  let query = supabase
-    .from("hospitals")
-    .select("name, state, phone, address")
-    .eq("is_active", true)
-    .order("name", { ascending: true })
-    .limit(6);
-  if (term) {
-    const pattern = quotePostgrestFilterValue(`%${term.slice(0, 120)}%`);
-    query = query.or(`name.ilike.${pattern},state.ilike.${pattern}`);
-  }
-  const { data, error } = await query;
-  if (error) {
-    log("provider_lookup", messageId, "error", { error: error.message });
-    return null;
-  }
-  return data || [];
-}
-
 async function processMessageBody(
   supabase: ReturnType<typeof getServiceClient>,
   row: {
@@ -1031,7 +342,7 @@ async function processMessageBody(
       fastCancel =
         /^(cancel|cancel request|stop|start over|reset|nevermind)\.?$/i,
       // The webhook stores media captions in message_body with a non-"text"
-      // message_type (e.g. "image"). Any real text — including captions —
+      // message_type (e.g. "image"). Any real text â€” including captions â€”
       // must be interpreted; only bare placeholders are skipped.
       placeholderOnly =
         /^\s*\[(?:image|audio|video|document|location|sticker)\]\s*$/i;
@@ -1107,7 +418,7 @@ async function processMessageBody(
         active_intent: "INCOMPLETE_AUTHORIZATION",
       });
       finalReply =
-        "I have not created an authorization request because the diagnosis or requested care is uncertain or lists alternatives. Please resend the request with one confirmed diagnosis and the exact treatment, procedures, investigations, and quantities. If these details are not confirmed, please have the clinical team clarify them first.\n\n— Ronsberger HMO";
+        "I have not created an authorization request because the diagnosis or requested care is uncertain or lists alternatives. Please resend the request with one confirmed diagnosis and the exact treatment, procedures, investigations, and quantities. If these details are not confirmed, please have the clinical team clarify them first.\n\nâ€” Ronsberger HMO";
       priority = Math.max(priority, 3);
       continue;
     }
@@ -1121,7 +432,7 @@ async function processMessageBody(
         active_authorization_id: null,
       });
       finalReply =
-        "Your pending authorization draft has been cancelled. How else can I assist you? — Ronsberger HMO";
+        "Your pending authorization draft has been cancelled. How else can I assist you? â€” Ronsberger HMO";
       priority = 4;
       continue;
     }
@@ -1135,7 +446,7 @@ async function processMessageBody(
         (!rawFields.procedure || !rawFields.investigation || !rawFields.requestedService));
     if (phoneOnlyFollowup) {
       finalReply =
-        "Please resend the complete authorization request, including the patient name, NHIA / policy number, diagnosis, requested service, and patient phone number. This is required to safely match the information to the correct request.\n\n— Ronsberger HMO";
+        "Please resend the complete authorization request, including the patient name, NHIA / policy number, diagnosis, requested service, and patient phone number. This is required to safely match the information to the correct request.\n\nâ€” Ronsberger HMO";
       priority = Math.max(priority, 3);
       continue;
     }
@@ -1146,11 +457,11 @@ async function processMessageBody(
       !rawFields.policyNumber
     ) {
       finalReply =
-        "To avoid mixing patient records, please resend the complete authorization request with the patient name, NHIA / policy number, diagnosis, requested service, and patient phone number.\n\n— Ronsberger HMO";
+        "To avoid mixing patient records, please resend the complete authorization request with the patient name, NHIA / policy number, diagnosis, requested service, and patient phone number.\n\nâ€” Ronsberger HMO";
       priority = Math.max(priority, 3);
       continue;
     }
-    // ── PROVIDER QUERIES (deterministic directory lookup) ────────────────────
+    // â”€â”€ PROVIDER QUERIES (deterministic directory lookup) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // Phase 9: understand natural provider questions; look up the provider
     // directory when the message names a service/location, otherwise ask the
     // minimum useful clarification. Never fabricate provider data.
@@ -1174,15 +485,15 @@ async function processMessageBody(
           .slice(0, 5)
           .map(
             (p: any) =>
-              `• ${p.name}${p.state ? ` — ${p.state}` : ""}${p.phone ? ` — ${p.phone}` : ""}`,
+              `â€¢ ${p.name}${p.state ? ` â€” ${p.state}` : ""}${p.phone ? ` â€” ${p.phone}` : ""}`,
           )
           .join("\n");
-        providerReply = `Here are Ronsberger HMO providers matching "${term}":\n\n${list}\n\nPlease contact the facility to confirm availability before visiting.\n\n— Ronsberger HMO`;
+        providerReply = `Here are Ronsberger HMO providers matching "${term}":\n\n${list}\n\nPlease contact the facility to confirm availability before visiting.\n\nâ€” Ronsberger HMO`;
       } else if (term) {
-        providerReply = `I could not find a Ronsberger HMO provider matching "${term}" in our directory. Please tell me the type of service or another location and I will check again.\n\n— Ronsberger HMO`;
+        providerReply = `I could not find a Ronsberger HMO provider matching "${term}" in our directory. Please tell me the type of service or another location and I will check again.\n\nâ€” Ronsberger HMO`;
       } else {
         providerReply =
-          "Sure — I can look up Ronsberger HMO providers for you. Please tell me the type of service you need and/or your location (for example: 'hospitals in Ibadan').\n\n— Ronsberger HMO";
+          "Sure â€” I can look up Ronsberger HMO providers for you. Please tell me the type of service you need and/or your location (for example: 'hospitals in Ibadan').\n\nâ€” Ronsberger HMO";
       }
       if (priority < 1) {
         finalReply = providerReply;
@@ -1206,18 +517,18 @@ async function processMessageBody(
           "Hello! Welcome to Ronsberger HMO Provider Authorization Portal.\n\nHow can I assist your hospital today? You can submit a patient authorization request or check request status anytime.";
       else if (intent === "HELP")
         reply =
-          "Welcome to Ronsberger HMO Authorization Assistant.\n\n• To submit an authorization: Send patient details (Name, NHIA/Policy No, Diagnosis, Treatment/Procedures, Hospital).\n• To check status: Ask 'What is the status of [Patient Name]?'\n• For providers: Ask e.g. 'Which hospitals can I use in Ibadan?'\n\n— Ronsberger HMO";
+          "Welcome to Ronsberger HMO Authorization Assistant.\n\nâ€¢ To submit an authorization: Send patient details (Name, NHIA/Policy No, Diagnosis, Treatment/Procedures, Hospital).\nâ€¢ To check status: Ask 'What is the status of [Patient Name]?'\nâ€¢ For providers: Ask e.g. 'Which hospitals can I use in Ibadan?'\n\nâ€” Ronsberger HMO";
       else if (
         intent === "GENERAL_CONVERSATION" &&
         analysis.conversationalReply?.trim()
       )
-        reply = `${analysis.conversationalReply.trim()}\n\n— Ronsberger HMO`;
+        reply = `${analysis.conversationalReply.trim()}\n\nâ€” Ronsberger HMO`;
       else if (intent === "NON_TEXT_MESSAGE")
         reply =
-          "I can currently process medical authorization details sent as text. Please send the patient information as a text message.\n\n— Ronsberger HMO";
+          "I can currently process medical authorization details sent as text. Please send the patient information as a text message.\n\nâ€” Ronsberger HMO";
       else
         reply =
-          "Please send the patient details in this standard authorization format:\n\nFull Name\nNHIS/Policy number\nSex\nDate of birth\nPhone number\nConsultation\nDiagnosis\nProcedures/Treatment\nReferred to\nFrom University Health Service\n\nExample:\nFull Name: Jane Doe\nNHIS No: 1234567\nSex: Female\nDate of birth: 01 Jan 1990\nPhone no: +2348012345678\nConsultation: Initial consultation\nDiagnosis: Hypertension\nProcedures: Specialist Initial Consultation, Blood Pressure Review\nReferred to: UCH\nFrom University Health Service\n\n— Ronsberger HMO";
+          "Please send the patient details in this standard authorization format:\n\nFull Name\nNHIS/Policy number\nSex\nDate of birth\nPhone number\nConsultation\nDiagnosis\nProcedures/Treatment\nReferred to\nFrom University Health Service\n\nExample:\nFull Name: Jane Doe\nNHIS No: 1234567\nSex: Female\nDate of birth: 01 Jan 1990\nPhone no: +2348012345678\nConsultation: Initial consultation\nDiagnosis: Hypertension\nProcedures: Specialist Initial Consultation, Blood Pressure Review\nReferred to: UCH\nFrom University Health Service\n\nâ€” Ronsberger HMO";
       if (priority < 1) {
         finalReply = reply;
         priority = 1;
@@ -1257,18 +568,18 @@ async function processMessageBody(
           .slice(0, 5)
           .map(
             (r: any) =>
-              `• ${r.patient_name} — ${(r.status || "pending").toUpperCase()}`,
+              `â€¢ ${r.patient_name} â€” ${(r.status || "pending").toUpperCase()}`,
           )
           .join("\n");
-        finalReply = `I found more than one authorization request from this number. Please provide the patient's full name or NHIA/NHIS number so I can check the correct one.\n\n${list}\n\n— Ronsberger HMO`;
+        finalReply = `I found more than one authorization request from this number. Please provide the patient's full name or NHIA/NHIS number so I can check the correct one.\n\n${list}\n\nâ€” Ronsberger HMO`;
         priority = Math.max(priority, 2);
         continue;
       }
       if (!candidates.length) {
         finalReply =
           !name && !policy
-            ? "I can check the status for you. Please provide the patient's name or NHIA/NHIS number so I can identify the request.\n\n— Ronsberger HMO"
-            : "I could not find an authorization request matching that patient or number from this WhatsApp number. Please check the name or NHIA/NHIS number and try again.\n\n— Ronsberger HMO";
+            ? "I can check the status for you. Please provide the patient's name or NHIA/NHIS number so I can identify the request.\n\nâ€” Ronsberger HMO"
+            : "I could not find an authorization request matching that patient or number from this WhatsApp number. Please check the name or NHIA/NHIS number and try again.\n\nâ€” Ronsberger HMO";
         priority = Math.max(priority, 2);
         continue;
       }
@@ -1284,7 +595,7 @@ async function processMessageBody(
       const status = String(r.status || "pending").toLowerCase();
       let reply = "";
       if (intent === "AUTHORIZATION_DETAILS")
-        reply = `Authorization Details\n\nPatient: ${r.patient_name}\nNHIA/NHIS: ${r.policy_number || "Not specified"}\nDiagnosis: ${r.diagnosis || "Not specified"}\nTreatment/Services: ${r.treatment || "Not specified"}\nHospital: ${r.hospital_name || "Not specified"}\nStatus: ${status.toUpperCase()}\n\n— Ronsberger HMO`;
+        reply = `Authorization Details\n\nPatient: ${r.patient_name}\nNHIA/NHIS: ${r.policy_number || "Not specified"}\nDiagnosis: ${r.diagnosis || "Not specified"}\nTreatment/Services: ${r.treatment || "Not specified"}\nHospital: ${r.hospital_name || "Not specified"}\nStatus: ${status.toUpperCase()}\n\nâ€” Ronsberger HMO`;
       else if (status === "approved" || status === "referral_approved")
         reply = formatDetailedDecisionMessage(r, "approved");
       else if (status === "partially_approved")
@@ -1370,7 +681,7 @@ async function processMessageBody(
           }, processingMode),
           active_intent: "INCOMPLETE_AUTHORIZATION",
         });
-        finalReply = `I have started your authorization request${patientName ? ` for ${patientName}` : ""}, but I still need:\n\n${missing.map((x) => `• ${x}`).join("\n")}\n\nPlease resend the full authorization request, including the missing details above, so we can complete it.\n\n— Ronsberger HMO`;
+        finalReply = `I have started your authorization request${patientName ? ` for ${patientName}` : ""}, but I still need:\n\n${missing.map((x) => `â€¢ ${x}`).join("\n")}\n\nPlease resend the full authorization request, including the missing details above, so we can complete it.\n\nâ€” Ronsberger HMO`;
         patientReplies.push(finalReply);
         priority = Math.max(priority, 3);
         continue;
@@ -1409,7 +720,7 @@ async function processMessageBody(
         );
       });
       if (sameClinicalRequest) {
-        finalReply = `This looks like a duplicate authorization for ${patientName}.\n\nWe have not created a second active authorization for the same patient and policy in the recent period.\n\nIf this is a different diagnosis or treatment, please send the updated clinical details and we will queue it as a new request for review.\n\n— Ronsberger HMO`;
+        finalReply = `This looks like a duplicate authorization for ${patientName}.\n\nWe have not created a second active authorization for the same patient and policy in the recent period.\n\nIf this is a different diagnosis or treatment, please send the updated clinical details and we will queue it as a new request for review.\n\nâ€” Ronsberger HMO`;
         patientReplies.push(finalReply);
         await updateConversation(supabase, row.phone_number, {
           pending_data: {},
@@ -1448,12 +759,12 @@ async function processMessageBody(
           active_intent: "COMPLETED",
         });
         finalReply =
-          `⚠️ Request Not Submitted\n\n` +
+          `âš ï¸ Request Not Submitted\n\n` +
           `The patient phone number provided has already been registered for a different family policy and therefore cannot be used for two different family policies.\n\n` +
           `Please check the patient's details and resubmit the request using the correct patient phone number.\n\n` +
           `If the patient does not have access to that number, please provide another valid phone number belonging to the patient or the patient's family.\n\n` +
           `If you believe the number has been incorrectly associated with another family, please contact Ronsberger HMO support for assistance.\n\n` +
-          `No authorization request has been created.\n\n— Ronsberger HMO`;
+          `No authorization request has been created.\n\nâ€” Ronsberger HMO`;
         patientReplies.push(finalReply);
         priority = Math.max(priority, 3);
         continue;
@@ -1475,10 +786,10 @@ async function processMessageBody(
           active_intent: "INCOMPLETE_AUTHORIZATION",
         });
         finalReply =
-          `⚠️ NHIS/POLICY MATCH FAILED\n\n` +
+          `âš ï¸ NHIS/POLICY MATCH FAILED\n\n` +
           `The policy number belongs to the same family group, but the patient name supplied does not match the registered NHIS beneficiary record.\n\n` +
           `Please resend the exact patient name as it appears on the NHIS record, or confirm the correct policy number before submitting again.\n\n` +
-          `No authorization request has been created.\n\n— Ronsberger HMO`;
+          `No authorization request has been created.\n\nâ€” Ronsberger HMO`;
         patientReplies.push(finalReply);
         priority = Math.max(priority, 3);
         continue;
@@ -1500,9 +811,9 @@ async function processMessageBody(
           active_intent: "INCOMPLETE_AUTHORIZATION",
         });
         finalReply =
-          `⚠️ BENEFICIARY DETAILS CONFLICT\n\n` +
+          `âš ï¸ BENEFICIARY DETAILS CONFLICT\n\n` +
           `The beneficiary number does not match the patient name or family policy in the NHIS record. Please verify the member number and full name before resubmitting.\n\n` +
-          `No authorization request has been created.\n\n— Ronsberger HMO`;
+          `No authorization request has been created.\n\nâ€” Ronsberger HMO`;
         patientReplies.push(finalReply);
         priority = Math.max(priority, 3);
         continue;
@@ -1524,10 +835,10 @@ async function processMessageBody(
           active_intent: "INCOMPLETE_AUTHORIZATION",
         });
         finalReply =
-          `⚠️ NHIS MATCH IS AMBIGUOUS\n\n` +
+          `âš ï¸ NHIS MATCH IS AMBIGUOUS\n\n` +
           `The policy number and patient name could match more than one beneficiary in the NHIS record.\n\n` +
           `Please send the exact full patient name and confirm the correct family policy before trying again.\n\n` +
-          `No authorization request has been created.\n\n— Ronsberger HMO`;
+          `No authorization request has been created.\n\nâ€” Ronsberger HMO`;
         patientReplies.push(finalReply);
         priority = Math.max(priority, 3);
         continue;
@@ -1581,8 +892,8 @@ async function processMessageBody(
         active_authorization_id: result.id,
       });
       finalReply = relatedRequestId
-        ? `Your updated medical authorization request for ${patientName} has been queued for review as a related request/revision.\n\nA prior authorization already exists for this patient and policy, and this new submission has been flagged for review instead of being silently merged.\n\nOur team will review it and update you here once a decision is available.\n\n— Ronsberger HMO`
-        : `Your medical authorization request for ${patientName} has been received successfully.\n\nOur team will review it and update you here once a decision is available.\n\n— Ronsberger HMO`;
+        ? `Your updated medical authorization request for ${patientName} has been queued for review as a related request/revision.\n\nA prior authorization already exists for this patient and policy, and this new submission has been flagged for review instead of being silently merged.\n\nOur team will review it and update you here once a decision is available.\n\nâ€” Ronsberger HMO`
+        : `Your medical authorization request for ${patientName} has been received successfully.\n\nOur team will review it and update you here once a decision is available.\n\nâ€” Ronsberger HMO`;
       patientReplies.push(finalReply);
       priority = Math.max(priority, 3);
       log("authorization", messageId, "ok", { request_id: result.request_id });
@@ -1591,7 +902,7 @@ async function processMessageBody(
   if (finalReply) {
     const reply =
       blocks.length > 1 && patientReplies.length > 1
-        ? patientReplies.join("\n\n────────────────\n\n")
+        ? patientReplies.join("\n\nâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€\n\n")
         : finalReply;
     await sendOutboundReply(
       supabase,
@@ -1742,7 +1053,7 @@ async function processOne(
         authorization_status: latestAuthorization.status || "unknown",
       });
       const replayReply =
-        "An authorization request is already linked to this WhatsApp message. No duplicate request was created. Our team will send the decision update in this chat.\n\n— Ronsberger HMO";
+        "An authorization request is already linked to this WhatsApp message. No duplicate request was created. Our team will send the decision update in this chat.\n\nâ€” Ronsberger HMO";
       const outbound = await sendOutboundReply(
         supabase,
         row.phone_number,
@@ -1809,7 +1120,7 @@ async function processOne(
       ));
       if (canSendHoldNotice) {
         const holdNotice =
-          "We could not safely process this older authorization message automatically. No new authorization request was created. If the request is still needed, please resend it as a new message.\n\n— Ronsberger HMO";
+          "We could not safely process this older authorization message automatically. No new authorization request was created. If the request is still needed, please resend it as a new message.\n\nâ€” Ronsberger HMO";
         const outbound = await sendOutboundReply(
           supabase,
           row.phone_number,
@@ -1871,268 +1182,6 @@ async function processOne(
 
   return {};
 }
-async function processNotifications(
-  supabase: ReturnType<typeof getServiceClient>,
-  authorizationRequestId?: string,
-): Promise<WorkerRetryResult> {
-  let retryAfterMs = 0;
-  const recoveryCheckAt = new Date().toISOString();
-  let notificationQuery = supabase
-    .from("whatsapp_notifications")
-    .select("*")
-    .or(
-      `and(status.in.(queued_v2,retry_v2),or(attempts.lt.${MAX_ATTEMPTS},attempts.is.null)),` +
-        `and(status.eq.processing_v2,or(processing_lease_expires_at.is.null,processing_lease_expires_at.lt.${recoveryCheckAt}))`,
-    )
-    .order("created_at", { ascending: true })
-    .limit(WORKER_BATCH);
-  if (authorizationRequestId) {
-    notificationQuery = notificationQuery.eq("authorization_request_id", authorizationRequestId);
-  }
-  const { data: notes, error: notesError } = await notificationQuery;
-  if (notesError) {
-    throw new Error(`decision_outbox_select_failed: ${notesError.message}`);
-  }
-
-  for (const candidate of notes || []) {
-    if (
-      candidate.status === "processing_v2" &&
-      Number(candidate.attempts || 0) >= MAX_ATTEMPTS
-    ) {
-      const { error: terminalizeError } = await supabase
-        .from("whatsapp_notifications")
-        .update({
-          status: "failed_v2",
-          last_error: "Worker attempt limit reached after an expired processing lease.",
-          processing_lease_owner: null,
-          processing_lease_expires_at: null,
-        })
-        .eq("id", candidate.id)
-        .eq("status", "processing_v2")
-        .gte("attempts", MAX_ATTEMPTS)
-        .or(
-          `processing_lease_expires_at.is.null,processing_lease_expires_at.lt.${recoveryCheckAt}`,
-        );
-      if (terminalizeError) throw terminalizeError;
-      continue;
-    }
-
-    const leaseOwner = `decision-${crypto.randomUUID()}`;
-    const { data: claimedRows, error: claimError } = await supabase.rpc(
-      "claim_whatsapp_decision_notification",
-      {
-        p_notification_id: candidate.id,
-        p_lease_owner: leaseOwner,
-        p_lease_seconds: 180,
-      },
-    );
-    if (claimError) {
-      log("decision_notification_claim", String(candidate.id), "error", {
-        error: claimError.message,
-      });
-      throw claimError;
-    }
-    const note = Array.isArray(claimedRows) ? claimedRows[0] : claimedRows;
-    if (!note) continue;
-
-    try {
-      const { data: auth, error: authError } = await supabase
-        .from("authorization_requests")
-        .select("id,patient_name,patient_phone,policy_number,authorization_code,hospital_name,claiming_hospital_name,requesting_hospital_id,hospital_id,diagnosis,status,decision_reason,approved_items,treatment,decided_at")
-        .eq("id", note.authorization_request_id)
-        .maybeSingle();
-      if (authError) throw authError;
-      if (!auth) {
-        await supabase
-          .from("whatsapp_notifications")
-          .update({
-            status: "superseded",
-            last_error: "Authorization request no longer exists.",
-            processing_lease_owner: null,
-            processing_lease_expires_at: null,
-          })
-          .eq("id", note.id)
-          .eq("processing_lease_owner", leaseOwner);
-        continue;
-      }
-
-      const expectedStatus =
-        note.notification_type === "APPROVAL"
-          ? ["approved", "referral_approved"]
-          : note.notification_type === "PARTIAL_APPROVAL"
-            ? ["partially_approved"]
-            : note.notification_type === "REJECTION"
-              ? ["rejected"]
-              : [];
-      const sameDecision = !note.decision_at ||
-        Date.parse(String(note.decision_at)) === Date.parse(String(auth.decided_at || ""));
-      if (!sameDecision || !expectedStatus.includes(String(auth.status || "").toLowerCase())) {
-        await supabase
-          .from("whatsapp_notifications")
-          .update({
-            status: "superseded",
-            last_error: `Superseded decision notification ignored (current status: ${auth.status}).`,
-            processing_lease_owner: null,
-            processing_lease_expires_at: null,
-          })
-          .eq("id", note.id)
-          .eq("processing_lease_owner", leaseOwner);
-        continue;
-      }
-
-      const decision = note.notification_type === "APPROVAL"
-        ? "approved"
-        : note.notification_type === "PARTIAL_APPROVAL"
-        ? "partially_approved"
-        : "rejected";
-      let recipient = normalizePhoneNumber(String(note.phone_number || ""));
-      if (note.recipient_type === "patient") {
-        recipient = normalizePhoneNumber(String(auth.patient_phone || recipient));
-        if (!recipient && auth.policy_number) {
-          const { data: patient, error: patientError } = await supabase
-            .from("patients")
-            .select("phone_number")
-            .eq("policy_number", auth.policy_number)
-            .maybeSingle();
-          if (patientError) throw patientError;
-          recipient = normalizePhoneNumber(String(patient?.phone_number || ""));
-        }
-      } else {
-        const { data: senderRows, error: senderError } = await supabase
-          .from("whatsapp_messages")
-          .select("phone_number")
-          .eq("authorization_request_id", auth.id)
-          .order("received_at", { ascending: true })
-          .limit(1);
-        if (senderError) throw senderError;
-        recipient = normalizePhoneNumber(String(senderRows?.[0]?.phone_number || recipient));
-
-        const hospitalId = auth.requesting_hospital_id || auth.hospital_id;
-        if (!recipient && hospitalId) {
-          const { data: contact, error: contactError } = await supabase
-            .from("hospital_whatsapp_contacts")
-            .select("phone_number")
-            .eq("hospital_id", hospitalId)
-            .eq("status", "active")
-            .order("updated_at", { ascending: false })
-            .limit(1)
-            .maybeSingle();
-          if (contactError) throw contactError;
-          recipient = normalizePhoneNumber(String(contact?.phone_number || ""));
-        }
-        if (!recipient && hospitalId) {
-          const { data: hospital, error: hospitalError } = await supabase
-            .from("hospitals")
-            .select("phone")
-            .eq("id", hospitalId)
-            .maybeSingle();
-          if (hospitalError) throw hospitalError;
-          recipient = normalizePhoneNumber(String(hospital?.phone || ""));
-        }
-
-        if (!recipient) {
-          const hospitalName = String(
-            auth.requesting_hospital_name || auth.hospital_name || auth.claiming_hospital_name || ""
-          ).trim();
-          if (hospitalName) {
-            const { data: matchedHosp } = await supabase
-              .from("hospitals")
-              .select("id, phone")
-              .ilike("name", hospitalName)
-              .maybeSingle();
-            if (matchedHosp?.id) {
-              const { data: contact } = await supabase
-                .from("hospital_whatsapp_contacts")
-                .select("phone_number")
-                .eq("hospital_id", matchedHosp.id)
-                .eq("status", "active")
-                .order("updated_at", { ascending: false })
-                .limit(1)
-                .maybeSingle();
-              recipient = normalizePhoneNumber(String(contact?.phone_number || matchedHosp.phone || ""));
-            } else if (matchedHosp?.phone) {
-              recipient = normalizePhoneNumber(String(matchedHosp.phone));
-            }
-          }
-        }
-      }
-
-      if (!recipient) {
-        await supabase
-          .from("whatsapp_notifications")
-          .update({
-            status: "failed_v2",
-            last_error: `No ${note.recipient_type} phone is available for this decision.`,
-            processing_lease_owner: null,
-            processing_lease_expires_at: null,
-          })
-          .eq("id", note.id)
-          .eq("processing_lease_owner", leaseOwner);
-        continue;
-      }
-
-      const body = note.recipient_type === "patient"
-        ? formatPatientDecisionMessage(auth, decision)
-        : formatDetailedDecisionMessage(auth, decision);
-      const notificationIdempotency = getDecisionNotificationIdempotency(
-        auth.id,
-        note.decision_at,
-        note.recipient_type,
-      );
-      const delivery = await sendOutboundReply(
-        supabase,
-        recipient,
-        body,
-        notificationIdempotency.messageId,
-        auth.id,
-        notificationIdempotency.operationKey,
-      );
-      const nextState = delivery.ambiguous ? "ambiguous_v2" : "sent_v2";
-      const { error: updateError } = await supabase
-        .from("whatsapp_notifications")
-        .update({
-          status: nextState,
-          sent_at: delivery.ambiguous ? null : new Date().toISOString(),
-          last_error: delivery.ambiguous
-            ? "Provider delivery is uncertain; automatic resend was stopped to prevent a duplicate. Reconcile before retrying."
-            : null,
-          processing_lease_owner: null,
-          processing_lease_expires_at: null,
-        })
-        .eq("id", note.id)
-        .eq("processing_lease_owner", leaseOwner);
-      if (updateError) throw updateError;
-    } catch (e) {
-      const attempts = Number(note.attempts || 0);
-      const classification = classifyRetryFailure(e);
-      const exhausted = attempts >= MAX_ATTEMPTS;
-      const { error: updateError } = await supabase
-        .from("whatsapp_notifications")
-        .update({
-          status: exhausted || classification.kind === "failed"
-            ? "failed_v2"
-            : "retry_v2",
-          last_error: ((e as Error).message || "Notification delivery failed.").slice(0, 500),
-          processing_lease_owner: null,
-          processing_lease_expires_at: null,
-        })
-        .eq("id", note.id)
-        .eq("processing_lease_owner", leaseOwner);
-      if (updateError) {
-        log("decision_notification_state", String(note.id), "error", {
-          error: updateError.message,
-        });
-        throw updateError;
-      }
-      if (!exhausted && classification.kind === "retry") {
-        retryAfterMs = Math.max(retryAfterMs, classification.delayMs);
-      }
-    }
-  }
-
-  return retryAfterMs > 0 ? { retryAfterMs } : {};
-}
-
 async function pollAndProcess(
   supabase: ReturnType<typeof getServiceClient>,
   processingMode: WorkerProcessingMode = AI_CAPABLE_WORKER_MODE,
