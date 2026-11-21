@@ -1,7 +1,11 @@
-import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
-import pdfWorkerUrl from "pdfjs-dist/legacy/build/pdf.worker.min.mjs?url";
-
-pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
+async function loadPdfjs() {
+  const [pdfjsLib, workerUrl] = await Promise.all([
+    import("pdfjs-dist/legacy/build/pdf.mjs"),
+    import("pdfjs-dist/legacy/build/pdf.worker.min.mjs?url"),
+  ]);
+  pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl.default;
+  return pdfjsLib;
+}
 
 // ---------------------------------------------------------------------------
 // Types
@@ -453,6 +457,7 @@ export async function extractNhisPdf(
   onProgress?: (progress: number) => void
 ) {
   const started = performance.now();
+  const pdfjsLib = await loadPdfjs();
   const bytes = await file.arrayBuffer();
   const pdf = await pdfjsLib.getDocument({ data: bytes }).promise;
 
