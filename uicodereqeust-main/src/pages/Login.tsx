@@ -5,15 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Shield, Eye, EyeOff, AlertTriangle, Mail, CheckCircle2 } from "lucide-react";
+import { Eye, EyeOff, AlertTriangle, Mail } from "lucide-react";
+import { MfaChallengeForm } from "@/components/auth/MfaChallengeForm";
+import { ForgotPasswordDialog } from "@/components/auth/ForgotPasswordDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { accessStatus } from "@/lib/user-helpers";
@@ -521,81 +515,29 @@ export default function Login() {
 
             {showMfa ? (
               /* ---- MFA screen ---- */
-              <form onSubmit={handleVerifyMfa} className="space-y-5">
-                <div className="rounded-xl bg-emerald-50/70 border border-emerald-200/80 p-3.5">
-                  <div className="flex items-center gap-2">
-                    <Shield className="h-4 w-4 text-[#0F6E56] shrink-0" />
-                    <span className="text-xs font-bold text-[#0F6E56]">
-                      Multi-Factor Authentication
-                    </span>
-                  </div>
-                  <p className="text-xs text-slate-600 mt-1 leading-relaxed">
-                    Enter the 6-digit verification code from your authenticator app to authorize this session.
-                  </p>
-                </div>
-
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="mfa-code" className="text-xs font-semibold text-slate-700">
-                      Authenticator Code
-                    </Label>
-                    <Badge variant="outline" className="text-[10px] font-mono text-[#0F6E56] border-emerald-200 bg-emerald-50">
-                      MFA Active
-                    </Badge>
-                  </div>
-                  <Input
-                    id="mfa-code"
-                    type="text"
-                    inputMode="numeric"
-                    autoComplete="one-time-code"
-                    maxLength={6}
-                    value={mfaCode}
-                    onChange={(e) => {
-                      setError("");
-                      setMfaCode(e.target.value.replace(/\D/g, ""));
-                    }}
-                    required
-                    placeholder="000000"
-                    className="h-12 rounded-xl text-center text-2xl font-mono tracking-[0.3em] font-bold border-slate-200 bg-slate-50/50 focus:bg-white focus:border-[#0F6E56] focus:ring-2 focus:ring-[#0F6E56]/15 transition-all"
-                  />
-                </div>
-
-                <div className="flex flex-col gap-2.5 pt-1">
-                  <Button
-                    type="submit"
-                    disabled={isLoading || mfaCode.length < 6}
-                    className="h-11 w-full rounded-xl bg-[#0F6E56] font-semibold text-white shadow-xs transition-colors hover:bg-[#0a5240] disabled:opacity-60"
-                  >
-                    {isLoading ? (
-                      <BrandSpinner className="h-4 w-4 animate-spin mx-auto" />
-                    ) : (
-                      "Verify Identity"
-                    )}
-                  </Button>
-                  
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    disabled={isLoading}
-                    onClick={async () => {
-                      setIsLoading(true);
-                      await supabase.auth.signOut({ scope: "local" });
-                      setShowMfa(false);
-                      setMfaCode("");
-                      setIsLoading(false);
-                    }}
-                    className="h-10 w-full rounded-xl text-xs font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors"
-                  >
-                    Cancel & Return to Login
-                  </Button>
-                </div>
-
+              <div className="space-y-4">
+                <MfaChallengeForm
+                  mfaCode={mfaCode}
+                  onCodeChange={(code) => {
+                    setError("");
+                    setMfaCode(code);
+                  }}
+                  onSubmit={handleVerifyMfa}
+                  isLoading={isLoading}
+                  onCancel={async () => {
+                    setIsLoading(true);
+                    await supabase.auth.signOut({ scope: "local" });
+                    setShowMfa(false);
+                    setMfaCode("");
+                    setIsLoading(false);
+                  }}
+                />
                 {error && (
                   <p className="text-center text-xs font-semibold text-rose-600 animate-in fade-in">
                     {error}
                   </p>
                 )}
-              </form>
+              </div>
             ) : (
               /* ---- Login screen ---- */
               <form onSubmit={handleSignIn} className="space-y-4">
@@ -719,86 +661,19 @@ export default function Login() {
       </div>
 
       {/* Forgot Password Dialog */}
-      <Dialog open={forgotOpen} onOpenChange={setForgotOpen}>
-        <DialogContent className="rounded-2xl max-w-[400px] p-6">
-          <DialogHeader>
-            <DialogTitle className="text-base font-bold text-slate-900">
-              Reset Your Password
-            </DialogTitle>
-            <DialogDescription className="text-xs text-slate-500">
-              Enter your registered email address and we will send you a secure password reset link.
-            </DialogDescription>
-          </DialogHeader>
-
-          {forgotSuccess ? (
-            <div className="py-4 text-center space-y-3">
-              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200">
-                <CheckCircle2 className="h-6 w-6" />
-              </div>
-              <h3 className="text-sm font-bold text-slate-900">Reset Link Sent</h3>
-              <p className="text-xs text-slate-600 leading-relaxed">
-                If an account exists for <strong className="text-slate-800">{forgotEmail}</strong>, you will receive an email shortly with instructions to reset your password.
-              </p>
-              <Button
-                type="button"
-                onClick={() => setForgotOpen(false)}
-                className="mt-2 h-10 w-full rounded-xl bg-[#0F6E56] hover:bg-[#0a5240] text-xs font-semibold text-white"
-              >
-                Back to Sign In
-              </Button>
-            </div>
-          ) : (
-            <form onSubmit={handleRequestReset} className="space-y-4 pt-2">
-              <div className="space-y-1.5">
-                <Label htmlFor="forgot-email" className="text-xs font-semibold text-slate-700">
-                  Email Address
-                </Label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                  <Input
-                    id="forgot-email"
-                    type="email"
-                    required
-                    value={forgotEmail}
-                    onChange={(e) => {
-                      setForgotEmail(e.target.value);
-                      setForgotError("");
-                    }}
-                    placeholder="name@hospital.com"
-                    className="h-10 pl-9 rounded-xl border-slate-200 text-xs focus:border-[#0F6E56] focus:ring-2 focus:ring-[#0F6E56]/15"
-                  />
-                </div>
-              </div>
-
-              {forgotError && (
-                <p className="text-xs font-medium text-rose-600">{forgotError}</p>
-              )}
-
-              <div className="flex gap-2 pt-1">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setForgotOpen(false)}
-                  className="h-10 flex-1 rounded-xl text-xs font-semibold text-slate-600 border-slate-200 hover:bg-slate-50"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={forgotLoading}
-                  className="h-10 flex-1 rounded-xl bg-[#0F6E56] hover:bg-[#0a5240] text-xs font-semibold text-white shadow-xs"
-                >
-                  {forgotLoading ? (
-                    <BrandSpinner className="h-4 w-4 animate-spin mx-auto" />
-                  ) : (
-                    "Send Reset Link"
-                  )}
-                </Button>
-              </div>
-            </form>
-          )}
-        </DialogContent>
-      </Dialog>
+      <ForgotPasswordDialog
+        open={forgotOpen}
+        onOpenChange={setForgotOpen}
+        email={forgotEmail}
+        onEmailChange={(val) => {
+          setForgotEmail(val);
+          setForgotError("");
+        }}
+        onSubmit={handleRequestReset}
+        loading={forgotLoading}
+        success={forgotSuccess}
+        error={forgotError}
+      />
     </main>
   );
 }
