@@ -39,6 +39,7 @@ supabase/.temp/
 *.xlsx
 *.pdf
 *.csv
+*.zip
 hmo_tariff_2025.*
 hospitals_master.*
 whatsapp_old_*
