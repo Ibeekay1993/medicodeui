@@ -215,14 +215,18 @@ export default function HospitalNewRequest() {
   const { data: patientData, isFetching: isPatientFetching } = useQuery({
     queryKey: ["patientSearch", debouncedPatientSearch],
     queryFn: async () => {
-      if (debouncedPatientSearch.length < 3) return [];
-      const { data } = await supabase.from("nhis_beneficiaries")
-        .select("full_name, policy_number, beneficiary_number")
-        .or(`policy_number.ilike.${safeIlikePattern(debouncedPatientSearch)},beneficiary_number.ilike.${safeIlikePattern(debouncedPatientSearch)},full_name.ilike.${safeIlikePattern(debouncedPatientSearch)}`)
-        .limit(8);
+      const term = debouncedPatientSearch.trim();
+      if (term.length < 3) return [];
+      const { data, error } = await supabase.rpc("search_nhis_beneficiaries" as any, {
+        p_query: term,
+      });
+      if (error) {
+        console.error("search_nhis_beneficiaries error:", error);
+        return [];
+      }
       return data || [];
     },
-    enabled: debouncedPatientSearch.length >= 3,
+    enabled: debouncedPatientSearch.trim().length >= 3,
   });
 
   useEffect(() => {
