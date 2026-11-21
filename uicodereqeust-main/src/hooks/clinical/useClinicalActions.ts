@@ -147,10 +147,12 @@ export function useClinicalActions({
       return;
     }
 
-    // Queue rows intentionally omit approved_items. Wait for the full request
-    // before initializing the cart or receipt so we never replace saved lines
-    // with the treatment-summary fallback.
-    if (!Object.prototype.hasOwnProperty.call(request, "approved_items")) return;
+    // Queue rows without approved_items wait for the full request before
+    // initializing the editable clinical cart for pending requests.
+    // For decided requests (approved/rejected), initialize immediately so the
+    // decision template renders without flashing the verification tab.
+    const isDecidedStatus = ["approved", "partially_approved", "rejected", "declined"].includes(request.status || "");
+    if (!isDecidedStatus && !Object.prototype.hasOwnProperty.call(request, "approved_items")) return;
 
     // Only run initial setup when opening a new request or re-opening modal
     if (lastRequestIdRef.current !== request.id) {

@@ -130,8 +130,8 @@ export default function RequestsPage() {
       const to = from + rowsPerPage;
       let q = supabase
         .from("authorization_requests")
-        // Only list fields are loaded here; request details load on demand in the modal.
-        .select("id,request_id,patient_name,policy_number,diagnosis,status,source,hospital_name,requesting_hospital_name,referred_hospital_name,authorization_code,urgency,created_at,updated_at,decided_at,treatment_submitted_at,approved_by,decided_by,nurse_initials,authorized_by_name,authorized_by_email,claiming_hospital_name,referring_hospital_name,is_historical,is_unlocked,deletion_status,hospital_id,requesting_hospital_id,referred_hospital_id,claiming_hospital_id")
+        // List fields include approved_items so modal displays decided/saved details immediately.
+        .select("id,request_id,patient_name,policy_number,diagnosis,status,source,hospital_name,requesting_hospital_name,referred_hospital_name,authorization_code,urgency,created_at,updated_at,decided_at,treatment_submitted_at,approved_by,decided_by,nurse_initials,authorized_by_name,authorized_by_email,claiming_hospital_name,referring_hospital_name,is_historical,is_unlocked,deletion_status,hospital_id,requesting_hospital_id,referred_hospital_id,claiming_hospital_id,approved_items")
         // created_at has a production index. Sorting all 75k+ requests by updated_at
         // caused PostgreSQL to choose a sequential scan and sort before applying LIMIT.
         .order("created_at", { ascending: false });

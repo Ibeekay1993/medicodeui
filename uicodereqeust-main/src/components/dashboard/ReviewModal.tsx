@@ -64,7 +64,9 @@ interface ReviewModalProps {
 export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: ReviewModalProps) {
   const { role } = useAuth();
   const [historyPage, setHistoryPage] = useState(1);
-  const [activeTab, setActiveTab] = useState("verification");
+  const isPending = ["pending", "pending_referral", "pending_authorization", "info_provided"].includes(request?.status || "");
+  const isDecided = !isPending;
+  const [activeTab, setActiveTab] = useState(() => (isDecided ? "clinical" : "verification"));
   const [showStickyName, setShowStickyName] = useState(false);
   const [isResending, setIsResending] = useState(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -76,8 +78,6 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
   const requestDetailsLoaded = Boolean(
     request && Object.prototype.hasOwnProperty.call(request, "approved_items")
   );
-  const isPending = ["pending", "pending_referral", "pending_authorization", "info_provided"].includes(request?.status || "");
-  const isDecided = !isPending;
   const isLocked = isDecided && !request?.is_unlocked;
   const isDeletionLocked = request?.deletion_status === "awaiting_admin_approval";
   const canManageClinicalCart = requestDetailsLoaded && role !== "hospital" && !isLocked && !isDeletionLocked;
@@ -299,7 +299,7 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
 
   useEffect(() => {
     if (!open || !request) return;
-    setActiveTab("verification");
+    setActiveTab(isDecided ? "clinical" : "verification");
     setHistoryPage(1);
     setShowStickyName(false);
 
@@ -309,7 +309,7 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
     resetScroll();
     const frame = requestAnimationFrame(resetScroll);
     return () => cancelAnimationFrame(frame);
-  }, [open, request?.id]);
+  }, [open, request?.id, isDecided]);
 
   // 3. Initialize manual/auto tariff search hook
   const tariffSearch = useTariffSearch(open, editTreatment, request, canManageClinicalCart && !isHospitalDirected);
