@@ -1,5 +1,5 @@
 import { BrandSpinner } from "@/components/BrandSpinner";
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -18,10 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { HospitalReferralField } from "@/components/HospitalReferralField";
 import { AlertTriangle, ChevronDown, ChevronUp, X, Copy, Send, Lock, Unlock, XCircle, CheckCircle2 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { areHospitalNamesMatching } from "@/lib/authorizations-helpers";
-import { writeClipboardText } from "@/lib/clipboard";
-import { getWhatsAppSendErrorMessage } from "@/lib/whatsappSendError";
 import {
   authorizationSlaColor,
   formatAuthorizationSla,
@@ -47,14 +44,13 @@ import { ArrivalPinBanner } from "./review/ArrivalPinBanner";
 import { usePrimaryHospitalLookup } from "@/hooks/clinical/usePrimaryHospitalLookup";
 import { useWhatsAppClinicalRecovery } from "@/hooks/clinical/useWhatsAppClinicalRecovery";
 import { usePatientArrivalPinResend } from "@/hooks/clinical/usePatientArrivalPinResend";
+import { useRequestingHospitalCode } from "@/hooks/clinical/useRequestingHospitalCode";
+import { useVisibleHistory, formatClinicalNotes } from "@/hooks/clinical/useVisibleHistory";
 
 // Utilities
 import {
   cleanPatientName,
   canDeleteRequestRecord,
-  recordMatchesHistory,
-  normalizePolicyNumber,
-  normalizePatientNameForMatch,
 } from "@/lib/clinicalUtils";
 
 interface ReviewModalProps {
@@ -85,78 +81,18 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
   const isDeletionLocked = request?.deletion_status === "awaiting_admin_approval";
   const canManageClinicalCart = requestDetailsLoaded && role !== "hospital" && !isLocked && !isDeletionLocked;
 
-  const formattedNotes = useMemo(() => {
-    const sourceNotes = request?.decision_reason || request?.clinical_notes;
-    if (!sourceNotes || typeof sourceNotes !== "string") return null;
-    const trimmed = sourceNotes.trim();
-    if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
-      try {
-        const parsed = JSON.parse(trimmed);
-        const parts: string[] = [];
-        if (parsed.review_decision || parsed.decision_reason) {
-          parts.push(parsed.review_decision || parsed.decision_reason);
-        }
-        if (parsed.patient_id_free_text) parts.push(`Patient ID: ${parsed.patient_id_free_text}`);
-        if (parsed.referral_to) parts.push(`Referral To: ${parsed.referral_to}`);
-        if (parsed.notes) parts.push(parsed.notes);
-        return parts.length > 0 ? parts.join(" • ") : null;
-      } catch {
-        return trimmed;
-      }
-    }
-    return trimmed;
-  }, [request?.clinical_notes, request?.decision_reason]);
+  const formattedNotes = formatClinicalNotes(request?.decision_reason || request?.clinical_notes);
 
   // 1b. Look up the patient's registered primary hospital from nhis_beneficiaries
   const { primaryHospital, loading: primaryHospitalLoading } = usePrimaryHospitalLookup(open, requestPolicyNumber);
 
   // 1c. Look up the requesting hospital's hcp_code from the hospitals table
-  const [requestingHospitalCode, setRequestingHospitalCode] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!open || !request) {
-      setRequestingHospitalCode(null);
-      return;
-    }
-    let cancelled = false;
-    
-    const fetchHcpCode = async () => {
-      // First try to look up by ID
-      const hospitalId = request.requesting_hospital_id || request.hospital_id;
-      if (hospitalId) {
-        const { data } = await supabase.from("hospitals").select("code").eq("id", hospitalId).maybeSingle();
-        if (!cancelled && data?.code) {
-          setRequestingHospitalCode(data.code);
-          return;
-        }
-      }
-
-      const hospitalName = request.hospital_name || request.requesting_hospital_name;
-
-      // If the requesting hospital matches the patient's registered primary hospital, link the HCP code directly
-      if (primaryHospital?.hcp_code && areHospitalNamesMatching(hospitalName, primaryHospital.hcp_name)) {
-        if (!cancelled) {
-          setRequestingHospitalCode(primaryHospital.hcp_code);
-          return;
-        }
-      }
-
-      // If no ID or code not found, try looking up in hospitals table
-      if (hospitalName) {
-        const { data } = await supabase.from("hospitals").select("code, name").limit(100);
-        if (!cancelled && data && data.length > 0) {
-          const match = data.find((h: any) => areHospitalNamesMatching(h.name, hospitalName));
-          if (match?.code) {
-            setRequestingHospitalCode(match.code);
-            return;
-          }
-        }
-      }
-    };
-
-    fetchHcpCode();
-    return () => { cancelled = true; };
-  }, [open, request, primaryHospital?.hcp_code, primaryHospital?.hcp_name]);
+  const requestingHospitalCode = useRequestingHospitalCode({
+    open,
+    request,
+    primaryHospitalHcpCode: primaryHospital?.hcp_code,
+    primaryHospitalHcpName: primaryHospital?.hcp_name,
+  });
 
   // Normalise both hospital names to detect a mismatch
   const requestingHospitalName = String(request?.hospital_name || request?.requesting_hospital_name || "").trim();
@@ -254,51 +190,11 @@ export function ReviewModal({ request, open, onClose, onUpdated, otpValue }: Rev
   const verification = useClinicalVerification(open, request);
 
   // 5. Build combined history records
-  const targetPolicy = useMemo(() => normalizePolicyNumber(request?.policy_number), [request]);
-  
-  const visibleHistory = useMemo(() => {
-    const getRecordTime = (r: any) => {
-      const d = r.date || r.decided_at || r.created_at;
-      return d ? new Date(d).getTime() : 0;
-    };
-
-    const combined = [...verification.sheetHistory, ...verification.localHistory].filter((record) => {
-      if (recordMatchesHistory(record, targetPolicy)) return true;
-      if (request?.patient_name && (record?.patient_name || record?.name)) {
-        const reqName = normalizePatientNameForMatch(request.patient_name);
-        const recName = normalizePatientNameForMatch(record.patient_name || record.name);
-        if (reqName && recName && (reqName === recName || reqName.includes(recName) || recName.includes(reqName))) return true;
-      }
-      return false;
-    });
-
-    // Robust deduplication: ensure no record with the same auth code or ID is shown twice
-    const seen = new Set<string>();
-    const deduped: any[] = [];
-
-    for (const record of combined) {
-      const authCode = String(record?.authorization_code || "").trim().toUpperCase();
-      const id = String(record?.id || "").trim();
-      const requestId = String(record?.request_id || "").trim();
-
-      // Primary key is the official authorization code; secondary is id/request_id
-      const primaryKey = authCode && !["-", "PENDING", "NONE", "NULL"].includes(authCode)
-        ? `code:${authCode}`
-        : id
-        ? `id:${id}`
-        : requestId
-        ? `req:${requestId}`
-        : `${record?.patient_name || ""}|${record?.date || record?.created_at || ""}|${record?.diagnosis || ""}`;
-
-      if (seen.has(primaryKey)) continue;
-      seen.add(primaryKey);
-      deduped.push(record);
-    }
-
-    // Sort newest first
-    deduped.sort((a, b) => getRecordTime(b) - getRecordTime(a));
-    return deduped;
-  }, [verification.sheetHistory, verification.localHistory, targetPolicy]);
+  const { visibleHistory } = useVisibleHistory(
+    request,
+    verification.sheetHistory,
+    verification.localHistory
+  );
 
   const allowDelete = canDeleteRequestRecord(request);
   const authorizationSlaMinutes = request && (isPending || request.decided_at)
